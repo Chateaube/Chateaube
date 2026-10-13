@@ -33,16 +33,46 @@ INSERT INTO period (year_id, rank, starts_on, ends_on)
 SELECT id, r, s::date, e::date FROM academic_year,
   (VALUES (1, '2026-09-01', '2026-12-18'), (2, '2027-01-04', '2027-03-26'), (3, '2027-03-29', '2027-07-04')) v(r, s, e);
 
--- Calendrier de relance d'écolage
+-- Mois de relance : tous actifs sauf octobre (mois gelé : droits d'examen)
 INSERT INTO dunning_month (year_id, month, is_active, skip_reason)
-SELECT y.id, m, m IN (9, 11, 12, 2, 4, 5, 6),
-       CASE WHEN m = 10 THEN 'Encaissement des droits d''examen'
-            WHEN m NOT IN (9, 11, 12, 2, 4, 5, 6) THEN 'Hors cycle de relance' END
+SELECT y.id, m, m <> 10, CASE WHEN m = 10 THEN 'Encaissement des droits d''examen' END
 FROM academic_year y, generate_series(1, 12) m;
 
--- Mai = dernier mois d'écolage payable pour les 1re et Tle de Tamatave (départ à Tana)
-INSERT INTO tuition_cutoff_rule (year_id, site_id, level_code, last_payable_month)
-SELECT y.id, s.id, l, 5 FROM academic_year y, site s, unnest(ARRAY['1RE', 'TLE']) l
+-- Politique de recouvrement — Tamatave (Tana : à paramétrer ultérieurement)
+-- Échéance le 5 ; relance J+5, avertissement J+10, mise à pied J+25 (jours comptés
+-- depuis l'échéance, du lundi au vendredi, hors fériés et vacances) ; mise à pied validée par la Direction.
+INSERT INTO dunning_policy (year_id, site_id)
+SELECT y.id, s.id FROM academic_year y, site s WHERE s.code = 'TMV';
+
+-- Plan d'écolage Tamatave : 6e → 2de sept.→juin (10 mois) ; 1re et Tle sept.→mai (9 mois)
+INSERT INTO tuition_cutoff_rule (year_id, site_id, level_code, first_payable_month, last_payable_month)
+SELECT y.id, s.id, l.code, 9, CASE WHEN l.code IN ('1RE', 'TLE') THEN 5 ELSE 6 END
+FROM academic_year y, site s, level l
+WHERE s.code = 'TMV' AND l.cycle IN ('COLLEGE', 'LYCEE');
+
+-- Jours fériés de Madagascar 2026-2027 (tous sites) — liste à vérifier chaque année
+INSERT INTO calendar_day_off (year_id, site_id, kind, label, days)
+SELECT y.id, NULL, 'FERIE', v.label, daterange(v.d::date, v.d::date, '[]')
+FROM academic_year y, (VALUES
+  ('2026-11-01', 'Toussaint'),
+  ('2026-12-25', 'Noël'),
+  ('2027-01-01', 'Jour de l''an'),
+  ('2027-03-08', 'Journée internationale des droits des femmes'),
+  ('2027-03-29', 'Commémoration des martyrs de 1947 / Lundi de Pâques'),
+  ('2027-05-01', 'Fête du Travail'),
+  ('2027-05-06', 'Ascension'),
+  ('2027-05-17', 'Lundi de Pentecôte'),
+  ('2027-06-26', 'Fête de l''Indépendance'),
+  ('2027-08-15', 'Assomption')) v(d, label);
+
+-- Vacances scolaires Tamatave — EXEMPLE, à remplacer par le calendrier officiel de l'établissement
+INSERT INTO calendar_day_off (year_id, site_id, kind, label, days)
+SELECT y.id, s.id, 'VACANCES', v.label, daterange(v.a::date, v.b::date, '[]')
+FROM academic_year y, site s, (VALUES
+  ('2026-10-24', '2026-11-01', 'Vacances de la Toussaint (exemple)'),
+  ('2026-12-19', '2027-01-03', 'Vacances de Noël (exemple)'),
+  ('2027-02-13', '2027-02-21', 'Vacances de février (exemple)'),
+  ('2027-04-10', '2027-04-25', 'Vacances de printemps (exemple)')) v(a, b, label)
 WHERE s.code = 'TMV';
 
 -- Plan de comptes : deux catégories étanches

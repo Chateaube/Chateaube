@@ -42,14 +42,14 @@ DO $$ BEGIN
     'T1: droits Direction divergents';
 END $$;
 
--- T2. Octobre est exclu du cycle de relance, novembre est actif ---------------
+-- T2. Octobre est exclu du cycle de relance, les autres mois sont actifs ------
 DO $$ DECLARE y uuid := (SELECT id FROM academic_year WHERE is_current); BEGIN
   ASSERT NOT is_dunning_month(y, '2026-10-15'), 'T2: octobre devrait être sauté';
   ASSERT is_dunning_month(y, '2026-11-15'),     'T2: novembre devrait être actif';
-  ASSERT NOT is_dunning_month(y, '2027-01-15'), 'T2: janvier hors cycle';
+  ASSERT is_dunning_month(y, '2027-01-15'),     'T2: janvier actif (relance tous les mois sauf octobre)';
 END $$;
 
--- T3. Écolage de juin non facturable pour une Tle de Tamatave (mai = dernier mois)
+-- T3. Écolage de juin non facturable pour une Tle de Tamatave (9 mois : sept.→mai)
 INSERT INTO invoice (number, enrollment_id, category, period_month, due_on, amount_mga)
 VALUES ('ECO-T3-MAI', '30000000-0000-0000-0000-000000000001', 'ECOLAGE', '2027-05-01', '2027-05-05', 450000);
 DO $$ BEGIN
@@ -165,5 +165,52 @@ DO $$ BEGIN
   END;
 END $$;
 
+-- T9. Délais de relance en jours comptés (lun→ven, hors fériés et vacances) ----
+DO $$ DECLARE
+  y uuid := (SELECT id FROM academic_year WHERE is_current);
+  s uuid := (SELECT id FROM site WHERE code = 'TMV');
+  r record;
+BEGIN
+  -- Échéance du 5 décembre : les vacances de Noël suspendent le décompte
+  SELECT * INTO r FROM dunning_schedule(y, s, '2026-12-05');
+  ASSERT r.relance_on    = '2026-12-11', 'T9: relance J+5 = ' || r.relance_on;
+  ASSERT r.warning_on    = '2026-12-18', 'T9: avertissement J+10 = ' || r.warning_on;
+  ASSERT r.suspension_on = '2027-01-22', 'T9: mise à pied J+25 = ' || r.suspension_on;
+  -- Échéance du 5 septembre : octobre est gelé, le décompte reprend en novembre
+  SELECT * INTO r FROM dunning_schedule(y, s, '2026-09-05');
+  ASSERT r.relance_on    = '2026-09-11', 'T9: sept. relance = ' || r.relance_on;
+  ASSERT r.suspension_on = '2026-11-10', 'T9: sept. mise à pied = ' || r.suspension_on;
+  -- Échéance d'octobre : première relance en novembre
+  SELECT * INTO r FROM dunning_schedule(y, s, '2026-10-05');
+  ASSERT r.relance_on    = '2026-11-06', 'T9: oct. relance = ' || r.relance_on;
+  ASSERT r.suspension_on = '2026-12-04', 'T9: oct. mise à pied = ' || r.suspension_on;
+END $$;
+
+-- T10. Paramètres modifiables sans recoder : délais comptés depuis l'étape précédente
+UPDATE dunning_policy SET count_from = 'ETAPE_PRECEDENTE';
+DO $$ DECLARE r record; BEGIN
+  SELECT * INTO r FROM dunning_schedule((SELECT id FROM academic_year WHERE is_current),
+                                        (SELECT id FROM site WHERE code = 'TMV'), '2026-12-05');
+  ASSERT r.relance_on    = '2026-12-11', 'T10: relance = ' || r.relance_on;
+  ASSERT r.warning_on    = '2027-01-08', 'T10: avertissement = ' || r.warning_on;
+  ASSERT r.suspension_on = '2027-02-12', 'T10: mise à pied = ' || r.suspension_on;
+END $$;
+UPDATE dunning_policy SET count_from = 'ECHEANCE';
+
+-- T11. Avancement d'un dossier : la mise à pied attend la validation Direction --
+INSERT INTO dunning_case (id, enrollment_id, opened_month, due_on, overdue_mga)
+VALUES ('a0000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001',
+        '2026-12-01', '2026-12-05', 450000);
+DO $$ DECLARE c uuid := 'a0000000-0000-0000-0000-000000000001'; BEGIN
+  ASSERT advance_dunning_case(c, NULL, '2026-12-15') = 'RELANCE',       'T11: relance';
+  ASSERT advance_dunning_case(c, NULL, '2026-12-21') = 'AVERTISSEMENT', 'T11: avertissement';
+  ASSERT advance_dunning_case(c, NULL, '2027-01-22') = 'AVERTISSEMENT', 'T11: attend la Direction';
+  ASSERT advance_dunning_case(c, '00000000-0000-0000-0000-000000000003', '2027-01-22') = 'AVERTISSEMENT',
+    'T11: un professeur ne peut pas valider';
+  ASSERT advance_dunning_case(c, '00000000-0000-0000-0000-000000000002', '2027-01-22') = 'MISE_A_PIED',
+    'T11: validée par la Directrice adjointe';
+  ASSERT (SELECT count(*) FROM dunning_event WHERE case_id = c) = 2, 'T11: transitions historisées';
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T8 passent'
+\echo 'OK — tous les scénarios T1 à T11 passent'

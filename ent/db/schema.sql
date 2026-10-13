@@ -25,7 +25,9 @@ CREATE TYPE assignment_reason AS ENUM ('INSCRIPTION', 'TRANSFERT_EXAMEN', 'DEMEN
 CREATE TYPE fee_category      AS ENUM ('ECOLAGE', 'DROITS_EXAMEN');
 CREATE TYPE invoice_status    AS ENUM ('BROUILLON', 'EMISE', 'PARTIELLE', 'PAYEE', 'ANNULEE');
 CREATE TYPE payment_method    AS ENUM ('ESPECES', 'VIREMENT', 'CHEQUE', 'MVOLA', 'ORANGE_MONEY', 'AIRTEL_MONEY');
-CREATE TYPE dunning_stage     AS ENUM ('RELANCE', 'AVERTISSEMENT_48H', 'MISE_A_PIED', 'REGULARISE', 'SUSPENDU');
+CREATE TYPE dunning_stage     AS ENUM ('RELANCE', 'AVERTISSEMENT', 'MISE_A_PIED', 'REGULARISE', 'SUSPENDU');
+CREATE TYPE day_off_kind      AS ENUM ('FERIE', 'VACANCES', 'FERMETURE');
+CREATE TYPE dunning_count_from AS ENUM ('ECHEANCE', 'ETAPE_PRECEDENTE');
 
 CREATE TYPE exam_code         AS ENUM ('DNB', 'PRE_BAC', 'BAC');
 CREATE TYPE exam_file_status  AS ENUM ('A_CONSTITUER', 'INCOMPLET', 'COMPLET', 'DEPOSE', 'VALIDE_ACADEMIE', 'REJETE');
@@ -268,8 +270,23 @@ CREATE TABLE fee_schedule (
   CHECK (category = 'DROITS_EXAMEN' OR retained_fee_mga = 0)
 );
 
--- Calendrier des mois de relance (paramétrable par année).
--- Seed : SEPT, NOV, DEC, FEV, AVR, MAI, JUIN actifs ; OCTOBRE sauté (droits d'examen).
+-- =====  PARAMÈTRES (modifiables par la Direction sans recoder)  =====
+
+-- Calendrier scolaire : jours fériés, vacances et fermetures exceptionnelles.
+-- site_id NULL = tous les sites (jours fériés nationaux).
+CREATE TABLE calendar_day_off (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  year_id       uuid NOT NULL REFERENCES academic_year(id),
+  site_id       uuid REFERENCES site(id),
+  kind          day_off_kind NOT NULL,
+  label         text NOT NULL,                 -- 'Vacances de Noël', 'Fête de l''Indépendance'
+  days          daterange NOT NULL,            -- bornes incluses : daterange(début, fin, '[]')
+  CHECK (NOT isempty(days))
+);
+CREATE INDEX calendar_day_off_days_idx ON calendar_day_off USING gist (days);
+
+-- Mois soumis aux relances d'écolage. Pendant un mois inactif, le décompte des
+-- délais est GELÉ (aucun jour ne compte). Seed : tous les mois actifs sauf octobre.
 CREATE TABLE dunning_month (
   year_id       uuid REFERENCES academic_year(id),
   month         smallint CHECK (month BETWEEN 1 AND 12),
@@ -279,12 +296,35 @@ CREATE TABLE dunning_month (
   CHECK (is_active OR skip_reason IS NOT NULL)
 );
 
--- Règle de verrouillage : dernier mois d'écolage payable par niveau et site.
--- Seed : 1RE et TLE de Tamatave → last_payable_month = 5 (mai), avant départ à Tana.
+-- Politique de recouvrement par année et par site.
+-- Délais exprimés en JOURS COMPTÉS : jours de la semaine retenus (counted_weekdays),
+-- hors jours fériés, vacances et mois gelés (calendar_day_off, dunning_month).
+CREATE TABLE dunning_policy (
+  year_id         uuid REFERENCES academic_year(id),
+  site_id         uuid REFERENCES site(id),
+  due_day         smallint NOT NULL DEFAULT 5 CHECK (due_day BETWEEN 1 AND 28), -- échéance le 5 du mois
+  relance_after   smallint NOT NULL DEFAULT 5  CHECK (relance_after > 0),
+  warning_after   smallint NOT NULL DEFAULT 10 CHECK (warning_after > 0),
+  suspension_after smallint NOT NULL DEFAULT 25 CHECK (suspension_after > 0),
+  count_from      dunning_count_from NOT NULL DEFAULT 'ECHEANCE', -- délais depuis l'échéance ou depuis l'étape précédente
+  counted_weekdays smallint[] NOT NULL DEFAULT '{1,2,3,4,5}',    -- 1 = lundi … 6 = samedi
+  suspension_requires_direction boolean NOT NULL DEFAULT true,     -- mise à pied validée par la Direction
+  channels        notif_channel[] NOT NULL DEFAULT '{SMS,EMAIL}',
+  updated_by      uuid REFERENCES app_user(id),
+  updated_at      timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (year_id, site_id),
+  CHECK (counted_weekdays <@ '{1,2,3,4,5,6,7}' AND cardinality(counted_weekdays) > 0),
+  CHECK (count_from = 'ETAPE_PRECEDENTE' OR (relance_after < warning_after AND warning_after < suspension_after))
+);
+
+-- Plan d'écolage par niveau : premier et dernier mois facturés.
+-- Seed Tamatave : 6e → 2de de septembre à juin (10 échéances) ;
+-- 1re et Tle de septembre à mai (9 échéances, départ à Tana).
 CREATE TABLE tuition_cutoff_rule (
   year_id       uuid REFERENCES academic_year(id),
   site_id       uuid REFERENCES site(id),
   level_code    text REFERENCES level(code),
+  first_payable_month smallint NOT NULL DEFAULT 9 CHECK (first_payable_month BETWEEN 1 AND 12),
   last_payable_month smallint NOT NULL CHECK (last_payable_month BETWEEN 1 AND 12),
   PRIMARY KEY (year_id, site_id, level_code)
 );
@@ -399,10 +439,10 @@ CREATE CONSTRAINT TRIGGER ledger_balance_check
 CREATE TABLE dunning_case (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   enrollment_id uuid NOT NULL REFERENCES enrollment(id),
-  opened_month  date NOT NULL,                 -- mois actif ayant déclenché le cycle
+  opened_month  date NOT NULL,                 -- mois de l'échéance impayée
+  due_on        date NOT NULL,                 -- date d'échéance (le 5 du mois) : point de départ des délais
   stage         dunning_stage NOT NULL DEFAULT 'RELANCE',
   overdue_mga   bigint NOT NULL CHECK (overdue_mga >= 0),
-  warning_deadline timestamptz,                -- fin du délai de 48 h
   suspension_validated_by uuid REFERENCES app_user(id), -- mise à pied = validation Direction
   closed_at     timestamptz,
   UNIQUE (enrollment_id, opened_month)

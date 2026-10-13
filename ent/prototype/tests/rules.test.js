@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { normalizeGrade } from '../src/rules/gradeInput.js';
 import { checkAppreciation, autoFix, decisionText } from '../src/rules/appreciation.js';
 import { validateSlot, findConflicts, suggestAlternatives } from '../src/rules/booking.js';
-import { isDunningMonth, splitExamFee, billableMonths } from '../src/rules/finance.js';
+import { splitExamFee, dunningStages } from '../src/rules/finance.js';
+import { dayStatus, dunningSchedule, stageOn, pausesBetween, planMonths, madagascarHolidays, easterSunday } from '../src/rules/calendar.js';
+import { DEFAULT_SETTINGS } from '../src/data/settings.js';
 import { generateDraft } from '../src/rules/assistant.js';
 
 const rules = (r) => r.errors.map((e) => e.rule);
@@ -138,10 +140,57 @@ test('alternatives : même site uniquement, créneaux libres', () => {
 });
 
 // --- Finances ----------------------------------------------------------------
-test('calendrier de relance : octobre sauté', () => {
-  assert.equal(isDunningMonth('2026-10-13'), false);
-  assert.equal(isDunningMonth('2026-11-02'), true);
-  assert.equal(isDunningMonth('2027-01-10'), false);
+const S = DEFAULT_SETTINGS;
+const withDunning = (patch) => ({ ...S, dunning: { ...S.dunning, ...patch } });
+
+test('jours comptés : week-end, férié, vacances, octobre gelé', () => {
+  assert.equal(dayStatus('2026-11-12', S).counted, true);           // jeudi ordinaire
+  assert.equal(dayStatus('2026-11-14', S).kind, 'WEEKEND');         // samedi
+  assert.equal(dayStatus('2027-03-08', S).kind, 'FERIE');
+  assert.equal(dayStatus('2026-12-25', S).kind, 'VACANCES');        // Noël pendant les vacances
+  assert.equal(dayStatus('2026-10-13', S).kind, 'GEL');             // octobre
+  assert.equal(dayStatus('2027-01-12', S).counted, true);           // janvier relancé désormais
+});
+
+// Mêmes cas que db/tests.sql (T9, T10) : l'interface et la base calculent les mêmes dates
+test('échéance du 5 décembre : les vacances de Noël suspendent le décompte', () => {
+  const sch = dunningSchedule('2026-12-05', S);
+  assert.deepEqual(sch, { due: '2026-12-05', relance: '2026-12-11', warning: '2026-12-18', suspension: '2027-01-22' });
+  assert.deepEqual(pausesBetween(sch.due, sch.suspension, S).map((p) => p.kind), ['VACANCES']);
+});
+
+test('échéance de septembre et d\'octobre : octobre gelé', () => {
+  const sept = dunningSchedule('2026-09-05', S);
+  assert.equal(sept.relance, '2026-09-11');
+  assert.equal(sept.suspension, '2026-11-10');
+  const oct = dunningSchedule('2026-10-05', S);
+  assert.equal(oct.relance, '2026-11-06');
+  assert.equal(oct.suspension, '2026-12-04');
+});
+
+test('paramètres : décompte depuis l\'étape précédente, samedi compté', () => {
+  assert.deepEqual(dunningSchedule('2026-12-05', withDunning({ countFrom: 'ETAPE_PRECEDENTE' })),
+    { due: '2026-12-05', relance: '2026-12-11', warning: '2027-01-08', suspension: '2027-02-12' });
+  assert.equal(dunningSchedule('2026-11-05', S).relance, '2026-11-12');
+  assert.equal(dunningSchedule('2026-11-05', withDunning({ countedWeekdays: [1, 2, 3, 4, 5, 6] })).relance, '2026-11-11');
+});
+
+test('étape d\'un dossier à une date donnée', () => {
+  const sch = dunningSchedule('2026-12-05', S);
+  assert.equal(stageOn('2026-12-08', sch, S), 'DANS_LES_DELAIS');
+  assert.equal(stageOn('2026-12-11', sch, S), 'RELANCE');
+  assert.equal(stageOn('2027-01-05', sch, S), 'AVERTISSEMENT');
+  assert.equal(stageOn('2027-01-22', sch, S), 'A_VALIDER');
+  assert.equal(stageOn('2027-01-22', sch, withDunning({ suspensionRequiresDirection: false })), 'MISE_A_PIED');
+  assert.match(dunningStages(S)[2].delay, /25 jours comptés après l'échéance — validation Direction/);
+});
+
+test('jours fériés de Madagascar générés automatiquement', () => {
+  assert.equal(easterSunday(2027), '2027-03-28');
+  const h = madagascarHolidays(2026);
+  assert.ok(h.some((d) => d.start === '2027-05-06' && d.label === 'Ascension'));
+  assert.ok(h.some((d) => d.start === '2027-03-29' && d.label.includes('Lundi de Pâques'))); // fusionné avec le 29 mars
+  assert.equal(new Set(h.map((d) => d.start)).size, h.length);
 });
 
 test('droits d\'examen : 40 000 Ar conservés', () => {
@@ -149,8 +198,9 @@ test('droits d\'examen : 40 000 Ar conservés', () => {
   assert.deepEqual(splitExamFee(30_000), { retained: 30_000, toRemit: 0 });
 });
 
-test('échéancier : mai = dernier mois pour 1re/Tle de Tamatave', () => {
-  assert.equal(billableMonths({ siteCode: 'TMV', levelCode: 'TLE' }).at(-1), 5);
-  assert.equal(billableMonths({ siteCode: 'TMV', levelCode: '3E' }).at(-1), 6);
-  assert.equal(billableMonths({ siteCode: 'TANA', levelCode: 'TLE' }).at(-1), 6);
+test('plans d\'écolage Tamatave : 9 mois pour 1re/Tle, 10 mois sinon', () => {
+  const [college, , premiere, terminale] = S.tuition.plans;
+  assert.equal(planMonths(premiere).length, 9);
+  assert.equal(planMonths(terminale).at(-1), 5);
+  assert.equal(planMonths(college).length, 10);
 });

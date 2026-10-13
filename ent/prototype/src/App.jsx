@@ -3,6 +3,8 @@ import { Icon } from './components/ui.jsx';
 import DirectionDashboard from './components/DirectionDashboard.jsx';
 import BookingModule from './components/BookingModule.jsx';
 import AppreciationModule from './components/AppreciationModule.jsx';
+import SettingsModule from './components/SettingsModule.jsx';
+import { DEFAULT_SETTINGS } from './data/settings.js';
 import { DIRECTION_ACCOUNTS } from './data/demo.js';
 
 // Arborescence du profil Direction (cf. docs/02-architecture-ux.md).
@@ -24,11 +26,27 @@ const NAV = [
     { id: 'notify', label: 'Notifications parents', icon: 'bell' },
   ] },
   { group: 'Administration', items: [
-    { id: 'settings', label: 'Paramètres & comptes', icon: 'settings' },
+    { id: 'settings', label: 'Paramètres', icon: 'settings', screen: SettingsModule },
   ] },
 ];
 
+const STORAGE_KEY = 'ent-chateaubriand-settings-v1';
+
+function loadSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (saved?.dunning && saved?.tuition && saved?.calendar) return { ...DEFAULT_SETTINGS, ...saved };
+  } catch { /* stockage indisponible : valeurs par défaut */ }
+  return DEFAULT_SETTINGS;
+}
+
 export default function App() {
+  const [settings, setSettingsState] = useState(loadSettings);
+  const setSettings = (next) => {
+    setSettingsState(next);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* navigation privée */ }
+  };
+
   const [screen, setScreen] = useState('dashboard');
   const [accountId, setAccountId] = useState('u1');
   const account = DIRECTION_ACCOUNTS.find((a) => a.id === accountId);
@@ -89,7 +107,7 @@ export default function App() {
       </aside>
 
       <main className="mx-auto w-full max-w-[1400px] px-4 py-6 lg:px-8">
-        <Current account={account} />
+        <Current account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} />
       </main>
     </div>
   );

@@ -5,7 +5,7 @@
 
 -- -----------------------------------------------------------------------------
 -- Calendrier de relance : le mois est-il actif pour le cycle d'écolage ?
--- Octobre est seedé inactif (« Encaissement des droits d'examen »).
+-- Seed : tous les mois actifs sauf octobre (« Encaissement des droits d'examen »).
 -- -----------------------------------------------------------------------------
 CREATE FUNCTION is_dunning_month(p_year uuid, p_day date) RETURNS boolean AS $$
   SELECT coalesce(
@@ -15,8 +15,63 @@ CREATE FUNCTION is_dunning_month(p_year uuid, p_day date) RETURNS boolean AS $$
 $$ LANGUAGE sql STABLE;
 
 -- -----------------------------------------------------------------------------
--- Échéancier d'écolage : les mois au-delà du dernier mois payable
--- (mai pour 1re/Tle de Tamatave) ne sont pas facturables.
+-- Jour compté pour les délais de relance ?
+--   jour de semaine retenu par la politique (lun→ven par défaut)
+--   ET hors jour férié / vacances / fermeture du site
+--   ET dans un mois de relance actif (octobre gelé).
+-- -----------------------------------------------------------------------------
+CREATE FUNCTION is_counted_day(p_year uuid, p_site uuid, p_day date) RETURNS boolean AS $$
+  SELECT extract(isodow FROM p_day)::smallint = ANY (p.counted_weekdays)
+     AND is_dunning_month(p_year, p_day)
+     AND NOT EXISTS (
+       SELECT 1 FROM calendar_day_off o
+        WHERE o.year_id = p_year
+          AND (o.site_id IS NULL OR o.site_id = p_site)
+          AND o.days @> p_day)
+  FROM dunning_policy p
+  WHERE p.year_id = p_year AND p.site_id = p_site
+$$ LANGUAGE sql STABLE;
+
+-- Date atteinte après p_n jours comptés à partir du lendemain de p_from.
+CREATE FUNCTION add_counted_days(p_year uuid, p_site uuid, p_from date, p_n int) RETURNS date AS $$
+DECLARE
+  d date := p_from;
+  n int := 0;
+BEGIN
+  WHILE n < p_n LOOP
+    d := d + 1;
+    IF d > p_from + 730 THEN
+      RAISE EXCEPTION 'Calendrier sans jour compté après le % : vérifier la politique de relance', p_from;
+    END IF;
+    IF is_counted_day(p_year, p_site, d) THEN n := n + 1; END IF;
+  END LOOP;
+  RETURN d;
+END $$ LANGUAGE plpgsql STABLE;
+
+-- Dates de relance, d'avertissement et de mise à pied pour une échéance.
+CREATE FUNCTION dunning_schedule(p_year uuid, p_site uuid, p_due date)
+RETURNS TABLE (relance_on date, warning_on date, suspension_on date) AS $$
+DECLARE
+  p dunning_policy%ROWTYPE;
+BEGIN
+  SELECT * INTO p FROM dunning_policy WHERE year_id = p_year AND site_id = p_site;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Aucune politique de relance pour ce site et cette année';
+  END IF;
+  relance_on := add_counted_days(p_year, p_site, p_due, p.relance_after);
+  IF p.count_from = 'ECHEANCE' THEN
+    warning_on    := add_counted_days(p_year, p_site, p_due, p.warning_after);
+    suspension_on := add_counted_days(p_year, p_site, p_due, p.suspension_after);
+  ELSE
+    warning_on    := add_counted_days(p_year, p_site, relance_on, p.warning_after);
+    suspension_on := add_counted_days(p_year, p_site, warning_on, p.suspension_after);
+  END IF;
+  RETURN NEXT;
+END $$ LANGUAGE plpgsql STABLE;
+
+-- -----------------------------------------------------------------------------
+-- Échéancier d'écolage : seuls les mois du plan du niveau sont facturables
+-- (Tamatave 1re/Tle : septembre → mai, soit 9 échéances).
 -- -----------------------------------------------------------------------------
 CREATE FUNCTION tuition_month_allowed(p_enrollment uuid, p_month date) RETURNS boolean AS $$
   SELECT NOT EXISTS (
@@ -27,7 +82,8 @@ CREATE FUNCTION tuition_month_allowed(p_enrollment uuid, p_month date) RETURNS b
       ON r.year_id = e.year_id AND r.site_id = c.site_id AND r.level_code = c.level_code
     WHERE e.id = p_enrollment
       -- on compare en « rang scolaire » : (mois + 3) % 12 donne sept = 0, oct = 1 … juin = 9, août = 11
-      AND ((extract(month FROM p_month)::int + 3) % 12) > ((r.last_payable_month + 3) % 12)
+      AND ((extract(month FROM p_month)::int + 3) % 12) NOT BETWEEN ((r.first_payable_month + 3) % 12)
+                                                              AND ((r.last_payable_month + 3) % 12)
   )
 $$ LANGUAGE sql STABLE;
 
@@ -144,37 +200,43 @@ END $$ LANGUAGE plpgsql;
 
 -- -----------------------------------------------------------------------------
 -- Workflow d'impayés : avancement d'un dossier (appelé par le job quotidien).
---   RELANCE ─(7 j sans paiement)→ AVERTISSEMENT_48H ─(48 h)→ MISE_A_PIED*
---   * la mise à pied n'est notifiée qu'après validation explicite de la Direction.
--- Pendant un mois inactif (octobre : droits d'examen), le cycle est gelé :
--- aucun dossier n'est ouvert ni ne progresse ; reprise au mois actif suivant.
+--   échéance (le 5) ─ +5 jours comptés → RELANCE ─ +10 → AVERTISSEMENT ─ +25 → MISE_A_PIED*
+--   (valeurs par défaut de dunning_policy, comptées depuis l'échéance ou l'étape précédente)
+--   * si suspension_requires_direction, la mise à pied n'est notifiée qu'après
+--     validation d'un compte Direction (p_actor) ; sinon le dossier attend.
+-- Les jours fériés, vacances et mois gelés (octobre) ne comptent pas.
 -- -----------------------------------------------------------------------------
-CREATE FUNCTION advance_dunning_case(p_case uuid, p_actor uuid DEFAULT NULL)
+CREATE FUNCTION advance_dunning_case(p_case uuid, p_actor uuid DEFAULT NULL, p_today date DEFAULT current_date)
 RETURNS dunning_stage AS $$
 DECLARE
-  d dunning_case%ROWTYPE;
+  d      dunning_case%ROWTYPE;
+  e      enrollment%ROWTYPE;
+  v_site uuid;
+  pol    dunning_policy%ROWTYPE;
+  sch    record;
   v_next dunning_stage;
-  v_last timestamptz;
 BEGIN
   SELECT * INTO d FROM dunning_case WHERE id = p_case FOR UPDATE;
-  IF NOT is_dunning_month((SELECT year_id FROM enrollment WHERE id = d.enrollment_id), current_date) THEN
+  IF d.closed_at IS NOT NULL OR d.stage IN ('MISE_A_PIED', 'REGULARISE', 'SUSPENDU') THEN
     RETURN d.stage;
   END IF;
-  SELECT max(occurred_at) INTO v_last FROM dunning_event WHERE case_id = p_case;
+  SELECT * INTO e FROM enrollment WHERE id = d.enrollment_id;
+  SELECT c.site_id INTO v_site FROM school_class c WHERE c.id = e.class_id;
+  SELECT * INTO pol FROM dunning_policy WHERE year_id = e.year_id AND site_id = v_site;
+  SELECT * INTO sch FROM dunning_schedule(e.year_id, v_site, d.due_on);
 
   v_next := CASE
-    WHEN d.stage = 'RELANCE' AND now() - v_last >= interval '7 days' THEN 'AVERTISSEMENT_48H'
-    WHEN d.stage = 'AVERTISSEMENT_48H' AND now() >= d.warning_deadline
-         AND p_actor IS NOT NULL
-         AND EXISTS (SELECT 1 FROM user_role WHERE user_id = p_actor AND role = 'DIRECTION')
+    WHEN p_today >= sch.suspension_on
+         AND (NOT pol.suspension_requires_direction
+              OR EXISTS (SELECT 1 FROM user_role WHERE user_id = p_actor AND role = 'DIRECTION'))
       THEN 'MISE_A_PIED'
-    ELSE d.stage
+    WHEN p_today >= sch.warning_on THEN 'AVERTISSEMENT'
+    ELSE 'RELANCE'
   END::dunning_stage;
 
   IF v_next <> d.stage THEN
     UPDATE dunning_case
        SET stage = v_next,
-           warning_deadline = CASE WHEN v_next = 'AVERTISSEMENT_48H' THEN now() + interval '48 hours' ELSE warning_deadline END,
            suspension_validated_by = CASE WHEN v_next = 'MISE_A_PIED' THEN p_actor ELSE suspension_validated_by END
      WHERE id = p_case;
     INSERT INTO dunning_event (case_id, from_stage, to_stage, actor_id)
@@ -182,3 +244,14 @@ BEGIN
   END IF;
   RETURN v_next;
 END $$ LANGUAGE plpgsql;
+
+-- Dossiers dont la mise à pied est due et attend la validation de la Direction.
+CREATE VIEW v_dunning_awaiting_validation AS
+SELECT dc.*, s.suspension_on
+FROM dunning_case dc
+JOIN enrollment e   ON e.id = dc.enrollment_id
+JOIN school_class c ON c.id = e.class_id
+JOIN dunning_policy p ON p.year_id = e.year_id AND p.site_id = c.site_id
+CROSS JOIN LATERAL dunning_schedule(e.year_id, c.site_id, dc.due_on) s
+WHERE dc.stage = 'AVERTISSEMENT' AND dc.closed_at IS NULL
+  AND p.suspension_requires_direction AND current_date >= s.suspension_on;

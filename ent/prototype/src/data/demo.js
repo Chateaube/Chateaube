@@ -25,14 +25,14 @@ export const SITE_KPIS = {
   },
 };
 
-// Dossiers d'impayés ouverts en septembre (gelés en octobre)
+// Dossiers d'impayés : l'étape est CALCULÉE à partir de l'échéance et des paramètres
 export const DUNNING_CASES = [
-  { id: 'd1', student: 'RAKOTOMALALA Tiana', cls: '4e B', site: 'TANA', overdue: 360_000, stage: 'AVERTISSEMENT_48H', since: '2026-09-28', guardian: 'Mme Rakotomalala' },
-  { id: 'd2', student: 'RANDRIA Mamy', cls: 'Tle G', site: 'TMV', overdue: 900_000, stage: 'MISE_A_PIED', since: '2026-09-18', guardian: 'M. Randria', pendingValidation: true },
-  { id: 'd3', student: 'ANDRIANAIVO Soa', cls: 'CM1', site: 'TANA', overdue: 310_000, stage: 'RELANCE', since: '2026-09-25', guardian: 'Mme Andrianaivo' },
-  { id: 'd4', student: 'RAZAFY Kanto', cls: '1re STMG', site: 'TMV', overdue: 450_000, stage: 'RELANCE', since: '2026-09-25', guardian: 'M. Razafy' },
-  { id: 'd5', student: 'RABE Nirina', cls: '6e A', site: 'TANA', overdue: 620_000, stage: 'AVERTISSEMENT_48H', since: '2026-09-26', guardian: 'Mme Rabe' },
-  { id: 'd6', student: 'RAVELO Hasina', cls: '3e', site: 'TMV', overdue: 360_000, stage: 'RELANCE', since: '2026-09-29', guardian: 'Mme Ravelo' },
+  { id: 'd2', student: 'RANDRIA Mamy', cls: 'Tle G', site: 'TMV', overdue: 900_000, due: '2026-09-05', guardian: 'M. Randria' },
+  { id: 'd4', student: 'RAZAFY Kanto', cls: '1re STMG', site: 'TMV', overdue: 450_000, due: '2026-09-05', guardian: 'M. Razafy' },
+  { id: 'd6', student: 'RAVELO Hasina', cls: '3e', site: 'TMV', overdue: 360_000, due: '2026-10-05', guardian: 'Mme Ravelo' },
+  { id: 'd7', student: 'RASOA Lova', cls: '5e', site: 'TMV', overdue: 360_000, due: '2026-10-05', guardian: 'Mme Rasoa' },
+  { id: 'd1', student: 'RAKOTOMALALA Tiana', cls: '4e B', site: 'TANA', overdue: 360_000, due: '2026-09-05', guardian: 'Mme Rakotomalala' },
+  { id: 'd3', student: 'ANDRIANAIVO Soa', cls: 'CM1', site: 'TANA', overdue: 310_000, due: '2026-10-05', guardian: 'Mme Andrianaivo' },
 ];
 
 // Droits d'examen — campagne d'octobre (montants fictifs)

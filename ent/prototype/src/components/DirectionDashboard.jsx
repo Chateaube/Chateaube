@@ -3,17 +3,29 @@ import { Badge, Button, Card, Icon, Progress, Stat } from './ui.jsx';
 import {
   SITES, SITE_KPIS, DUNNING_CASES, EXAM_FEES, CANDIDATE_FILES, TRANSFER, YEAR_MILESTONES, TODAY,
 } from '../data/demo.js';
-import { DUNNING_MONTHS, SKIPPED_MONTHS, DUNNING_STAGES, splitExamFee, formatAr } from '../rules/finance.js';
+import { dunningStages, splitExamFee, formatAr } from '../rules/finance.js';
+import { dunningSchedule, stageOn, formatDateFr, monthOf, monthName } from '../rules/calendar.js';
 
 const SCHOOL_MONTHS = [
   [9, 'S'], [10, 'O'], [11, 'N'], [12, 'D'], [1, 'J'], [2, 'F'], [3, 'M'], [4, 'A'], [5, 'M'], [6, 'J'],
 ];
 const STAGE_UI = {
+  DANS_LES_DELAIS: { tone: 'slate', label: 'Dans les délais' },
   RELANCE: { tone: 'navy', label: 'Relance' },
-  AVERTISSEMENT_48H: { tone: 'amber', label: 'Avertissement 48 h' },
-  MISE_A_PIED: { tone: 'red', label: 'Mise à pied' },
+  AVERTISSEMENT: { tone: 'amber', label: 'Avertissement' },
+  A_VALIDER: { tone: 'red', label: 'Mise à pied à valider' },
+  MISE_A_PIED: { tone: 'red', label: 'Mise à pied notifiée' },
   DELAI: { tone: 'violet', label: 'Délai accordé' },
 };
+const shortDate = (iso) => formatDateFr(iso).replace(/ \d{4}$/, '');
+
+/** Prochaine étape du recouvrement et sa date. */
+function nextStep(stage, sch) {
+  if (stage === 'DANS_LES_DELAIS') return `Relance le ${shortDate(sch.relance)}`;
+  if (stage === 'RELANCE') return `Avertissement le ${shortDate(sch.warning)}`;
+  if (stage === 'AVERTISSEMENT') return `Mise à pied le ${shortDate(sch.suspension)}`;
+  return '—';
+}
 
 const pct = (a, b) => (b ? (a / b) * 100 : 0);
 const fmtPct = (v) => `${v.toFixed(1).replace('.', ',')} %`;
@@ -37,13 +49,13 @@ function SiteSwitch({ value, onChange }) {
   );
 }
 
-function DunningCalendar() {
-  const current = new Date(TODAY).getMonth() + 1;
+function DunningCalendar({ settings, today }) {
+  const current = monthOf(today);
   return (
     <div className="flex gap-1" aria-label="Mois actifs du cycle de relance">
       {SCHOOL_MONTHS.map(([m, l], i) => {
-        const active = DUNNING_MONTHS.includes(m);
-        const skipped = SKIPPED_MONTHS[m];
+        const active = settings.dunning.activeMonths.includes(m);
+        const skipped = active ? null : `${monthName(m)} : décompte des relances gelé`;
         return (
           <div
             key={i}
@@ -60,10 +72,21 @@ function DunningCalendar() {
   );
 }
 
-export default function DirectionDashboard({ account }) {
-  const [site, setSite] = useState('ALL');
-  const [cases, setCases] = useState(DUNNING_CASES);
+export default function DirectionDashboard({ account, settings }) {
+  const [site, setSite] = useState('TMV');
+  const [refDate, setRefDate] = useState(TODAY);
+  const [decisions, setDecisions] = useState({}); // id → 'VALIDEE' | 'DELAI'
+  const [notified, setNotified] = useState({});
   const [toast, setToast] = useState(null);
+
+  // L'étape de chaque dossier est recalculée à partir des paramètres et de la date de référence
+  const cases = useMemo(() => DUNNING_CASES.map((c) => {
+    const schedule = dunningSchedule(c.due, settings);
+    const decision = { VALIDEE: 'MISE_A_PIED', DELAI: 'DELAI' }[decisions[c.id]];
+    return { ...c, schedule, stage: decision ?? stageOn(refDate, schedule, settings) };
+  }), [settings, refDate, decisions]);
+  const stages = dunningStages(settings);
+  const frozen = !settings.dunning.activeMonths.includes(monthOf(refDate));
 
   const inSite = (s) => site === 'ALL' || s === site;
   const kpi = useMemo(() => {
@@ -87,8 +110,9 @@ export default function DirectionDashboard({ account }) {
     paid: t.paid + e.paid, candidates: t.candidates + e.candidates,
   }), { collected: 0, retained: 0, toRemit: 0, paid: 0, candidates: 0 });
 
-  const act = (id, patch, message) => {
-    setCases((cs) => cs.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+  const act = (id, decision, message) => {
+    if (decision) setDecisions((d) => ({ ...d, [id]: decision }));
+    else setNotified((n) => ({ ...n, [id]: true }));
     setToast(message);
     setTimeout(() => setToast(null), 3500);
   };
@@ -104,19 +128,27 @@ export default function DirectionDashboard({ account }) {
         <SiteSwitch value={site} onChange={setSite} />
       </div>
 
-      {/* Bandeau : octobre sauté */}
-      <div className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+      {/* Bandeau : mois gelé (octobre) */}
+      <div className={`flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between ${frozen ? 'border-amber-200 bg-amber-50' : 'border-navy-100 bg-navy-50'}`}>
         <div className="flex gap-3">
-          <Icon name="clock" className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
-          <div>
-            <p className="text-sm font-semibold text-amber-900">Octobre : cycle de relance d'écolage suspendu</p>
-            <p className="text-sm text-amber-800">
-              Mois d'encaissement des droits d'examen. Les dossiers ouverts en septembre sont gelés ;
-              reprise automatique des relances le 2 novembre.
-            </p>
-          </div>
+          <Icon name="clock" className={`mt-0.5 h-5 w-5 shrink-0 ${frozen ? 'text-amber-700' : 'text-navy-500'}`} />
+          {frozen ? (
+            <div>
+              <p className="text-sm font-semibold text-amber-900">{monthName(monthOf(refDate)).replace(/^./, (c) => c.toUpperCase())} : relances d'écolage suspendues</p>
+              <p className="text-sm text-amber-800">
+                Mois d'encaissement des droits d'examen : le décompte des délais est gelé et reprend au premier jour de classe du mois suivant.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <p className="text-sm font-semibold text-navy-900">Relances d'écolage actives</p>
+              <p className="text-sm text-navy-700">
+                Échéance le {settings.tuition.dueDay} du mois · délais en jours de classe, hors jours fériés et vacances.
+              </p>
+            </div>
+          )}
         </div>
-        <DunningCalendar />
+        <DunningCalendar settings={settings} today={refDate} />
       </div>
 
       {/* Indicateurs */}
@@ -142,11 +174,19 @@ export default function DirectionDashboard({ account }) {
         <Card
           className="xl:col-span-2"
           title="Alertes d'écolage"
-          subtitle="Relance automatique → Avertissement 48 h → Notification de mise à pied (validée par la Direction)"
+          subtitle={`Échéance le ${settings.tuition.dueDay} → relance → avertissement → mise à pied${settings.dunning.suspensionRequiresDirection ? ' (validée par la Direction)' : ''}`}
+          action={
+            <label className="flex items-center gap-2 text-xs text-slate-500">
+              Date de référence
+              <input type="date" value={refDate} onChange={(e) => e.target.value && setRefDate(e.target.value)}
+                className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-800" />
+            </label>
+          }
         >
           <ol className="mb-4 grid grid-cols-3 gap-2">
-            {DUNNING_STAGES.map((s, i) => {
-              const n = visibleCases.filter((c) => c.stage === s.key).length;
+            {stages.map((s, i) => {
+              const keys = s.key === 'MISE_A_PIED' ? ['A_VALIDER', 'MISE_A_PIED'] : [s.key];
+              const n = visibleCases.filter((c) => keys.includes(c.stage)).length;
               const tone = ['border-navy-200 bg-navy-50', 'border-amber-200 bg-amber-50', 'border-red-200 bg-red-50'][i];
               return (
                 <li key={s.key} className={`rounded-lg border p-2.5 ${tone}`}>
@@ -159,13 +199,14 @@ export default function DirectionDashboard({ account }) {
           </ol>
 
           <div className="-mx-4 overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
+            <table className="w-full min-w-[760px] text-sm">
               <thead>
                 <tr className="border-y border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
                   <th className="px-4 py-2 font-medium">Élève</th>
                   <th className="px-2 py-2 font-medium">Site</th>
                   <th className="px-2 py-2 text-right font-medium">Impayé</th>
                   <th className="px-2 py-2 font-medium">Étape</th>
+                  <th className="px-2 py-2 font-medium">Prochaine étape</th>
                   <th className="px-4 py-2 text-right font-medium">Action</th>
                 </tr>
               </thead>
@@ -180,21 +221,22 @@ export default function DirectionDashboard({ account }) {
                     <td className="whitespace-nowrap px-2 text-right tabular-nums">{formatAr(c.overdue)}</td>
                     <td className="px-2">
                       <Badge tone={STAGE_UI[c.stage].tone}>{STAGE_UI[c.stage].label}</Badge>
-                      {c.pendingValidation && <p className="mt-0.5 text-[11px] font-medium text-red-700">En attente de validation</p>}
-                      {c.notified && <p className="mt-0.5 text-[11px] text-slate-500">Notifiée au parent</p>}
+                      <p className="mt-0.5 text-[11px] text-slate-500">Échéance du {shortDate(c.due)}</p>
+                      {notified[c.id] && <p className="text-[11px] text-slate-500">Message envoyé au parent</p>}
                     </td>
+                    <td className="px-2 text-xs text-slate-600">{nextStep(c.stage, c.schedule)}</td>
                     <td className="px-4 text-right">
-                      {c.pendingValidation ? (
+                      {c.stage === 'A_VALIDER' ? (
                         <div className="flex justify-end gap-1.5">
-                          <Button variant="secondary" onClick={() => act(c.id, { stage: 'DELAI', pendingValidation: false }, `Délai de paiement accordé à ${c.guardian}.`)}>
+                          <Button variant="secondary" onClick={() => act(c.id, 'DELAI', `Délai de paiement accordé à ${c.guardian}.`)}>
                             Accorder un délai
                           </Button>
-                          <Button variant="danger" onClick={() => act(c.id, { pendingValidation: false, notified: true }, `Mise à pied notifiée à ${c.guardian} (SMS + e-mail).`)}>
+                          <Button variant="danger" onClick={() => act(c.id, 'VALIDEE', `Mise à pied notifiée à ${c.guardian}.`)}>
                             Valider
                           </Button>
                         </div>
                       ) : (
-                        <Button variant="ghost" onClick={() => act(c.id, { notified: true }, `Message envoyé à ${c.guardian}.`)}>
+                        <Button variant="ghost" onClick={() => act(c.id, null, `Message envoyé à ${c.guardian}.`)}>
                           <Icon name="bell" /> Notifier
                         </Button>
                       )}
