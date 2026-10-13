@@ -61,3 +61,28 @@ export function phoneReturnAt(at, durationId, settings) {
   const [day, time] = at.split('T');
   return `${addSchoolDays(day, d.schoolDays, settings)}T${time}`;
 }
+
+/**
+ * Récidive : dès la 2e confiscation de l'année, la durée passe automatiquement à 5 jours ouvrés.
+ */
+export function phoneDurationFor(student, phones) {
+  const previous = phones.filter((p) => p.student === student);
+  return { duration: previous.length > 0 ? '5J' : '24H', previous: previous.length };
+}
+
+/**
+ * Restitution : pour une confiscation de 5 jours ouvrés, le téléphone n'est rendu qu'à un
+ * responsable légal ; pour 24 h, il peut être rendu à l'élève.
+ */
+export function validateReturn({ duration, toRole, toName }) {
+  const errors = [];
+  if (!String(toName ?? '').trim()) errors.push('Indiquer à qui le téléphone est rendu.');
+  if (duration === '5J' && toRole !== 'PARENT') errors.push('Confiscation de 5 jours : restitution à un responsable légal uniquement.');
+  return errors;
+}
+
+/** Relance du parent si « Je suis informé.e » n'est pas coché après `hours` heures (e-mail + application, pas de SMS). */
+export function ackReminderDue(notifiedAt, ackAt, now, hours = 48) {
+  if (ackAt || !notifiedAt) return false;
+  return (new Date(now) - new Date(notifiedAt)) / 3_600_000 >= hours;
+}

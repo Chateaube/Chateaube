@@ -102,7 +102,7 @@ const PROFILES = {
   },
 };
 
-const STORAGE_KEY = 'ent-chateaubriand-settings-v1';
+const STORAGE_KEY = 'ent-chateaubriand-settings-v2'; // v2 : canaux sans SMS, relance des accusés
 
 function loadSettings() {
   try {

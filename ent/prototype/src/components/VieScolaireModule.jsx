@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Badge, Button, Card, Icon, Stat } from './ui.jsx';
 import { CLASSES, classOf, STAFF_NAMES, ATTENDANCE, MEASURES_LOG, PHONES } from '../data/schoollife.js';
-import { MEASURES, AUTHORS, validateMeasure, phoneReturnAt, PHONE_DURATIONS } from '../rules/discipline.js';
+import { MEASURES, AUTHORS, validateMeasure, phoneReturnAt, PHONE_DURATIONS, phoneDurationFor, validateReturn, ackReminderDue } from '../rules/discipline.js';
 import { formatDateFr } from '../rules/calendar.js';
 
 // Vie scolaire : absences / retards, punitions et sanctions, téléphones confisqués.
@@ -66,7 +66,7 @@ function AttendanceTab({ rows, setRows, toast }) {
                 </td>
                 <td className="px-2">{r.notified ? <Ack at={r.parentAck} /> : <span className="text-xs text-slate-500">Non prévenu</span>}</td>
                 <td className="px-4 text-right">
-                  {!r.notified && <Button variant="ghost" onClick={() => update(r.id, { notified: true }, `SMS envoyé au parent de ${r.student}.`)}><Icon name="bell" />Prévenir</Button>}
+                  {!r.notified && <Button variant="ghost" onClick={() => update(r.id, { notified: true }, `Parent de ${r.student} prévenu (e-mail + application).`)}><Icon name="bell" />Prévenir</Button>}
                 </td>
               </tr>
             ))}
@@ -99,6 +99,7 @@ function MeasuresTab({ log, setLog, role, toast }) {
               <div className="text-right">
                 <Badge tone={MEASURE[m.measure].kind === 'SANCTION' ? 'red' : 'amber'}>{MEASURE[m.measure].kind === 'SANCTION' ? 'Sanction' : 'Punition'} · {MEASURE[m.measure].label}</Badge>
                 <p className="mt-1"><Ack at={m.parentAck} /></p>
+                {ackReminderDue(`${m.date}T17:00`, m.parentAck, NOW) && <p className="text-[11px] text-slate-500">Relance envoyée par e-mail et dans l'application</p>}
               </div>
             </li>
           ))}
@@ -128,7 +129,7 @@ function MeasuresTab({ log, setLog, role, toast }) {
           {draft.reason && errors.map((e) => <p key={e} className="text-xs text-red-700">{e}</p>)}
           <Button className="w-full" disabled={errors.length > 0} onClick={() => {
             setLog([{ id: `m${Date.now()}`, date: '2026-10-13', student: draft.student, measure: draft.measureId, reason: draft.reason.trim(), when: draft.when || null, author: draft.author, authorRole, parentAck: null }, ...log]);
-            toast(`Mesure enregistrée ; le parent de ${draft.student} est notifié (SMS + portail).`);
+            toast(`Mesure enregistrée ; le parent de ${draft.student} est notifié (e-mail + application).`);
             setDraft(blank);
           }}>Enregistrer et prévenir le parent</Button>
         </div>
@@ -143,6 +144,7 @@ function PhonesTab({ phones, setPhones, settings, toast }) {
   const [draft, setDraft] = useState(blank);
   const [returning, setReturning] = useState(null);
   const ok = draft.student && draft.at && draft.reason.trim();
+  const recidive = draft.student ? phoneDurationFor(draft.student, phones) : { previous: 0 };
   return (
     <div className="grid gap-5 xl:grid-cols-[1fr_380px] xl:items-start">
       <Card title="Téléphones confisqués" subtitle="Restitution calculée sur les jours de classe (hors week-ends, fériés et vacances)">
@@ -165,14 +167,20 @@ function PhonesTab({ phones, setPhones, settings, toast }) {
                       : <p className={`mt-1 text-xs ${ready ? 'font-medium text-emerald-700' : 'text-slate-600'}`}>{ready ? 'Peut être rendu' : 'Restitution'} : {fmtDT(due)}</p>}
                   </div>
                 </div>
-                {!p.returned && returning?.id !== p.id && <Button variant="ghost" className="mt-1 !px-0" onClick={() => setReturning({ id: p.id, to: '', by: STAFF_NAMES[0] })}>Enregistrer la restitution</Button>}
+                {!p.returned && returning?.id !== p.id && <Button variant="ghost" className="mt-1 !px-0" onClick={() => setReturning({ id: p.id, to: '', toRole: 'PARENT', by: STAFF_NAMES[0] })}>Enregistrer la restitution</Button>}
                 {returning?.id === p.id && (
-                  <div className="mt-2 grid gap-2 rounded-lg bg-slate-50 p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-                    <label className="text-xs text-slate-600">Rendu à (élève ou parent)<input value={returning.to} onChange={(e) => setReturning({ ...returning, to: e.target.value })} placeholder="ex. M. Randriamampianina (père)" className={`mt-1 w-full ${inputCls}`} /></label>
+                  <div className="mt-2 grid gap-2 rounded-lg bg-slate-50 p-3 sm:grid-cols-[150px_1fr_1fr_auto] sm:items-end">
+                    <label className="text-xs text-slate-600">Rendu à
+                      <select value={returning.toRole} onChange={(e) => setReturning({ ...returning, toRole: e.target.value })} className={`mt-1 w-full ${inputCls}`}>
+                        <option value="PARENT">Responsable légal</option>
+                        <option value="ELEVE" disabled={p.duration === '5J'}>L'élève{p.duration === '5J' ? ' (non : 5 jours)' : ''}</option>
+                      </select>
+                    </label>
+                    <label className="text-xs text-slate-600">Nom<input value={returning.to} onChange={(e) => setReturning({ ...returning, to: e.target.value })} placeholder={returning.toRole === 'PARENT' ? 'ex. M. Randriamampianina (père)' : p.student} className={`mt-1 w-full ${inputCls}`} /></label>
                     <label className="text-xs text-slate-600">Rendu et signé par
                       <select value={returning.by} onChange={(e) => setReturning({ ...returning, by: e.target.value })} className={`mt-1 w-full ${inputCls}`}>{STAFF_NAMES.map((n) => <option key={n}>{n}</option>)}</select>
                     </label>
-                    <Button disabled={!returning.to.trim()} onClick={() => {
+                    <Button disabled={validateReturn({ duration: p.duration, toRole: returning.toRole, toName: returning.to }).length > 0} onClick={() => {
                       setPhones(phones.map((x) => (x.id === p.id ? { ...x, returned: { at: NOW, by: returning.by, to: returning.to.trim() } } : x)));
                       setReturning(null); toast(`Téléphone de ${p.student} restitué.`);
                     }}>Confirmer</Button>
@@ -185,12 +193,15 @@ function PhonesTab({ phones, setPhones, settings, toast }) {
       </Card>
       <Card title="Nouvelle confiscation">
         <div className="space-y-2 text-sm">
-          <ClassStudentPicker value={draft.student} onChange={(student) => setDraft({ ...draft, student })} />
+          <ClassStudentPicker value={draft.student} onChange={(student) => setDraft({ ...draft, student, duration: student ? phoneDurationFor(student, phones).duration : '24H' })} />
+          {recidive.previous > 0 && (
+            <p className="rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-900">Récidive ({recidive.previous} confiscation{recidive.previous > 1 ? 's' : ''} cette année) : 5 jours ouvrés appliqués automatiquement, restitution à un responsable légal uniquement.</p>
+          )}
           <label className="block text-xs text-slate-600">Motif<input value={draft.reason} onChange={(e) => setDraft({ ...draft, reason: e.target.value })} placeholder="ex. Téléphone utilisé en cours" className={`mt-1 w-full ${inputCls}`} /></label>
           <div className="grid grid-cols-2 gap-2">
             <label className="text-xs text-slate-600">Confisqué le<input type="datetime-local" value={draft.at} onChange={(e) => setDraft({ ...draft, at: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>
             <label className="text-xs text-slate-600">Durée
-              <select value={draft.duration} onChange={(e) => setDraft({ ...draft, duration: e.target.value })} className={`mt-1 w-full ${inputCls}`}>
+              <select value={draft.duration} disabled={recidive.previous > 0} onChange={(e) => setDraft({ ...draft, duration: e.target.value })} className={`mt-1 w-full ${inputCls} disabled:bg-slate-50`}>
                 {PHONE_DURATIONS.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
               </select>
             </label>

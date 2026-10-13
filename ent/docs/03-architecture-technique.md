@@ -3,7 +3,7 @@
 ## 3.1 Vue d'ensemble
 
 ```
- Navigateur / PWA (React + Tailwind)        Parents & élèves (PWA mobile, SMS)
+ Navigateur / PWA (React + Tailwind)        Parents & élèves (PWA mobile)
             │  HTTPS (JSON)                              │
             ▼                                            ▼
  ┌──────────────────────────── API applicative (Node.js / TypeScript) ───────────────────────────┐
@@ -14,9 +14,9 @@
                 │                           │                          │
         PostgreSQL (données,          File de tâches (pg-boss)      Stockage objet chiffré
         règles critiques en base)     relances quotidiennes,        (pièces d'examen, bulletins PDF,
-                                       envois SMS / e-mail / push    exports Campus France)
+                                       envois e-mail / application   exports Campus France)
                                             │
-                       Passerelles : SMS (agrégateur local) · e-mail transactionnel · Web Push
+                       Passerelles : e-mail transactionnel · notifications de l'application (Web Push) — pas de SMS
 ```
 
 **Pile recommandée**
@@ -57,7 +57,7 @@ Concrètement :
   À la première connexion, l'adresse doit figurer dans `sso_allowlist` ; le `sub` Google est alors lié au compte. Les
   adresses Gmail personnelles ne permettent pas de restreindre l'accès par domaine, d'où cette liste blanche. Si
   l'établissement adopte un jour Google Workspace, on ajoutera un contrôle du paramètre `hd` (domaine).
-- **Parents / élèves** : lien magique par e-mail ou code par SMS (beaucoup n'ont pas de compte Google), session longue sur mobile.
+- **Parents / élèves** : lien magique par e-mail (beaucoup n'ont pas de compte Google), session longue sur mobile.
 - **RBAC** : `role_permission` × périmètre de site (`user_role.site_id`). Rôles : Direction (administrateur, tous
   sites), Bureau (administration / économat + vie scolaire), Vie scolaire, Enseignant, Parent, Élève. Les deux comptes
   Direction ont le même rôle, donc des droits strictement identiques. Aucune exception individuelle n'est possible.
@@ -89,9 +89,12 @@ Le contrôleur est la vraie garantie : il s'applique aussi aux textes écrits en
 
 ## 3.6 Notifications
 
-- Canal préféré par responsable (`guardian.preferred_channel`). **SMS** par défaut pour les relances et les retards (bonne
-  couverture à Madagascar), e-mail pour les documents, push pour les annonces.
-- Chaque envoi est tracé par canal (`notification_delivery`) avec un nouvel essai automatique ; un échec SMS bascule sur l'e-mail.
+- **Pas de SMS** : aucun budget n'est prévu pour ce poste. Les envois passent par **e-mail** et par les
+  **notifications de l'application** (Web Push sur la PWA installée). Le canal SMS est absent du modèle (`notif_channel`).
+- Chaque envoi est tracé par canal (`notification_delivery`), avec un nouvel essai automatique ; si une notification de
+  l'application échoue, l'e-mail prend le relais.
+- **Relance des accusés de lecture** : si la case « Je suis informé.e » n'est pas cochée au bout de 48 h
+  (`school_life_policy.ack_reminder_hours`), une relance part par e-mail et dans l'application (`v_pending_parent_ack`).
 - Les annonces ciblées sont calculées à l'envoi à partir de `announcement_audience` (OU entre lignes, ET dans une ligne).
 
 ## 3.7 Sécurité & conformité

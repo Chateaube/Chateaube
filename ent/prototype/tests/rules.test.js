@@ -381,3 +381,19 @@ test('portail parent : notes chronologiques avec moyenne, max et min de la class
   assert.equal(list[1].status, 'ABSENT');                       // ABS : pas de note, mais l'évaluation apparaît
   assert.equal(list[2].avg, 12.67);                              // (15+10+17+9+13+12)/6 : « 1O » non confirmé et ABS exclus
 });
+
+import { phoneDurationFor, validateReturn, ackReminderDue } from '../src/rules/discipline.js';
+test('téléphone : récidive → 5 jours ouvrés ; restitution à un parent pour 5 jours', () => {
+  const phones = [{ student: 'A', duration: '24H' }];
+  assert.deepEqual(phoneDurationFor('A', phones), { duration: '5J', previous: 1 });
+  assert.deepEqual(phoneDurationFor('B', phones), { duration: '24H', previous: 0 });
+  assert.deepEqual(validateReturn({ duration: '24H', toRole: 'ELEVE', toName: 'Lina' }), []);
+  assert.equal(validateReturn({ duration: '5J', toRole: 'ELEVE', toName: 'Hery' }).length, 1);
+  assert.deepEqual(validateReturn({ duration: '5J', toRole: 'PARENT', toName: 'M. Randriamampianina (père)' }), []);
+});
+
+test('« Je suis informé.e » : relance après 48 h sans réponse', () => {
+  assert.equal(ackReminderDue('2026-10-11T08:00', null, '2026-10-13T09:00'), true);
+  assert.equal(ackReminderDue('2026-10-12T12:00', null, '2026-10-13T09:00'), false);
+  assert.equal(ackReminderDue('2026-10-08T08:00', '2026-10-08T19:00', '2026-10-13T09:00'), false);
+});

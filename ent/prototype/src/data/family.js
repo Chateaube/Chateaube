@@ -47,12 +47,17 @@ export const REQUESTED = [
   { id: 'r3', child: 'toky', title: 'Certificat médical d\'aptitude à la natation', due: '2026-10-16', received: false },
 ];
 
-// Stages
+// Stages : 3e (observation, 1 semaine) et 2de (2 semaines)
+export const STAGE_TYPES = [
+  { id: 'STAGE_3E', level: '3e', label: 'Stage d\'observation de 3e', duration: '1 semaine', schoolDays: 5 },
+  { id: 'STAGE_2DE', level: '2de', label: 'Stage de seconde', duration: '2 semaines', schoolDays: 10 },
+];
 export const INTERNSHIPS = {
+  // Aina a fait son stage de seconde l'an dernier (historique conservé)
   aina: [{
-    title: 'Stage de découverte de l\'entreprise (1re STMG)', company: 'Hôtel Le Neptune — service accueil', tutor: 'Mme Rasoarimalala, responsable de l\'accueil',
-    from: '2027-02-08', to: '2027-02-12', referent: 'Mme Ranaivo',
-    signatures: { entreprise: true, etablissement: true, famille: false }, report: 'Rapport de stage à remettre le 26 février',
+    title: 'Stage de seconde (2025-2026)', company: 'Hôtel Le Neptune — service accueil', tutor: 'Mme Rasoarimalala, responsable de l\'accueil',
+    from: '2026-06-08', to: '2026-06-19', referent: 'M. Rasolo', done: true,
+    signatures: { entreprise: true, etablissement: true, famille: true }, report: 'Rapport de stage remis le 26 juin 2026.',
   }],
   toky: [],
 };

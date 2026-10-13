@@ -100,7 +100,7 @@ Communication .................. annonces à mes classes, message à un parent
 Tableau de bord ................ absences et retards du jour par site, incidents ouverts
 Assiduité ...................... saisie, justificatifs, statistiques
 Discipline ..................... incidents, sanctions, suivi
-Notifications parents .......... retard, discipline, document manquant (SMS / e-mail / push)
+Notifications parents .......... retard, discipline, document manquant (e-mail + application, pas de SMS)
 Examens ........................ complétude des dossiers candidats libres, pièces manquantes
 Réservations ................... gestion du parc, arbitrage des conflits
 Emplois du temps ............... pauses déjeuner par classe et par jour, salles
@@ -124,16 +124,16 @@ Vie scolaire (accès partagé) ... absences, retards, incidents
 ### Parent (application mobile / PWA) : 5 onglets en bas d'écran, sélecteur d'enfant en haut
 ```
 Accueil ........................ alertes, emploi du temps du jour, prochains devoirs, actualités
-Notes .......................... par trimestre, par matière, dans l'ordre chronologique : « Note du 20 janvier 2027 »,
-                                 note de l'élève, moyenne de la classe, note la plus haute, la plus basse, coefficient
-                                 (pas de bulletin, remis après le conseil)
+Notes .......................... visibles dès la saisie ; par trimestre, par matière, ordre chronologique :
+                                 « Note du 20 janvier 2027 », note de l'élève, moyenne de la classe sur ce devoir,
+                                 plus haute, plus basse, coefficient. Pas de moyenne de matière ni de bulletin
 Devoirs ........................ cahier de textes : travail à faire, fait en classe
 Vie scolaire ................... absences, retards, punitions et sanctions (motif), téléphones confisqués,
                                  case « Je suis informé.e » sur chaque élément (pastille tant que ce n'est pas fait)
 Plus
 ├── Documents & autorisations .. droit à l'image, autorisation de sortie, sorties pédagogiques (signature
 │                                électronique), documents reçus (accusé de lecture), pièces demandées (dépôt)
-├── Stages ..................... entreprise, dates, tuteur, convention à signer
+├── Stages ..................... 3e : 1 semaine · 2de : 2 semaines ; entreprise, tuteur, convention à signer
 ├── Orientation ................ étapes de l'année, choix possibles, rendez-vous avec le professeur principal
 ├── Paiements .................. solde par journal, historique, reçus (espèces, chèque, virement)
 └── Messages
@@ -152,7 +152,7 @@ chaque portail.
   (facturer un article, encaisser un paiement), Caisse : entrées / sorties.
 - **Gestion des agents** : registre du personnel, entrée et sortie, accès ENT automatique.
 - **Paramètres** : échéancier, relances, calendrier scolaire, avec une simulation des dates.
-- **Portail enseignant** : cours du jour, appel avec SMS aux parents, tâches (notes, appréciations), annonces.
+- **Portail enseignant** : cours du jour, appel (parents prévenus par e-mail et dans l'application), tâches, annonces.
 - **Portail parents** (format mobile) : alertes, emploi du temps, notes, absences, paiements et historique, messages.
 
 
@@ -172,7 +172,7 @@ chaque portail.
 d'accueil à Tana, soldes d'écolage) → « Exécuter » → l'élève apparaît à Tana dès la date d'effet ; ses notes et factures
 restent visibles, sa fiche affiche « Tamatave (sept. → avr.) · Tana (avr. → juil.) ».
 
-**Impayé (automate → Direction)** : échéance le 5 → J+5 relance SMS/e-mail → J+10 avertissement → J+25 le dossier apparaît
+**Impayé (automate → Direction)** : échéance le 5 → J+5 relance par e-mail et dans l'application → J+10 avertissement → J+25 le dossier apparaît
 en rouge « Mise à pied à valider » → la Direction valide (notification) ou accorde un délai. Les jours sont comptés selon le
 calendrier scolaire (hors fériés, vacances et octobre).
 

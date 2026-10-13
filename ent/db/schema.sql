@@ -47,7 +47,8 @@ CREATE TYPE resource_type     AS ENUM ('TV', 'VIDEOPROJECTEUR', 'ENCEINTE', 'SAL
 CREATE TYPE booking_status    AS ENUM ('CONFIRMEE', 'ANNULEE');
 
 CREATE TYPE audience_role     AS ENUM ('TOUS', 'PROFESSEUR', 'PARENT', 'ELEVE', 'PERSONNEL');
-CREATE TYPE notif_channel     AS ENUM ('SMS', 'EMAIL', 'PUSH');
+-- Pas de SMS (aucun budget prévu) : e-mail et notification de l'application
+CREATE TYPE notif_channel     AS ENUM ('EMAIL', 'PUSH');
 CREATE TYPE notif_reason      AS ENUM ('RETARD', 'ABSENCE', 'DISCIPLINE', 'DOCUMENT_MANQUANT', 'IMPAYE', 'AUTRE');
 CREATE TYPE delivery_status   AS ENUM ('EN_ATTENTE', 'ENVOYE', 'DELIVRE', 'ECHEC');
 
@@ -114,7 +115,7 @@ CREATE TABLE app_user (
   email         citext UNIQUE NOT NULL,
   first_name    text NOT NULL,
   last_name     text NOT NULL,
-  phone_e164    text,                          -- +261… pour SMS
+  phone_e164    text,                          -- +261… (contact téléphonique, pas d'envoi de SMS)
   google_sub    text UNIQUE,                   -- identifiant OIDC Google (SSO)
   auth_provider auth_provider NOT NULL DEFAULT 'GOOGLE',
   is_active     boolean NOT NULL DEFAULT true,
@@ -179,7 +180,7 @@ CREATE TABLE guardian (
   last_name     text NOT NULL,
   email         citext,
   phone_e164    text,
-  preferred_channel notif_channel NOT NULL DEFAULT 'SMS'
+  preferred_channel notif_channel NOT NULL DEFAULT 'EMAIL'
 );
 
 CREATE TABLE student_guardian (
@@ -314,7 +315,7 @@ CREATE TABLE dunning_policy (
   count_from      dunning_count_from NOT NULL DEFAULT 'ECHEANCE', -- délais depuis l'échéance ou depuis l'étape précédente
   counted_weekdays smallint[] NOT NULL DEFAULT '{1,2,3,4,5}',    -- 1 = lundi … 6 = samedi
   suspension_requires_direction boolean NOT NULL DEFAULT true,     -- mise à pied validée par la Direction
-  channels        notif_channel[] NOT NULL DEFAULT '{SMS,EMAIL}',
+  channels        notif_channel[] NOT NULL DEFAULT '{EMAIL,PUSH}',
   updated_by      uuid REFERENCES app_user(id),
   updated_at      timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (year_id, site_id),
@@ -827,7 +828,8 @@ CREATE TABLE report_card (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   enrollment_id uuid NOT NULL REFERENCES enrollment(id),
   period_id     uuid NOT NULL REFERENCES period(id),
-  general_comment text,
+  general_comment text,                        -- appréciation générale : rédigée par la Direction après le conseil
+  general_comment_by uuid REFERENCES app_user(id),
   decision      class_decision,                -- 3e trimestre
   decision_level_code text REFERENCES level(code),
   decision_text text,                          -- « Admis.e en classe de 1re »
@@ -923,12 +925,25 @@ CREATE TABLE phone_confiscation (
   confiscated_at timestamptz NOT NULL,
   confiscated_by uuid NOT NULL REFERENCES app_user(id), -- enseignant.e ou Direction
   received_by   uuid NOT NULL REFERENCES app_user(id),  -- vie scolaire ou Direction : signe la prise en garde
-  duration_code text NOT NULL CHECK (duration_code IN ('24H', '5J')),
+  duration_code text NOT NULL CHECK (duration_code IN ('24H', '5J')), -- récidive : 5J imposé (trigger)
   return_due_at timestamptz,                     -- calculé
   returned_at   timestamptz,
   returned_by   uuid REFERENCES app_user(id),    -- signe la restitution
-  returned_to   text,                            -- élève ou parent qui récupère le téléphone
-  CHECK ((returned_at IS NULL) = (returned_by IS NULL) AND (returned_at IS NULL) = (returned_to IS NULL))
+  returned_to   text,                            -- nom de la personne qui récupère le téléphone
+  returned_to_role text CHECK (returned_to_role IN ('ELEVE', 'PARENT')),
+  CHECK ((returned_at IS NULL) = (returned_by IS NULL) AND (returned_at IS NULL) = (returned_to IS NULL)
+         AND (returned_at IS NULL) = (returned_to_role IS NULL)),
+  -- 5 jours ouvrés : restitution à un responsable légal uniquement
+  CHECK (duration_code <> '5J' OR returned_to_role IS DISTINCT FROM 'ELEVE')
+);
+
+-- Règles de vie scolaire paramétrables
+CREATE TABLE school_life_policy (
+  year_id       uuid REFERENCES academic_year(id),
+  site_id       uuid REFERENCES site(id),
+  ack_reminder_hours smallint NOT NULL DEFAULT 48, -- relance (e-mail + application) si « Je suis informé.e » non coché
+  phone_recidive_5j boolean NOT NULL DEFAULT true,  -- 2e confiscation de l'année : 5 jours ouvrés
+  PRIMARY KEY (year_id, site_id)
 );
 
 -- Autorisations signées par la famille : droit à l'image, autorisation de sortie…
@@ -992,10 +1007,19 @@ CREATE TABLE homework (
   CHECK (due_on IS NULL OR due_on > session_on)
 );
 
--- Stages : convention signée par l'entreprise, l'établissement et le responsable légal
+-- Stages : 3e (observation, 1 semaine) et 2de (2 semaines) ; convention signée par
+-- l'entreprise, l'établissement et le responsable légal
+CREATE TABLE internship_type (
+  code          text PRIMARY KEY,
+  level_code    text NOT NULL REFERENCES level(code),
+  label         text NOT NULL,
+  school_days   smallint NOT NULL CHECK (school_days > 0)
+);
+
 CREATE TABLE internship (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   enrollment_id uuid NOT NULL REFERENCES enrollment(id),
+  type_code     text NOT NULL REFERENCES internship_type(code),
   title         text NOT NULL,
   company       text NOT NULL,
   tutor         text,
@@ -1027,7 +1051,7 @@ CREATE TABLE announcement (
   publish_at    timestamptz NOT NULL DEFAULT now(),
   expires_at    timestamptz,
   is_pinned     boolean NOT NULL DEFAULT false,
-  push_channels notif_channel[] NOT NULL DEFAULT '{}'   -- relais SMS/Email/Push optionnel
+  push_channels notif_channel[] NOT NULL DEFAULT '{}'   -- relais e-mail / application optionnel
 );
 
 -- Ciblage granulaire : chaque ligne est un filtre (ET entre colonnes non nulles) ;

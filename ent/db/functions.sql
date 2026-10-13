@@ -477,3 +477,46 @@ CREATE VIEW v_pending_parent_ack AS
 SELECT 'ABSENCE_RETARD' AS kind, a.id, a.enrollment_id, a.occurred_at AS at FROM attendance_event a WHERE a.parent_ack_at IS NULL
 UNION ALL
 SELECT 'MESURE', m.id, m.enrollment_id, m.decided_on::timestamptz FROM discipline_measure m WHERE m.parent_ack_at IS NULL;
+
+-- Récidive : à partir de la 2e confiscation de l'année, la durée passe à 5 jours ouvrés.
+CREATE FUNCTION phone_recidive() RETURNS trigger AS $$
+BEGIN
+  IF coalesce((SELECT p.phone_recidive_5j FROM school_life_policy p
+                 JOIN enrollment e ON e.year_id = p.year_id
+                 JOIN school_class c ON c.id = e.class_id AND c.site_id = p.site_id
+                WHERE e.id = NEW.enrollment_id), true)
+     AND EXISTS (SELECT 1 FROM phone_confiscation WHERE enrollment_id = NEW.enrollment_id) THEN
+    NEW.duration_code := '5J';
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+
+-- s'exécute avant le calcul de la date de restitution (ordre alphabétique des triggers)
+CREATE TRIGGER phone_a_recidive BEFORE INSERT ON phone_confiscation
+  FOR EACH ROW EXECUTE FUNCTION phone_recidive();
+
+-- L'appréciation générale du bulletin est rédigée par la Direction (après le conseil).
+CREATE FUNCTION general_comment_guard() RETURNS trigger AS $$
+BEGIN
+  IF NEW.general_comment IS DISTINCT FROM OLD.general_comment AND NEW.general_comment IS NOT NULL
+     AND NOT EXISTS (SELECT 1 FROM user_role WHERE user_id = NEW.general_comment_by AND role = 'DIRECTION') THEN
+    RAISE EXCEPTION 'L''appréciation générale est rédigée par la Direction';
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER report_card_general_comment BEFORE UPDATE ON report_card
+  FOR EACH ROW EXECUTE FUNCTION general_comment_guard();
+
+-- Accusés en attente, avec la relance due (e-mail + application, jamais de SMS)
+CREATE OR REPLACE VIEW v_pending_parent_ack AS
+SELECT x.*, now() - x.at >= make_interval(hours => coalesce(
+         (SELECT p.ack_reminder_hours FROM school_life_policy p
+            JOIN enrollment e ON e.year_id = p.year_id
+            JOIN school_class c ON c.id = e.class_id AND c.site_id = p.site_id
+           WHERE e.id = x.enrollment_id), 48)) AS reminder_due
+FROM (
+  SELECT 'ABSENCE_RETARD' AS kind, a.id, a.enrollment_id, a.occurred_at AS at FROM attendance_event a WHERE a.parent_ack_at IS NULL
+  UNION ALL
+  SELECT 'MESURE', m.id, m.enrollment_id, m.decided_on::timestamptz FROM discipline_measure m WHERE m.parent_ack_at IS NULL
+) x;

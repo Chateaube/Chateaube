@@ -30,7 +30,7 @@ function Attendance({ slot, onDone }) {
       </ul>
       <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
         <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
-        Prévenir les parents par SMS ({flagged.length} élève{flagged.length > 1 ? 's' : ''})
+        Prévenir les parents (e-mail + application, {flagged.length} élève{flagged.length > 1 ? 's' : ''})
       </label>
       <Button className="mt-3 w-full" onClick={() => onDone(flagged.length, notify)}>Valider l'appel</Button>
     </Card>
@@ -95,7 +95,7 @@ export default function TeacherPortal({ go }) {
           {open && (
             <Attendance slot={open} onDone={(n, notified) => {
               setSlots(slots.map((s) => (s === open ? { ...s, appel: 'FAIT' } : s)));
-              setToast(`Appel enregistré pour ${open.cls}${n ? ` · ${n} absence(s)/retard(s)${notified ? ', parents prévenus par SMS' : ''}` : ''}.`);
+              setToast(`Appel enregistré pour ${open.cls}${n ? ` · ${n} absence(s)/retard(s)${notified ? ', parents prévenus' : ''}` : ''}.`);
               setOpen(null);
             }} />
           )}

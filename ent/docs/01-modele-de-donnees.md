@@ -62,7 +62,7 @@ erDiagram
 
   ANNOUNCEMENT ||--|{ ANNOUNCEMENT_AUDIENCE : ciblage
   GUARDIAN ||--o{ DIRECT_NOTIFICATION : ""
-  DIRECT_NOTIFICATION ||--o{ NOTIFICATION_DELIVERY : "SMS/Email/Push"
+  DIRECT_NOTIFICATION ||--o{ NOTIFICATION_DELIVERY : "e-mail / application"
 ```
 
 ## 1.3 Domaines et entités
@@ -111,7 +111,7 @@ Règles validées par la Direction pour **Tamatave** (Tana sera paramétré plus
 | Jours comptés | lundi → vendredi, hors jours fériés, vacances et fermetures | `counted_weekdays`, `calendar_day_off` |
 | Mois de relance | tous, sauf **octobre** (gelé : droits d'examen) | `dunning_month` |
 | Plan d'écolage | 6e → 2de : septembre → juin (10 mois) ; **1re et Tle : septembre → mai (9 mois)** | `tuition_cutoff_rule` |
-| Canaux | SMS + e-mail (push en option) | `channels` |
+| Canaux | e-mail + notification de l'application (**pas de SMS**, faute de budget) | `channels` |
 
 - **`calendar_day_off`** : jours fériés de Madagascar (tous sites) et vacances/fermetures (par site). L'écran *Paramètres*
   peut générer automatiquement les fériés, y compris les fêtes mobiles (Pâques, Ascension, Pentecôte).
@@ -154,6 +154,8 @@ Règles validées par la Direction pour **Tamatave** (Tana sera paramétré plus
   car l'appréciation globale en tient lieu.
 - **`subject.in_general_average`** : Arts plastiques, Musique et Vie de classe sont hors moyenne générale ;
   `general_average()` et la vue `v_council_grid` alimentent la grille du conseil (T18).
+- **`report_card.general_comment`** : appréciation générale, **rédigée par la Directrice après le conseil** ; la base
+  refuse tout autre auteur (T25).
 - **`council_flag`** / **`council_note`** : avis des enseignants pour le conseil (élève exemplaire, bavard.e,
   avertissement travail / comportement…), jamais imprimés sur le bulletin. `report_card.council_mention` enregistre la
   décision (félicitations, compliments, encouragements, avertissements).
@@ -166,7 +168,8 @@ Règles validées par la Direction pour **Tamatave** (Tana sera paramétré plus
 - **`discipline_measure`** : **punitions** (enseignant, vie scolaire : observation, devoir supplémentaire, retenue,
   exclusion ponctuelle de cours) et **sanctions** (Direction uniquement : avertissement, blâme, mesure de
   responsabilisation, exclusion temporaire). Le **motif** est obligatoire (T22).
-- **`phone_confiscation`** : 24 h ou 5 jours ouvrés. On enregistre **qui a confisqué** (enseignant ou Direction),
+- **`phone_confiscation`** : 24 h ou 5 jours ouvrés ; **à la 2e confiscation de l'année, 5 jours ouvrés imposés**
+  (trigger `phone_a_recidive`) ; un téléphone confisqué 5 jours n'est **rendu qu'à un responsable légal** (T24). On enregistre **qui a confisqué** (enseignant ou Direction),
   **qui l'a reçu et signé**, puis **qui l'a rendu, à qui, et quand**. La date de restitution est calculée sur les jours de
   classe (`add_school_days`, hors week-ends, fériés et vacances), par exemple le 7 janvier pour une confiscation le
   17 décembre (T21).
@@ -175,7 +178,8 @@ Règles validées par la Direction pour **Tamatave** (Tana sera paramétré plus
 - **`published_document` / `document_receipt`** : documents envoyés aux familles avec accusé de lecture et signature
   éventuelle. **`requested_document`** : pièces demandées (dépôt par la famille, vérification par l'établissement).
 - **`homework`** : cahier de textes (séance, travail à faire, date de remise postérieure à la séance) (T23).
-- **`internship`** : stages, avec les trois signatures de la convention. **`orientation_wish`** : intentions de la
+- **`internship_type` / `internship`** : stage d'observation de 3e (**1 semaine**) et stage de seconde (**2 semaines**),
+  avec les trois signatures de la convention (T26). **`orientation_wish`** : intentions de la
   famille et avis du conseil, par trimestre.
 
 ### Gestion des agents

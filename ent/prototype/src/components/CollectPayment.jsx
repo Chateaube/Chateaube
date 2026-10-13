@@ -164,7 +164,7 @@ export default function CollectPayment({ settings }) {
                 </li>
               ))}
             </ul>
-            <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500"><Icon name="bell" />Reçu envoyé au parent payeur par SMS / e-mail.</p>
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500"><Icon name="bell" />Reçu envoyé au parent payeur par e-mail et dans l'application.</p>
           </Card>
         )}
       </div>

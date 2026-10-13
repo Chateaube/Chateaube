@@ -10,7 +10,7 @@ entre écolage et droits d'examen.
 |---|---|
 | 1. Modèle de données (entités, diagramme, règles, hypothèses à valider) | [`docs/01-modele-de-donnees.md`](docs/01-modele-de-donnees.md) |
 | Schéma PostgreSQL exécutable | [`db/schema.sql`](db/schema.sql) · [`db/functions.sql`](db/functions.sql) · [`db/seed.sql`](db/seed.sql) |
-| Scénarios de vérification (23 règles métier) | [`db/tests.sql`](db/tests.sql) |
+| Scénarios de vérification (26 règles métier) | [`db/tests.sql`](db/tests.sql) |
 | 2. Architecture UX/UI et arborescence par profil | [`docs/02-architecture-ux.md`](docs/02-architecture-ux.md) |
 | Architecture technique (SSO, tâches planifiées, IA, sécurité) | [`docs/03-architecture-technique.md`](docs/03-architecture-technique.md) |
 | Cadrage par profil (questions à valider avant de développer) | [`docs/04-cadrage-par-profil.md`](docs/04-cadrage-par-profil.md) |
@@ -30,7 +30,7 @@ pied à valider), comptabilité, conseils de classe, **vie scolaire** (absences,
 
 **Bureau (administration / économat)** : accueil ; **Encaisser** (choisir l'élève, ex. *RASOAMANANA Fy* arrivé le 12/10,
 cocher les mois, chèque ou virement avec n° et banque, un reçu par journal) ; **conseils de classe** (exporter vers Excel,
-imprimer, rédiger l'appréciation générale de chaque élève) ; accès à la vie scolaire et au suivi des familles.
+imprimer ; l'appréciation générale est rédigée par la Direction) ; accès à la vie scolaire et au suivi des familles.
 
 **Vie scolaire** : absences et retards ; punitions avec motif (choisir la classe, puis l'élève) ; téléphones
 confisqués (24 h ou 5 jours ouvrés, prise en garde et restitution signées) ; documents, stages et orientation.

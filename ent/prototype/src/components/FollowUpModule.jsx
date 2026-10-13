@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Badge, Button, Card, Stat } from './ui.jsx';
 import { CLASSES } from '../data/schoollife.js';
-import { AUTHORIZATIONS, DOCUMENTS, REQUESTED, INTERNSHIPS } from '../data/family.js';
+import { AUTHORIZATIONS, DOCUMENTS, REQUESTED, STAGE_TYPES } from '../data/family.js';
 
 // Suivi côté établissement (Direction, Bureau, Vie scolaire) : autorisations, documents
 // envoyés et accusés de lecture, pièces manquantes, stages, orientation.
@@ -116,14 +116,14 @@ function Requested() {
 
 function StagesOrientation() {
   const stages = [
-    { student: 'RAKOTOARISOA Aina', cls: '1re STMG', ...INTERNSHIPS.aina[0] },
-    { student: 'RAZAFY Kanto', cls: '1re STMG', ...INTERNSHIPS.aina[0], company: 'BNI Madagascar — agence de Tamatave', signatures: { entreprise: false, etablissement: false, famille: false } },
-    { student: 'RAVELO Hasina', cls: '3e', title: 'Stage d\'observation (3e)', company: 'Port de Toamasina — capitainerie', from: '2027-01-18', to: '2027-01-22', referent: 'M. Rasolo', signatures: { entreprise: true, etablissement: true, famille: true } },
+    { student: 'RAVELO Hasina', cls: '3e', title: STAGE_TYPES[0].label, company: 'Port de Toamasina — capitainerie', from: '2027-01-18', to: '2027-01-22', referent: 'M. Rasolo', signatures: { entreprise: true, etablissement: true, famille: true } },
+    { student: 'ANDRIAMIHAJA Miora', cls: '3e', title: STAGE_TYPES[0].label, company: 'Clinique Saint-Joseph — accueil', from: '2027-01-18', to: '2027-01-22', referent: 'M. Rasolo', signatures: { entreprise: true, etablissement: false, famille: false } },
+    { student: 'Élèves de 2de (24)', cls: '2de', title: STAGE_TYPES[1].label, company: 'Conventions à constituer', from: '2027-06-07', to: '2027-06-18', referent: 'Professeur principal', signatures: { entreprise: false, etablissement: false, famille: false } },
   ];
   const signed = (s) => Object.values(s.signatures).filter(Boolean).length;
   return (
     <div className="space-y-5">
-      <Card title="Stages" subtitle="Conventions : entreprise, établissement, responsable légal">
+      <Card title="Stages" subtitle={`${STAGE_TYPES.map((t) => `${t.level} : ${t.duration}`).join(' · ')} — conventions signées par l'entreprise, l'établissement et le responsable légal`}>
         <div className="-mx-4 overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
             <thead><tr className="border-y border-slate-100 bg-slate-50 text-left text-xs text-slate-500"><th className="px-4 py-2 font-medium">Élève</th><th className="px-2 font-medium">Stage</th><th className="px-2 font-medium">Dates</th><th className="px-2 font-medium">Convention</th></tr></thead>

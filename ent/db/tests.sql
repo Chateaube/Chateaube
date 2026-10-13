@@ -398,7 +398,7 @@ DO $$ DECLARE r timestamptz; BEGIN
   RETURNING return_due_at INTO r;
   ASSERT r = '2027-01-07 10:00+03', 'T21: 5 jours ouvrés après les vacances de Noël = ' || r;
   INSERT INTO phone_confiscation (enrollment_id, reason, confiscated_at, confiscated_by, received_by, duration_code)
-  VALUES ('30000000-0000-0000-0000-000000000001', 'Téléphone dans la cour', '2026-10-13 15:00+03',
+  VALUES ('30000000-0000-0000-0000-000000000002', 'Téléphone dans la cour', '2026-10-13 15:00+03',
           '00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000002', '24H')
   RETURNING return_due_at INTO r;
   ASSERT r = '2026-10-14 15:00+03', 'T21: 24 h = ' || r;
@@ -453,5 +453,47 @@ DO $$ BEGIN
   END;
 END $$;
 
+-- T24. Téléphone : récidive → 5 jours ; restitution à un parent uniquement -
+DO $$ DECLARE d text; BEGIN
+  -- l'élève a déjà une confiscation (T21) : la 2e passe d'office à 5 jours ouvrés
+  INSERT INTO phone_confiscation (enrollment_id, reason, confiscated_at, confiscated_by, received_by, duration_code)
+  VALUES ('30000000-0000-0000-0000-000000000001', 'Récidive', '2027-01-11 09:00+03',
+          '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000002', '24H')
+  RETURNING duration_code INTO d;
+  ASSERT d = '5J', 'T24: récidive non passée à 5 jours';
+  BEGIN
+    UPDATE phone_confiscation SET returned_at = now(), returned_by = '00000000-0000-0000-0000-000000000002',
+           returned_to = 'Hery', returned_to_role = 'ELEVE'
+    WHERE reason = 'Récidive';
+    RAISE EXCEPTION 'T24: téléphone de 5 jours rendu à l''élève';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE phone_confiscation SET returned_at = now(), returned_by = '00000000-0000-0000-0000-000000000002',
+         returned_to = 'Mme Rakoto (mère)', returned_to_role = 'PARENT'
+  WHERE reason = 'Récidive';
+END $$;
+
+-- T25. Appréciation générale : rédigée par la Direction uniquement -----------
+DO $$ BEGIN
+  BEGIN
+    UPDATE report_card SET general_comment = 'Bon trimestre.', general_comment_by = '00000000-0000-0000-0000-000000000003'
+    WHERE id = '90000000-0000-0000-0000-000000000001';
+    RAISE EXCEPTION 'T25: appréciation générale écrite par un professeur';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM LIKE 'T25:%' THEN RAISE; END IF;
+  END;
+  UPDATE report_card SET general_comment = 'Trimestre sérieux. Les efforts sont à poursuivre.', general_comment_by = '00000000-0000-0000-0000-000000000002'
+  WHERE id = '90000000-0000-0000-0000-000000000001';
+END $$;
+
+-- T26. Pas de SMS ; relance des accusés après 48 h ; stages 3e et 2de --------
+DO $$ BEGIN
+  ASSERT NOT EXISTS (SELECT 1 FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid
+                     WHERE t.typname = 'notif_channel' AND e.enumlabel = 'SMS'), 'T26: canal SMS présent';
+  ASSERT (SELECT bool_and(reminder_due) FROM v_pending_parent_ack WHERE kind = 'MESURE') IS NOT NULL, 'T26: vue des relances';
+  ASSERT (SELECT school_days FROM internship_type WHERE code = 'STAGE_3E') = 5, 'T26: stage de 3e = 1 semaine';
+  ASSERT (SELECT school_days FROM internship_type WHERE code = 'STAGE_2DE') = 10, 'T26: stage de 2de = 2 semaines';
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T23 passent'
+\echo 'OK — tous les scénarios T1 à T26 passent'

@@ -89,7 +89,8 @@ function Notes({ child }) {
     const out = {};
     for (const id of GRADEBOOK_SUBJECTS[child.id]) {
       const svc = SERVICES.find((s) => s.id === id);
-      out[svc.subject] = studentNoteList(EVALUATIONS[id], svc.students, GRADES[id], fullName(child));
+      // visibles dès la saisie ; une case vide ou une saisie à confirmer (« 1O ») n'apparaît pas
+      out[svc.subject] = studentNoteList(EVALUATIONS[id], svc.students, GRADES[id], fullName(child)).filter((n) => n.status !== 'NON_SAISIE');
     }
     for (const n of OTHER_NOTES[child.id]) (out[n.subject] ??= []).push(n);
     for (const k of Object.keys(out)) out[k].sort((a, b) => a.date.localeCompare(b.date));
@@ -102,7 +103,7 @@ function Notes({ child }) {
           <button key={t} onClick={() => setTerm(t)} className={`rounded-md py-1.5 text-sm font-medium ${term === t ? 'bg-navy-500 text-white' : 'text-slate-600'}`}>{t.replace('T', '')}{t === 'T1' ? 'er' : 'e'} trimestre</button>
         ))}
       </div>
-      <p className="px-1 text-xs text-slate-500">Notes au fil du trimestre. Le bulletin est remis après le conseil de classe.</p>
+      <p className="px-1 text-xs text-slate-500">Notes visibles dès leur saisie, avec la moyenne de la classe sur chaque devoir. Pas de moyenne par matière : le bulletin est remis après le conseil de classe.</p>
       {term !== 'T1' ? <Section><p className="text-sm text-slate-500">Aucune note pour ce trimestre pour l'instant.</p></Section> : bySubject.map(([subject, notes]) => (
         <Section key={subject}>
           <button onClick={() => setOpen(open === subject ? null : subject)} className="flex w-full items-center justify-between text-left">
@@ -241,9 +242,10 @@ function Documents({ child, isParent }) {
 /* ---------- Stages ---------- */
 function Internships({ child, isParent }) {
   const [list, setList] = useState(INTERNSHIPS[child.id]);
-  if (!list.length) return <Section title="Stages"><p className="text-sm text-slate-500">Aucun stage prévu cette année pour {child.name}.</p></Section>;
+  const info = <p className="text-xs text-slate-500">Stages obligatoires : 3e, stage d'observation d'une semaine ; 2de, stage de deux semaines.</p>;
+  if (!list.length) return <Section title="Stages"><p className="mb-1 text-sm text-slate-500">Aucun stage pour {child.name}.</p>{info}</Section>;
   return list.map((s, i) => (
-    <Section key={s.title} title={s.title}>
+    <Section key={s.title} title={s.title} action={s.done && <Badge tone="green">Terminé</Badge>}>
       <dl className="space-y-1 text-sm">
         <div><dt className="inline text-slate-500">Entreprise : </dt><dd className="inline text-slate-800">{s.company}</dd></div>
         <div><dt className="inline text-slate-500">Dates : </dt><dd className="inline text-slate-800">du {longDate(s.from)} au {longDate(s.to)}</dd></div>
@@ -256,6 +258,7 @@ function Internships({ child, isParent }) {
           <li key={k} className={s.signatures[k] ? 'text-emerald-700' : 'text-amber-700'}>{s.signatures[k] ? '✓' : '○'} {l} {s.signatures[k] ? 'a signé' : ': signature attendue'}</li>
         ))}
       </ul>
+      {i === 0 && <div className="mt-3">{info}</div>}
       {isParent && !s.signatures.famille && <Button className="mt-3 w-full" onClick={() => setList(list.map((x, k) => (k === i ? { ...x, signatures: { ...x.signatures, famille: true } } : x)))}>Lire et signer la convention</Button>}
       <p className="mt-2 text-xs text-slate-500">{s.report}</p>
     </Section>
@@ -334,7 +337,7 @@ function Messages({ isParent }) {
     <>
       <Section title="Messages reçus">
         <ul className="space-y-3 text-sm">
-          <li><p className="text-xs text-slate-500">05/10 · SMS · Vie scolaire</p><p className="text-slate-700">Aina est arrivée en retard (10 min) ce matin.</p></li>
+          <li><p className="text-xs text-slate-500">05/10 · Notification · Vie scolaire</p><p className="text-slate-700">Aina est arrivée en retard (10 min) ce matin.</p></li>
           <li><p className="text-xs text-slate-500">09/10 · E-mail · Vie scolaire</p><p className="text-slate-700">Dossier Pré-Bac d'Aina : merci de déposer une photo d'identité avant le 30 octobre.</p></li>
         </ul>
       </Section>

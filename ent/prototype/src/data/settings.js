@@ -25,7 +25,8 @@ export const DEFAULT_SETTINGS = {
     countedWeekdays: [1, 2, 3, 4, 5], // 1 = lundi … 6 = samedi
     activeMonths: [9, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8], // octobre gelé
     suspensionRequiresDirection: true,
-    channels: ['SMS', 'EMAIL'],
+    channels: ['EMAIL', 'PUSH'], // pas de SMS : aucun budget prévu
+    ackReminderHours: 48, // relance si « Je suis informé.e » n'est pas coché
   },
 
   grading: {

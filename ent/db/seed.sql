@@ -205,3 +205,8 @@ INSERT INTO authorization_type (code, label, options) VALUES
   ('IMAGE', 'Droit à l''image', '{"J''autorise","Je n''autorise pas"}'),
   ('SORTIE', 'Autorisation de sortie', '{"Sortie libre aux heures sans cours","Sortie en fin de journée uniquement","Aucune sortie sans un responsable"}'),
   ('SORTIES_PEDA', 'Sorties pédagogiques', '{"J''autorise","Je n''autorise pas"}');
+
+INSERT INTO school_life_policy (year_id, site_id) SELECT y.id, s.id FROM academic_year y, site s WHERE s.code = 'TMV';
+INSERT INTO internship_type (code, level_code, label, school_days) VALUES
+  ('STAGE_3E', '3E', 'Stage d''observation de 3e', 5),
+  ('STAGE_2DE', '2NDE', 'Stage de seconde', 10);

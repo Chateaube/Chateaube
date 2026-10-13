@@ -28,6 +28,7 @@ export const MEASURES_LOG = [
   { id: 'm1', date: '2026-10-08', student: 'RAJAONARIVELO Tsiry', measure: 'OBSERVATION', reason: 'Bavardages répétés malgré plusieurs rappels', author: 'Mme Hery', authorRole: 'PROFESSEUR', parentAck: '2026-10-08T19:05' },
   { id: 'm2', date: '2026-10-12', student: 'RANDRIAMAMPIANINA Hery', measure: 'RETENUE', reason: 'Travaux non rendus à trois reprises', author: 'M. Rasolo', authorRole: 'PROFESSEUR', when: 'Mercredi 14 octobre, 13h–15h', parentAck: null },
   { id: 'm3', date: '2026-10-12', student: 'RAKOTOARISOA Toky', measure: 'DEVOIR_SUPP', reason: 'Leçon non apprise', author: 'M. Tojo', authorRole: 'PROFESSEUR', parentAck: null },
+  { id: 'm5', date: '2026-10-09', student: 'RAMAROSON Fitia', measure: 'DEVOIR_SUPP', reason: 'Exercices non faits deux fois de suite', author: 'Mme Ranaivo', authorRole: 'PROFESSEUR', parentAck: null },
   { id: 'm4', date: '2026-09-30', student: 'RANDRIAMAMPIANINA Hery', measure: 'AVERTISSEMENT', reason: 'Usage du téléphone en cours après une première confiscation', author: 'Cheffe d\'établissement', authorRole: 'DIRECTION', parentAck: '2026-10-01T07:30' },
 ];
 

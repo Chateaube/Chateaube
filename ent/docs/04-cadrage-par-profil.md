@@ -44,7 +44,7 @@ Direction et de Comptabilité conditionnent les autres profils (tarifs, relances
 
 | # | Question | Réponse provisoire |
 |---|---|---|
-| C1 | L'appel se fait-il à chaque heure ou par demi-journée ? Qui prévient les parents : l'enseignant ou la vie scolaire ? | à chaque cours, SMS proposé |
+| C1 | L'appel se fait-il à chaque heure ou par demi-journée ? Qui prévient les parents : l'enseignant ou la vie scolaire ? | à chaque cours, parents prévenus par e-mail et dans l'application |
 | C2 | Barèmes utilisés (/20, /10, compétences 1-4) et coefficients par matière | /20 + 4 niveaux |
 | C3 | Calendrier de saisie des notes et des appréciations avant chaque conseil de classe | non traité |
 | C4 | Règles de rédaction des appréciations : liste complète des formules interdites | prototype actuel |
@@ -63,7 +63,7 @@ Direction et de Comptabilité conditionnent les autres profils (tarifs, relances
 
 | # | Question | Réponse provisoire |
 |---|---|---|
-| E1 | Les parents ont-ils un smartphone et une adresse e-mail ? (sinon, SMS uniquement) | SMS par défaut |
+| E1 | Les parents ont-ils un smartphone et une adresse e-mail ? | **décidé** : e-mail + application, pas de SMS (pas de budget) |
 | E2 | Que voir : notes au fil de l'eau, ou seulement les bulletins ? | notes + bulletins |
 | E3 | Que voit le parent de ses paiements ? | **décidé** : solde, historique et reçus ; pas de paiement en ligne |
 | E4 | Langue : français uniquement, ou aussi malgache pour les notifications ? | français |
@@ -129,13 +129,13 @@ dans le cahier des charges du lot de développement correspondant.
 
 | # | Question | Proposition |
 |---|---|---|
-| P1 | Parents : afficher aussi la **moyenne provisoire** de chaque matière, ou seulement les notes ? | notes seulement (choix actuel) |
-| P2 | Les notes sont-elles visibles par les parents dès la saisie, ou après un délai (ex. 48 h, le temps de rendre les copies) ? | après remise des copies (délai réglable) |
-| P3 | Téléphone : qui peut le récupérer (élève lui-même, ou seulement un parent pour 5 jours) ? | parent obligatoire pour 5 jours |
-| P4 | Récidive téléphone : passe-t-on automatiquement de 24 h à 5 jours ouvrés ? | proposition automatique à la 2e confiscation |
+| P1 | Parents : afficher aussi la **moyenne provisoire** de chaque matière, ou seulement les notes ? | **décidé** : notes seules + moyenne de la classe sur le devoir, pas de moyenne de matière |
+| P2 | Les notes sont-elles visibles par les parents dès la saisie, ou après un délai (ex. 48 h, le temps de rendre les copies) ? | **décidé** : dès la saisie |
+| P3 | Téléphone : qui peut le récupérer (élève lui-même, ou seulement un parent pour 5 jours) ? | **décidé** : oui, parent obligatoire pour 5 jours |
+| P4 | Récidive téléphone : passe-t-on automatiquement de 24 h à 5 jours ouvrés ? | **décidé** : oui, automatique |
 | P5 | Retenue : quels créneaux (mercredi après-midi ?) et qui surveille ? | mercredi 13h–15h, vie scolaire |
-| P6 | « Je suis informé.e » : relance du parent s'il ne coche pas sous 48 h ? | oui, par SMS |
+| P6 | « Je suis informé.e » : relance du parent s'il ne coche pas sous 48 h ? | **décidé** : oui, par e-mail et dans l'application |
 | P7 | Autorisations : faut-il les renouveler chaque année, et bloquer une sortie si la réponse manque ? | renouvellement annuel ; alerte à l'organisateur |
-| P8 | Stages : quels niveaux (3e observation, 2de, 1re STMG) et quelles durées ? | 3e : 5 jours ; 1re STMG : 1 semaine |
+| P8 | Stages : quels niveaux (3e observation, 2de, 1re STMG) et quelles durées ? | **décidé** : 3e une semaine, 2de deux semaines |
 | P9 | Orientation : les familles saisissent-elles leurs intentions dans l'ENT (fiche dialogue) ? | oui, au 2e trimestre |
-| P10 | Appréciation générale du conseil : rédigée en séance par la Direction, ou préparée par le professeur principal ? | préparée par le PP, finalisée en séance |
+| P10 | Appréciation générale du conseil : rédigée en séance par la Direction, ou préparée par le professeur principal ? | **décidé** : rédigée par la Directrice après les conseils |

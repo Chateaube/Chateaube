@@ -15,7 +15,9 @@ const SHORT = { FR: 'Fra', MATHS: 'Math', HG: 'H-G', LVA: 'Ang', LVB: 'Esp', EPS
 const ENTRY_STATUS = { LVB: 'En cours (3 / 4 notes)', MUS: 'En cours (2 / 4 notes)' };
 const tone = (v) => (v === null ? 'text-slate-400' : v < 10 ? 'text-red-700' : v >= 14 ? 'text-emerald-700' : 'text-slate-800');
 
-export default function CouncilGrid({ settings }) {
+export default function CouncilGrid({ settings, role }) {
+  // l'appréciation générale est rédigée par la Directrice, après le conseil de classe
+  const canWriteGeneral = role === 'DIRECTION';
   const [showRank, setShowRank] = useState(false);
   const [finalTerm, setFinalTerm] = useState(false);
   const [decisions, setDecisions] = useState({});
@@ -137,7 +139,7 @@ export default function CouncilGrid({ settings }) {
                         {decisions[r.name] === undefined && r.proposal && <p className="text-[10px] text-navy-500">Proposition — à confirmer</p>}
                       </td>
                       <td className="px-2 text-center">
-                        <button onClick={() => setCurrent(r.name)} title="Rédiger l'appréciation générale"
+                        <button onClick={() => setCurrent(r.name)} disabled={!canWriteGeneral} title={canWriteGeneral ? 'Rédiger l\'appréciation générale' : 'Rédigée par la Direction'}
                           className={`rounded-full px-2 py-0.5 text-xs font-medium ${checkAppreciation(appreciations[r.name] ?? '').ok ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                           {checkAppreciation(appreciations[r.name] ?? '').ok ? '✓' : 'À rédiger'}
                         </button>
@@ -187,9 +189,14 @@ export default function CouncilGrid({ settings }) {
         </p>
       </Card>
 
-      {/* Appréciation générale de chaque élève, rédigée en fin de conseil */}
-      <div className="grid gap-5 xl:grid-cols-[1fr_320px] xl:items-start print:hidden">
-        <Card title="Appréciations générales" subtitle={`Rédigées en fin de conseil · ${written} / ${rows.length} conformes`}>
+      {/* Appréciation générale : rédigée par la Directrice après le conseil */}
+      {!canWriteGeneral && (
+        <Card title="Appréciations générales" subtitle="Rédigées par la Directrice après le conseil de classe" className="print:hidden">
+          <p className="text-sm text-slate-600">{written} / {rows.length} rédigées. Elles apparaîtront ici et dans l'export dès leur rédaction.</p>
+        </Card>
+      )}
+      {canWriteGeneral && <div className="grid gap-5 xl:grid-cols-[1fr_320px] xl:items-start print:hidden">
+        <Card title="Appréciations générales" subtitle={`Rédigées par la Direction après le conseil · ${written} / ${rows.length} conformes`}>
           <StudentSelect students={CLASS_LIST} value={current} onChange={setCurrent}
             suffix={(n) => (checkAppreciation(appreciations[n] ?? '').ok ? '  ✓' : '')} />
           {(() => {
@@ -209,7 +216,7 @@ export default function CouncilGrid({ settings }) {
           </div>
         </Card>
         <Card title="Contrôleur de rédaction"><RulePanel result={appCheck} /></Card>
-      </div>
+      </div>}
 
       {/* Récapitulatif imprimé sous la grille */}
       <section className="hidden print:block">

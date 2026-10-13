@@ -12,7 +12,8 @@ const KIND_UI = {
   VACANCES: { tone: 'green', label: 'Vacances' },
   FERMETURE: { tone: 'amber', label: 'Fermeture' },
 };
-const CHANNELS = [['SMS', 'SMS'], ['EMAIL', 'E-mail'], ['PUSH', 'Notification mobile']];
+// Pas de SMS (aucun budget prévu) : e-mail et notification de l'application
+const CHANNELS = [['EMAIL', 'E-mail'], ['PUSH', 'Notification de l\'application']];
 const MONTH_ABBR = { 9: 'Sept.', 10: 'Oct.', 11: 'Nov.', 12: 'Déc.', 1: 'Janv.', 2: 'Févr.', 3: 'Mars', 4: 'Avr.', 5: 'Mai', 6: 'Juin', 7: 'Juil.', 8: 'Août' };
 const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 const yearOf = (month, settings) => Number((month >= 9 ? settings.schoolYear.start : settings.schoolYear.end).slice(0, 4));
