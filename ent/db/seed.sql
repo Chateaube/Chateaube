@@ -193,3 +193,15 @@ INSERT INTO council_flag_type (code, label, tone) VALUES
   ('EXEMPLAIRE', 'Élève exemplaire', 'POSITIF'), ('ENCOURAGEMENTS', 'Encouragements', 'POSITIF'),
   ('BAVARD', 'Élève bavard.e', 'VIGILANCE'), ('MANQUE_TRAVAIL', 'Manque de travail personnel', 'VIGILANCE'),
   ('AVERT_TRAVAIL', 'Avertissement travail', 'ALERTE'), ('AVERT_COMPORTEMENT', 'Avertissement comportement', 'ALERTE');
+
+-- Vie scolaire
+INSERT INTO discipline_measure_type (code, label, kind) VALUES
+  ('OBSERVATION', 'Observation écrite', 'PUNITION'), ('DEVOIR_SUPP', 'Devoir supplémentaire', 'PUNITION'),
+  ('RETENUE', 'Retenue', 'PUNITION'), ('EXCLUSION_COURS', 'Exclusion ponctuelle de cours', 'PUNITION'),
+  ('AVERTISSEMENT', 'Avertissement', 'SANCTION'), ('BLAME', 'Blâme', 'SANCTION'),
+  ('RESPONSABILISATION', 'Mesure de responsabilisation', 'SANCTION'), ('EXCLUSION_TEMP', 'Exclusion temporaire (8 jours max.)', 'SANCTION');
+
+INSERT INTO authorization_type (code, label, options) VALUES
+  ('IMAGE', 'Droit à l''image', '{"J''autorise","Je n''autorise pas"}'),
+  ('SORTIE', 'Autorisation de sortie', '{"Sortie libre aux heures sans cours","Sortie en fin de journée uniquement","Aucune sortie sans un responsable"}'),
+  ('SORTIES_PEDA', 'Sorties pédagogiques', '{"J''autorise","Je n''autorise pas"}');

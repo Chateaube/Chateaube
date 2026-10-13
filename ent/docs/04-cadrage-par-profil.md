@@ -108,3 +108,34 @@ dans le cahier des charges du lot de développement correspondant.
 | N15 | Les parents voient-ils les notes au fil de l'eau, ou seulement après validation du trimestre ? | au fil de l'eau |
 | N16 | Le Bureau gère-t-il aussi le registre des agents (contrats, entrées / sorties) ? | Direction seule pour l'instant |
 | N17 | Combien de personnes au Bureau, et faut-il distinguer la caisse de l'économat (droits différents) ? | à préciser |
+
+---
+
+## Décisions du 13 octobre (2) et nouvelles questions
+
+**Décidé :**
+- Ordre de travail de l'enseignant : compétences, puis notes, puis appréciations. Pas d'évaluation compétence par
+  compétence pour chaque élève.
+- Élèves choisis dans une liste déroulante. Pour les incidents, on choisit d'abord la classe, qui filtre la liste des
+  élèves.
+- Punitions et sanctions toujours motivées, avec le nom de leur auteur ; le parent coche « Je suis informé.e ».
+- Téléphones : confiscation de 24 h ou 5 jours ouvrés. On enregistre qui a confisqué, qui l'a reçu et signé, qui l'a
+  rendu et à qui.
+- Documents : droit à l'image, autorisation de sortie, documents reçus, pièces demandées, cahier de textes, stages,
+  orientation.
+- Parents : notes au fil du trimestre par matière (note, moyenne, plus haute, plus basse, coefficient), sans bulletin.
+  Les élèves voient presque la même chose.
+- Grille du conseil exportable (Excel) et imprimable, avec l'appréciation générale de chaque élève.
+
+| # | Question | Proposition |
+|---|---|---|
+| P1 | Parents : afficher aussi la **moyenne provisoire** de chaque matière, ou seulement les notes ? | notes seulement (choix actuel) |
+| P2 | Les notes sont-elles visibles par les parents dès la saisie, ou après un délai (ex. 48 h, le temps de rendre les copies) ? | après remise des copies (délai réglable) |
+| P3 | Téléphone : qui peut le récupérer (élève lui-même, ou seulement un parent pour 5 jours) ? | parent obligatoire pour 5 jours |
+| P4 | Récidive téléphone : passe-t-on automatiquement de 24 h à 5 jours ouvrés ? | proposition automatique à la 2e confiscation |
+| P5 | Retenue : quels créneaux (mercredi après-midi ?) et qui surveille ? | mercredi 13h–15h, vie scolaire |
+| P6 | « Je suis informé.e » : relance du parent s'il ne coche pas sous 48 h ? | oui, par SMS |
+| P7 | Autorisations : faut-il les renouveler chaque année, et bloquer une sortie si la réponse manque ? | renouvellement annuel ; alerte à l'organisateur |
+| P8 | Stages : quels niveaux (3e observation, 2de, 1re STMG) et quelles durées ? | 3e : 5 jours ; 1re STMG : 1 semaine |
+| P9 | Orientation : les familles saisissent-elles leurs intentions dans l'ENT (fiche dialogue) ? | oui, au 2e trimestre |
+| P10 | Appréciation générale du conseil : rédigée en séance par la Direction, ou préparée par le professeur principal ? | préparée par le PP, finalisée en séance |

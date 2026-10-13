@@ -16,9 +16,9 @@ export const SERVICES = [
 
 export const EVALUATIONS = {
   s1: [
-    { id: 'v1', type: 'DS', title: 'DS n°1 — L\'organisation', date: '2026-09-24', scale: 20, coef: 2 },
+    { id: 'v1', type: 'DS', title: 'DS n°1 — L\'organisation', date: '2026-09-24', scale: 20, coef: 2, competencies: ['Analyser une situation d\'organisation', 'Mobiliser les notions du programme'] },
     { id: 'v2', type: 'Interrogation', title: 'Interro — vocabulaire', date: '2026-10-01', scale: 10, coef: 1 },
-    { id: 'v3', type: 'Oral', title: 'Oral — étude de cas', date: '2026-10-06', scale: 20, coef: 1 },
+    { id: 'v3', type: 'Oral', title: 'Oral — étude de cas', date: '2026-10-06', scale: 20, coef: 1, competencies: ['Argumenter une décision', 'Communiquer à l\'écrit et à l\'oral'] },
     { id: 'v4', type: 'Exposé', title: 'Exposé en groupe', date: '2026-10-08', scale: 20, coef: 1 },
   ],
   s2: [
@@ -56,11 +56,6 @@ export const COMPETENCIES = {
   s2: ['Analyser une situation de gestion', 'Mobiliser les notions', 'Argumenter', 'Communiquer'],
   s3: ['Comprendre un enjeu de société', 'Construire un argumentaire', 'Débattre dans le respect d\'autrui'],
   s4: [], // vide : suggestion de copie depuis EMC — 1re STMG (même niveau)
-};
-
-// Niveaux de maîtrise saisis (service → élève → compétence → 1..4)
-export const MASTERY = {
-  s1: Object.fromEntries(CLASS_LIST.map((n, i) => [n, [3 + (i % 2), 2 + (i % 3), 3, 2 + (i % 2)].map((m) => Math.min(4, m))])),
 };
 
 // Avis pour le conseil (non imprimés sur le bulletin) — liste paramétrable

@@ -10,11 +10,11 @@ entre écolage et droits d'examen.
 |---|---|
 | 1. Modèle de données (entités, diagramme, règles, hypothèses à valider) | [`docs/01-modele-de-donnees.md`](docs/01-modele-de-donnees.md) |
 | Schéma PostgreSQL exécutable | [`db/schema.sql`](db/schema.sql) · [`db/functions.sql`](db/functions.sql) · [`db/seed.sql`](db/seed.sql) |
-| Scénarios de vérification (20 règles métier) | [`db/tests.sql`](db/tests.sql) |
+| Scénarios de vérification (23 règles métier) | [`db/tests.sql`](db/tests.sql) |
 | 2. Architecture UX/UI et arborescence par profil | [`docs/02-architecture-ux.md`](docs/02-architecture-ux.md) |
 | Architecture technique (SSO, tâches planifiées, IA, sécurité) | [`docs/03-architecture-technique.md`](docs/03-architecture-technique.md) |
 | Cadrage par profil (questions à valider avant de développer) | [`docs/04-cadrage-par-profil.md`](docs/04-cadrage-par-profil.md) |
-| 3. Prototype React + Tailwind (Direction, Bureau, Vie scolaire, Enseignant, Parent) | [`prototype/`](prototype/) — version compilée : [`prototype/dist/index.html`](prototype/dist/index.html) |
+| 3. Prototype React + Tailwind (Direction, Bureau, Vie scolaire, Enseignant, Parent, Élève) | [`prototype/`](prototype/) — version compilée : [`prototype/dist/index.html`](prototype/dist/index.html) |
 | Moteur de règles (notes, appréciations, réservations, calendrier et relances, comptabilité) | [`prototype/src/rules/`](prototype/src/rules/) + [tests](prototype/tests/rules.test.js) |
 
 ## Voir le prototype
@@ -22,25 +22,27 @@ entre écolage et droits d'examen.
 Ouvrir `prototype/dist/index.html` dans un navigateur : un seul fichier, sans serveur ni connexion. Les données sont fictives
 et la date de référence est fixée au 13 octobre 2026 (relances d'écolage suspendues, campagne des candidats libres en cours).
 
-Le sélecteur **« Voir l'ENT en tant que »** (en haut du menu) bascule entre les cinq portails.
+Le sélecteur **« Voir l'ENT en tant que »** (en haut du menu) bascule entre les six portails.
 
 **Direction (administrateur)** : tableau de bord (changer la *date de référence* au 10/11/2026 pour voir des mises à
-pied à valider), comptabilité, conseils de classe, vie scolaire, réservations, gestion des agents, paramètres
-(échéancier, relances, calendrier, notation).
+pied à valider), comptabilité, conseils de classe, **vie scolaire** (absences, punitions et sanctions, téléphones),
+**documents, stages & orientation**, réservations, gestion des agents, paramètres.
 
-**Bureau (administration / économat)** : accueil du jour ; **Encaisser** : choisir l'élève (ex. *RASOAMANANA Fy*,
-arrivé le 12/10), cocher les mois, payer par chèque ou virement (n° et banque obligatoires), un reçu par journal ;
-grille du **conseil de classe** (mentions proposées, moyenne générale hors arts, musique et vie de classe) ; accès à la
-vie scolaire.
+**Bureau (administration / économat)** : accueil ; **Encaisser** (choisir l'élève, ex. *RASOAMANANA Fy* arrivé le 12/10,
+cocher les mois, chèque ou virement avec n° et banque, un reçu par journal) ; **conseils de classe** (exporter vers Excel,
+imprimer, rédiger l'appréciation générale de chaque élève) ; accès à la vie scolaire et au suivi des familles.
 
-**Vie scolaire** : absences et retards du jour, justificatifs, SMS aux parents, incidents.
+**Vie scolaire** : absences et retards ; punitions avec motif (choisir la classe, puis l'élève) ; téléphones
+confisqués (24 h ou 5 jours ouvrés, prise en garde et restitution signées) ; documents, stages et orientation.
 
-**Enseignant** : tableau de bord et appel ; **Notes & appréciations** en 3 étapes :
-1. **Notes** : « 1O » de Fanja à corriger, « + Ajouter une note » en Terminale STMG pour atteindre 4 notes.
-2. **Compétences** : en 1re Générale · EMC, essayer « Copier et adapter ».
-3. **Appréciations** : moyennes, assistant, avis pour le conseil.
+**Enseignant** : tableau de bord et appel ; **Notes & appréciations** en 3 étapes (1. Compétences, 2. Notes avec
+« 1O » à corriger, 3. Appréciations avec l'élève choisi dans une liste déroulante) ; cahier de textes ; punitions.
 
-**Parent** : application mobile avec alertes, notes, paiements (espèces, chèque, virement) et messages.
+**Parent** : Accueil, **Notes** (par matière, ordre chronologique, moyenne, plus haute et plus basse de la classe),
+Devoirs, **Vie scolaire** (case « Je suis informé.e »), et dans « Plus » : documents et autorisations, stages,
+orientation, paiements, messages.
+
+**Élève** : le portail parent en lecture seule, sans les paiements.
 
 ## Développement
 

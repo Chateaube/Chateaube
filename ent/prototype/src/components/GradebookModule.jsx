@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { Badge, Button, Card, Icon } from './ui.jsx';
-import { MASTERY, Annotated, RulePanel, GradeCell } from './gradeUi.jsx';
+import { Badge, Button, Card, Icon, StudentSelect } from './ui.jsx';
+import { Annotated, RulePanel, GradeCell } from './gradeUi.jsx';
 import {
-  TERM, SERVICES, EVALUATIONS, GRADES, COMPETENCIES, MASTERY as MASTERY_INIT, COUNCIL_FLAGS, CLASS_SUBJECTS, OTHER_AVERAGES,
+  TERM, SERVICES, EVALUATIONS, GRADES, COMPETENCIES, COUNCIL_FLAGS, CLASS_SUBJECTS, OTHER_AVERAGES,
 } from '../data/grades.js';
 import { studentAverage, notesCount, termValidation, classStats, generalAverage, copySuggestions, fmtAvg } from '../rules/grading.js';
 import { checkAppreciation, autoFix } from '../rules/appreciation.js';
@@ -12,10 +12,10 @@ const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-s
 const fmtDate = (iso) => iso.split('-').reverse().slice(0, 2).join('/');
 const firstName = (full) => full.split(' ').slice(1).join(' ');
 
-/* ---------------- 1. Notes ---------------- */
-function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, validated, setValidated, settings }) {
+/* ---------------- 2. Notes ---------------- */
+function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, validated, setValidated, settings, competencies = [] }) {
   const min = settings.grading.minEvaluations;
-  const blank = { type: settings.grading.evaluationTypes[0], title: '', date: '2026-10-13', scale: settings.grading.defaultScale, coef: settings.grading.defaultCoef };
+  const blank = { type: settings.grading.evaluationTypes[0], title: '', date: '2026-10-13', scale: settings.grading.defaultScale, coef: settings.grading.defaultCoef, competencies: [] };
   const [draft, setDraft] = useState(null);
   const check = termValidation(evaluations, service.students, grades, min);
   const avgs = service.students.map((s) => studentAverage(evaluations, grades[s]));
@@ -46,6 +46,20 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, va
             <label className="text-xs text-slate-600">Coef.
               <input type="number" min={0.5} max={10} step={0.5} value={draft.coef} onChange={(e) => setDraft({ ...draft, coef: Math.max(0.5, Number(e.target.value)) })} className={`mt-1 w-full ${inputCls}`} />
             </label>
+            {competencies.length > 0 && (
+              <div className="sm:col-span-6">
+                <p className="text-xs text-slate-600">Compétences visées (facultatif)</p>
+                <div className="mt-1 flex flex-wrap gap-1.5">
+                  {competencies.map((c) => {
+                    const on = draft.competencies.includes(c);
+                    return (
+                      <button key={c} type="button" aria-pressed={on} onClick={() => setDraft({ ...draft, competencies: on ? draft.competencies.filter((x) => x !== c) : [...draft.competencies, c] })}
+                        className={`rounded-full px-2.5 py-0.5 text-xs ring-1 ring-inset ${on ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-600 ring-slate-300'}`}>{c}</button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <div className="flex gap-1">
               <Button disabled={!draft.title.trim()} onClick={() => { setEvaluations([...evaluations, { ...draft, id: `n${Date.now()}`, title: draft.title.trim() }]); setDraft(null); setValidated(false); }}>Créer</Button>
               <Button variant="ghost" onClick={() => setDraft(null)}>Annuler</Button>
@@ -63,6 +77,11 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, va
                   {evaluations.map((ev) => (
                     <th key={ev.id} className="px-2 py-2 font-medium">
                       <Badge tone="navy">{ev.type}</Badge>
+                      {ev.competencies?.length > 0 && (
+                        <span className="ml-1 text-[10px] font-normal text-slate-500" title={ev.competencies.join(' · ')}>
+                          {ev.competencies.map((c) => `C${competencies.indexOf(c) + 1}`).join(' ')}
+                        </span>
+                      )}
                       <p className="mt-1 max-w-[120px] truncate text-slate-700" title={ev.title}>{ev.title}</p>
                       <p className="font-normal">{fmtDate(ev.date)} · /{ev.scale} · coef. {String(ev.coef).replace('.', ',')}</p>
                     </th>
@@ -141,22 +160,16 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, va
   );
 }
 
-/* ---------------- 2. Compétences ---------------- */
-function CompetenciesStep({ service, competencies, setCompetencies, mastery, setMastery }) {
+/* ---------------- 1. Compétences ---------------- */
+function CompetenciesStep({ service, competencies, setCompetencies }) {
   const list = competencies[service.id] ?? [];
   const suggestions = copySuggestions(service, SERVICES, competencies);
   const [label, setLabel] = useState('');
   const setList = (next) => setCompetencies({ ...competencies, [service.id]: next });
-  const m = mastery[service.id] ?? {};
-  const setLevel = (s, i, v) => {
-    const row = [...(m[s] ?? [])];
-    row[i] = v;
-    setMastery({ ...mastery, [service.id]: { ...m, [s]: row } });
-  };
 
   return (
     <div className="space-y-5">
-      <Card title={`Référentiel de compétences — ${service.cls} · ${service.subject}`} subtitle="Propre à chaque classe et matière ; 4 niveaux de maîtrise (socle commun)">
+      <Card title={`Référentiel de compétences — ${service.cls} · ${service.subject}`} subtitle="Propre à chaque classe et matière. Repères de travail : elles sont associées aux évaluations, sans évaluation individuelle (l'appréciation globale en tient lieu).">
         {list.length === 0 && suggestions.length > 0 && (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-navy-200 bg-navy-50 p-3">
             <p className="text-sm text-navy-900">Même matière, même niveau : reprendre les {competencies[suggestions[0].id].length} compétences de <span className="font-semibold">{suggestions[0].subject} — {suggestions[0].cls}</span> ?</p>
@@ -178,39 +191,6 @@ function CompetenciesStep({ service, competencies, setCompetencies, mastery, set
         </div>
       </Card>
 
-      {list.length > 0 && (
-        <Card title="Bilan des compétences du trimestre">
-          <div className="-mx-4 overflow-x-auto">
-            <table className="w-full text-sm" style={{ minWidth: 240 + list.length * 170 }}>
-              <thead>
-                <tr className="border-y border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
-                  <th className="px-4 py-2 font-medium">Élève</th>
-                  {list.map((c) => <th key={c} className="px-2 py-2 font-medium">{c}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {service.students.map((s) => (
-                  <tr key={s} className="border-b border-slate-100">
-                    <td className="px-4 py-2 font-medium text-slate-800">{s}</td>
-                    {list.map((c, i) => {
-                      const v = m[s]?.[i];
-                      return (
-                        <td key={c} className="px-2 py-1.5">
-                          <select aria-label={`${c} — ${s}`} value={v ?? ''} onChange={(e) => setLevel(s, i, Number(e.target.value))}
-                            className={`rounded-md border-0 px-1.5 py-1 text-xs font-medium ${v ? MASTERY[v].cls : 'bg-slate-100 text-slate-500'}`}>
-                            <option value="" disabled>À évaluer</option>
-                            {[1, 2, 3, 4].map((k) => <option key={k} value={k}>{k} · {MASTERY[k].label}</option>)}
-                          </select>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      )}
     </div>
   );
 }
@@ -245,23 +225,17 @@ function AppreciationsStep({ service, evaluations, grades, validated, settings, 
   const blocked = !appOnly && !validated;
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[230px_1fr_320px] xl:items-start">
-      <Card title={service.cls} subtitle={`${service.students.filter((s) => statusOf(s) === 'valid').length} / ${service.students.length} validées`}>
-        <ul className="-mx-2 space-y-0.5">
-          {service.students.map((s) => {
-            const st = statusOf(s);
-            return (
-              <li key={s}>
-                <button onClick={() => { setStudent(s); setAiNote(null); }} className={`flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm ${s === student ? 'bg-navy-50 font-medium text-navy-900' : 'hover:bg-slate-50'}`}>
-                  <span className="truncate">{s}</span>
-                  <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${{ valid: 'bg-emerald-500', ready: 'bg-navy-200', error: 'bg-red-500', empty: 'bg-slate-200' }[st]}`} />
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+    <div className="grid gap-5 xl:grid-cols-[1fr_320px] xl:items-start">
+      <div className="min-w-0 space-y-5">
+      <Card>
+        <StudentSelect
+          label={`${service.cls} — ${service.students.filter((s) => statusOf(s) === 'valid').length} / ${service.students.length} appréciations validées`}
+          students={service.students}
+          value={student}
+          onChange={(s) => { setStudent(s); setAiNote(null); }}
+          suffix={(s) => ({ valid: '  ✓ validée', ready: '  · conforme', error: '  ⚠ à corriger', empty: '' }[statusOf(s)])}
+        />
       </Card>
-
       <Card title={student} subtitle={service.subject}>
         {appOnly ? (
           <Badge tone="violet" className="mb-3">Appréciation seule · sans note</Badge>
@@ -325,7 +299,8 @@ function AppreciationsStep({ service, evaluations, grades, validated, settings, 
         </div>
       </Card>
 
-      <Card title="Contrôleur de rédaction" subtitle="Règles de l'établissement, vérifiées à chaque frappe">
+      </div>
+      <Card title="Contrôleur de rédaction" subtitle="Règles de l'établissement, vérifiées à chaque frappe" className="xl:sticky xl:top-6">
         <RulePanel result={result} />
       </Card>
     </div>
@@ -333,15 +308,15 @@ function AppreciationsStep({ service, evaluations, grades, validated, settings, 
 }
 
 /* ---------------- Module ---------------- */
-const STEPS = [['notes', '1. Notes'], ['competences', '2. Compétences'], ['appreciations', '3. Appréciations']];
+const STEPS = [['competences', '1. Compétences'], ['notes', '2. Notes'], ['appreciations', '3. Appréciations']];
 
 export default function GradebookModule({ settings }) {
   const [serviceId, setServiceId] = useState('s1');
-  const [step, setStep] = useState('notes');
+  // une fois le référentiel défini, l'enseignant arrive directement sur ses notes
+  const [step, setStep] = useState((COMPETENCIES.s1?.length ?? 0) > 0 ? 'notes' : 'competences');
   const [evaluations, setEvaluations] = useState(EVALUATIONS);
   const [grades, setGrades] = useState(GRADES);
   const [competencies, setCompetencies] = useState(COMPETENCIES);
-  const [mastery, setMastery] = useState(MASTERY_INIT);
   const [validated, setValidated] = useState({});
   const [comments, setComments] = useState({});
   const [flags, setFlags] = useState({ 's1:RAJAONARIVELO Tsiry': { ids: ['BAVARD'], note: '' } });
@@ -371,7 +346,7 @@ export default function GradebookModule({ settings }) {
         {SERVICES.map((s) => {
           const ok = validated[s.id];
           return (
-            <button key={s.id} onClick={() => setServiceId(s.id)}
+            <button key={s.id} onClick={() => { setServiceId(s.id); setStep((competencies[s.id]?.length ?? 0) > 0 ? 'notes' : 'competences'); }}
               className={`shrink-0 rounded-lg border px-3 py-2 text-left text-sm ${s.id === serviceId ? 'border-navy-500 bg-navy-50 ring-1 ring-navy-500' : 'border-slate-200 bg-white hover:border-navy-200'}`}>
               <span className="block font-medium text-slate-900">{s.cls}</span>
               <span className="block text-xs text-slate-500">{s.subject}{ok ? ' · notes validées' : ''}</span>
@@ -389,8 +364,8 @@ export default function GradebookModule({ settings }) {
           ))}
         </div>
       )}
-      {currentStep === 'notes' && <NotesStep {...props} />}
-      {currentStep === 'competences' && <CompetenciesStep service={service} competencies={competencies} setCompetencies={setCompetencies} mastery={mastery} setMastery={setMastery} />}
+      {currentStep === 'notes' && <NotesStep {...props} competencies={competencies[serviceId] ?? []} />}
+      {currentStep === 'competences' && <CompetenciesStep service={service} competencies={competencies} setCompetencies={setCompetencies} />}
       {currentStep === 'appreciations' && <AppreciationsStep {...props} comments={comments} setComments={setComments} flags={flags} setFlags={setFlags} />}
     </div>
   );

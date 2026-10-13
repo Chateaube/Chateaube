@@ -390,5 +390,68 @@ DO $$ DECLARE f uuid := (SELECT id FROM subject WHERE code = 'FRANCAIS'); BEGIN
   END;
 END $$;
 
+-- T21. Téléphone confisqué : restitution sur les jours de classe -------------
+DO $$ DECLARE r timestamptz; BEGIN
+  INSERT INTO phone_confiscation (enrollment_id, reason, confiscated_at, confiscated_by, received_by, duration_code)
+  VALUES ('30000000-0000-0000-0000-000000000001', 'Téléphone en cours', '2026-12-17 10:00+03',
+          '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000002', '5J')
+  RETURNING return_due_at INTO r;
+  ASSERT r = '2027-01-07 10:00+03', 'T21: 5 jours ouvrés après les vacances de Noël = ' || r;
+  INSERT INTO phone_confiscation (enrollment_id, reason, confiscated_at, confiscated_by, received_by, duration_code)
+  VALUES ('30000000-0000-0000-0000-000000000001', 'Téléphone dans la cour', '2026-10-13 15:00+03',
+          '00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000002', '24H')
+  RETURNING return_due_at INTO r;
+  ASSERT r = '2026-10-14 15:00+03', 'T21: 24 h = ' || r;
+  BEGIN
+    UPDATE phone_confiscation SET returned_at = now() WHERE duration_code = '24H';
+    RAISE EXCEPTION 'T21: restitution sans signature acceptée';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
+-- T22. Mesures : motif obligatoire, sanction réservée à la Direction ----------
+DO $$ BEGIN
+  INSERT INTO discipline_measure (enrollment_id, type_code, reason, decided_by)
+  VALUES ('30000000-0000-0000-0000-000000000001', 'RETENUE', 'Travaux non rendus', '00000000-0000-0000-0000-000000000003');
+  BEGIN
+    INSERT INTO discipline_measure (enrollment_id, type_code, reason, decided_by)
+    VALUES ('30000000-0000-0000-0000-000000000001', 'BLAME', 'Insolence', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T22: blâme décidé par un professeur';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM LIKE 'T22:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO discipline_measure (enrollment_id, type_code, reason, decided_by)
+  VALUES ('30000000-0000-0000-0000-000000000001', 'BLAME', 'Insolence', '00000000-0000-0000-0000-000000000001');
+  BEGIN
+    INSERT INTO discipline_measure (enrollment_id, type_code, reason, decided_by)
+    VALUES ('30000000-0000-0000-0000-000000000001', 'RETENUE', '  ', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T22: mesure sans motif acceptée';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  ASSERT (SELECT count(*) FROM v_pending_parent_ack WHERE kind = 'MESURE') = 2, 'T22: deux mesures à confirmer par le parent';
+END $$;
+
+-- T23. Autorisations : réponse parmi les options ; cahier de textes cohérent --
+INSERT INTO guardian (id, first_name, last_name) VALUES ('e0000000-0000-0000-0000-000000000001', 'Hanta', 'RAKOTO');
+DO $$ BEGIN
+  INSERT INTO authorization_answer (enrollment_id, type_code, answer, guardian_id)
+  VALUES ('30000000-0000-0000-0000-000000000001', 'IMAGE', 'Je n''autorise pas', 'e0000000-0000-0000-0000-000000000001');
+  BEGIN
+    INSERT INTO authorization_answer (enrollment_id, type_code, answer, guardian_id)
+    VALUES ('30000000-0000-0000-0000-000000000001', 'SORTIE', 'Peut-être', 'e0000000-0000-0000-0000-000000000001');
+    RAISE EXCEPTION 'T23: réponse hors options acceptée';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM LIKE 'T23:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO homework (assignment_id, session_on, done_in_class, todo, due_on)
+  VALUES ('c0000000-0000-0000-0000-000000000001', '2026-10-13', 'Chapitre 3', 'Questions 1 à 3', '2026-10-15');
+  BEGIN
+    INSERT INTO homework (assignment_id, session_on, done_in_class, todo, due_on)
+    VALUES ('c0000000-0000-0000-0000-000000000001', '2026-10-13', 'Chapitre 3', 'Exercice', '2026-10-12');
+    RAISE EXCEPTION 'T23: devoir à rendre avant la séance accepté';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T20 passent'
+\echo 'OK — tous les scénarios T1 à T23 passent'

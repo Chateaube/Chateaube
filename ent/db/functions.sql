@@ -408,3 +408,72 @@ BEGIN
   GET DIAGNOSTICS n = ROW_COUNT;
   RETURN n;
 END $$ LANGUAGE plpgsql;
+
+-- =============================================================================
+--  VIE SCOLAIRE ET FAMILLES
+-- =============================================================================
+
+-- Jour de classe : jour d'ouverture du site (school_day) hors fériés, vacances et fermetures.
+-- (Différent des relances : octobre n'est pas gelé ici.)
+CREATE FUNCTION is_school_day(p_site uuid, p_day date) RETURNS boolean AS $$
+  SELECT EXISTS (SELECT 1 FROM school_day WHERE site_id = p_site AND weekday = extract(isodow FROM p_day))
+     AND NOT EXISTS (SELECT 1 FROM calendar_day_off o
+                      WHERE (o.site_id IS NULL OR o.site_id = p_site) AND o.days @> p_day)
+$$ LANGUAGE sql STABLE;
+
+CREATE FUNCTION add_school_days(p_site uuid, p_from date, p_n int) RETURNS date AS $$
+DECLARE d date := p_from; n int := 0;
+BEGIN
+  WHILE n < p_n LOOP
+    d := d + 1;
+    IF d > p_from + 400 THEN RAISE EXCEPTION 'Aucun jour de classe trouvé : vérifier le calendrier'; END IF;
+    IF is_school_day(p_site, d) THEN n := n + 1; END IF;
+  END LOOP;
+  RETURN d;
+END $$ LANGUAGE plpgsql STABLE;
+
+-- Restitution d'un téléphone : 24 h → même heure le jour de classe suivant ;
+-- 5 jours ouvrés → même heure, 5 jours de classe plus tard.
+CREATE FUNCTION phone_return_due() RETURNS trigger AS $$
+DECLARE v_site uuid; v_local timestamp;
+BEGIN
+  SELECT c.site_id INTO v_site FROM enrollment e JOIN school_class c ON c.id = e.class_id WHERE e.id = NEW.enrollment_id;
+  v_local := NEW.confiscated_at AT TIME ZONE 'Indian/Antananarivo';
+  NEW.return_due_at := (add_school_days(v_site, v_local::date, CASE NEW.duration_code WHEN '24H' THEN 1 ELSE 5 END)
+                        + v_local::time) AT TIME ZONE 'Indian/Antananarivo';
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER phone_return BEFORE INSERT OR UPDATE OF confiscated_at, duration_code ON phone_confiscation
+  FOR EACH ROW EXECUTE FUNCTION phone_return_due();
+
+-- Une sanction disciplinaire ne peut être décidée que par la Direction.
+CREATE FUNCTION discipline_measure_guard() RETURNS trigger AS $$
+BEGIN
+  IF (SELECT kind FROM discipline_measure_type WHERE code = NEW.type_code) = 'SANCTION'
+     AND NOT EXISTS (SELECT 1 FROM user_role WHERE user_id = NEW.decided_by AND role = 'DIRECTION') THEN
+    RAISE EXCEPTION 'Une sanction ne peut être décidée que par la Direction';
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER discipline_measure_check BEFORE INSERT OR UPDATE ON discipline_measure
+  FOR EACH ROW EXECUTE FUNCTION discipline_measure_guard();
+
+-- La réponse à une autorisation doit être l'une des options proposées.
+CREATE FUNCTION authorization_answer_guard() RETURNS trigger AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM authorization_type WHERE code = NEW.type_code AND NEW.answer = ANY (options)) THEN
+    RAISE EXCEPTION 'Réponse « % » non prévue pour cette autorisation', NEW.answer;
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER authorization_answer_check BEFORE INSERT OR UPDATE ON authorization_answer
+  FOR EACH ROW EXECUTE FUNCTION authorization_answer_guard();
+
+-- Ce que le parent doit encore confirmer (« Je suis informé.e »)
+CREATE VIEW v_pending_parent_ack AS
+SELECT 'ABSENCE_RETARD' AS kind, a.id, a.enrollment_id, a.occurred_at AS at FROM attendance_event a WHERE a.parent_ack_at IS NULL
+UNION ALL
+SELECT 'MESURE', m.id, m.enrollment_id, m.decided_on::timestamptz FROM discipline_measure m WHERE m.parent_ack_at IS NULL;

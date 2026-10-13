@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { Badge, Button, Card, Icon, Stat } from './ui.jsx';
+import { Badge, Button, Card, Icon, Stat, StudentSelect } from './ui.jsx';
+import { RulePanel } from './gradeUi.jsx';
 import { TERM, EVALUATIONS, GRADES, CLASS_SUBJECTS, OTHER_AVERAGES, OTHER_FLAGS, COUNCIL_FLAGS, ABSENCES } from '../data/grades.js';
 import { CLASS_LIST } from '../data/people.js';
-import { studentAverage, generalAverage, classStats, councilProposal, COUNCIL_DECISIONS, fmtAvg } from '../rules/grading.js';
-import { decisionText } from '../rules/appreciation.js';
+import { studentAverage, generalAverage, classStats, councilProposal, COUNCIL_DECISIONS, fmtAvg, councilCsv } from '../rules/grading.js';
+import { decisionText, checkAppreciation, autoFix } from '../rules/appreciation.js';
 
 // Grille du conseil de classe — réservée à la Direction et au Bureau (jamais visible des enseignants).
 
@@ -20,6 +21,8 @@ export default function CouncilGrid({ settings }) {
   const [decisions, setDecisions] = useState({});
   const [passage, setPassage] = useState({});
   const [open, setOpen] = useState(null);
+  const [appreciations, setAppreciations] = useState({});
+  const [current, setCurrent] = useState(CLASS_LIST[0]);
   const excluded = settings.grading.excludedSubjects;
 
   const rows = useMemo(() => CLASS_LIST.map((name) => {
@@ -41,6 +44,25 @@ export default function CouncilGrid({ settings }) {
   const generalStats = classStats(rows.map((r) => r.general));
   const pendingSubjects = CLASS_SUBJECTS.filter((s) => ENTRY_STATUS[s.id]);
   const decided = rows.filter((r) => decisions[r.name] !== undefined).length;
+  const appText = appreciations[current] ?? '';
+  const appCheck = checkAppreciation(appText);
+  const written = CLASS_LIST.filter((n) => checkAppreciation(appreciations[n] ?? '').ok).length;
+  const flagText = (r) => r.flags.map((f) => `${f.subject} : ${FLAG[f.flag].label}`).join(' / ');
+
+  const exportCsv = () => {
+    const csv = councilCsv({
+      className: '1re STMG', term: TERM.label,
+      subjects: CLASS_SUBJECTS.map((s) => ({ label: s.label, inAverage: !excluded.includes(s.id) })),
+      rows: rows.map((r) => ({
+        name: r.name, subjects: r.subjects, general: r.general, abs: r.abs?.abs ?? 0, late: r.abs?.late ?? 0,
+        flags: flagText(r), decision: DECISION[decisions[r.name] ?? r.proposal]?.label.replace('—', '') ?? '', appreciation: appreciations[r.name] ?? '',
+      })),
+    });
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const a = Object.assign(document.createElement('a'), { href: url, download: 'conseil-1re-STMG-T1.csv' });
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-5">
@@ -50,23 +72,24 @@ export default function CouncilGrid({ settings }) {
           <h1 className="text-2xl font-semibold text-navy-900">1re STMG — {TERM.label}</h1>
           <p className="text-sm text-slate-500">Tamatave · conseil le {TERM.council} · professeure principale : Mme Ranaivo</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 print:hidden">
           <label className="flex items-center gap-1.5 text-sm text-slate-600"><input type="checkbox" checked={finalTerm} onChange={(e) => setFinalTerm(e.target.checked)} />Conseil du 3e trimestre (passage)</label>
           <label className="flex items-center gap-1.5 text-sm text-slate-600"><input type="checkbox" checked={showRank} onChange={(e) => setShowRank(e.target.checked)} />Afficher le rang</label>
-          <Button variant="secondary" onClick={() => window.print()}>Imprimer / PDF</Button>
+          <Button variant="secondary" onClick={exportCsv}>Exporter (Excel)</Button>
+          <Button variant="secondary" onClick={() => window.print()}>Imprimer / afficher</Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 print:hidden">
         <Stat label="Moyenne générale de la classe" value={fmtAvg(generalStats.avg)} hint={`de ${fmtAvg(generalStats.min)} à ${fmtAvg(generalStats.max)}`} />
         <Stat label="Élèves sous 10 de moyenne" value={rows.filter((r) => r.general !== null && r.general < 10).length} tone="red" />
         <Stat label="Matières en attente de saisie" value={pendingSubjects.length} hint={pendingSubjects.map((s) => s.label).join(', ') || 'Toutes validées'} tone={pendingSubjects.length ? 'amber' : 'green'} />
-        <Stat label="Décisions saisies" value={`${decided} / ${rows.length}`} />
+        <Stat label="Décisions · appréciations générales" value={`${decided} · ${written} / ${rows.length}`} />
       </div>
 
       <Card title="Grille de notes" subtitle={`Moyennes /20 par matière · moyenne générale hors ${CLASS_SUBJECTS.filter((s) => excluded.includes(s.id)).map((s) => s.label).join(', ')}`}>
-        <div className="-mx-4 overflow-x-auto">
-          <table className="w-full min-w-[1320px] text-sm">
+        <div className="-mx-4 overflow-x-auto print:overflow-visible">
+          <table className="w-full min-w-[1320px] text-sm print:min-w-0 print:text-[9px]">
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50 text-xs text-slate-500">
                 <th className="sticky left-0 z-10 bg-slate-50 px-4 py-2 text-left font-medium">Élève</th>
@@ -81,6 +104,7 @@ export default function CouncilGrid({ settings }) {
                 <th className="px-2 py-2 text-left font-medium">Abs. / Ret.</th>
                 <th className="px-2 py-2 text-left font-medium">Avis des enseignants</th>
                 <th className="px-3 py-2 text-left font-medium">Décision du conseil</th>
+                <th className="px-2 py-2 text-center font-medium">Appr. gén.</th>
                 {finalTerm && <th className="px-3 py-2 text-left font-medium">Passage</th>}
               </tr>
             </thead>
@@ -112,6 +136,12 @@ export default function CouncilGrid({ settings }) {
                         </select>
                         {decisions[r.name] === undefined && r.proposal && <p className="text-[10px] text-navy-500">Proposition — à confirmer</p>}
                       </td>
+                      <td className="px-2 text-center">
+                        <button onClick={() => setCurrent(r.name)} title="Rédiger l'appréciation générale"
+                          className={`rounded-full px-2 py-0.5 text-xs font-medium ${checkAppreciation(appreciations[r.name] ?? '').ok ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                          {checkAppreciation(appreciations[r.name] ?? '').ok ? '✓' : 'À rédiger'}
+                        </button>
+                      </td>
                       {finalTerm && (
                         <td className="px-3 py-1.5">
                           <select value={passage[r.name] ?? 'ADMIS'} onChange={(e) => setPassage({ ...passage, [r.name]: e.target.value })} className="rounded-md border border-slate-300 px-2 py-1 text-xs">
@@ -123,7 +153,7 @@ export default function CouncilGrid({ settings }) {
                     </tr>
                     {open === r.name && (
                       <tr className="bg-slate-50">
-                        <td colSpan={CLASS_SUBJECTS.length + 6} className="px-4 py-3 text-sm">
+                        <td colSpan={CLASS_SUBJECTS.length + 7} className="px-4 py-3 text-sm">
                           <p className="font-medium text-slate-800">Avis détaillés pour {r.name}</p>
                           {r.flags.length === 0 ? <p className="text-slate-500">Aucun avis particulier.</p> : (
                             <ul className="mt-1 space-y-0.5 text-slate-700">
@@ -144,18 +174,53 @@ export default function CouncilGrid({ settings }) {
                   <td className="sticky left-0 z-10 bg-slate-50 px-4 py-1.5 font-medium">{{ avg: 'Moyenne de classe', min: 'Minimum', max: 'Maximum' }[k]}</td>
                   {CLASS_SUBJECTS.map((s, i) => <td key={s.id} className="px-1.5 text-center tabular-nums">{fmtAvg(classStats(rows.map((r) => r.subjects[i].avg))[k])}</td>)}
                   <td className="px-2 text-center font-semibold tabular-nums">{fmtAvg(generalStats[k])}</td>
-                  <td colSpan={showRank ? 5 : 4} />
+                  <td colSpan={showRank ? 6 : 5} />
                   {finalTerm && <td />}
                 </tr>
               ))}
             </tfoot>
           </table>
         </div>
-        <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
+        <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-500 print:hidden">
           <Icon name="alert" className="h-3.5 w-3.5 text-amber-600" />
           • = saisie en cours dans cette matière. Cliquer sur un nom affiche le détail des avis. Les matières hors moyenne se règlent dans Paramètres.
         </p>
       </Card>
+
+      {/* Appréciation générale de chaque élève, rédigée en fin de conseil */}
+      <div className="grid gap-5 xl:grid-cols-[1fr_320px] xl:items-start print:hidden">
+        <Card title="Appréciations générales" subtitle={`Rédigées en fin de conseil · ${written} / ${rows.length} conformes`}>
+          <StudentSelect students={CLASS_LIST} value={current} onChange={setCurrent}
+            suffix={(n) => (checkAppreciation(appreciations[n] ?? '').ok ? '  ✓' : '')} />
+          {(() => {
+            const r = rows.find((x) => x.name === current);
+            return (
+              <p className="mt-3 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                Moyenne générale {fmtAvg(r.general)} · {DECISION[decisions[r.name] ?? r.proposal]?.label} · {r.flags.length ? flagText(r) : 'aucun avis particulier'}
+              </p>
+            );
+          })()}
+          <textarea rows={4} value={appText} onChange={(e) => setAppreciations({ ...appreciations, [current]: e.target.value })}
+            placeholder="Appréciation générale du conseil de classe…" className="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+          <div className="mt-2 flex gap-2">
+            <Button variant="secondary" disabled={!appText.trim() || autoFix(appText) === appText.trim()} onClick={() => setAppreciations({ ...appreciations, [current]: autoFix(appText) })}>Corriger la forme</Button>
+            <Button className="ml-auto" disabled={!appCheck.ok || CLASS_LIST.indexOf(current) === CLASS_LIST.length - 1}
+              onClick={() => setCurrent(CLASS_LIST[CLASS_LIST.indexOf(current) + 1])}>Élève suivant ›</Button>
+          </div>
+        </Card>
+        <Card title="Contrôleur de rédaction"><RulePanel result={appCheck} /></Card>
+      </div>
+
+      {/* Récapitulatif imprimé sous la grille */}
+      <section className="hidden print:block">
+        <h2 className="mb-2 text-sm font-semibold">Appréciations générales et décisions</h2>
+        {rows.map((r) => (
+          <p key={r.name} className="mb-1 text-[10px]">
+            <b>{r.name}</b>{(decisions[r.name] ?? r.proposal) && <> · Décision : {DECISION[decisions[r.name] ?? r.proposal].label}</>}
+            {' · '}Appréciation : {appreciations[r.name] || <span className="text-slate-400">à rédiger</span>}
+          </p>
+        ))}
+      </section>
     </div>
   );
 }

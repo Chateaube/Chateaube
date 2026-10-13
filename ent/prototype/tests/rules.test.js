@@ -337,3 +337,47 @@ test('conseil : proposition de mention ou d\'avertissement', () => {
   assert.equal(councilProposal(8, ['AVERT_TRAVAIL', 'MANQUE_TRAVAIL', 'BAVARD', 'AVERT_COMPORTEMENT']), 'AVERT_TRAVAIL_COMPORTEMENT');
   assert.equal(councilProposal(15, ['BAVARD']), 'COMPLIMENTS'); // un seul avis : pas d'avertissement
 });
+
+// --- Vie scolaire ------------------------------------------------------------------
+import { validateMeasure, phoneReturnAt, isSchoolDay } from '../src/rules/discipline.js';
+
+test('mesures : motif obligatoire, sanction réservée à la Direction', () => {
+  assert.deepEqual(validateMeasure({ measureId: 'RETENUE', authorRole: 'PROFESSEUR', reason: 'Travail non fait', student: 'X' }), []);
+  assert.ok(validateMeasure({ measureId: 'RETENUE', authorRole: 'PROFESSEUR', reason: ' ', student: 'X' })[0].includes('motif'));
+  assert.ok(validateMeasure({ measureId: 'BLAME', authorRole: 'VIE_SCOLAIRE', reason: 'Insolence', student: 'X' })[0].includes('Direction'));
+  assert.deepEqual(validateMeasure({ measureId: 'BLAME', authorRole: 'DIRECTION', reason: 'Insolence', student: 'X' }), []);
+});
+
+test('téléphone : 24 h ou 5 jours ouvrés, vacances et week-ends exclus', () => {
+  assert.equal(phoneReturnAt('2026-10-13T15:00', '24H', DEFAULT_SETTINGS), '2026-10-14T15:00');
+  assert.equal(phoneReturnAt('2026-10-13T15:00', '5J', DEFAULT_SETTINGS), '2026-10-20T15:00');
+  assert.equal(phoneReturnAt('2026-10-22T10:00', '5J', DEFAULT_SETTINGS), '2026-11-05T10:00'); // vacances de la Toussaint
+  assert.equal(phoneReturnAt('2026-12-18T09:00', '24H', DEFAULT_SETTINGS), '2027-01-04T09:00'); // vacances de Noël
+  assert.equal(phoneReturnAt('2026-12-17T10:00', '5J', DEFAULT_SETTINGS), '2027-01-07T10:00');
+  assert.equal(isSchoolDay('2026-10-14', DEFAULT_SETTINGS), true); // octobre n'est pas gelé pour la vie scolaire
+});
+
+import { councilCsv } from '../src/rules/grading.js';
+test('export de la grille : CSV pour Excel (point-virgule, virgule décimale)', () => {
+  const csv = councilCsv({
+    className: '1re STMG', term: '1er trimestre',
+    subjects: [{ label: 'Français', inAverage: true }, { label: 'Musique', inAverage: false }],
+    rows: [{ name: 'RAKOTOARISOA Aina', subjects: [{ avg: 15.5 }, { avg: 17 }], general: 15.5, abs: 0, late: 1, flags: 'Élève exemplaire', decision: 'Compliments', appreciation: 'Excellent trimestre; bravo.' }],
+  });
+  assert.ok(csv.startsWith('﻿Conseil de classe — 1re STMG'));
+  const line = csv.split('\r\n')[2];
+  assert.equal(line, 'RAKOTOARISOA Aina;15,5;17;15,5;0;1;Élève exemplaire;Compliments;"Excellent trimestre; bravo."');
+  assert.ok(csv.split('\r\n')[1].includes('Musique (hors moy.)'));
+});
+
+import { studentNoteList, fmt2 } from '../src/rules/grading.js';
+test('portail parent : notes chronologiques avec moyenne, max et min de la classe', () => {
+  const list = studentNoteList(EVALUATIONS.s1, SERVICES[0].students, GRADES.s1, 'RAJAONARIVELO Tsiry');
+  assert.deepEqual(list.map((n) => n.date), ['2026-09-24', '2026-10-01', '2026-10-06', '2026-10-08']);
+  assert.equal(list[0].value, 9);
+  assert.equal(fmt2(list[0].value), '9,00');
+  assert.equal(list[0].max, 16);
+  assert.equal(list[0].min, 7.5);
+  assert.equal(list[1].status, 'ABSENT');                       // ABS : pas de note, mais l'évaluation apparaît
+  assert.equal(list[2].avg, 12.67);                              // (15+10+17+9+13+12)/6 : « 1O » non confirmé et ABS exclus
+});

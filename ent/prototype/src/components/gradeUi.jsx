@@ -4,14 +4,6 @@ import { normalizeGrade } from '../rules/gradeInput.js';
 
 // Composants partagés : saisie de note avec correction, contrôleur de rédaction.
 
-export const MASTERY = [
-  null,
-  { label: 'Insuffisante', cls: 'bg-red-100 text-red-800' },
-  { label: 'Fragile', cls: 'bg-amber-100 text-amber-800' },
-  { label: 'Satisfaisante', cls: 'bg-emerald-100 text-emerald-800' },
-  { label: 'Très bonne', cls: 'bg-emerald-600 text-white' },
-];
-
 /** Surligne dans le texte les passages signalés par le contrôleur. */
 export function Annotated({ text, issues }) {
   const spans = issues

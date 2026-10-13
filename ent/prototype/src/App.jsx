@@ -6,11 +6,13 @@ import GradebookModule from './components/GradebookModule.jsx';
 import CouncilGrid from './components/CouncilGrid.jsx';
 import VieScolaireModule from './components/VieScolaireModule.jsx';
 import BureauHome from './components/BureauHome.jsx';
+import HomeworkModule from './components/HomeworkModule.jsx';
+import FollowUpModule from './components/FollowUpModule.jsx';
 import SettingsModule from './components/SettingsModule.jsx';
 import AccountingModule from './components/AccountingModule.jsx';
 import StaffModule from './components/StaffModule.jsx';
 import TeacherPortal from './components/TeacherPortal.jsx';
-import ParentPortal from './components/ParentPortal.jsx';
+import FamilyPortal from './components/FamilyPortal.jsx';
 import { DEFAULT_SETTINGS } from './data/settings.js';
 import { DIRECTION_ACCOUNTS } from './data/demo.js';
 
@@ -21,6 +23,7 @@ import { DIRECTION_ACCOUNTS } from './data/demo.js';
 const VIE_SCOLAIRE = { id: 'vs', label: 'Vie scolaire', icon: 'users', screen: VieScolaireModule };
 const COUNCIL = { id: 'council', label: 'Conseils de classe', icon: 'cap', screen: CouncilGrid };
 const BOOKING = { id: 'booking', label: 'Réservations', icon: 'calendar', screen: BookingModule };
+const FOLLOW_UP = { id: 'followup', label: 'Documents, stages & orientation', icon: 'pen', screen: FollowUpModule };
 
 const PROFILES = {
   DIRECTION: {
@@ -39,8 +42,9 @@ const PROFILES = {
         BOOKING,
         { id: 'exams', label: 'Examens & Campus France', icon: 'cap' },
       ] },
-      { group: 'Vie scolaire & communication', items: [
+      { group: 'Vie scolaire & familles', items: [
         VIE_SCOLAIRE,
+        FOLLOW_UP,
         { id: 'news', label: 'Annonces', icon: 'megaphone' },
       ] },
       { group: 'Administration', items: [
@@ -60,14 +64,14 @@ const PROFILES = {
         { id: 'enrol', label: 'Inscriptions', icon: 'users' },
         COUNCIL,
       ] },
-      { group: 'Accès partagé', items: [VIE_SCOLAIRE, BOOKING] },
+      { group: 'Accès partagé', items: [VIE_SCOLAIRE, FOLLOW_UP, BOOKING] },
     ],
   },
   VIE_SCOLAIRE: {
     label: 'Vie scol.',
     title: 'Vie scolaire',
     home: 'vs',
-    nav: [{ group: 'Vie scolaire', items: [VIE_SCOLAIRE, BOOKING, { id: 'news', label: 'Annonces', icon: 'megaphone' }] }],
+    nav: [{ group: 'Vie scolaire', items: [VIE_SCOLAIRE, FOLLOW_UP, BOOKING, { id: 'news', label: 'Annonces', icon: 'megaphone' }] }],
   },
   ENSEIGNANT: {
     label: 'Enseignant',
@@ -77,6 +81,8 @@ const PROFILES = {
       { group: 'Ma journée', items: [
         { id: 'teacher', label: 'Mon tableau de bord', icon: 'home', screen: TeacherPortal },
         { id: 'grades', label: 'Notes & appréciations', icon: 'pen', screen: GradebookModule },
+        { id: 'homework', label: 'Cahier de textes', icon: 'calendar', screen: HomeworkModule },
+        { id: 'discipline', label: 'Punitions & téléphones', icon: 'alert', screen: VieScolaireModule },
         BOOKING,
       ] },
       { group: 'Communication', items: [{ id: 'notify', label: 'Message à un parent', icon: 'bell' }] },
@@ -86,7 +92,13 @@ const PROFILES = {
     label: 'Parent',
     title: 'Famille',
     home: 'parent',
-    nav: [{ group: 'Famille', items: [{ id: 'parent', label: 'Portail parents', icon: 'users', screen: ParentPortal }] }],
+    nav: [{ group: 'Famille', items: [{ id: 'parent', label: 'Portail parents', icon: 'users', screen: (p) => <FamilyPortal {...p} audience="PARENT" /> }] }],
+  },
+  ELEVE: {
+    label: 'Élève',
+    title: 'Élève',
+    home: 'eleve',
+    nav: [{ group: 'Élève', items: [{ id: 'eleve', label: 'Portail élèves', icon: 'cap', screen: (p) => <FamilyPortal {...p} audience="ELEVE" /> }] }],
   },
 };
 
@@ -117,7 +129,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen lg:flex">
-      <aside className="border-b border-navy-700 bg-navy-900 text-navy-100 lg:sticky lg:top-0 lg:h-screen lg:w-60 lg:shrink-0 lg:overflow-y-auto lg:border-b-0">
+      <aside className="print:hidden border-b border-navy-700 bg-navy-900 text-navy-100 lg:sticky lg:top-0 lg:h-screen lg:w-60 lg:shrink-0 lg:overflow-y-auto lg:border-b-0">
         <div className="flex items-center justify-between gap-2 px-4 py-4">
           <div>
             <p className="text-base font-semibold text-white">Chateaubriand</p>
@@ -183,7 +195,7 @@ export default function App() {
       </aside>
 
       <main className="mx-auto w-full max-w-[1400px] px-4 py-6 lg:px-8">
-        <Current account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={setScreen} />
+        <Current key={`${profile}-${screen}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={setScreen} role={profile} />
       </main>
     </div>
   );

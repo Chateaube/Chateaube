@@ -13,6 +13,11 @@
 
 body { @apply bg-slate-50 text-slate-800 antialiased; }
 
+@media print {
+  @page { size: A4 landscape; margin: 10mm; }
+  body { background: white; }
+}
+
 .hatched {
   background-image: repeating-linear-gradient(135deg, rgb(226 232 240) 0 6px, rgb(241 245 249) 6px 12px);
 }

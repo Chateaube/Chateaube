@@ -27,7 +27,11 @@ personne).
 | Encaissements, états de compte, caisse, tarifs | ✔ | ✔ | — | — | son compte |
 | Inscriptions, dossiers administratifs, examens | ✔ | ✔ | dossiers d'examen | — | — |
 | Grille du conseil de classe, décisions | ✔ | ✔ | — | — | — |
-| Absences, retards, incidents, notifications aux parents | ✔ | ✔ | ✔ | appel de ses cours | ses enfants |
+| Absences, retards, notifications aux parents | ✔ | ✔ | ✔ | appel de ses cours | ses enfants (« Je suis informé.e ») |
+| Punitions (avec motif) / sanctions | ✔ / ✔ | ✔ / — | ✔ / — | ✔ / — | lecture + « Je suis informé.e » |
+| Téléphones confisqués (garde, restitution) | ✔ | ✔ | ✔ | remise du téléphone | lecture |
+| Documents, autorisations, pièces, stages, orientation | ✔ | ✔ | ✔ | — | signature et réponses |
+| Cahier de textes | lecture | — | lecture | ses classes | ses enfants |
 | Notes, compétences, appréciations | lecture | — | — | ses classes | ses enfants |
 | Réservations de matériel | ✔ | ✔ | ✔ (gestion du parc) | ✔ | — |
 
@@ -77,19 +81,21 @@ Mes classes
 ├── Cahier de textes / devoirs
 └── Trombinoscope
 Notes & appréciations (par classe × matière, en 3 étapes)
-├── 1. Notes : type (DS, oral, exposé…), barème (/20 par défaut), coefficient (1 par défaut), « + Ajouter une note »,
-│   moyenne pondérée ; validation du trimestre avec 4 notes minimum et toutes les cases remplies
-├── 2. Compétences : référentiel propre à la classe et à la matière, copie proposée depuis la même matière au
-│   même niveau (1re Générale ↔ 1re STMG), bilan sur 4 niveaux
-└── 3. Appréciations : moyenne de la matière et moyenne générale (T1 / T2 / T3), assistant + contrôleur, avis pour le
-    conseil (élève exemplaire, bavard.e, avertissement travail / comportement…), non imprimés sur le bulletin
+├── 1. Compétences : référentiel propre à la classe et à la matière (repères, sans évaluation individuelle),
+│   copie proposée depuis la même matière au même niveau (1re Générale ↔ 1re STMG)
+├── 2. Notes : type (DS, oral, exposé…), barème (/20 par défaut), coefficient (1 par défaut), compétences visées,
+│   « + Ajouter une note », moyenne pondérée ; validation avec 4 notes minimum et toutes les cases remplies
+└── 3. Appréciations : élève choisi dans une liste déroulante (‹ ›), moyennes T1 / T2 / T3, assistant + contrôleur,
+    avis pour le conseil (élève exemplaire, bavard.e, avertissement travail / comportement…), non imprimés
+Cahier de textes ............... fait en classe, travail à faire et date de remise
+Punitions & téléphones ......... punition avec motif ; remise d'un téléphone confisqué à la vie scolaire
 Parcours d'ouverture ........... appréciation seule (Numérique / Orientation / Art)
 Réservations ................... vidéoprojecteurs, enceintes, TV, salles, informatique
 Emploi du temps
 Communication .................. annonces à mes classes, message à un parent
 ```
 
-### Vie scolaire
+### Vie scolaire (onglets : Absences & retards · Punitions & sanctions · Téléphones confisqués)
 ```
 Tableau de bord ................ absences et retards du jour par site, incidents ouverts
 Assiduité ...................... saisie, justificatifs, statistiques
@@ -115,26 +121,27 @@ Conseils de classe ............. grilles de notes, avis des enseignants, décisi
 Vie scolaire (accès partagé) ... absences, retards, incidents
 ```
 
-### Parent (application mobile / PWA)
+### Parent (application mobile / PWA) : 5 onglets en bas d'écran, sélecteur d'enfant en haut
 ```
-Accueil ........................ fil d'actualités ciblé, alertes (retard, document manquant, échéance)
-Mes enfants (sélecteur si fratrie)
-├── Notes & compétences, bulletins (PDF)
-├── Emploi du temps & devoirs
-└── Absences / retards
-Paiements ...................... échéancier écolage, droits d'examen, reçus, paiement mobile
-Documents ...................... pièces demandées (dossier d'examen) : dépôt photo
-Messages ....................... notifications reçues, contact vie scolaire
+Accueil ........................ alertes, emploi du temps du jour, prochains devoirs, actualités
+Notes .......................... par trimestre, par matière, dans l'ordre chronologique : « Note du 20 janvier 2027 »,
+                                 note de l'élève, moyenne de la classe, note la plus haute, la plus basse, coefficient
+                                 (pas de bulletin, remis après le conseil)
+Devoirs ........................ cahier de textes : travail à faire, fait en classe
+Vie scolaire ................... absences, retards, punitions et sanctions (motif), téléphones confisqués,
+                                 case « Je suis informé.e » sur chaque élément (pastille tant que ce n'est pas fait)
+Plus
+├── Documents & autorisations .. droit à l'image, autorisation de sortie, sorties pédagogiques (signature
+│                                électronique), documents reçus (accusé de lecture), pièces demandées (dépôt)
+├── Stages ..................... entreprise, dates, tuteur, convention à signer
+├── Orientation ................ étapes de l'année, choix possibles, rendez-vous avec le professeur principal
+├── Paiements .................. solde par journal, historique, reçus (espèces, chèque, virement)
+└── Messages
 ```
 
-### Élève
-```
-Aujourd'hui .................... emploi du temps, devoirs, annonces de la classe
-Mes notes & compétences
-Mes bulletins
-Examens ........................ convocation, centre (LF Tamatave / LF Tana), calendrier, pièces du dossier
-Orientation .................... Parcours d'ouverture, Campus France (Terminale)
-```
+### Élève : presque identique au portail parent
+Mêmes notes, devoirs (avec case « fait »), vie scolaire, documents, stages et orientation, **en lecture seule**. Pas de
+paiements, pas de signature ni de « Je suis informé.e » (l'élève voit si ses parents ont confirmé).
 
 ## 2.4 Écrans clés (prototypés dans `prototype/`)
 

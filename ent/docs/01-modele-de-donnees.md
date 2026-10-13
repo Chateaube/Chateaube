@@ -149,7 +149,9 @@ Règles validées par la Direction pour **Tamatave** (Tana sera paramétré plus
 - **`validate_term()`** : au moins **4 évaluations** (`grading_policy.min_evaluations`) et toutes les cases remplies,
   puis les notes sont **verrouillées** (trigger `grade_lock`) (T17).
 - **`competency`** : référentiel **propre à chaque classe et matière** ; `copy_competencies()` le copie vers une classe
-  du même niveau (1re Générale ↔ 1re STMG) (T20). `term_competency` : bilan sur 4 niveaux par trimestre.
+  du même niveau (1re Générale ↔ 1re STMG) (T20). Les compétences sont des **repères** : chaque évaluation indique
+  celles qu'elle vise (`evaluation_competency`). Il n'y a pas d'évaluation compétence par compétence pour chaque élève,
+  car l'appréciation globale en tient lieu.
 - **`subject.in_general_average`** : Arts plastiques, Musique et Vie de classe sont hors moyenne générale ;
   `general_average()` et la vue `v_council_grid` alimentent la grille du conseil (T18).
 - **`council_flag`** / **`council_note`** : avis des enseignants pour le conseil (élève exemplaire, bavard.e,
@@ -157,6 +159,24 @@ Règles validées par la Direction pour **Tamatave** (Tana sera paramétré plus
   décision (félicitations, compliments, encouragements, avertissements).
 - **Rôles** : `DIRECTION` (administrateur), `BUREAU` (administration / économat, avec les droits de la vie scolaire),
   `VIE_SCOLAIRE`, `PROFESSEUR`, `PARENT`, `ELEVE`. Seuls la Direction et le Bureau ont `council.view` (T19).
+
+### Vie scolaire et familles
+- **`attendance_event.parent_ack_*`** et **`discipline_measure.parent_ack_*`** : case **« Je suis informé.e »** cochée par
+  le parent ; la vue `v_pending_parent_ack` liste ce qui reste à confirmer.
+- **`discipline_measure`** : **punitions** (enseignant, vie scolaire : observation, devoir supplémentaire, retenue,
+  exclusion ponctuelle de cours) et **sanctions** (Direction uniquement : avertissement, blâme, mesure de
+  responsabilisation, exclusion temporaire). Le **motif** est obligatoire (T22).
+- **`phone_confiscation`** : 24 h ou 5 jours ouvrés. On enregistre **qui a confisqué** (enseignant ou Direction),
+  **qui l'a reçu et signé**, puis **qui l'a rendu, à qui, et quand**. La date de restitution est calculée sur les jours de
+  classe (`add_school_days`, hors week-ends, fériés et vacances), par exemple le 7 janvier pour une confiscation le
+  17 décembre (T21).
+- **`authorization_type` / `authorization_answer`** : droit à l'image, autorisation de sortie, sorties pédagogiques ;
+  une réponse par élève parmi les options prévues, avec la date de signature électronique (T23).
+- **`published_document` / `document_receipt`** : documents envoyés aux familles avec accusé de lecture et signature
+  éventuelle. **`requested_document`** : pièces demandées (dépôt par la famille, vérification par l'établissement).
+- **`homework`** : cahier de textes (séance, travail à faire, date de remise postérieure à la séance) (T23).
+- **`internship`** : stages, avec les trois signatures de la convention. **`orientation_wish`** : intentions de la
+  famille et avis du conseil, par trimestre.
 
 ### Gestion des agents
 - **`staff_member`** : registre du personnel (enseignants, intervenants, surveillants, secrétariat, entretien, gardiennage)

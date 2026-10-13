@@ -778,7 +778,7 @@ CREATE TABLE evaluation (
   published_at  timestamptz
 );
 
--- Colonnes de la grille : compétences évaluées par cette évaluation.
+-- Compétences visées par une évaluation (repère, sans note par compétence).
 CREATE TABLE evaluation_competency (
   evaluation_id uuid REFERENCES evaluation(id) ON DELETE CASCADE,
   competency_id uuid REFERENCES competency(id),
@@ -800,24 +800,9 @@ CREATE TABLE grade (
   CHECK (value IS NULL OR value >= 0)
 );
 
--- Cellules de la matrice compétences (niveau de maîtrise 1 à 4).
-CREATE TABLE competency_result (
-  evaluation_id uuid,
-  competency_id uuid,
-  enrollment_id uuid REFERENCES enrollment(id),
-  mastery       smallint NOT NULL CHECK (mastery BETWEEN 1 AND 4),
-  PRIMARY KEY (evaluation_id, competency_id, enrollment_id),
-  FOREIGN KEY (evaluation_id, competency_id) REFERENCES evaluation_competency ON DELETE CASCADE
-);
-
--- Bilan de compétences du trimestre (niveau de maîtrise 1 à 4 par compétence)
-CREATE TABLE term_competency (
-  enrollment_id uuid REFERENCES enrollment(id),
-  period_id     uuid REFERENCES period(id),
-  competency_id uuid REFERENCES competency(id) ON DELETE CASCADE,
-  mastery       smallint NOT NULL CHECK (mastery BETWEEN 1 AND 4),
-  PRIMARY KEY (enrollment_id, period_id, competency_id)
-);
+-- Pas d'évaluation individuelle des compétences : le référentiel sert de repère et
+-- chaque évaluation indique les compétences qu'elle vise (evaluation_competency) ;
+-- l'appréciation globale du trimestre en tient lieu.
 
 -- Validation des notes d'un service (classe × matière) pour un trimestre :
 -- verrouille la saisie et alimente la grille du conseil (cf. validate_term()).
@@ -902,7 +887,136 @@ CREATE TABLE attendance_event (
   minutes_late  smallint,
   justified     boolean NOT NULL DEFAULT false,
   comment       text,
-  recorded_by   uuid NOT NULL REFERENCES app_user(id)
+  recorded_by   uuid NOT NULL REFERENCES app_user(id),
+  parent_ack_at timestamptz,                   -- case « Je suis informé.e » cochée par le parent
+  parent_ack_by uuid REFERENCES guardian(id),
+  CHECK ((parent_ack_at IS NULL) = (parent_ack_by IS NULL))
+);
+
+-- Punitions (enseignant, vie scolaire) et sanctions (Direction), toujours motivées.
+CREATE TYPE measure_kind AS ENUM ('PUNITION', 'SANCTION');
+CREATE TABLE discipline_measure_type (
+  code          text PRIMARY KEY,                -- 'RETENUE', 'BLAME'…
+  label         text NOT NULL,
+  kind          measure_kind NOT NULL
+);
+
+CREATE TABLE discipline_measure (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  enrollment_id uuid NOT NULL REFERENCES enrollment(id),
+  type_code     text NOT NULL REFERENCES discipline_measure_type(code),
+  reason        text NOT NULL CHECK (length(trim(reason)) > 0),
+  scheduled_for text,                            -- ex. date et heure de la retenue
+  decided_on    date NOT NULL DEFAULT current_date,
+  decided_by    uuid NOT NULL REFERENCES app_user(id),
+  parent_ack_at timestamptz,
+  parent_ack_by uuid REFERENCES guardian(id),
+  CHECK ((parent_ack_at IS NULL) = (parent_ack_by IS NULL))
+);
+
+-- Téléphones confisqués : 24 h ou 5 jours ouvrés ; qui a confisqué, qui l'a reçu et signé,
+-- restitution (date calculée sur les jours de classe par trigger).
+CREATE TABLE phone_confiscation (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  enrollment_id uuid NOT NULL REFERENCES enrollment(id),
+  reason        text NOT NULL,
+  confiscated_at timestamptz NOT NULL,
+  confiscated_by uuid NOT NULL REFERENCES app_user(id), -- enseignant.e ou Direction
+  received_by   uuid NOT NULL REFERENCES app_user(id),  -- vie scolaire ou Direction : signe la prise en garde
+  duration_code text NOT NULL CHECK (duration_code IN ('24H', '5J')),
+  return_due_at timestamptz,                     -- calculé
+  returned_at   timestamptz,
+  returned_by   uuid REFERENCES app_user(id),    -- signe la restitution
+  returned_to   text,                            -- élève ou parent qui récupère le téléphone
+  CHECK ((returned_at IS NULL) = (returned_by IS NULL) AND (returned_at IS NULL) = (returned_to IS NULL))
+);
+
+-- Autorisations signées par la famille : droit à l'image, autorisation de sortie…
+CREATE TABLE authorization_type (
+  code          text PRIMARY KEY,
+  label         text NOT NULL,
+  options       text[] NOT NULL CHECK (cardinality(options) >= 2)
+);
+
+CREATE TABLE authorization_answer (
+  enrollment_id uuid REFERENCES enrollment(id),
+  type_code     text REFERENCES authorization_type(code),
+  answer        text NOT NULL,
+  guardian_id   uuid NOT NULL REFERENCES guardian(id),
+  signed_at     timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (enrollment_id, type_code)
+);
+
+-- Documents publiés aux familles (circulaires, règlement…) avec accusé de lecture / signature
+CREATE TABLE published_document (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id       uuid NOT NULL REFERENCES site(id),
+  class_id      uuid REFERENCES school_class(id), -- NULL = tout le site
+  title         text NOT NULL,
+  file_key      text NOT NULL,
+  requires_signature boolean NOT NULL DEFAULT false,
+  published_by  uuid NOT NULL REFERENCES app_user(id),
+  published_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE document_receipt (
+  document_id   uuid REFERENCES published_document(id) ON DELETE CASCADE,
+  guardian_id   uuid REFERENCES guardian(id),
+  read_at       timestamptz NOT NULL DEFAULT now(),
+  signed_at     timestamptz,
+  PRIMARY KEY (document_id, guardian_id)
+);
+
+-- Pièces demandées à la famille (dossier d'examen, certificat médical…)
+CREATE TABLE requested_document (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  enrollment_id uuid NOT NULL REFERENCES enrollment(id),
+  title         text NOT NULL,
+  due_on        date NOT NULL,
+  file_key      text,                            -- dépôt par la famille
+  submitted_at  timestamptz,
+  validated_by  uuid REFERENCES app_user(id),    -- vérification par le Bureau / la vie scolaire
+  validated_at  timestamptz,
+  CHECK (validated_at IS NULL OR submitted_at IS NOT NULL)
+);
+
+-- Cahier de textes : contenu de la séance et travail à faire
+CREATE TABLE homework (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  assignment_id uuid NOT NULL REFERENCES teaching_assignment(id),
+  session_on    date NOT NULL,
+  done_in_class text NOT NULL,
+  todo          text,
+  due_on        date,
+  CHECK ((todo IS NULL) = (due_on IS NULL)),
+  CHECK (due_on IS NULL OR due_on > session_on)
+);
+
+-- Stages : convention signée par l'entreprise, l'établissement et le responsable légal
+CREATE TABLE internship (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  enrollment_id uuid NOT NULL REFERENCES enrollment(id),
+  title         text NOT NULL,
+  company       text NOT NULL,
+  tutor         text,
+  referent_id   uuid REFERENCES app_user(id),
+  starts_on     date NOT NULL,
+  ends_on       date NOT NULL,
+  signed_company_at timestamptz,
+  signed_school_at  timestamptz,
+  signed_family_at  timestamptz,
+  report_due_on date,
+  CHECK (ends_on >= starts_on)
+);
+
+-- Orientation : intentions de la famille et avis du conseil, par trimestre
+CREATE TABLE orientation_wish (
+  enrollment_id uuid REFERENCES enrollment(id),
+  period_id     uuid REFERENCES period(id),
+  author        text CHECK (author IN ('FAMILLE', 'CONSEIL')),
+  rank          smallint CHECK (rank BETWEEN 1 AND 5),
+  wish          text NOT NULL,
+  PRIMARY KEY (enrollment_id, period_id, author, rank)
 );
 
 CREATE TABLE announcement (

@@ -106,3 +106,41 @@ export function councilProposal(avg, flagIds, { felicitations = 16, compliments 
   if (count('ENCOURAGEMENTS') > 0 || count('EXEMPLAIRE') > 0) return 'ENCOURAGEMENTS';
   return '';
 }
+
+/**
+ * Export de la grille du conseil au format CSV lisible par Excel (séparateur « ; »,
+ * virgule décimale, BOM UTF-8 pour les accents).
+ */
+export function councilCsv({ className, term, subjects, rows }) {
+  const cell = (v) => {
+    const t = v === null || v === undefined ? '' : typeof v === 'number' ? formatFr(round2(v)) : String(v);
+    return /[;"\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+  };
+  const header = ['Élève', ...subjects.map((s) => `${s.label}${s.inAverage ? '' : ' (hors moy.)'}`), 'Moyenne générale', 'Absences', 'Retards', 'Avis des enseignants', 'Décision du conseil', 'Appréciation générale'];
+  const lines = [
+    [`Conseil de classe — ${className} — ${term}`],
+    header,
+    ...rows.map((r) => [r.name, ...r.subjects.map((s) => s.avg), r.general, r.abs ?? 0, r.late ?? 0, r.flags, r.decision, r.appreciation]),
+  ];
+  return `﻿${lines.map((l) => l.map(cell).join(';')).join('\r\n')}\r\n`;
+}
+
+// --- Portails parent et élève : notes au fil du trimestre (pas de bulletin) ---------
+export const fmt2 = (n) => (n === null || n === undefined ? '—' : n.toFixed(2).replace('.', ','));
+
+/** Statistiques de la classe sur une évaluation (dans son barème). */
+export function evaluationStats(ev, students, grades) {
+  const v = students.map((s) => cellValue(grades[s]?.[ev.id] ?? '', ev.scale)).filter((c) => c.counted).map((c) => c.value);
+  if (!v.length) return { avg: null, max: null, min: null };
+  return { avg: round2(v.reduce((a, b) => a + b, 0) / v.length), max: Math.max(...v), min: Math.min(...v) };
+}
+
+/** Notes d'un élève dans une matière, dans l'ordre chronologique, avec les repères de la classe. */
+export function studentNoteList(evaluations, students, grades, student) {
+  return [...evaluations]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((ev) => {
+      const c = cellValue(grades[student]?.[ev.id] ?? '', ev.scale);
+      return { ...ev, value: c.value, status: c.counted ? 'NOTE' : c.status ?? 'NON_SAISIE', ...evaluationStats(ev, students, grades) };
+    });
+}
