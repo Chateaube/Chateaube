@@ -325,10 +325,12 @@ JOIN invoice i ON i.id = pa.invoice_id;
 --  NOTES, COMPÉTENCES ET CONSEIL DE CLASSE
 -- =============================================================================
 
--- Moyenne /20 d'un élève dans un service (classe × matière) pour un trimestre :
--- notes ramenées sur 20, pondérées par le coefficient ; ABS, DISP et NN exclus.
+-- Moyenne /20 d'un élève dans un service (classe × matière) pour un trimestre, pondérée par les
+-- coefficients ; ABS, DISP et NN exclus. « Ramener sur 20 » : la note compte sur 20 ; sinon elle
+-- compte en points dans son barème (8/10 + 14/20 = 22/30 → 14,67/20).
 CREATE FUNCTION subject_average(p_enrollment uuid, p_assignment uuid, p_period uuid) RETURNS numeric AS $$
-  SELECT round(sum(g.value / e.scale_max * 20 * e.coefficient) / nullif(sum(e.coefficient), 0), 2)
+  SELECT round(sum(CASE WHEN e.normalize_to_20 THEN g.value / e.scale_max * 20 ELSE g.value END * e.coefficient)
+             / nullif(sum(CASE WHEN e.normalize_to_20 THEN 20 ELSE e.scale_max END * e.coefficient), 0) * 20, 2)
   FROM evaluation e
   JOIN grade g ON g.evaluation_id = e.id AND g.enrollment_id = p_enrollment AND g.status = 'NOTE'
   WHERE e.assignment_id = p_assignment AND e.period_id = p_period
@@ -393,21 +395,68 @@ CREATE FUNCTION general_average(p_enrollment uuid, p_period uuid) RETURNS numeri
   WHERE enrollment_id = p_enrollment AND period_id = p_period AND in_general_average AND average IS NOT NULL
 $$ LANGUAGE sql STABLE;
 
--- Copie d'un référentiel de compétences vers une autre classe du MÊME NIVEAU (ex. 1re G → 1re STMG).
-CREATE FUNCTION copy_competencies(p_from_class uuid, p_to_class uuid, p_subject uuid) RETURNS int AS $$
-DECLARE n int;
+-- Une évaluation ne peut viser que des compétences du référentiel de sa matière et de son niveau.
+CREATE FUNCTION evaluation_competency_guard() RETURNS trigger AS $$
 BEGIN
-  IF (SELECT level_code FROM school_class WHERE id = p_from_class) IS DISTINCT FROM
-     (SELECT level_code FROM school_class WHERE id = p_to_class) THEN
-    RAISE EXCEPTION 'Copie limitée aux classes du même niveau';
+  IF NOT EXISTS (
+    SELECT 1 FROM evaluation e
+    JOIN teaching_assignment ta ON ta.id = e.assignment_id
+    JOIN school_class c ON c.id = ta.class_id
+    JOIN competency k ON k.id = NEW.competency_id AND k.subject_id = ta.subject_id AND k.level_code = c.level_code
+    WHERE e.id = NEW.evaluation_id) THEN
+    RAISE EXCEPTION 'Compétence hors du référentiel de la matière et du niveau';
   END IF;
-  INSERT INTO competency (class_id, subject_id, position, label, copied_from)
-  SELECT p_to_class, subject_id, position, label, id FROM competency
-  WHERE class_id = p_from_class AND subject_id = p_subject
-  ON CONFLICT (class_id, subject_id, label) DO NOTHING;
-  GET DIAGNOSTICS n = ROW_COUNT;
-  RETURN n;
+  RETURN NEW;
 END $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER evaluation_competency_check BEFORE INSERT ON evaluation_competency
+  FOR EACH ROW EXECUTE FUNCTION evaluation_competency_guard();
+
+-- Date de publication par défaut = date du devoir ; remarque seulement si activée sur le devoir.
+CREATE FUNCTION evaluation_defaults() RETURNS trigger AS $$
+BEGIN
+  NEW.publish_on := coalesce(NEW.publish_on, NEW.held_on);
+  IF NOT NEW.normalize_to_20 AND NEW.scale_max = 20 THEN NEW.normalize_to_20 := true; END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER evaluation_defaults BEFORE INSERT OR UPDATE ON evaluation
+  FOR EACH ROW EXECUTE FUNCTION evaluation_defaults();
+
+CREATE FUNCTION grade_remark_guard() RETURNS trigger AS $$
+BEGIN
+  IF NEW.remark IS NOT NULL AND NOT (SELECT remarks_enabled FROM evaluation WHERE id = NEW.evaluation_id) THEN
+    RAISE EXCEPTION 'Remarques non activées sur ce devoir';
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER grade_remark BEFORE INSERT OR UPDATE ON grade
+  FOR EACH ROW EXECUTE FUNCTION grade_remark_guard();
+
+-- Notes publiées : élèves à publish_on, parents publish_on + délai de l'Espace Parents.
+-- Pas de moyenne de matière côté familles : seule la moyenne de la classe sur le devoir.
+CREATE VIEW v_published_grades AS
+SELECT g.enrollment_id, e.id AS evaluation_id, e.title, e.held_on, e.eval_type, e.themes, e.comment,
+       g.status, g.value, e.scale_max, e.coefficient, CASE WHEN e.remarks_enabled THEN g.remark END AS remark,
+       (SELECT round(avg(x.value), 2) FROM grade x WHERE x.evaluation_id = e.id AND x.status = 'NOTE') AS class_average,
+       (SELECT max(x.value) FROM grade x WHERE x.evaluation_id = e.id AND x.status = 'NOTE') AS class_max,
+       (SELECT min(x.value) FROM grade x WHERE x.evaluation_id = e.id AND x.status = 'NOTE') AS class_min,
+       e.publish_on AS students_from,
+       e.publish_on + coalesce((SELECT gp.parent_publish_delay_days FROM grading_policy gp
+                                 WHERE gp.year_id = c.year_id AND gp.site_id = c.site_id), 1) AS parents_from
+FROM grade g
+JOIN evaluation e ON e.id = g.evaluation_id
+JOIN teaching_assignment ta ON ta.id = e.assignment_id
+JOIN school_class c ON c.id = ta.class_id;
+
+-- Terminale : Parcoursup (nationalité française, UE / EEE ou suisse) ou Études en France (Campus France).
+CREATE FUNCTION higher_ed_procedure(p_student uuid) RETURNS text AS $$
+  SELECT CASE WHEN nationalities && ARRAY['FR','DE','AT','BE','BG','CY','HR','DK','ES','EE','FI','GR','HU','IE','IT','LV','LT',
+                                          'LU','MT','NL','PL','PT','CZ','RO','SK','SI','SE','IS','LI','NO','CH']
+              THEN 'PARCOURSUP' ELSE 'CAMPUS_FRANCE' END
+  FROM student WHERE id = p_student
+$$ LANGUAGE sql STABLE;
 
 -- =============================================================================
 --  VIE SCOLAIRE ET FAMILLES

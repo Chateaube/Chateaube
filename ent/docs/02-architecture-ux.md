@@ -81,10 +81,12 @@ Mes classes
 ├── Cahier de textes / devoirs
 └── Trombinoscope
 Notes & appréciations (par classe × matière, en 3 étapes)
-├── 1. Compétences : référentiel propre à la classe et à la matière (repères, sans évaluation individuelle),
-│   copie proposée depuis la même matière au même niveau (1re Générale ↔ 1re STMG)
-├── 2. Notes : type (DS, oral, exposé…), barème (/20 par défaut), coefficient (1 par défaut), compétences visées,
-│   « + Ajouter une note », moyenne pondérée ; validation avec 4 notes minimum et toutes les cases remplies
+├── 1. Compétences : référentiel officiel de la matière et du niveau (lecture), avec le nombre de devoirs
+│   qui évaluent chaque compétence
+├── 2. Notes : « Nouveau devoir » = type, intitulé, devoir du / note publiée le (bouton « Aujourd'hui »), rappel
+│   « publiée aux parents un jour après les élèves, soit le … », remarques par note, notation sur, coefficient,
+│   « Ramener sur 20 », commentaire visible par les élèves, thème(s), compétences évaluées (référentiel officiel) ;
+│   moyenne pondérée ; validation avec 4 notes minimum et toutes les cases remplies
 └── 3. Appréciations : élève choisi dans une liste déroulante (‹ ›), moyennes T1 / T2 / T3, assistant + contrôleur,
     avis pour le conseil (élève exemplaire, bavard.e, avertissement travail / comportement…), non imprimés
 Cahier de textes ............... fait en classe, travail à faire et date de remise
@@ -134,7 +136,8 @@ Plus
 ├── Documents & autorisations .. droit à l'image, autorisation de sortie, sorties pédagogiques (signature
 │                                électronique), documents reçus (accusé de lecture), pièces demandées (dépôt)
 ├── Stages ..................... 3e : 1 semaine · 2de : 2 semaines ; entreprise, tuteur, convention à signer
-├── Orientation ................ étapes de l'année, choix possibles, rendez-vous avec le professeur principal
+├── Orientation ................ étapes de l'année, choix possibles, rendez-vous ; en Terminale : Parcoursup ou
+│                                Études en France (Campus France) selon la nationalité
 ├── Paiements .................. solde par journal, historique, reçus (espèces, chèque, virement)
 └── Messages
 ```

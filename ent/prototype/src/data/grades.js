@@ -15,11 +15,15 @@ export const SERVICES = [
 ];
 
 export const EVALUATIONS = {
+  // publishOn : date de publication aux élèves (parents : +1 jour) ; normalize : ramener sur 20
   s1: [
-    { id: 'v1', type: 'DS', title: 'DS n°1 — L\'organisation', date: '2026-09-24', scale: 20, coef: 2, competencies: ['Analyser une situation d\'organisation', 'Mobiliser les notions du programme'] },
-    { id: 'v2', type: 'Interrogation', title: 'Interro — vocabulaire', date: '2026-10-01', scale: 10, coef: 1 },
-    { id: 'v3', type: 'Oral', title: 'Oral — étude de cas', date: '2026-10-06', scale: 20, coef: 1, competencies: ['Argumenter une décision', 'Communiquer à l\'écrit et à l\'oral'] },
-    { id: 'v4', type: 'Exposé', title: 'Exposé en groupe', date: '2026-10-08', scale: 20, coef: 1 },
+    { id: 'v1', type: 'DS', title: 'DS n°1 — L\'organisation', date: '2026-09-24', publishOn: '2026-09-28', scale: 20, coef: 2, normalize: true,
+      themes: ['Les organisations', 'Finalités'], comment: 'Bon niveau d\'ensemble ; revoir la définition de la performance sociale.',
+      competencies: ['Analyser une situation d\'organisation', 'Mobiliser les notions du programme'] },
+    { id: 'v2', type: 'Interrogation', title: 'Interro — vocabulaire', date: '2026-10-01', publishOn: '2026-10-01', scale: 10, coef: 1, normalize: true, themes: ['Vocabulaire'] },
+    { id: 'v3', type: 'Oral', title: 'Oral — étude de cas', date: '2026-10-06', publishOn: '2026-10-07', scale: 20, coef: 1, normalize: true, remarksEnabled: true,
+      themes: ['Étude de cas'], competencies: ['Argumenter une décision', 'Communiquer à l\'écrit et à l\'oral'] },
+    { id: 'v4', type: 'Exposé', title: 'Exposé en groupe', date: '2026-10-08', publishOn: '2026-10-13', scale: 20, coef: 1, normalize: true, themes: ['Coopératives'] },
   ],
   s2: [
     { id: 'w1', type: 'DS', title: 'DS n°1', date: '2026-09-29', scale: 20, coef: 2 },
@@ -50,13 +54,18 @@ export const GRADES = {
   s4: {},
 };
 
-// Référentiels de compétences par classe × matière (définis par l'enseignant)
-export const COMPETENCIES = {
-  s1: ['Analyser une situation d\'organisation', 'Mobiliser les notions du programme', 'Argumenter une décision', 'Communiquer à l\'écrit et à l\'oral'],
-  s2: ['Analyser une situation de gestion', 'Mobiliser les notions', 'Argumenter', 'Communiquer'],
-  s3: ['Comprendre un enjeu de société', 'Construire un argumentaire', 'Débattre dans le respect d\'autrui'],
-  s4: [], // vide : suggestion de copie depuis EMC — 1re STMG (même niveau)
+// Remarques par note (évaluations où l'enseignant a activé les remarques), visibles par l'élève et ses parents
+export const REMARKS = {
+  s1: {
+    'RAKOTOARISOA Aina': { v3: 'Argumentation claire et bien structurée.' },
+    'RAHARISON Fanja': { v3: 'Bonne analyse ; parler plus fort et regarder l\'auditoire.' },
+    'RANDRIAMAMPIANINA Hery': { v3: 'Oral trop court : s\'appuyer davantage sur le document.' },
+  },
 };
+
+// Niveau d'une classe (« 1re STMG » → « 1re ») : le référentiel de compétences est commun au niveau
+export const levelOf = (cls) => cls.split(' ')[0];
+export const competenciesFor = (service, settings) => settings.competencies?.[`${service.subject}|${levelOf(service.cls)}`] ?? [];
 
 // Avis pour le conseil (non imprimés sur le bulletin) — liste paramétrable
 export const COUNCIL_FLAGS = [
@@ -113,4 +122,3 @@ export const ABSENCES = {
 SERVICES.push({ id: 's5', cls: '1re STMG', subject: 'Parcours d\'ouverture — Orientation', mode: 'APPRECIATION_SEULE', strand: 'ORIENTATION', students: CLASS_LIST });
 EVALUATIONS.s5 = [];
 GRADES.s5 = {};
-COMPETENCIES.s5 = [];

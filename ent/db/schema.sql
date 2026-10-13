@@ -169,7 +169,7 @@ CREATE TABLE student (
   last_name     text NOT NULL,
   birth_date    date NOT NULL,
   birth_place   text,
-  nationality   text,
+  nationalities text[] NOT NULL DEFAULT '{}',  -- codes ISO (ex. {MG,FR}) : détermine Parcoursup ou Campus France
   created_at    timestamptz NOT NULL DEFAULT now()
 );
 
@@ -745,6 +745,7 @@ CREATE TABLE grading_policy (
   compliments_from   numeric(4,2) NOT NULL DEFAULT 14,
   warning_from_subjects smallint NOT NULL DEFAULT 2, -- avertissement proposé si N matières le signalent
   show_rank     boolean NOT NULL DEFAULT false,
+  parent_publish_delay_days smallint NOT NULL DEFAULT 1 CHECK (parent_publish_delay_days >= 0), -- Espace Parents
   PRIMARY KEY (year_id, site_id)
 );
 
@@ -754,16 +755,15 @@ CREATE TABLE evaluation_type (                 -- DS, Interrogation, Oral, Expos
   is_active     boolean NOT NULL DEFAULT true
 );
 
--- Référentiel de compétences PROPRE À UNE CLASSE ET UNE MATIÈRE (défini par l'enseignant,
--- copiable d'une classe du même niveau : 1re Générale ↔ 1re STMG).
+-- Référentiel de compétences PAR MATIÈRE ET PAR NIVEAU, d'après le bulletin officiel :
+-- commun à toutes les classes du niveau (1re Générale et 1re STMG), tenu par la Direction.
 CREATE TABLE competency (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  class_id      uuid REFERENCES school_class(id),
-  subject_id    uuid REFERENCES subject(id),   -- NULL = transversale (socle)
+  subject_id    uuid NOT NULL REFERENCES subject(id),
+  level_code    text NOT NULL REFERENCES level(code),
   position      smallint NOT NULL DEFAULT 1,
   label         text NOT NULL,
-  copied_from   uuid REFERENCES competency(id),
-  UNIQUE (class_id, subject_id, label)
+  UNIQUE (subject_id, level_code, label)
 );
 
 CREATE TABLE evaluation (
@@ -773,7 +773,13 @@ CREATE TABLE evaluation (
   eval_type     text NOT NULL DEFAULT 'DS' REFERENCES evaluation_type(code),
   title         text NOT NULL,
   held_on       date NOT NULL,
+  publish_on    date,                          -- publication aux élèves (parents : + délai de l'Espace Parents)
+  remarks_enabled boolean NOT NULL DEFAULT false, -- remarques par note, visibles par élèves et parents
   scale_max     numeric(5,2) NOT NULL DEFAULT 20 CHECK (scale_max > 0),
+  normalize_to_20 boolean NOT NULL DEFAULT true, -- « Ramener sur 20 » ; sinon la note compte en points
+  comment       text,                          -- commentaire visible par les élèves
+  themes        text[] NOT NULL DEFAULT '{}',
+  CHECK (publish_on IS NULL OR publish_on >= held_on),
   coefficient   numeric(4,2) NOT NULL DEFAULT 1,
   mode          grading_mode NOT NULL DEFAULT 'NUMERIQUE',
   published_at  timestamptz
@@ -793,6 +799,7 @@ CREATE TABLE grade (
   status        grade_status NOT NULL DEFAULT 'NOTE',
   value         numeric(5,2),
   raw_input     text,                          -- saisie brute avant correction (« 1O »)
+  remark        text,                          -- remarque sur la note (si activée sur le devoir)
   autocorrected boolean NOT NULL DEFAULT false,
   entered_by    uuid NOT NULL REFERENCES app_user(id),
   entered_at    timestamptz NOT NULL DEFAULT now(),

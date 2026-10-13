@@ -1,5 +1,5 @@
 // Données de démonstration — portails parent et élève (Famille RAKOTOARISOA, FICTIVE).
-import { SERVICES, EVALUATIONS, GRADES } from './grades.js';
+import { SERVICES, EVALUATIONS, GRADES, REMARKS } from './grades.js';
 
 // Notes des autres matières (les notes de Management et d'EMC viennent du carnet de notes de l'enseignante)
 const ev = (id, subject, date, type, title, value, avg, max, min, coef = 1, scale = 20) => ({ id, subject, date, type, title, value, avg, max, min, coef, scale, status: value === null ? 'ABSENT' : 'NOTE' });
@@ -20,7 +20,7 @@ export const OTHER_NOTES = {
 };
 // Services du carnet de notes à afficher pour chaque enfant
 export const GRADEBOOK_SUBJECTS = { aina: ['s1', 's3'], toky: [] };
-export { SERVICES, EVALUATIONS, GRADES };
+export { SERVICES, EVALUATIONS, GRADES, REMARKS };
 
 // Autorisations à signer par la famille (une réponse par enfant)
 export const AUTHORIZATIONS = [
@@ -70,7 +70,7 @@ export const ORIENTATION = {
       { when: '1er trimestre', label: 'Découverte des quatre spécialités de Terminale STMG', state: 'now' },
       { when: '2e trimestre', label: 'Intentions de la famille, puis avis provisoire du conseil de classe', state: 'next' },
       { when: '3e trimestre', label: 'Choix définitif et avis du conseil', state: 'next' },
-      { when: 'Terminale', label: 'Parcoursup et Campus France (après les résultats du Bac)', state: 'next' },
+      { when: 'Terminale', label: 'Parcoursup (nationalité française, UE ou suisse) ou Études en France via Campus France (autres nationalités, dont malgache)', state: 'next' },
     ],
     choices: ['Gestion et finance', 'Mercatique (marketing)', 'Ressources humaines et communication', 'Systèmes d\'information de gestion'],
     meeting: 'Rendez-vous possible avec la professeure principale (Mme Ranaivo) le jeudi de 15h30 à 17h.',

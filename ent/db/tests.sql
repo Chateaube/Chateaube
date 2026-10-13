@@ -368,23 +368,25 @@ DO $$ BEGIN
   ASSERT EXISTS (SELECT 1 FROM role_permission WHERE role = 'BUREAU' AND permission = 'council.view'), 'T19: Bureau avec grille';
 END $$;
 
--- T20. Compétences : copie 1re STMG → 1re Générale (même niveau) seulement ---
+-- T20. Compétences : référentiel par matière et niveau, partagé par les classes du niveau
 INSERT INTO school_class (id, year_id, site_id, level_code, track, name)
 SELECT v.id::uuid, y.id, s.id, v.lvl, v.track::track_code, v.name
 FROM academic_year y, site s, (VALUES
   ('10000000-0000-0000-0000-000000000002', '1RE', 'STMG', '1re STMG'),
   ('10000000-0000-0000-0000-000000000003', '1RE', 'GENERALE', '1re Générale')) v(id, lvl, track, name)
 WHERE s.code = 'TMV';
-INSERT INTO competency (class_id, subject_id, position, label)
-SELECT '10000000-0000-0000-0000-000000000002', id, v.pos, v.label
-FROM subject, (VALUES (1, 'Comprendre un enjeu de société'), (2, 'Construire un argumentaire')) v(pos, label)
-WHERE code = 'FRANCAIS';
-DO $$ DECLARE f uuid := (SELECT id FROM subject WHERE code = 'FRANCAIS'); BEGIN
-  ASSERT copy_competencies('10000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000003', f) = 2, 'T20: copie';
-  ASSERT copy_competencies('10000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000003', f) = 0, 'T20: pas de doublon';
+INSERT INTO competency (subject_id, level_code, position, label)
+SELECT id, 'TLE', v.pos, v.label FROM subject, (VALUES (1, 'Analyser une situation de gestion'), (2, 'Argumenter')) v(pos, label)
+WHERE code = 'MANAGEMENT';
+INSERT INTO competency (subject_id, level_code, position, label)
+SELECT id, '1RE', 1, 'Mobiliser les notions' FROM subject WHERE code = 'MANAGEMENT';
+DO $$ BEGIN
+  INSERT INTO evaluation_competency (evaluation_id, competency_id, position)
+  SELECT 'd0000000-0000-0000-0000-000000000001', id, 1 FROM competency WHERE level_code = 'TLE' AND position = 1;
   BEGIN
-    PERFORM copy_competencies('10000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', f);
-    RAISE EXCEPTION 'T20: copie vers un autre niveau acceptée';
+    INSERT INTO evaluation_competency (evaluation_id, competency_id, position)
+    SELECT 'd0000000-0000-0000-0000-000000000001', id, 2 FROM competency WHERE level_code = '1RE';
+    RAISE EXCEPTION 'T20: compétence d''un autre niveau acceptée';
   EXCEPTION WHEN raise_exception THEN
     IF SQLERRM LIKE 'T20:%' THEN RAISE; END IF;
   END;
@@ -495,5 +497,42 @@ DO $$ BEGIN
   ASSERT (SELECT school_days FROM internship_type WHERE code = 'STAGE_2DE') = 10, 'T26: stage de 2de = 2 semaines';
 END $$;
 
+-- T27. Devoir : publication aux élèves puis aux parents (+1 jour), « ramener sur 20 », remarques
+INSERT INTO teaching_assignment (id, class_id, subject_id, teacher_id)
+SELECT 'c0000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000001', id, '00000000-0000-0000-0000-000000000003'
+FROM subject WHERE code = 'MATHS';
+INSERT INTO evaluation (id, assignment_id, period_id, title, held_on, publish_on, scale_max, normalize_to_20, remarks_enabled)
+SELECT v.id::uuid, 'c0000000-0000-0000-0000-000000000003', p.id, v.title, '2026-10-13', v.pub::date, v.scale, v.norm, v.rem
+FROM period p, (VALUES
+  ('d0000000-0000-0000-0000-000000000006', 'Interro /10 en points', '2026-10-14', 10, false, true),
+  ('d0000000-0000-0000-0000-000000000007', 'DS /20', NULL, 20, true, false)) v(id, title, pub, scale, norm, rem)
+WHERE p.rank = 1;
+INSERT INTO grade (evaluation_id, enrollment_id, status, value, remark, entered_by) VALUES
+  ('d0000000-0000-0000-0000-000000000006', '30000000-0000-0000-0000-000000000001', 'NOTE', 8, 'Bonne méthode', '00000000-0000-0000-0000-000000000003'),
+  ('d0000000-0000-0000-0000-000000000007', '30000000-0000-0000-0000-000000000001', 'NOTE', 14, NULL, '00000000-0000-0000-0000-000000000003');
+DO $$ DECLARE r record; BEGIN
+  -- 8 points /10 + 14 /20 → 22/30 → 14,67/20
+  ASSERT subject_average('30000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000003',
+                         (SELECT id FROM period WHERE rank = 1)) = 14.67, 'T27: points non ramenés sur 20';
+  SELECT * INTO r FROM v_published_grades WHERE evaluation_id = 'd0000000-0000-0000-0000-000000000006';
+  ASSERT r.students_from = '2026-10-14' AND r.parents_from = '2026-10-15', 'T27: parents un jour après les élèves';
+  ASSERT r.remark = 'Bonne méthode', 'T27: remarque publiée';
+  ASSERT (SELECT publish_on FROM evaluation WHERE id = 'd0000000-0000-0000-0000-000000000007') = '2026-10-13', 'T27: publication par défaut le jour du devoir';
+  BEGIN
+    UPDATE grade SET remark = 'Non' WHERE evaluation_id = 'd0000000-0000-0000-0000-000000000007';
+    RAISE EXCEPTION 'T27: remarque acceptée sur un devoir sans remarques';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM LIKE 'T27:%' THEN RAISE; END IF;
+  END;
+END $$;
+
+-- T28. Terminale : Parcoursup ou Campus France selon la nationalité ------------
+UPDATE student SET nationalities = '{MG}' WHERE id = '20000000-0000-0000-0000-000000000001';
+UPDATE student SET nationalities = '{MG,FR}' WHERE id = '20000000-0000-0000-0000-000000000002';
+DO $$ BEGIN
+  ASSERT higher_ed_procedure('20000000-0000-0000-0000-000000000001') = 'CAMPUS_FRANCE', 'T28: malgache → Campus France';
+  ASSERT higher_ed_procedure('20000000-0000-0000-0000-000000000002') = 'PARCOURSUP', 'T28: double nationalité → Parcoursup';
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T26 passent'
+\echo 'OK — tous les scénarios T1 à T28 passent'

@@ -20,7 +20,7 @@ const MONTH_NAMES = ['', 'janvier', 'février', 'mars', 'avril', 'mai', 'juin', 
 
 export const formatDateFr = (iso) => {
   const [y, m, d] = iso.split('-').map(Number);
-  return `${WEEKDAY_NAMES[isoWeekday(iso)]} ${d} ${MONTH_NAMES[m]} ${y}`;
+  return `${WEEKDAY_NAMES[isoWeekday(iso)]} ${d === 1 ? "1er" : d} ${MONTH_NAMES[m]} ${y}`;
 };
 export const monthName = (m) => MONTH_NAMES[m];
 

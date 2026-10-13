@@ -107,7 +107,7 @@ const STORAGE_KEY = 'ent-chateaubriand-settings-v2'; // v2 : canaux sans SMS, re
 function loadSettings() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (saved?.dunning && saved?.tuition && saved?.calendar) return { ...DEFAULT_SETTINGS, ...saved, grading: { ...DEFAULT_SETTINGS.grading, ...saved.grading } };
+    if (saved?.dunning && saved?.tuition && saved?.calendar) return { ...DEFAULT_SETTINGS, ...saved, grading: { ...DEFAULT_SETTINGS.grading, ...saved.grading }, competencies: saved.competencies ?? DEFAULT_SETTINGS.competencies };
   } catch { /* stockage indisponible : valeurs par défaut */ }
   return DEFAULT_SETTINGS;
 }

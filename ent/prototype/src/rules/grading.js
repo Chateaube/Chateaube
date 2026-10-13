@@ -4,6 +4,7 @@
 // ramenée sur 20 et pondérée par les coefficients ; ABS, DISP et NN ne comptent pas.
 
 import { normalizeGrade, formatFr } from './gradeInput.js';
+import { addDays } from './calendar.js';
 
 export const round2 = (n) => Math.round(n * 100) / 100;
 export const fmtAvg = (n) => (n === null || n === undefined ? '—' : formatFr(round2(n)));
@@ -15,17 +16,22 @@ export function cellValue(raw, scale) {
   return { value: null, counted: false, pending: r.state === 'suggest' || r.state === 'error', status: r.status };
 }
 
-/** Moyenne /20 pondérée d'un élève dans une matière. */
+/**
+ * Moyenne /20 d'un élève dans une matière, pondérée par les coefficients.
+ * « Ramener sur 20 » (par défaut) : la note compte sur 20 (8/10 → 16/20).
+ * Sinon elle compte en points dans son barème : 8/10 et 14/20 font 22/30, soit 14,67/20.
+ */
 export function studentAverage(evaluations, studentGrades = {}) {
-  let sum = 0;
-  let coefs = 0;
+  let points = 0;
+  let max = 0;
   for (const ev of evaluations) {
     const c = cellValue(studentGrades[ev.id] ?? '', ev.scale);
     if (!c.counted) continue;
-    sum += (c.value / ev.scale) * 20 * ev.coef;
-    coefs += ev.coef;
+    const normalize = ev.normalize !== false;
+    points += (normalize ? (c.value / ev.scale) * 20 : c.value) * ev.coef;
+    max += (normalize ? 20 : ev.scale) * ev.coef;
   }
-  return coefs ? round2(sum / coefs) : null;
+  return max ? round2((points / max) * 20) : null;
 }
 
 /** Nombre de notes effectivement retenues pour un élève. */
@@ -69,13 +75,6 @@ export function generalAverage(subjectAverages) {
     coefs += s.coef ?? 1;
   }
   return coefs ? round2(sum / coefs) : null;
-}
-
-/** Suggestion de copie : même matière, même niveau, autre classe (ex. 1re Générale ↔ 1re STMG). */
-export function copySuggestions(service, services, competencies) {
-  const level = service.cls.split(' ')[0];
-  return services.filter((o) => o.id !== service.id && o.subject === service.subject
-    && o.cls.split(' ')[0] === level && (competencies[o.id]?.length ?? 0) > 0);
 }
 
 // Mentions et avertissements du conseil de classe (le conseil décide ; ceci n'est qu'une proposition)
@@ -136,11 +135,22 @@ export function evaluationStats(ev, students, grades) {
 }
 
 /** Notes d'un élève dans une matière, dans l'ordre chronologique, avec les repères de la classe. */
-export function studentNoteList(evaluations, students, grades, student) {
+export function studentNoteList(evaluations, students, grades, student, remarks = {}) {
   return [...evaluations]
     .sort((a, b) => a.date.localeCompare(b.date))
     .map((ev) => {
       const c = cellValue(grades[student]?.[ev.id] ?? '', ev.scale);
-      return { ...ev, value: c.value, status: c.counted ? 'NOTE' : c.status ?? 'NON_SAISIE', ...evaluationStats(ev, students, grades) };
+      const remark = ev.remarksEnabled ? remarks[student]?.[ev.id] ?? null : null;
+      return { ...ev, value: c.value, status: c.counted ? 'NOTE' : c.status ?? 'NON_SAISIE', remark, ...evaluationStats(ev, students, grades) };
     });
+}
+
+// --- Publication des notes ------------------------------------------------------
+// Les élèves voient la note à la date de publication choisie par l'enseignant ; les parents
+// la voient `parentDelayDays` jours plus tard (paramétrage de l'Espace Parents, 1 jour par défaut).
+export const parentPublishOn = (ev, settings) => addDays(ev.publishOn ?? ev.date, settings.grading.parentDelayDays ?? 1);
+
+export function isPublished(ev, audience, today, settings) {
+  const from = audience === 'PARENT' ? parentPublishOn(ev, settings) : ev.publishOn ?? ev.date;
+  return from <= today;
 }

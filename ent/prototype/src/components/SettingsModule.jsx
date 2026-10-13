@@ -107,6 +107,47 @@ function Simulation({ settings }) {
   );
 }
 
+function CompetencyEditor({ settings, onChange }) {
+  const refs = settings.competencies ?? {};
+  const keys = Object.keys(refs).sort();
+  const [key, setKey] = useState(keys[0] ?? '');
+  const [newKey, setNewKey] = useState({ subject: '', level: '' });
+  const [label, setLabel] = useState('');
+  const list = refs[key] ?? [];
+  const save = (next) => onChange({ ...settings, competencies: { ...refs, [key]: next } });
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="text-xs text-slate-600">Matière · niveau
+          <select value={key} onChange={(e) => setKey(e.target.value)} className="mt-1 block rounded-md border border-slate-300 px-2 py-1.5 text-sm">
+            {keys.map((k) => <option key={k} value={k}>{k.replace('|', ' · ')}</option>)}
+          </select>
+        </label>
+        <input value={newKey.subject} onChange={(e) => setNewKey({ ...newKey, subject: e.target.value })} placeholder="Nouvelle matière" className="w-40 rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
+        <input value={newKey.level} onChange={(e) => setNewKey({ ...newKey, level: e.target.value })} placeholder="Niveau (ex. 3e)" className="w-28 rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
+        <Button variant="secondary" disabled={!newKey.subject.trim() || !newKey.level.trim()} onClick={() => {
+          const k = `${newKey.subject.trim()}|${newKey.level.trim()}`;
+          onChange({ ...settings, competencies: { ...refs, [k]: refs[k] ?? [] } });
+          setKey(k); setNewKey({ subject: '', level: '' });
+        }}>Ajouter</Button>
+      </div>
+      <ol className="space-y-1.5">
+        {list.map((c, i) => (
+          <li key={i} className="flex items-center gap-2">
+            <span className="w-6 text-right text-xs text-slate-400">C{i + 1}</span>
+            <input value={c} onChange={(e) => save(list.map((x, k) => (k === i ? e.target.value : x)))} className="flex-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
+            <button type="button" aria-label={`Supprimer ${c}`} onClick={() => save(list.filter((_, k) => k !== i))} className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600"><Icon name="x" /></button>
+          </li>
+        ))}
+      </ol>
+      <div className="flex gap-2">
+        <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Nouvelle compétence…" className="flex-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
+        <Button variant="secondary" disabled={!label.trim() || !key} onClick={() => { save([...list, label.trim()]); setLabel(''); }}>Ajouter la compétence</Button>
+      </div>
+    </div>
+  );
+}
+
 export default function SettingsModule({ settings, onChange, onReset }) {
   const [draft, setDraft] = useState({ kind: 'VACANCES', label: '', start: '', end: '' });
   const set = (path, value) => onChange({ ...settings, [path]: { ...settings[path], ...value } });
@@ -255,8 +296,12 @@ export default function SettingsModule({ settings, onChange, onReset }) {
 
           {/* Notes */}
           <Card title="Notes & conseil de classe" subtitle="Règles communes à toutes les classes de Tamatave">
-            <NumberField label="Notes minimum par trimestre (pour valider)" value={settings.grading.minEvaluations} min={1} max={10} suffix="évaluations"
-              onChange={(v) => set('grading', { minEvaluations: v })} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <NumberField label="Notes minimum par trimestre (pour valider)" value={settings.grading.minEvaluations} min={1} max={10} suffix="évaluations"
+                onChange={(v) => set('grading', { minEvaluations: v })} />
+              <NumberField label="Espace Parents : publication aux parents" value={settings.grading.parentDelayDays} min={0} max={7} suffix="jour(s) après les élèves"
+                onChange={(v) => set('grading', { parentDelayDays: v })} />
+            </div>
             <div className="mt-4">
               <p className="text-xs font-medium text-slate-600">Types d'évaluation proposés aux enseignants</p>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -286,6 +331,11 @@ export default function SettingsModule({ settings, onChange, onReset }) {
               </div>
               <p className="mt-1 text-xs text-slate-500">Par défaut : Arts plastiques, Musique et Vie de classe sont hors moyenne.</p>
             </div>
+          </Card>
+
+          {/* Référentiels de compétences */}
+          <Card title="Référentiels de compétences" subtitle="Par matière et par niveau, d'après le bulletin officiel ; communs à toutes les classes du niveau">
+            <CompetencyEditor settings={settings} onChange={onChange} />
           </Card>
 
           {/* Calendrier */}

@@ -287,8 +287,8 @@ test('un reçu par journal', () => {
 });
 
 // --- Notes et conseil de classe -------------------------------------------------
-import { studentAverage, termValidation, generalAverage, classStats, copySuggestions, notesCount } from '../src/rules/grading.js';
-import { SERVICES, EVALUATIONS, GRADES, COMPETENCIES, CLASS_SUBJECTS } from '../src/data/grades.js';
+import { studentAverage, termValidation, generalAverage, classStats, notesCount } from '../src/rules/grading.js';
+import { SERVICES, EVALUATIONS, GRADES, CLASS_SUBJECTS, competenciesFor } from '../src/data/grades.js';
 
 test('moyenne pondérée ramenée sur 20 (barème /10, coefficient 2)', () => {
   // Aina : DS 16/20 ×2, interro 9/10 → 18/20, oral 17, exposé 16 → (32+18+17+16)/5 = 16,6
@@ -322,10 +322,12 @@ test('moyenne générale : Arts plastiques, Musique et Vie de classe exclus', ()
   assert.deepEqual(classStats([10, 12, null, 14]), { avg: 12, min: 10, max: 14 });
 });
 
-test('compétences : copie suggérée depuis la même matière au même niveau', () => {
+test('compétences : référentiel officiel commun à un même niveau (1re Générale = 1re STMG)', () => {
+  const emc1STMG = SERVICES.find((s) => s.id === 's3');
   const emc1G = SERVICES.find((s) => s.id === 's4');
-  assert.deepEqual(copySuggestions(emc1G, SERVICES, COMPETENCIES).map((s) => s.id), ['s3']);
-  assert.deepEqual(copySuggestions(SERVICES[1], SERVICES, COMPETENCIES), []); // Tle : pas d'autre classe
+  assert.deepEqual(competenciesFor(emc1G, DEFAULT_SETTINGS), competenciesFor(emc1STMG, DEFAULT_SETTINGS));
+  assert.equal(competenciesFor(emc1G, DEFAULT_SETTINGS).length, 3);
+  assert.notDeepEqual(competenciesFor(SERVICES[0], DEFAULT_SETTINGS), competenciesFor(SERVICES[1], DEFAULT_SETTINGS)); // Management 1re ≠ Terminale
 });
 
 import { councilProposal } from '../src/rules/grading.js';
@@ -396,4 +398,45 @@ test('« Je suis informé.e » : relance après 48 h sans réponse', () => {
   assert.equal(ackReminderDue('2026-10-11T08:00', null, '2026-10-13T09:00'), true);
   assert.equal(ackReminderDue('2026-10-12T12:00', null, '2026-10-13T09:00'), false);
   assert.equal(ackReminderDue('2026-10-08T08:00', '2026-10-08T19:00', '2026-10-13T09:00'), false);
+});
+
+import { isPublished, parentPublishOn } from '../src/rules/grading.js';
+test('« Ramener sur 20 » : la note compte sur 20 ou en points dans son barème', () => {
+  const g = { e1: '8', e2: '14' };
+  const on = [{ id: 'e1', scale: 10, coef: 1 }, { id: 'e2', scale: 20, coef: 1 }];
+  assert.equal(studentAverage(on, g), 15);                                  // (16 + 14) / 2
+  const off = [{ id: 'e1', scale: 10, coef: 1, normalize: false }, { id: 'e2', scale: 20, coef: 1 }];
+  assert.equal(studentAverage(off, g), 14.67);                              // 22 points / 30 → 14,67
+});
+
+test('publication : élèves à la date choisie, parents un jour après', () => {
+  const ev = { date: '2026-10-13', publishOn: '2026-10-14' };
+  assert.equal(parentPublishOn(ev, DEFAULT_SETTINGS), '2026-10-15');
+  assert.equal(isPublished(ev, 'ELEVE', '2026-10-14', DEFAULT_SETTINGS), true);
+  assert.equal(isPublished(ev, 'PARENT', '2026-10-14', DEFAULT_SETTINGS), false);
+  assert.equal(isPublished(ev, 'PARENT', '2026-10-15', DEFAULT_SETTINGS), true);
+});
+
+// --- Terminale : Parcoursup et Campus France --------------------------------------
+import { higherEdProcedure, exportWindowOpen, campusFranceCsv } from '../src/rules/orientation.js';
+test('Terminale : Parcoursup ou Études en France selon la nationalité', () => {
+  assert.equal(higherEdProcedure(['FR']), 'PARCOURSUP');
+  assert.equal(higherEdProcedure(['MG']), 'CAMPUS_FRANCE');
+  assert.equal(higherEdProcedure(['MG', 'FR']), 'PARCOURSUP');       // double nationalité
+  assert.equal(higherEdProcedure(['BE']), 'PARCOURSUP');
+  assert.equal(higherEdProcedure(['KM']), 'CAMPUS_FRANCE');
+});
+
+test('export Campus France : après le Bac, jusqu\'à début septembre', () => {
+  const w = { opensOn: '2027-07-05', closesOn: '2027-09-05' };
+  assert.equal(exportWindowOpen('2026-10-13', w), false);
+  assert.equal(exportWindowOpen('2027-08-01', w), true);
+  const csv = campusFranceCsv([{ lastName: 'RANDRIA', firstName: 'Mamy', birthDate: '2008-04-02', nationalities: ['MG'], cls: 'Terminale Générale', bac: 'Admis', mention: 'Bien', email: 'm@ex.mg' }]);
+  assert.equal(csv.split('\r\n')[1], 'RANDRIA;Mamy;02/04/2008;MG;Terminale Générale;Admis;Bien;Études en France (Campus France);m@ex.mg');
+});
+
+import { formatDateFr } from '../src/rules/calendar.js';
+test('dates en français : « 1er » pour le premier du mois', () => {
+  assert.equal(formatDateFr('2026-10-01'), 'jeudi 1er octobre 2026');
+  assert.equal(formatDateFr('2027-01-20'), 'mercredi 20 janvier 2027');
 });

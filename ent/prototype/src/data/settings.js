@@ -35,6 +35,16 @@ export const DEFAULT_SETTINGS = {
     defaultCoef: 1,
     evaluationTypes: ['DS', 'Interrogation', 'Oral', 'Exposé', 'Devoir maison', 'TP', 'Projet', 'Autre'],
     excludedSubjects: ['AP', 'MUS', 'VDC'], // Arts plastiques, Musique, Vie de classe : hors moyenne générale
+    parentDelayDays: 1, // Espace Parents : note publiée aux parents 1 jour après les élèves
+  },
+
+  // Référentiels de compétences par matière et par niveau, d'après le bulletin officiel
+  // (communs à toutes les classes d'un même niveau : 1re Générale et 1re STMG partagent EMC).
+  competencies: {
+    'Management|1re': ['Analyser une situation d\'organisation', 'Mobiliser les notions du programme', 'Argumenter une décision', 'Communiquer à l\'écrit et à l\'oral'],
+    'Management|Terminale': ['Analyser une situation de gestion', 'Mobiliser les notions', 'Argumenter', 'Communiquer'],
+    'Enseignement moral et civique|1re': ['Construire une culture civique', 'Argumenter et débattre', 'S\'engager dans un projet collectif'],
+    'Mathématiques|5e': ['Chercher', 'Modéliser', 'Représenter', 'Raisonner', 'Calculer', 'Communiquer'],
   },
 
   // Calendrier : jours fériés (Madagascar) et vacances (exemple à remplacer)

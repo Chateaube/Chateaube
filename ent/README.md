@@ -10,7 +10,7 @@ entre écolage et droits d'examen.
 |---|---|
 | 1. Modèle de données (entités, diagramme, règles, hypothèses à valider) | [`docs/01-modele-de-donnees.md`](docs/01-modele-de-donnees.md) |
 | Schéma PostgreSQL exécutable | [`db/schema.sql`](db/schema.sql) · [`db/functions.sql`](db/functions.sql) · [`db/seed.sql`](db/seed.sql) |
-| Scénarios de vérification (26 règles métier) | [`db/tests.sql`](db/tests.sql) |
+| Scénarios de vérification (28 règles métier) | [`db/tests.sql`](db/tests.sql) |
 | 2. Architecture UX/UI et arborescence par profil | [`docs/02-architecture-ux.md`](docs/02-architecture-ux.md) |
 | Architecture technique (SSO, tâches planifiées, IA, sécurité) | [`docs/03-architecture-technique.md`](docs/03-architecture-technique.md) |
 | Cadrage par profil (questions à valider avant de développer) | [`docs/04-cadrage-par-profil.md`](docs/04-cadrage-par-profil.md) |
@@ -36,7 +36,7 @@ imprimer ; l'appréciation générale est rédigée par la Direction) ; accès �
 confisqués (24 h ou 5 jours ouvrés, prise en garde et restitution signées) ; documents, stages et orientation.
 
 **Enseignant** : tableau de bord et appel ; **Notes & appréciations** en 3 étapes (1. Compétences, 2. Notes avec
-« 1O » à corriger, 3. Appréciations avec l'élève choisi dans une liste déroulante) ; cahier de textes ; punitions.
+« Nouveau devoir » (publication, remarques, ramener sur 20, thèmes, compétences) et « 1O » à corriger, 3. Appréciations avec l'élève choisi dans une liste déroulante) ; cahier de textes ; punitions.
 
 **Parent** : Accueil, **Notes** (par matière, ordre chronologique, moyenne, plus haute et plus basse de la classe),
 Devoirs, **Vie scolaire** (case « Je suis informé.e »), et dans « Plus » : documents et autorisations, stages,

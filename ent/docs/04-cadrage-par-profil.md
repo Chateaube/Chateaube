@@ -139,3 +139,19 @@ dans le cahier des charges du lot de développement correspondant.
 | P8 | Stages : quels niveaux (3e observation, 2de, 1re STMG) et quelles durées ? | **décidé** : 3e une semaine, 2de deux semaines |
 | P9 | Orientation : les familles saisissent-elles leurs intentions dans l'ENT (fiche dialogue) ? | oui, au 2e trimestre |
 | P10 | Appréciation générale du conseil : rédigée en séance par la Direction, ou préparée par le professeur principal ? | **décidé** : rédigée par la Directrice après les conseils |
+
+---
+
+## Décisions du 13 octobre (3)
+
+- **Création d'un devoir** : devoir du, note publiée le, publication aux parents un jour après les élèves (paramètre de
+  l'Espace Parents), remarques par note, notation sur, coefficient, « Ramener sur 20 », commentaire, thèmes,
+  compétences évaluées.
+- **Compétences** : référentiel par matière et par niveau, selon le bulletin officiel (géré par la Direction).
+- **Terminale** : Parcoursup et Campus France, la procédure étant déterminée par la nationalité de l'élève.
+
+| # | Question | Proposition |
+|---|---|---|
+| Q1 | Qui saisit les référentiels officiels de compétences (Direction, coordinateurs de discipline) ? | Direction |
+| Q2 | Parcoursup : les élèves candidats libres d'un établissement hors contrat ont-ils une « fiche Avenir » remplie par l'établissement ? | à vérifier auprès de l'Académie de La Réunion |
+| Q3 | Campus France : quelles pièces l'établissement fournit-il (bulletins de 1re et Terminale, attestation de scolarité) ? | bulletins + attestation |

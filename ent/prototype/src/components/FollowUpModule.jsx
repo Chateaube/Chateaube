@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Badge, Button, Card, Stat } from './ui.jsx';
 import { CLASSES } from '../data/schoollife.js';
 import { AUTHORIZATIONS, DOCUMENTS, REQUESTED, STAGE_TYPES } from '../data/family.js';
+import { TLE_STUDENTS, STEPS, EXPORT_WINDOW } from '../data/terminale.js';
+import { higherEdProcedure, PROCEDURES, exportWindowOpen, campusFranceCsv } from '../rules/orientation.js';
 
 // Suivi côté établissement (Direction, Bureau, Vie scolaire) : autorisations, documents
 // envoyés et accusés de lecture, pièces manquantes, stages, orientation.
@@ -145,14 +147,83 @@ function StagesOrientation() {
           <li className="flex flex-wrap justify-between gap-2"><span><b>3e</b> — vœux d'orientation après la 3e (2de générale, lycée professionnel)</span><Badge tone="slate">Intentions au 2e trimestre</Badge></li>
           <li className="flex flex-wrap justify-between gap-2"><span><b>2de</b> — choix de la voie (générale / STMG) et des spécialités</span><Badge tone="slate">Intentions au 2e trimestre</Badge></li>
           <li className="flex flex-wrap justify-between gap-2"><span><b>1re STMG</b> — spécialité de Terminale (4 choix)</span><Badge tone="amber">Découverte en cours</Badge></li>
-          <li className="flex flex-wrap justify-between gap-2"><span><b>Terminale</b> — Parcoursup et Campus France</span><Badge tone="navy">Ateliers à partir de novembre</Badge></li>
+          <li className="flex flex-wrap justify-between gap-2"><span><b>Terminale</b> — Parcoursup ou Études en France (Campus France) selon la nationalité</span><Badge tone="navy">Voir l'onglet Terminale</Badge></li>
         </ul>
       </Card>
     </div>
   );
 }
 
-const TABS = [['auth', 'Autorisations'], ['docs', 'Documents envoyés'], ['pieces', 'Pièces demandées'], ['stages', 'Stages & orientation']];
+function Terminale() {
+  const [students, setStudents] = useState(TLE_STUDENTS);
+  const open = exportWindowOpen('2026-10-13', EXPORT_WINDOW);
+  const count = (p) => students.filter((s) => higherEdProcedure(s.nationalities) === p).length;
+  const exportCsv = () => {
+    const url = URL.createObjectURL(new Blob([campusFranceCsv(students)], { type: 'text/csv;charset=utf-8' }));
+    Object.assign(document.createElement('a'), { href: url, download: 'campus-france-terminales-TMV.csv' }).click();
+    URL.revokeObjectURL(url);
+  };
+  return (
+    <div className="space-y-5">
+      <div className="grid gap-5 lg:grid-cols-2">
+        {Object.entries(STEPS).map(([p, steps]) => (
+          <Card key={p} title={PROCEDURES[p].label} subtitle={`${count(p)} élève${count(p) > 1 ? 's' : ''} de Terminale · ${p === 'PARCOURSUP' ? 'nationalité française, UE / EEE ou suisse' : 'autres nationalités (dont malgache)'}`}>
+            <ol className="relative space-y-2 border-l border-slate-200 pl-4">
+              {steps.map(([when, label]) => (
+                <li key={label} className="relative text-sm">
+                  <span className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full bg-slate-300 ring-2 ring-white" />
+                  <span className="font-medium text-navy-700">{when}</span> — <span className="text-slate-700">{label}</span>
+                </li>
+              ))}
+            </ol>
+            <p className="mt-2 text-[11px] text-slate-400">Dates indicatives : le calendrier officiel est publié chaque année.</p>
+          </Card>
+        ))}
+      </div>
+      <Card
+        title="Suivi des Terminales"
+        subtitle="La procédure est déterminée par la nationalité (à vérifier chaque année auprès de Campus France Madagascar)"
+        action={
+          <div className="text-right">
+            <Button variant="secondary" disabled={!open} onClick={exportCsv}>Exporter la liste Campus France</Button>
+            <p className="mt-1 text-[11px] text-slate-500">{open ? 'Fenêtre ouverte' : `Après les résultats du Bac : du ${EXPORT_WINDOW.opensOn.split('-').reverse().join('/')} au ${EXPORT_WINDOW.closesOn.split('-').reverse().join('/')}`}</p>
+          </div>
+        }
+      >
+        <div className="-mx-4 overflow-x-auto">
+          <table className="w-full min-w-[760px] text-sm">
+            <thead><tr className="border-y border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
+              <th className="px-4 py-2 font-medium">Élève</th><th className="px-2 font-medium">Nationalité</th><th className="px-2 font-medium">Procédure</th>
+              <th className="px-2 font-medium">Compte créé</th><th className="px-2 font-medium">Bulletins transmis</th>
+            </tr></thead>
+            <tbody>
+              {students.map((s, i) => {
+                const p = higherEdProcedure(s.nationalities);
+                return (
+                  <tr key={s.email} className="border-b border-slate-100">
+                    <td className="px-4 py-2"><p className="font-medium text-slate-800">{s.lastName} {s.firstName}</p><p className="text-xs text-slate-500">{s.cls}</p></td>
+                    <td className="px-2 text-slate-600">{s.nationalities.join(' · ')}</td>
+                    <td className="px-2"><Badge tone={PROCEDURES[p].tone}>{PROCEDURES[p].label}</Badge></td>
+                    {['account', 'docs'].map((k) => (
+                      <td key={k} className="px-2">
+                        <label className="flex items-center gap-1.5 text-xs text-slate-600">
+                          <input type="checkbox" checked={s[k]} onChange={() => setStudents(students.map((x, j) => (j === i ? { ...x, [k]: !x[k] } : x)))} />
+                          {s[k] ? 'Oui' : 'Non'}
+                        </label>
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+const TABS = [['auth', 'Autorisations'], ['docs', 'Documents envoyés'], ['pieces', 'Pièces demandées'], ['stages', 'Stages & orientation'], ['tle', 'Terminale : Parcoursup & Campus France']];
 
 export default function FollowUpModule() {
   const [tab, setTab] = useState('auth');
@@ -178,6 +249,7 @@ export default function FollowUpModule() {
       {tab === 'docs' && <Documents />}
       {tab === 'pieces' && <Requested />}
       {tab === 'stages' && <StagesOrientation />}
+      {tab === 'tle' && <Terminale />}
     </div>
   );
 }

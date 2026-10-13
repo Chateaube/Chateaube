@@ -5,11 +5,11 @@ import { FAMILIES, JOURNALS } from '../data/accounting.js';
 import { ATTENDANCE, MEASURES_LOG, PHONES } from '../data/schoollife.js';
 import { HOMEWORK } from '../data/homework.js';
 import {
-  OTHER_NOTES, GRADEBOOK_SUBJECTS, SERVICES, EVALUATIONS, GRADES, AUTHORIZATIONS, AUTH_ANSWERS, DOCUMENTS, REQUESTED, INTERNSHIPS, ORIENTATION,
+  OTHER_NOTES, GRADEBOOK_SUBJECTS, SERVICES, EVALUATIONS, GRADES, REMARKS, AUTHORIZATIONS, AUTH_ANSWERS, DOCUMENTS, REQUESTED, INTERNSHIPS, ORIENTATION,
 } from '../data/family.js';
 import { accountStatement } from '../rules/accounting.js';
 import { formatAr } from '../rules/finance.js';
-import { studentNoteList, fmt2 } from '../rules/grading.js';
+import { studentNoteList, fmt2, isPublished, parentPublishOn } from '../rules/grading.js';
 import { MEASURES, PHONE_DURATIONS, phoneReturnAt } from '../rules/discipline.js';
 import { formatDateFr } from '../rules/calendar.js';
 
@@ -69,7 +69,7 @@ function NoteCard({ n }) {
   return (
     <li className="rounded-lg border border-slate-200 p-3">
       <p className="text-sm font-medium text-slate-800">Note du {longDate(n.date)}</p>
-      <p className="text-xs text-slate-500">{n.type} · {n.title}</p>
+      <p className="text-xs text-slate-500">{n.type} · {n.title}{n.themes?.length ? ` · ${n.themes.join(', ')}` : ''}</p>
       <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
         <dt className="text-slate-500">Note élève :</dt>
         <dd className="text-right font-semibold tabular-nums text-navy-900">{n.status === 'NOTE' ? `${fmt2(n.value)}${scale}` : n.status === 'ABSENT' ? 'Absent.e' : n.status === 'DISPENSE' ? 'Dispensé.e' : 'Non noté.e'}</dd>
@@ -78,11 +78,13 @@ function NoteCard({ n }) {
         <dt className="text-slate-500">Note la plus basse :</dt><dd className="text-right tabular-nums">{fmt2(n.min)}{scale}</dd>
         <dt className="text-slate-500">Coefficient :</dt><dd className="text-right tabular-nums">{String(n.coef).replace('.', ',')}</dd>
       </dl>
+      {n.remark && <p className="mt-2 rounded-md bg-navy-50 px-2 py-1.5 text-xs text-navy-900"><span className="font-medium">Remarque :</span> {n.remark}</p>}
+      {n.comment && <p className="mt-2 text-xs text-slate-600"><span className="font-medium">Commentaire du professeur :</span> {n.comment}</p>}
     </li>
   );
 }
 
-function Notes({ child }) {
+function Notes({ child, audience, settings }) {
   const [term, setTerm] = useState('T1');
   const [open, setOpen] = useState(null);
   const bySubject = useMemo(() => {
@@ -90,12 +92,14 @@ function Notes({ child }) {
     for (const id of GRADEBOOK_SUBJECTS[child.id]) {
       const svc = SERVICES.find((s) => s.id === id);
       // visibles dès la saisie ; une case vide ou une saisie à confirmer (« 1O ») n'apparaît pas
-      out[svc.subject] = studentNoteList(EVALUATIONS[id], svc.students, GRADES[id], fullName(child)).filter((n) => n.status !== 'NON_SAISIE');
+      // publiée aux élèves à la date choisie par l'enseignant, aux parents un jour plus tard
+      out[svc.subject] = studentNoteList(EVALUATIONS[id], svc.students, GRADES[id], fullName(child), REMARKS[id])
+        .filter((n) => n.status !== 'NON_SAISIE' && isPublished(n, audience, TODAY, settings));
     }
-    for (const n of OTHER_NOTES[child.id]) (out[n.subject] ??= []).push(n);
+    for (const n of OTHER_NOTES[child.id]) if (isPublished(n, audience, TODAY, settings)) (out[n.subject] ??= []).push(n);
     for (const k of Object.keys(out)) out[k].sort((a, b) => a.date.localeCompare(b.date));
     return Object.entries(out).sort(([a], [b]) => a.localeCompare(b));
-  }, [child]);
+  }, [child, audience, settings]);
   return (
     <>
       <div className="grid grid-cols-3 gap-1 rounded-lg bg-white p-1 ring-1 ring-slate-200">
@@ -103,7 +107,12 @@ function Notes({ child }) {
           <button key={t} onClick={() => setTerm(t)} className={`rounded-md py-1.5 text-sm font-medium ${term === t ? 'bg-navy-500 text-white' : 'text-slate-600'}`}>{t.replace('T', '')}{t === 'T1' ? 'er' : 'e'} trimestre</button>
         ))}
       </div>
-      <p className="px-1 text-xs text-slate-500">Notes visibles dès leur saisie, avec la moyenne de la classe sur chaque devoir. Pas de moyenne par matière : le bulletin est remis après le conseil de classe.</p>
+      <p className="px-1 text-xs text-slate-500">
+        {audience === 'PARENT'
+          ? `Chaque note est visible ${settings.grading.parentDelayDays} jour${settings.grading.parentDelayDays > 1 ? 's' : ''} après sa publication aux élèves, avec la moyenne de la classe sur le devoir.`
+          : 'Chaque note est visible à sa date de publication, avec la moyenne de la classe sur le devoir.'}
+        {' '}Pas de moyenne par matière : le bulletin est remis après le conseil de classe.
+      </p>
       {term !== 'T1' ? <Section><p className="text-sm text-slate-500">Aucune note pour ce trimestre pour l'instant.</p></Section> : bySubject.map(([subject, notes]) => (
         <Section key={subject}>
           <button onClick={() => setOpen(open === subject ? null : subject)} className="flex w-full items-center justify-between text-left">
@@ -391,7 +400,7 @@ export default function FamilyPortal({ settings, audience = 'PARENT' }) {
         <div role="region" aria-label="Contenu du portail" className="flex-1 space-y-3 overflow-y-auto p-3">
           {tab === 'more' && sub && <button onClick={() => setSub(null)} className="text-sm font-medium text-navy-500">‹ Plus</button>}
           {view === 'home' && <Home child={child} isParent={isParent} />}
-          {view === 'notes' && <Notes child={child} />}
+          {view === 'notes' && <Notes child={child} audience={audience} settings={settings} />}
           {view === 'homework' && <Homework child={child} isParent={isParent} />}
           {view === 'life' && <SchoolLife child={child} isParent={isParent} acks={acks} setAcks={setAcks} settings={settings} />}
           {view === 'documents' && <Documents child={child} isParent={isParent} />}

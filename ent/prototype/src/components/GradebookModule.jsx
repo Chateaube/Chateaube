@@ -2,9 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, Icon, StudentSelect } from './ui.jsx';
 import { Annotated, RulePanel, GradeCell } from './gradeUi.jsx';
 import {
-  TERM, SERVICES, EVALUATIONS, GRADES, COMPETENCIES, COUNCIL_FLAGS, CLASS_SUBJECTS, OTHER_AVERAGES,
+  TERM, SERVICES, EVALUATIONS, GRADES, REMARKS, competenciesFor, levelOf, COUNCIL_FLAGS, CLASS_SUBJECTS, OTHER_AVERAGES,
 } from '../data/grades.js';
-import { studentAverage, notesCount, termValidation, classStats, generalAverage, copySuggestions, fmtAvg } from '../rules/grading.js';
+import { studentAverage, notesCount, termValidation, classStats, generalAverage, fmtAvg, parentPublishOn } from '../rules/grading.js';
 import { checkAppreciation, autoFix } from '../rules/appreciation.js';
 import { generateDraft } from '../rules/assistant.js';
 
@@ -12,10 +12,98 @@ const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-s
 const fmtDate = (iso) => iso.split('-').reverse().slice(0, 2).join('/');
 const firstName = (full) => full.split(' ').slice(1).join(' ');
 
+/* ---------------- Création d'un devoir ---------------- */
+const TODAY = '2026-10-13';
+const ddmm = (iso) => iso.split('-').reverse().slice(0, 2).join('/');
+
+function DateField({ label, value, onChange }) {
+  return (
+    <label className="block text-xs text-slate-600">{label}
+      <div className="mt-1 flex gap-1">
+        <input type="date" value={value} onChange={(e) => onChange(e.target.value)} className={`min-w-0 flex-1 ${inputCls}`} />
+        <Button variant="secondary" className="!px-2 text-xs" onClick={() => onChange(TODAY)}>Aujourd'hui</Button>
+      </div>
+    </label>
+  );
+}
+
+function EvaluationForm({ draft, setDraft, settings, competencies, onCreate, onCancel }) {
+  const set = (patch) => setDraft({ ...draft, ...patch });
+  const delay = settings.grading.parentDelayDays;
+  return (
+    <div className="mb-4 space-y-3 rounded-lg border border-navy-200 bg-navy-50/60 p-4">
+      <p className="text-sm font-semibold text-navy-900">Nouveau devoir</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block text-xs text-slate-600">Type
+          <select value={draft.type} onChange={(e) => set({ type: e.target.value })} className={`mt-1 w-full ${inputCls}`}>
+            {settings.grading.evaluationTypes.map((t) => <option key={t}>{t}</option>)}
+          </select>
+        </label>
+        <label className="block text-xs text-slate-600">Intitulé
+          <input value={draft.title} onChange={(e) => set({ title: e.target.value })} placeholder="ex. DS n°2 — Le marketing" className={`mt-1 w-full ${inputCls}`} />
+        </label>
+        <DateField label="Devoir du" value={draft.date} onChange={(v) => set({ date: v })} />
+        <DateField label="Note publiée le" value={draft.publishOn} onChange={(v) => set({ publishOn: v })} />
+      </div>
+      {draft.publishOn && (
+        <p className="rounded-md bg-white px-3 py-2 text-xs text-slate-600">
+          Conformément au paramétrage de l'Espace Parents, la note sera publiée aux parents {delay} jour{delay > 1 ? 's' : ''} après
+          la publication aux élèves, soit le <span className="font-semibold">{ddmm(parentPublishOn(draft, settings))}</span>.
+        </p>
+      )}
+      <label className="flex items-center gap-2 text-sm text-slate-700">
+        <input type="checkbox" checked={draft.remarksEnabled} onChange={(e) => set({ remarksEnabled: e.target.checked })} />
+        Activer la saisie des remarques sur les notes (publiées aux parents et aux élèves)
+      </label>
+      <div className="grid grid-cols-2 gap-3 sm:max-w-sm">
+        <label className="block text-xs text-slate-600">Notation sur
+          <input type="number" min={1} max={100} value={draft.scale} onChange={(e) => set({ scale: Math.max(1, Number(e.target.value)) })} className={`mt-1 w-full ${inputCls}`} />
+        </label>
+        <label className="block text-xs text-slate-600">Coefficient
+          <input type="number" min={0.5} max={10} step={0.5} value={draft.coef} onChange={(e) => set({ coef: Math.max(0.5, Number(e.target.value)) })} className={`mt-1 w-full ${inputCls}`} />
+        </label>
+      </div>
+      <label className="flex items-center gap-2 text-sm text-slate-700">
+        <input type="checkbox" checked={draft.normalize} disabled={draft.scale === 20} onChange={(e) => set({ normalize: e.target.checked })} />
+        Ramener sur 20 les notes du devoir lors du calcul de la moyenne
+        {draft.scale === 20 && <span className="text-xs text-slate-400">(déjà sur 20)</span>}
+      </label>
+      <label className="block text-xs text-slate-600">Commentaire, visible par les élèves
+        <textarea rows={2} value={draft.comment} onChange={(e) => set({ comment: e.target.value })} placeholder="Rédigez votre commentaire…" className={`mt-1 w-full ${inputCls}`} />
+      </label>
+      <label className="block text-xs text-slate-600">Thème(s)
+        <input value={draft.themesText} onChange={(e) => set({ themesText: e.target.value })} placeholder="Séparez les thèmes par une virgule" className={`mt-1 w-full ${inputCls}`} />
+      </label>
+      <div>
+        <p className="text-xs text-slate-600">Compétences évaluées <span className="text-slate-400">(référentiel officiel de la matière et du niveau)</span></p>
+        {competencies.length === 0 ? <p className="mt-1 text-xs text-slate-400">Aucun référentiel défini pour cette matière à ce niveau (Paramètres).</p> : (
+          <div className="mt-1 space-y-1">
+            {competencies.map((c) => (
+              <label key={c} className="flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" checked={draft.competencies.includes(c)}
+                  onChange={() => set({ competencies: draft.competencies.includes(c) ? draft.competencies.filter((x) => x !== c) : [...draft.competencies, c] })} />
+                {c}
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="flex gap-2">
+        <Button disabled={!draft.title.trim() || !draft.date || !draft.publishOn || draft.publishOn < draft.date} onClick={onCreate}>Créer le devoir</Button>
+        <Button variant="ghost" onClick={onCancel}>Annuler</Button>
+        {draft.publishOn && draft.publishOn < draft.date && <span className="self-center text-xs text-red-700">La publication ne peut précéder le devoir.</span>}
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- 2. Notes ---------------- */
-function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, validated, setValidated, settings, competencies = [] }) {
+function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, remarks, setRemarks, validated, setValidated, settings, competencies = [] }) {
   const min = settings.grading.minEvaluations;
-  const blank = { type: settings.grading.evaluationTypes[0], title: '', date: '2026-10-13', scale: settings.grading.defaultScale, coef: settings.grading.defaultCoef, competencies: [] };
+  const blank = {
+    type: settings.grading.evaluationTypes[0], title: '', date: TODAY, publishOn: TODAY, remarksEnabled: false,
+    scale: settings.grading.defaultScale, coef: settings.grading.defaultCoef, normalize: true, comment: '', themesText: '', competencies: [],
+  };
   const [draft, setDraft] = useState(null);
   const check = termValidation(evaluations, service.students, grades, min);
   const avgs = service.students.map((s) => studentAverage(evaluations, grades[s]));
@@ -26,45 +114,17 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, va
     <div className="grid gap-5 xl:grid-cols-[1fr_300px] xl:items-start">
       <Card
         title={`Notes — ${service.cls} · ${service.subject}`}
-        subtitle={`${TERM.label} · ${evaluations.length} évaluation${evaluations.length > 1 ? 's' : ''} · moyennes ramenées sur 20, pondérées par les coefficients`}
-        action={<Button variant="secondary" disabled={validated} onClick={() => setDraft(blank)}><span aria-hidden>＋</span> Ajouter une note</Button>}
+        subtitle={`${TERM.label} · ${evaluations.length} devoir${evaluations.length > 1 ? 's' : ''} · moyennes sur 20, pondérées par les coefficients`}
+        action={<Button variant="secondary" disabled={validated} onClick={() => setDraft(blank)}><span aria-hidden>＋</span> Nouveau devoir</Button>}
       >
         {draft && (
-          <div className="mb-4 grid gap-2 rounded-lg bg-navy-50 p-3 sm:grid-cols-[140px_1fr_130px_80px_80px_auto] sm:items-end">
-            <label className="text-xs text-slate-600">Type
-              <select value={draft.type} onChange={(e) => setDraft({ ...draft, type: e.target.value })} className={`mt-1 w-full ${inputCls}`}>
-                {settings.grading.evaluationTypes.map((t) => <option key={t}>{t}</option>)}
-              </select>
-            </label>
-            <label className="text-xs text-slate-600">Intitulé
-              <input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="ex. DS n°2 — Le marketing" className={`mt-1 w-full ${inputCls}`} />
-            </label>
-            <label className="text-xs text-slate-600">Date<input type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>
-            <label className="text-xs text-slate-600">Sur
-              <input type="number" min={1} max={100} value={draft.scale} onChange={(e) => setDraft({ ...draft, scale: Math.max(1, Number(e.target.value)) })} className={`mt-1 w-full ${inputCls}`} />
-            </label>
-            <label className="text-xs text-slate-600">Coef.
-              <input type="number" min={0.5} max={10} step={0.5} value={draft.coef} onChange={(e) => setDraft({ ...draft, coef: Math.max(0.5, Number(e.target.value)) })} className={`mt-1 w-full ${inputCls}`} />
-            </label>
-            {competencies.length > 0 && (
-              <div className="sm:col-span-6">
-                <p className="text-xs text-slate-600">Compétences visées (facultatif)</p>
-                <div className="mt-1 flex flex-wrap gap-1.5">
-                  {competencies.map((c) => {
-                    const on = draft.competencies.includes(c);
-                    return (
-                      <button key={c} type="button" aria-pressed={on} onClick={() => setDraft({ ...draft, competencies: on ? draft.competencies.filter((x) => x !== c) : [...draft.competencies, c] })}
-                        className={`rounded-full px-2.5 py-0.5 text-xs ring-1 ring-inset ${on ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-600 ring-slate-300'}`}>{c}</button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-            <div className="flex gap-1">
-              <Button disabled={!draft.title.trim()} onClick={() => { setEvaluations([...evaluations, { ...draft, id: `n${Date.now()}`, title: draft.title.trim() }]); setDraft(null); setValidated(false); }}>Créer</Button>
-              <Button variant="ghost" onClick={() => setDraft(null)}>Annuler</Button>
-            </div>
-          </div>
+          <EvaluationForm draft={draft} setDraft={setDraft} settings={settings} competencies={competencies} onCancel={() => setDraft(null)}
+            onCreate={() => {
+              const { themesText, ...ev } = draft;
+              setEvaluations([...evaluations, { ...ev, id: `n${Date.now()}`, title: ev.title.trim(), comment: ev.comment.trim() || null,
+                themes: themesText.split(',').map((t) => t.trim()).filter(Boolean), normalize: ev.scale === 20 ? true : ev.normalize }]);
+              setDraft(null); setValidated(false);
+            }} />
         )}
         {evaluations.length === 0 ? (
           <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-600">Aucune note pour ce trimestre. Ajoutez une première évaluation (DS, oral, exposé…).</p>
@@ -83,7 +143,10 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, va
                         </span>
                       )}
                       <p className="mt-1 max-w-[120px] truncate text-slate-700" title={ev.title}>{ev.title}</p>
-                      <p className="font-normal">{fmtDate(ev.date)} · /{ev.scale} · coef. {String(ev.coef).replace('.', ',')}</p>
+                      <p className="font-normal">{fmtDate(ev.date)} · /{ev.scale}{ev.normalize === false ? ' (points)' : ''} · coef. {String(ev.coef).replace('.', ',')}</p>
+                      <p className="font-normal text-[10px] text-slate-400" title={`Élèves le ${ddmm(ev.publishOn ?? ev.date)}, parents le ${ddmm(parentPublishOn(ev, settings))}`}>
+                        {(ev.publishOn ?? ev.date) <= TODAY ? 'Publiée' : `Publiée le ${ddmm(ev.publishOn)}`}{ev.comment ? ' · 💬' : ''}{ev.remarksEnabled ? ' · remarques' : ''}
+                      </p>
                     </th>
                   ))}
                   <th className="px-3 py-2 text-right font-medium">Moyenne /20</th>
@@ -102,6 +165,11 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, va
                         <td key={ev.id} className="px-2 py-2">
                           {validated ? <span className="tabular-nums">{grades[s]?.[ev.id] || '—'}</span>
                             : <GradeCell value={grades[s]?.[ev.id] ?? ''} max={ev.scale} onChange={(v) => setCell(s, ev.id, v)} />}
+                          {ev.remarksEnabled && (
+                            <input value={remarks[s]?.[ev.id] ?? ''} disabled={validated} aria-label={`Remarque — ${s}`}
+                              onChange={(e) => setRemarks({ ...remarks, [s]: { ...remarks[s], [ev.id]: e.target.value } })}
+                              placeholder="Remarque…" className="mt-1 w-28 rounded border border-slate-200 px-1.5 py-0.5 text-[11px]" />
+                          )}
                         </td>
                       ))}
                       <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-navy-900">{fmtAvg(avgs[i])}</td>
@@ -161,37 +229,26 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, va
 }
 
 /* ---------------- 1. Compétences ---------------- */
-function CompetenciesStep({ service, competencies, setCompetencies }) {
-  const list = competencies[service.id] ?? [];
-  const suggestions = copySuggestions(service, SERVICES, competencies);
-  const [label, setLabel] = useState('');
-  const setList = (next) => setCompetencies({ ...competencies, [service.id]: next });
-
+function CompetenciesStep({ service, settings, evaluations }) {
+  const list = competenciesFor(service, settings);
   return (
-    <div className="space-y-5">
-      <Card title={`Référentiel de compétences — ${service.cls} · ${service.subject}`} subtitle="Propre à chaque classe et matière. Repères de travail : elles sont associées aux évaluations, sans évaluation individuelle (l'appréciation globale en tient lieu).">
-        {list.length === 0 && suggestions.length > 0 && (
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-navy-200 bg-navy-50 p-3">
-            <p className="text-sm text-navy-900">Même matière, même niveau : reprendre les {competencies[suggestions[0].id].length} compétences de <span className="font-semibold">{suggestions[0].subject} — {suggestions[0].cls}</span> ?</p>
-            <Button onClick={() => setList([...competencies[suggestions[0].id]])}>Copier et adapter</Button>
-          </div>
-        )}
-        <ol className="space-y-1.5">
-          {list.map((c, i) => (
-            <li key={i} className="flex items-center gap-2">
-              <span className="w-5 text-right text-xs text-slate-400">{i + 1}.</span>
-              <input value={c} onChange={(e) => setList(list.map((x, k) => (k === i ? e.target.value : x)))} className={`flex-1 ${inputCls}`} />
-              <button aria-label={`Supprimer ${c}`} onClick={() => setList(list.filter((_, k) => k !== i))} className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600"><Icon name="x" /></button>
-            </li>
-          ))}
-        </ol>
-        <div className="mt-3 flex gap-2">
-          <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Nouvelle compétence…" className={`flex-1 ${inputCls}`} />
-          <Button variant="secondary" disabled={!label.trim()} onClick={() => { setList([...list, label.trim()]); setLabel(''); }}>Ajouter</Button>
-        </div>
-      </Card>
-
-    </div>
+    <Card title={`Compétences — ${service.subject} · niveau ${levelOf(service.cls)}`}
+      subtitle="Référentiel officiel (bulletin officiel), commun à toutes les classes du niveau ; tenu à jour par la Direction dans Paramètres">
+      {list.length === 0 ? <p className="text-sm text-slate-500">Aucun référentiel défini pour cette matière à ce niveau.</p> : (
+        <ul className="divide-y divide-slate-100">
+          {list.map((c, i) => {
+            const n = evaluations.filter((ev) => ev.competencies?.includes(c)).length;
+            return (
+              <li key={c} className="flex items-center justify-between gap-3 py-2 text-sm">
+                <span className="text-slate-800"><span className="mr-2 text-xs text-slate-400">C{i + 1}</span>{c}</span>
+                <Badge tone={n ? 'green' : 'amber'}>{n ? `évaluée dans ${n} devoir${n > 1 ? 's' : ''}` : 'pas encore évaluée'}</Badge>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <p className="mt-3 text-xs text-slate-500">Les compétences se cochent dans chaque devoir (« Compétences évaluées »). Pas de bilan individuel : l'appréciation globale en tient lieu.</p>
+    </Card>
   );
 }
 
@@ -312,11 +369,10 @@ const STEPS = [['competences', '1. Compétences'], ['notes', '2. Notes'], ['appr
 
 export default function GradebookModule({ settings }) {
   const [serviceId, setServiceId] = useState('s1');
-  // une fois le référentiel défini, l'enseignant arrive directement sur ses notes
-  const [step, setStep] = useState((COMPETENCIES.s1?.length ?? 0) > 0 ? 'notes' : 'competences');
+  const [step, setStep] = useState('notes');
   const [evaluations, setEvaluations] = useState(EVALUATIONS);
   const [grades, setGrades] = useState(GRADES);
-  const [competencies, setCompetencies] = useState(COMPETENCIES);
+  const [remarks, setRemarks] = useState(REMARKS);
   const [validated, setValidated] = useState({});
   const [comments, setComments] = useState({});
   const [flags, setFlags] = useState({ 's1:RAJAONARIVELO Tsiry': { ids: ['BAVARD'], note: '' } });
@@ -329,10 +385,11 @@ export default function GradebookModule({ settings }) {
     evaluations: evaluations[serviceId], setEvaluations: (v) => setEvaluations({ ...evaluations, [serviceId]: v }),
     grades: grades[serviceId], setGrades: (v) => setGrades({ ...grades, [serviceId]: v }),
     validated: Boolean(validated[serviceId]), setValidated: (v) => setValidated({ ...validated, [serviceId]: v }),
+    remarks: remarks[serviceId] ?? {}, setRemarks: (v) => setRemarks({ ...remarks, [serviceId]: v }),
   };
   const stepDone = {
     notes: Boolean(validated[serviceId]),
-    competences: (competencies[serviceId]?.length ?? 0) > 0,
+    competences: competenciesFor(service, settings).every((c) => evaluations[serviceId].some((ev) => ev.competencies?.includes(c))),
     appreciations: service.students.every((s) => comments[`${serviceId}:${s}`]?.validated),
   };
 
@@ -346,7 +403,7 @@ export default function GradebookModule({ settings }) {
         {SERVICES.map((s) => {
           const ok = validated[s.id];
           return (
-            <button key={s.id} onClick={() => { setServiceId(s.id); setStep((competencies[s.id]?.length ?? 0) > 0 ? 'notes' : 'competences'); }}
+            <button key={s.id} onClick={() => setServiceId(s.id)}
               className={`shrink-0 rounded-lg border px-3 py-2 text-left text-sm ${s.id === serviceId ? 'border-navy-500 bg-navy-50 ring-1 ring-navy-500' : 'border-slate-200 bg-white hover:border-navy-200'}`}>
               <span className="block font-medium text-slate-900">{s.cls}</span>
               <span className="block text-xs text-slate-500">{s.subject}{ok ? ' · notes validées' : ''}</span>
@@ -364,8 +421,8 @@ export default function GradebookModule({ settings }) {
           ))}
         </div>
       )}
-      {currentStep === 'notes' && <NotesStep {...props} competencies={competencies[serviceId] ?? []} />}
-      {currentStep === 'competences' && <CompetenciesStep service={service} competencies={competencies} setCompetencies={setCompetencies} />}
+      {currentStep === 'notes' && <NotesStep {...props} competencies={competenciesFor(service, settings)} />}
+      {currentStep === 'competences' && <CompetenciesStep service={service} settings={settings} evaluations={evaluations[serviceId]} />}
       {currentStep === 'appreciations' && <AppreciationsStep {...props} comments={comments} setComments={setComments} flags={flags} setFlags={setFlags} />}
     </div>
   );
