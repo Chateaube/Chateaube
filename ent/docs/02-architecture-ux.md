@@ -25,11 +25,13 @@ Pilotage
 │   ├── Annuaire / fiches élèves (historique des sites)
 │   ├── Inscriptions & réinscriptions
 │   └── Campagnes de transfert (Tamatave → Tana, avril) + quitus financier
-├── Finances
-│   ├── Écolage : échéanciers, encaissements, état par classe
+├── Comptabilité
+│   ├── Classes & tarifs : inscription, réinscription, écolage/mois, fascicule, location (par classe)
+│   ├── Articles & services : manuel perdu/endommagé, passeport de vie scolaire, natation, tee-shirt, autre
+│   ├── États de compte : par famille, soldes séparés écolage / frais annexes / droits d'examen
+│   ├── Caisse : entrées / sorties du jour, par agent
 │   ├── Droits d'examen : encaissements, frais de dossier conservés, reversements aux centres
-│   ├── Recouvrement : dossiers RELANCE / 48 h / MISE À PIED (validation)
-│   └── Exports comptables (deux journaux distincts)
+│   └── Recouvrement : RELANCE → AVERTISSEMENT → MISE À PIED (validation)
 Pédagogie
 ├── Notes & bulletins .......... suivi de saisie, conseils de classe, publication
 ├── Emplois du temps ........... grilles par classe, pauses déjeuner dynamiques
@@ -42,8 +44,9 @@ Communication
 ├── Annonces (ciblage : école / profs / parents-élèves / classe / niveau / site)
 └── Notifications individuelles aux parents
 Administration
+├── Gestion des agents : registre du personnel, entrées / sorties, accès ENT
 ├── Comptes, rôles, liste blanche Google
-├── Paramètres : années, trimestres, calendrier de relance, tarifs, dernier mois payable
+├── Paramètres : échéancier (jour, mois par niveau), délais de relance, calendrier scolaire (fériés, vacances)
 └── Journal d'audit
 ```
 
@@ -81,7 +84,7 @@ Tableau de bord ................ encaissements du jour par caisse (Tana / Tamata
 Écolage
 ├── Échéanciers par famille (mois facturables, verrou de mai pour 1re/Tle TMV)
 ├── Encaissements (espèces, virement, Mvola, Orange Money, Airtel Money) + reçus
-└── Recouvrement : relances automatiques, avertissements 48 h, propositions de mise à pied → Direction
+└── Recouvrement : relances automatiques (J+5), avertissements (J+10), propositions de mise à pied (J+25) → Direction
 Droits d'examen
 ├── Encaissements (ventilation automatique : 40 000 Ar conservés / reste à reverser)
 └── Reversements aux centres d'examen
@@ -111,6 +114,16 @@ Orientation .................... Parcours d'ouverture, Campus France (Terminale)
 
 ## 2.3 Écrans clés (prototypés dans `prototype/`)
 
+Le sélecteur **« Voir l'ENT en tant que »** (Direction / Enseignant / Parent) permet de parcourir chaque portail.
+
+- **Comptabilité** : Classes & tarifs (grille éditable, coût annuel calculé), Articles & services, États de compte
+  (facturer un article, encaisser un paiement), Caisse : entrées / sorties.
+- **Gestion des agents** : registre du personnel, entrée et sortie, accès ENT automatique.
+- **Paramètres** : échéancier, relances, calendrier scolaire, avec une simulation des dates.
+- **Portail enseignant** : cours du jour, appel avec SMS aux parents, tâches (notes, appréciations), annonces.
+- **Portail parents** (format mobile) : alertes, emploi du temps, notes, absences, paiements et historique, messages.
+
+
 1. **Tableau de bord Direction** : bandeau du mois (octobre suspendu) avec le calendrier des relances, KPI filtrables par
    site, pipeline des impayés en 3 étapes avec validation de la mise à pied, cartes des deux campus, comptabilité séparée
    (deux journaux visuellement distincts), panneau de mobilité inter-sites et frise des examens.
@@ -127,8 +140,9 @@ Orientation .................... Parcours d'ouverture, Campus France (Terminale)
 d'accueil à Tana, soldes d'écolage) → « Exécuter » → l'élève apparaît à Tana dès la date d'effet ; ses notes et factures
 restent visibles, sa fiche affiche « Tamatave (sept. → avr.) · Tana (avr. → juil.) ».
 
-**Impayé (automate → Direction)** : mois actif → J+5 relance SMS/e-mail → J+7 avertissement « 48 h » → le dossier
-apparaît en rouge « En attente de validation » → la Direction valide (notification de mise à pied) ou accorde un délai.
+**Impayé (automate → Direction)** : échéance le 5 → J+5 relance SMS/e-mail → J+10 avertissement → J+25 le dossier apparaît
+en rouge « Mise à pied à valider » → la Direction valide (notification) ou accorde un délai. Les jours sont comptés selon le
+calendrier scolaire (hors fériés, vacances et octobre).
 
 **Appréciation (Professeur)** : saisie ou « Proposer avec l'assistant » → le contrôleur souligne les problèmes →
 « Corriger la forme » applique les corrections sûres (format inclusif) → « Valider » s'active à zéro erreur → publication

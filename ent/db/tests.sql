@@ -212,5 +212,59 @@ DO $$ DECLARE c uuid := 'a0000000-0000-0000-0000-000000000001'; BEGIN
   ASSERT (SELECT count(*) FROM dunning_event WHERE case_id = c) = 2, 'T11: transitions historisées';
 END $$;
 
+-- T12. Tarifs : prix de la classe prioritaire, sinon prix unique -------------
+DO $$ BEGIN
+  ASSERT fee_price_for('ECOLAGE', '30000000-0000-0000-0000-000000000001') = 450000, 'T12: écolage Tle';
+  ASSERT fee_price_for('TEE_SHIRT', '30000000-0000-0000-0000-000000000001') = 35000, 'T12: tee-shirt prix unique';
+END $$;
+INSERT INTO invoice (id, number, enrollment_id, category, due_on, amount_mga)
+VALUES ('b0000000-0000-0000-0000-000000000001', 'ANX-T12', '30000000-0000-0000-0000-000000000001',
+        'FRAIS_ANNEXES', '2026-10-13', 70000);
+INSERT INTO invoice_line (invoice_id, label, quantity, unit_price_mga)
+VALUES ('b0000000-0000-0000-0000-000000000001', 'Tee-shirt scolaire', 2, 35000);
+DO $$ BEGIN
+  ASSERT (SELECT amount_mga FROM invoice_line WHERE invoice_id = 'b0000000-0000-0000-0000-000000000001') = 70000, 'T12: ligne 2 × 35 000';
+  ASSERT (SELECT sum(debit_mga - credit_mga) FROM v_account_statement
+          WHERE enrollment_id = '30000000-0000-0000-0000-000000000001' AND category = 'FRAIS_ANNEXES') = 70000,
+    'T12: état de compte frais annexes';
+  ASSERT (SELECT sum(debit_mga - credit_mga) FROM v_account_statement
+          WHERE enrollment_id = '30000000-0000-0000-0000-000000000001' AND category = 'DROITS_EXAMEN') = 0,
+    'T12: droits d''examen soldés, sans mélange avec les frais annexes';
+END $$;
+
+-- T13. Caisse : une sortie ne peut pas dépasser le solde de son journal ------
+INSERT INTO cash_movement (site_id, direction, category, nature, label, amount_mga, method, agent_id)
+SELECT id, 'ENTREE', 'ECOLAGE', 'Encaissement famille', 'Écolage octobre', 420000, 'ESPECES',
+       '00000000-0000-0000-0000-000000000001' FROM site WHERE code = 'TMV';
+INSERT INTO cash_movement (site_id, direction, category, nature, label, amount_mga, method, agent_id)
+SELECT id, 'SORTIE', 'ECOLAGE', 'Dépense de fonctionnement', 'Papeterie', 85000, 'ESPECES',
+       '00000000-0000-0000-0000-000000000001' FROM site WHERE code = 'TMV';
+DO $$ BEGIN
+  ASSERT (SELECT balance_mga FROM v_cash_balance WHERE category = 'ECOLAGE') = 335000, 'T13: solde caisse';
+  BEGIN
+    INSERT INTO cash_movement (site_id, direction, category, nature, label, amount_mga, method, agent_id)
+    SELECT id, 'SORTIE', 'DROITS_EXAMEN', 'Reversement centre d''examen', 'Test', 1000, 'VIREMENT',
+           '00000000-0000-0000-0000-000000000001' FROM site WHERE code = 'TMV';
+    RAISE EXCEPTION 'T13: sortie sans solde acceptée';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM LIKE 'T13:%' THEN RAISE; END IF;
+  END;
+END $$;
+
+-- T14. Agents : l'accès ENT suit les dates d'entrée et de sortie --------------
+INSERT INTO staff_member (user_id, site_id, first_name, last_name, job_title, contract, entry_on, exit_on, exit_reason)
+SELECT '00000000-0000-0000-0000-000000000003', id, 'Prof', 'Maths', 'Enseignant.e', 'CDD', '2024-09-02', '2027-07-04', 'Fin de contrat'
+FROM site WHERE code = 'TMV';
+DO $$ DECLARE u uuid := '00000000-0000-0000-0000-000000000003'; BEGIN
+  ASSERT staff_access_active(u, '2026-10-13'),     'T14: en poste';
+  ASSERT NOT staff_access_active(u, '2027-07-05'), 'T14: accès coupé après la sortie';
+  ASSERT NOT staff_access_active(u, '2024-09-01'), 'T14: pas d''accès avant l''entrée';
+  BEGIN
+    UPDATE staff_member SET exit_on = '2024-01-01' WHERE user_id = u;
+    RAISE EXCEPTION 'T14: sortie avant entrée acceptée';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T11 passent'
+\echo 'OK — tous les scénarios T1 à T14 passent'

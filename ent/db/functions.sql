@@ -255,3 +255,64 @@ JOIN dunning_policy p ON p.year_id = e.year_id AND p.site_id = c.site_id
 CROSS JOIN LATERAL dunning_schedule(e.year_id, c.site_id, dc.due_on) s
 WHERE dc.stage = 'AVERTISSEMENT' AND dc.closed_at IS NULL
   AND p.suspension_requires_direction AND current_date >= s.suspension_on;
+
+-- -----------------------------------------------------------------------------
+-- Gestion des agents : un compte ENT n'est actif qu'entre la date d'entrée et
+-- la date de sortie de l'agent (vérifié à chaque connexion).
+-- -----------------------------------------------------------------------------
+CREATE FUNCTION staff_access_active(p_user uuid, p_day date DEFAULT current_date) RETURNS boolean AS $$
+  SELECT CASE
+    WHEN EXISTS (SELECT 1 FROM user_role WHERE user_id = p_user AND role IN ('PARENT', 'ELEVE')) THEN true
+    ELSE EXISTS (SELECT 1 FROM staff_member s
+                  WHERE s.user_id = p_user AND s.entry_on <= p_day
+                    AND (s.exit_on IS NULL OR p_day <= s.exit_on))
+  END
+$$ LANGUAGE sql STABLE;
+
+-- -----------------------------------------------------------------------------
+-- Prix d'un article pour un élève : prix de sa classe s'il existe, sinon prix unique.
+-- -----------------------------------------------------------------------------
+CREATE FUNCTION fee_price_for(p_item text, p_enrollment uuid) RETURNS bigint AS $$
+  SELECT fp.amount_mga
+  FROM enrollment e
+  JOIN school_class c ON c.id = e.class_id
+  JOIN fee_item i     ON i.code = p_item
+  JOIN fee_price fp   ON fp.item_id = i.id AND fp.year_id = e.year_id AND fp.site_id = c.site_id
+  WHERE e.id = p_enrollment
+    AND (fp.level_code = c.level_code OR fp.level_code IS NULL)
+    AND (fp.track = c.track OR fp.track IS NULL)
+  ORDER BY fp.level_code NULLS LAST, fp.track NULLS LAST
+  LIMIT 1
+$$ LANGUAGE sql STABLE;
+
+-- Solde de caisse par site et par journal (entrées − sorties).
+CREATE VIEW v_cash_balance AS
+SELECT site_id, category,
+       sum(CASE WHEN direction = 'ENTREE' THEN amount_mga ELSE -amount_mga END) AS balance_mga
+FROM cash_movement
+GROUP BY site_id, category;
+
+-- Une sortie ne peut pas rendre négatif le solde de caisse de son journal.
+CREATE FUNCTION cash_movement_guard() RETURNS trigger AS $$
+BEGIN
+  IF NEW.direction = 'SORTIE' AND coalesce((SELECT balance_mga FROM v_cash_balance
+       WHERE site_id = NEW.site_id AND category = NEW.category), 0) < NEW.amount_mga THEN
+    RAISE EXCEPTION 'Solde de caisse insuffisant dans le journal %', NEW.category;
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER cash_movement_balance BEFORE INSERT ON cash_movement
+  FOR EACH ROW EXECUTE FUNCTION cash_movement_guard();
+
+-- État de compte d'une inscription : factures (débit) et paiements (crédit) par journal.
+CREATE VIEW v_account_statement AS
+SELECT i.enrollment_id, i.category, i.issued_at::date AS entry_date,
+       coalesce((SELECT string_agg(label, ', ') FROM invoice_line WHERE invoice_id = i.id), i.number) AS label,
+       i.amount_mga AS debit_mga, 0::bigint AS credit_mga
+FROM invoice i WHERE i.status <> 'ANNULEE'
+UNION ALL
+SELECT i.enrollment_id, p.category, p.received_at::date, 'Paiement ' || p.receipt_no, 0, pa.amount_mga
+FROM payment_allocation pa
+JOIN payment p ON p.id = pa.payment_id
+JOIN invoice i ON i.id = pa.invoice_id;

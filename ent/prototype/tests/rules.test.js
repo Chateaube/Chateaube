@@ -204,3 +204,33 @@ test('plans d\'écolage Tamatave : 9 mois pour 1re/Tle, 10 mois sinon', () => {
   assert.equal(planMonths(terminale).at(-1), 5);
   assert.equal(planMonths(college).length, 10);
 });
+
+// --- Comptabilité -------------------------------------------------------------
+import { accountStatement, annualCost, cashBalance } from '../src/rules/accounting.js';
+import { FAMILIES, CLASS_FEES, CASH_MOVEMENTS, CASH_OPENING } from '../src/data/accounting.js';
+
+test('état de compte : soldes séparés par journal', () => {
+  const { byJournal, totals, rows } = accountStatement(FAMILIES[0].lines);
+  assert.equal(byJournal.ECOLAGE.balance, 760_000);          // écolage d'octobre impayé
+  assert.equal(byJournal.FRAIS_ANNEXES.balance, 30_000);     // natation
+  assert.equal(byJournal.DROITS_EXAMEN.balance, 0);
+  assert.equal(totals.balance, 790_000);
+  assert.equal(rows.find((r) => r.label.startsWith('Écolage octobre — Toky')).journalBalance, 760_000);
+  assert.ok(rows.every((r) => r.journalBalance >= 0), 'aucun solde de journal négatif dans la démo');
+  assert.ok(rows.every((r, i) => i === 0 || rows[i - 1].date <= r.date));
+});
+
+test('coût annuel : 9 mois d\'écolage pour la Terminale, 10 pour la 6e', () => {
+  const plans = DEFAULT_SETTINGS.tuition.plans;
+  const tle = CLASS_FEES.find((r) => r.cls === 'Terminale STMG');
+  assert.equal(annualCost(tle, plans), 180_000 + 450_000 * 9 + 90_000 + 120_000);
+  const six = CLASS_FEES.find((r) => r.cls === '6e');
+  assert.equal(annualCost(six, plans, { newStudent: true }), 250_000 + 330_000 * 10 + 60_000 + 80_000);
+});
+
+test('caisse : entrées et sorties par journal', () => {
+  const b = cashBalance(CASH_OPENING, CASH_MOVEMENTS);
+  assert.equal(b.ECOLAGE, 250_000 + 420_000 - 85_000 - 400_000);
+  assert.equal(b.DROITS_EXAMEN, 950_000);
+  assert.equal(b.FRAIS_ANNEXES, 110_000);
+});

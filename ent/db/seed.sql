@@ -82,7 +82,43 @@ INSERT INTO ledger_account (code, category, label, nature) VALUES
   ('ECO-PRODUIT',    'ECOLAGE',       'Produit écolage',                 'PRODUIT'),
   ('EXA-CAISSE',     'DROITS_EXAMEN', 'Trésorerie droits d''examen',      'ACTIF'),
   ('EXA-A-REVERSER', 'DROITS_EXAMEN', 'Droits dus aux centres d''examen', 'PASSIF'),
-  ('EXA-FRAIS-DOS',  'DROITS_EXAMEN', 'Frais de dossier conservés',      'PRODUIT');
+  ('EXA-FRAIS-DOS',  'DROITS_EXAMEN', 'Frais de dossier conservés',      'PRODUIT'),
+  ('ANX-CAISSE',     'FRAIS_ANNEXES', 'Trésorerie frais annexes',        'ACTIF'),
+  ('ANX-CLIENTS',    'FRAIS_ANNEXES', 'Familles — frais annexes',        'ACTIF'),
+  ('ANX-PRODUIT',    'FRAIS_ANNEXES', 'Produit frais annexes',           'PRODUIT');
+
+-- Catalogue tarifaire (« Classes & tarifs » et « Articles & services »)
+INSERT INTO fee_item (code, kind, category, rubric, label, unit, priced_by_level, free_amount) VALUES
+  ('INSCRIPTION',     'INSCRIPTION',   'FRAIS_ANNEXES', 'Classes & tarifs',          'Inscription',                  'une fois',      true,  false),
+  ('REINSCRIPTION',   'REINSCRIPTION', 'FRAIS_ANNEXES', 'Classes & tarifs',          'Réinscription',                'par an',        true,  false),
+  ('ECOLAGE',         'ECOLAGE',       'ECOLAGE',       'Classes & tarifs',          'Écolage mensuel',              'par mois',      true,  false),
+  ('FASCICULE',       'FASCICULE',     'FRAIS_ANNEXES', 'Classes & tarifs',          'Fascicule',                    'par an',        true,  false),
+  ('LOCATION',        'LOCATION',      'FRAIS_ANNEXES', 'Classes & tarifs',          'Location des manuels',         'par an',        true,  false),
+  ('MANUEL_PERTE',    'ARTICLE',       'FRAIS_ANNEXES', 'Manuel scolaire',           'Manuel perdu ou endommagé',    'par manuel',    false, false),
+  ('MANUEL_AUTRE',    'ARTICLE',       'FRAIS_ANNEXES', 'Manuel scolaire',           'Autre (manuel complémentaire)','par manuel',    false, false),
+  ('PASSEPORT',       'ARTICLE',       'FRAIS_ANNEXES', 'Passeport de Vie Scolaire', 'Passeport de Vie Scolaire',    'par élève',     false, false),
+  ('PASSEPORT_PERTE', 'ARTICLE',       'FRAIS_ANNEXES', 'Passeport de Vie Scolaire', 'Passeport perdu ou endommagé', 'remplacement',  false, false),
+  ('NATATION_SEANCE', 'SERVICE',       'FRAIS_ANNEXES', 'Séances de natation',       'Séance de natation',           'par séance',    false, false),
+  ('NATATION_FORFAIT','SERVICE',       'FRAIS_ANNEXES', 'Séances de natation',       'Forfait natation trimestriel', 'par trimestre', false, false),
+  ('TEE_SHIRT',       'ARTICLE',       'FRAIS_ANNEXES', 'Tee-shirt scolaire',        'Tee-shirt scolaire',           'par unité',     false, false),
+  ('AUTRE',           'ARTICLE',       'FRAIS_ANNEXES', 'Autre',                     'Autre (montant libre)',        'montant saisi', false, true);
+
+-- Prix Tamatave 2026-2027 (montants FICTIFS, à remplacer) — articles à prix unique
+INSERT INTO fee_price (year_id, site_id, item_id, amount_mga)
+SELECT y.id, s.id, i.id, v.amount
+FROM academic_year y, site s, fee_item i, (VALUES
+  ('MANUEL_PERTE', 45000), ('MANUEL_AUTRE', 35000), ('PASSEPORT', 15000), ('PASSEPORT_PERTE', 20000),
+  ('NATATION_SEANCE', 15000), ('NATATION_FORFAIT', 120000), ('TEE_SHIRT', 35000)) v(code, amount)
+WHERE s.code = 'TMV' AND i.code = v.code;
+
+-- Grille par classe (extrait : 6e et Terminale)
+INSERT INTO fee_price (year_id, site_id, item_id, level_code, amount_mga)
+SELECT y.id, s.id, i.id, v.lvl, v.amount
+FROM academic_year y, site s, fee_item i, (VALUES
+  ('6E', 'INSCRIPTION', 250000), ('6E', 'REINSCRIPTION', 150000), ('6E', 'ECOLAGE', 330000), ('6E', 'FASCICULE', 60000), ('6E', 'LOCATION', 80000),
+  ('TLE', 'INSCRIPTION', 300000), ('TLE', 'REINSCRIPTION', 180000), ('TLE', 'ECOLAGE', 450000), ('TLE', 'FASCICULE', 90000), ('TLE', 'LOCATION', 120000)
+) v(lvl, code, amount)
+WHERE s.code = 'TMV' AND i.code = v.code;
 
 -- Horaires : 7h-17h, mercredi 7h-12h ; récréation commune 9h30-9h45
 INSERT INTO school_day (site_id, weekday, opens_at, closes_at)

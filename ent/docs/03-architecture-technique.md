@@ -45,8 +45,9 @@
 | Tâche | Fréquence | Règle |
 |---|---|---|
 | Génération des échéances d'écolage | mensuelle | refus au-delà du dernier mois payable (trigger `invoice_cutoff`) |
-| Relances d'écolage | quotidienne, 8h | **ne s'exécute que si `is_dunning_month()`** : octobre ignoré ; ouverture des dossiers puis `advance_dunning_case()` |
-| Expiration des avertissements 48 h | horaire | le dossier passe « en attente de validation Direction » |
+| Relances d'écolage | quotidienne, 8h | `advance_dunning_case()` sur chaque dossier : dates calculées par `dunning_schedule()` (jours comptés selon le calendrier scolaire, octobre gelé) ; relance à J+5, avertissement à J+10 |
+| Mises à pied dues | quotidienne | J+25 atteint → le dossier passe « à valider » (`v_dunning_awaiting_validation`) ; notification envoyée seulement après validation Direction |
+| Fermeture des accès des agents sortis | quotidienne | `staff_access_active()` faux après la date de sortie → session révoquée |
 | Rappel des pièces manquantes (candidats libres) | hebdomadaire en octobre | notification `DOCUMENT_MANQUANT` |
 | Ouverture de la fenêtre Campus France | 1er juillet | bandeau Direction, export activé jusqu'à `closes_on` |
 

@@ -22,7 +22,10 @@ CREATE TYPE role_code         AS ENUM ('DIRECTION', 'PROFESSEUR', 'VIE_SCOLAIRE'
 CREATE TYPE auth_provider     AS ENUM ('GOOGLE', 'MAGIC_LINK', 'PASSWORD');
 CREATE TYPE assignment_reason AS ENUM ('INSCRIPTION', 'TRANSFERT_EXAMEN', 'DEMENAGEMENT', 'AUTRE');
 
-CREATE TYPE fee_category      AS ENUM ('ECOLAGE', 'DROITS_EXAMEN');
+CREATE TYPE fee_category      AS ENUM ('ECOLAGE', 'FRAIS_ANNEXES', 'DROITS_EXAMEN');
+CREATE TYPE fee_item_kind     AS ENUM ('INSCRIPTION', 'REINSCRIPTION', 'ECOLAGE', 'FASCICULE', 'LOCATION', 'ARTICLE', 'SERVICE');
+CREATE TYPE cash_direction    AS ENUM ('ENTREE', 'SORTIE');
+CREATE TYPE contract_type     AS ENUM ('CDI', 'CDD', 'VACATAIRE', 'STAGIAIRE');
 CREATE TYPE invoice_status    AS ENUM ('BROUILLON', 'EMISE', 'PARTIELLE', 'PAYEE', 'ANNULEE');
 CREATE TYPE payment_method    AS ENUM ('ESPECES', 'VIREMENT', 'CHEQUE', 'MVOLA', 'ORANGE_MONEY', 'AIRTEL_MONEY');
 CREATE TYPE dunning_stage     AS ENUM ('RELANCE', 'AVERTISSEMENT', 'MISE_A_PIED', 'REGULARISE', 'SUSPENDU');
@@ -329,6 +332,36 @@ CREATE TABLE tuition_cutoff_rule (
   PRIMARY KEY (year_id, site_id, level_code)
 );
 
+-- =====  CATALOGUE TARIFAIRE (« Classes & tarifs », « Articles & services »)  =====
+-- Chaque article appartient à UN journal (catégorie) : écolage, frais annexes
+-- (inscription, réinscription, fascicule, location, articles) ou droits d'examen.
+CREATE TABLE fee_item (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  code          text UNIQUE NOT NULL,          -- 'INSCRIPTION', 'MANUEL_PERTE', 'NATATION_SEANCE'…
+  kind          fee_item_kind NOT NULL,
+  category      fee_category NOT NULL,
+  rubric        text NOT NULL,                 -- 'Manuel scolaire', 'Passeport de Vie Scolaire'…
+  label         text NOT NULL,                 -- 'Manuel perdu ou endommagé'
+  unit          text NOT NULL DEFAULT 'par unité',
+  priced_by_level boolean NOT NULL DEFAULT false, -- vrai : prix par classe (grille), faux : prix unique
+  free_amount   boolean NOT NULL DEFAULT false,   -- « Autre » : montant saisi à la vente
+  is_active     boolean NOT NULL DEFAULT true,
+  CHECK (kind <> 'ECOLAGE' OR category = 'ECOLAGE'),
+  CHECK (category <> 'DROITS_EXAMEN')             -- les droits d'examen passent par fee_schedule
+);
+
+-- Prix par année et par site ; level_code NULL = même prix pour toutes les classes.
+CREATE TABLE fee_price (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  year_id       uuid NOT NULL REFERENCES academic_year(id),
+  site_id       uuid NOT NULL REFERENCES site(id),
+  item_id       uuid NOT NULL REFERENCES fee_item(id),
+  level_code    text REFERENCES level(code),
+  track         track_code,                    -- 1re/Tle Générale ≠ STMG si besoin
+  amount_mga    bigint NOT NULL CHECK (amount_mga >= 0),
+  UNIQUE NULLS NOT DISTINCT (year_id, site_id, item_id, level_code, track)
+);
+
 -- Échéances (factures) générées pour une inscription.
 CREATE TABLE invoice (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -346,6 +379,17 @@ CREATE TABLE invoice (
   CHECK ((category = 'ECOLAGE') = (period_month IS NOT NULL))
 );
 CREATE INDEX invoice_open_idx ON invoice (category, due_on) WHERE status IN ('EMISE', 'PARTIELLE');
+
+-- Détail d'une facture : une ligne par article (ex. 2 tee-shirts, 3 séances de natation).
+CREATE TABLE invoice_line (
+  id            bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  invoice_id    uuid NOT NULL REFERENCES invoice(id) ON DELETE CASCADE,
+  item_id       uuid REFERENCES fee_item(id),
+  label         text NOT NULL,
+  quantity      integer NOT NULL DEFAULT 1 CHECK (quantity > 0),
+  unit_price_mga bigint NOT NULL CHECK (unit_price_mga >= 0),
+  amount_mga    bigint GENERATED ALWAYS AS (quantity * unit_price_mga) STORED
+);
 
 -- Encaissement : un paiement n'appartient qu'à UNE catégorie (caisses distinctes).
 CREATE TABLE payment (
@@ -458,6 +502,24 @@ CREATE TABLE dunning_event (
   note          text
 );
 
+-- Caisse : toutes les entrées et sorties d'argent, attribuées à l'agent qui les saisit.
+CREATE TABLE cash_movement (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id       uuid NOT NULL REFERENCES site(id),
+  direction     cash_direction NOT NULL,
+  category      fee_category NOT NULL,         -- journal mouvementé
+  nature        text NOT NULL,                 -- 'Encaissement famille', 'Dépense de fonctionnement', 'Reversement centre d''examen'…
+  label         text NOT NULL,
+  amount_mga    bigint NOT NULL CHECK (amount_mga > 0),
+  method        payment_method NOT NULL,
+  payment_id    uuid REFERENCES payment(id),   -- entrée liée à un encaissement famille
+  remittance_id uuid REFERENCES exam_fee_remittance(id),
+  occurred_at   timestamptz NOT NULL DEFAULT now(),
+  agent_id      uuid NOT NULL REFERENCES app_user(id),
+  CHECK (direction = 'ENTREE' OR payment_id IS NULL)
+);
+CREATE INDEX cash_movement_day_idx ON cash_movement (site_id, occurred_at);
+
 -- Vues de restitution — chaque catégorie a son propre état, jamais d'agrégat mixte.
 CREATE VIEW v_balance_by_account AS
 SELECT a.category, a.code, a.label, le.site_id,
@@ -472,6 +534,25 @@ GROUP BY a.category, a.code, a.label, le.site_id;
 -- 5. Temps, emploi du temps & RÉSERVATION DE MATÉRIEL
 -- -----------------------------------------------------------------------------
 -- Horaires d'ouverture par site et par jour (1 = lundi … 5 = vendredi).
+-- Registre du personnel (« Gestion des agents ») : entrées et sorties.
+-- L'accès à l'ENT d'un agent n'est valide qu'entre sa date d'entrée et sa date de sortie.
+CREATE TABLE staff_member (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       uuid UNIQUE REFERENCES app_user(id),  -- NULL : agent sans compte ENT
+  site_id       uuid NOT NULL REFERENCES site(id),
+  first_name    text NOT NULL,
+  last_name     text NOT NULL,
+  job_title     text NOT NULL,                 -- 'Enseignant.e', 'Agent d''entretien', 'Gardien.ne'…
+  job_detail    text,                          -- matières, fonction
+  contract      contract_type NOT NULL,
+  entry_on      date NOT NULL,
+  exit_on       date,
+  exit_reason   text,
+  phone_e164    text,
+  CHECK (exit_on IS NULL OR exit_on > entry_on),
+  CHECK (exit_reason IS NULL OR exit_on IS NOT NULL)
+);
+
 CREATE TABLE school_day (
   site_id       uuid REFERENCES site(id),
   weekday       smallint CHECK (weekday BETWEEN 1 AND 6),

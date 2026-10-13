@@ -98,14 +98,49 @@ erDiagram
 
 Les 560 000 Ar ne sont **jamais** comptés en produit : c'est une dette, soldée lors du reversement.
 
-### Échéancier & relances
-- **`dunning_month`** : calendrier paramétrable. Seed : septembre, novembre, décembre, février, avril, mai, juin actifs ;
-  **octobre inactif** (motif « Encaissement des droits d'examen »). Pendant un mois inactif le cycle est **gelé** : aucune
-  ouverture, aucune progression (`advance_dunning_case`).
-- **`tuition_cutoff_rule`** : dernier mois payable par site × niveau. Seed : 1re et Tle de Tamatave → **mai**. Un trigger
-  refuse toute facture d'écolage au-delà de ce mois (T3).
-- **`dunning_case`** / **`dunning_event`** : machine à états `RELANCE → AVERTISSEMENT_48H → MISE_A_PIED`, chaque transition est
-  historisée. La mise à pied exige la **validation explicite d'un compte Direction** (`suspension_validated_by`).
+### Échéancier & relances (paramétrables sans recoder, écran *Paramètres*)
+Règles validées par la Direction pour **Tamatave** (Tana sera paramétré plus tard) :
+
+| Paramètre | Valeur | Table |
+|---|---|---|
+| Échéance mensuelle | le **5** du mois | `dunning_policy.due_day` |
+| Relance automatique | **5** jours comptés après l'échéance | `relance_after` |
+| Avertissement | **10** jours comptés après l'échéance | `warning_after` |
+| Mise à pied | **25** jours comptés après l'échéance, **validée par la Direction** | `suspension_after`, `suspension_requires_direction` |
+| Point de départ des délais | l'échéance (ou, au choix, l'étape précédente) | `count_from` |
+| Jours comptés | lundi → vendredi, hors jours fériés, vacances et fermetures | `counted_weekdays`, `calendar_day_off` |
+| Mois de relance | tous, sauf **octobre** (gelé : droits d'examen) | `dunning_month` |
+| Plan d'écolage | 6e → 2de : septembre → juin (10 mois) ; **1re et Tle : septembre → mai (9 mois)** | `tuition_cutoff_rule` |
+| Canaux | SMS + e-mail (push en option) | `channels` |
+
+- **`calendar_day_off`** : jours fériés de Madagascar (tous sites) et vacances/fermetures (par site). L'écran *Paramètres*
+  peut générer automatiquement les fériés, y compris les fêtes mobiles (Pâques, Ascension, Pentecôte).
+- **`dunning_schedule()`** calcule les trois dates d'une échéance. Exemple pour l'échéance du **5 décembre 2026** : relance
+  le 11/12, avertissement le 18/12, mise à pied le **22/01/2027** (les vacances de Noël ne comptent pas, T9). Une échéance de
+  septembre traverse octobre gelé : mise à pied le 10/11 (T9).
+- **`dunning_case`** / **`dunning_event`** : `RELANCE → AVERTISSEMENT → MISE_A_PIED`, chaque transition est historisée. La
+  mise à pied attend la validation explicite d'un compte Direction (`v_dunning_awaiting_validation`, T11).
+- Un trigger refuse toute facture d'écolage hors du plan du niveau, par exemple juin pour une Terminale de Tamatave (T3).
+
+### Catalogue tarifaire, états de compte et caisse
+- **Trois journaux étanches** (`fee_category`) : `ECOLAGE`, `FRAIS_ANNEXES` (inscription, réinscription, fascicule,
+  location des manuels, articles et services) et `DROITS_EXAMEN`.
+- **`fee_item`** : catalogue (« Classes & tarifs » et « Articles & services »). Exemples : manuel perdu ou endommagé,
+  Passeport de Vie Scolaire et son remplacement, séance ou forfait de natation, tee-shirt scolaire, « Autre » à montant libre.
+- **`fee_price`** : prix par année × site, **par classe** (grille) ou unique (`level_code` NULL). `fee_price_for()` choisit
+  le prix de la classe s'il existe (T12).
+- **`invoice_line`** : détail des factures (quantité × prix unitaire).
+- **`v_account_statement`** : état de compte par inscription, séparé par journal. Un paiement n'éteint que les dettes de son
+  journal.
+- **`cash_movement`** : caisse du site, avec les **entrées** (encaissements, apports) et les **sorties** (dépenses,
+  reversements aux centres d'examen, dépôts en banque). Chaque mouvement est attribué à l'agent qui le saisit. Une sortie ne
+  peut pas dépasser le solde de son journal (T13).
+
+### Gestion des agents
+- **`staff_member`** : registre du personnel (enseignants, intervenants, surveillants, secrétariat, entretien, gardiennage)
+  avec contrat, **date d'entrée** et **date de sortie** (et son motif).
+- **`staff_access_active()`** : l'accès ENT (connexion Google) n'est valide qu'entre ces deux dates. Un agent sorti perd
+  automatiquement son accès (T14).
 
 ### Temps & réservations
 - **`school_day`** : 7h–17h, mercredi 7h–12h, par site. **`break_slot`** : récréation commune (`class_id` NULL, 9h30–9h45) et
@@ -140,12 +175,18 @@ Les 560 000 Ar ne sont **jamais** comptés en produit : c'est une dette, soldée
 - **`audit_log`** : toute action sensible (transfert, modification de note, encaissement, validation de mise à pied).
 - Montants en **Ariary entiers** (`bigint`), horodatages `timestamptz` (fuseau `Indian/Antananarivo`).
 
-## 1.4 Hypothèses à valider avec la Direction
+## 1.4 Décisions prises et points ouverts
 
-1. **Janvier et mars** ne figurent pas dans les mois de relance : ils sont modélisés « hors cycle » mais restent
-   facturables. Modifiable sans code (`dunning_month`).
-2. **« Mai, dernier mois payable »** est interprété comme : aucune échéance d'écolage n'est générée après mai pour les
-   1re/Tle de Tamatave, et le solde éventuel apparaît dans le *quitus financier* de la campagne de transfert.
-3. Le **transfert n'est pas bloqué** par un impayé (l'élève doit passer ses épreuves) : la campagne remonte la liste des soldes
-   à suivre. Le paramètre `requires_financial_clearance` permet de durcir la règle si souhaité.
-4. Les délais du workflow d'impayés (J+5 pour la relance, J+7 pour l'avertissement) sont des valeurs par défaut à confirmer.
+**Décidé :** relances tous les mois sauf octobre, échéance le 5, délais 5 / 10 / 25 jours comptés selon le calendrier
+scolaire, 9 mois d'écolage pour les 1re et Tle de Tamatave, priorité au site de Tamatave, tous les réglages modifiables sans
+recoder.
+
+**À confirmer :**
+1. « Jours ouvrables » : le prototype compte du lundi au vendredi (l'établissement est fermé le samedi). Le samedi peut être
+   ajouté dans *Paramètres*.
+2. Les délais se comptent depuis l'échéance (relance J+5, avertissement J+10, mise à pied J+25). L'autre lecture, « 10 jours
+   après la relance », est disponible dans *Paramètres*.
+3. Les vacances saisies sont des exemples : il faut le calendrier officiel de l'établissement.
+4. Le transfert vers Tana n'est pas bloqué par un impayé ; les soldes sont listés pour suivi.
+5. Inscription, réinscription, fascicule, location et articles sont regroupés dans un journal « Frais annexes » distinct de
+   l'écolage : à valider avec la comptabilité.

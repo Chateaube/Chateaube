@@ -4,31 +4,61 @@ import DirectionDashboard from './components/DirectionDashboard.jsx';
 import BookingModule from './components/BookingModule.jsx';
 import AppreciationModule from './components/AppreciationModule.jsx';
 import SettingsModule from './components/SettingsModule.jsx';
+import AccountingModule from './components/AccountingModule.jsx';
+import StaffModule from './components/StaffModule.jsx';
+import TeacherPortal from './components/TeacherPortal.jsx';
+import ParentPortal from './components/ParentPortal.jsx';
 import { DEFAULT_SETTINGS } from './data/settings.js';
 import { DIRECTION_ACCOUNTS } from './data/demo.js';
 
-// Arborescence du profil Direction (cf. docs/02-architecture-ux.md).
+// Arborescence par profil (cf. docs/02-architecture-ux.md).
 // Les entrées sans `screen` existent dans l'architecture mais pas dans ce prototype.
-const NAV = [
-  { group: 'Pilotage', items: [
-    { id: 'dashboard', label: 'Tableau de bord', icon: 'home', screen: DirectionDashboard },
-    { id: 'students', label: 'Élèves & mobilité', icon: 'users' },
-    { id: 'finance', label: 'Finances', icon: 'wallet' },
-  ] },
-  { group: 'Pédagogie', items: [
-    { id: 'grades', label: 'Notes & bulletins', icon: 'pen', screen: AppreciationModule },
-    { id: 'timetable', label: 'Emplois du temps', icon: 'clock' },
-    { id: 'booking', label: 'Réservations', icon: 'calendar', screen: BookingModule },
-    { id: 'exams', label: 'Examens & Campus France', icon: 'cap' },
-  ] },
-  { group: 'Communication', items: [
-    { id: 'news', label: 'Annonces', icon: 'megaphone' },
-    { id: 'notify', label: 'Notifications parents', icon: 'bell' },
-  ] },
-  { group: 'Administration', items: [
-    { id: 'settings', label: 'Paramètres', icon: 'settings', screen: SettingsModule },
-  ] },
-];
+const PROFILES = {
+  DIRECTION: {
+    label: 'Direction',
+    home: 'dashboard',
+    nav: [
+      { group: 'Pilotage', items: [
+        { id: 'dashboard', label: 'Tableau de bord', icon: 'home', screen: DirectionDashboard },
+        { id: 'students', label: 'Élèves & mobilité', icon: 'users' },
+        { id: 'accounting', label: 'Comptabilité', icon: 'wallet', screen: AccountingModule },
+      ] },
+      { group: 'Pédagogie', items: [
+        { id: 'grades', label: 'Notes & bulletins', icon: 'pen', screen: AppreciationModule },
+        { id: 'timetable', label: 'Emplois du temps', icon: 'clock' },
+        { id: 'booking', label: 'Réservations', icon: 'calendar', screen: BookingModule },
+        { id: 'exams', label: 'Examens & Campus France', icon: 'cap' },
+      ] },
+      { group: 'Communication', items: [
+        { id: 'news', label: 'Annonces', icon: 'megaphone' },
+        { id: 'notify', label: 'Notifications parents', icon: 'bell' },
+      ] },
+      { group: 'Administration', items: [
+        { id: 'staff', label: 'Gestion des agents', icon: 'users', screen: StaffModule },
+        { id: 'settings', label: 'Paramètres', icon: 'settings', screen: SettingsModule },
+      ] },
+    ],
+  },
+  ENSEIGNANT: {
+    label: 'Enseignant',
+    home: 'teacher',
+    nav: [
+      { group: 'Ma journée', items: [
+        { id: 'teacher', label: 'Mon tableau de bord', icon: 'home', screen: TeacherPortal },
+        { id: 'grades', label: 'Notes & appréciations', icon: 'pen', screen: AppreciationModule },
+        { id: 'booking', label: 'Réservations', icon: 'calendar', screen: BookingModule },
+      ] },
+      { group: 'Communication', items: [
+        { id: 'notify', label: 'Message à un parent', icon: 'bell' },
+      ] },
+    ],
+  },
+  PARENT: {
+    label: 'Parent',
+    home: 'parent',
+    nav: [{ group: 'Famille', items: [{ id: 'parent', label: 'Portail parents', icon: 'users', screen: ParentPortal }] }],
+  },
+};
 
 const STORAGE_KEY = 'ent-chateaubriand-settings-v1';
 
@@ -47,10 +77,13 @@ export default function App() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* navigation privée */ }
   };
 
+  const [profile, setProfile] = useState('DIRECTION');
   const [screen, setScreen] = useState('dashboard');
   const [accountId, setAccountId] = useState('u1');
   const account = DIRECTION_ACCOUNTS.find((a) => a.id === accountId);
+  const NAV = PROFILES[profile].nav;
   const Current = NAV.flatMap((g) => g.items).find((i) => i.id === screen).screen;
+  const switchProfile = (p) => { setProfile(p); setScreen(PROFILES[p].home); };
 
   return (
     <div className="min-h-screen lg:flex">
@@ -61,6 +94,18 @@ export default function App() {
             <p className="text-xs text-navy-200">ENT · Tana & Tamatave</p>
           </div>
           <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide">Prototype</span>
+        </div>
+
+        <div className="px-3 pb-3">
+          <p className="mb-1 px-1 text-[11px] text-navy-200">Voir l'ENT en tant que</p>
+          <div className="grid grid-cols-3 gap-1 rounded-lg bg-white/10 p-1" role="tablist" aria-label="Profil">
+            {Object.entries(PROFILES).map(([k, p]) => (
+              <button key={k} role="tab" aria-selected={profile === k} onClick={() => switchProfile(k)}
+                className={`rounded-md px-0.5 py-1 text-[11px] font-medium ${profile === k ? 'bg-white text-navy-900' : 'text-white hover:bg-white/10'}`}>
+                {p.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <nav aria-label="Navigation principale" className="flex gap-1 overflow-x-auto px-2 pb-3 lg:block lg:space-y-4 lg:overflow-visible">
@@ -88,7 +133,7 @@ export default function App() {
           ))}
         </nav>
 
-        <div className="hidden border-t border-white/10 px-4 py-3 lg:block">
+        {profile === 'DIRECTION' && <div className="hidden border-t border-white/10 px-4 py-3 lg:block">
           <label className="block text-[11px] text-navy-200">
             Compte Direction (droits identiques)
             <select
@@ -103,11 +148,11 @@ export default function App() {
             <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white text-[9px] font-bold text-navy-900">G</span>
             Connexion Google · {account.email}
           </p>
-        </div>
+        </div>}
       </aside>
 
       <main className="mx-auto w-full max-w-[1400px] px-4 py-6 lg:px-8">
-        <Current account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} />
+        <Current account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={setScreen} />
       </main>
     </div>
   );
