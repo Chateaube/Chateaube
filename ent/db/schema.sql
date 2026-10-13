@@ -755,16 +755,23 @@ CREATE TABLE evaluation_type (                 -- DS, Interrogation, Oral, Expos
   is_active     boolean NOT NULL DEFAULT true
 );
 
--- Référentiel de compétences PAR MATIÈRE ET PAR NIVEAU, d'après le bulletin officiel :
--- commun à toutes les classes du niveau (1re Générale et 1re STMG), tenu par la Direction.
+-- Compétences :
+--  - BASE proposée par l'établissement, par matière et par niveau (class_id NULL) ;
+--  - compétences de l'ENSEIGNANT pour une classe : reprises de la base (based_on) ou écrites par lui.
 CREATE TABLE competency (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   subject_id    uuid NOT NULL REFERENCES subject(id),
-  level_code    text NOT NULL REFERENCES level(code),
+  level_code    text REFERENCES level(code),   -- base : niveau concerné
+  class_id      uuid REFERENCES school_class(id), -- enseignant : classe concernée
+  author_id     uuid REFERENCES app_user(id),
+  based_on      uuid REFERENCES competency(id), -- reprise d'une compétence de la base
   position      smallint NOT NULL DEFAULT 1,
   label         text NOT NULL,
-  UNIQUE (subject_id, level_code, label)
+  CHECK ((class_id IS NULL) = (author_id IS NULL)),
+  CHECK ((class_id IS NULL) = (level_code IS NOT NULL))
 );
+CREATE UNIQUE INDEX competency_base_uq ON competency (subject_id, level_code, label) WHERE class_id IS NULL;
+CREATE UNIQUE INDEX competency_teacher_uq ON competency (subject_id, class_id, label) WHERE class_id IS NOT NULL;
 
 CREATE TABLE evaluation (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),

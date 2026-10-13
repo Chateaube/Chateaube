@@ -151,9 +151,10 @@ Règles validées par la Direction pour **Tamatave** (Tana sera paramétré plus
 - **`subject_average()`** : moyenne /20 pondérée, sans ABS, DISP ni NN (T17).
 - **`validate_term()`** : au moins **4 évaluations** (`grading_policy.min_evaluations`) et toutes les cases remplies,
   puis les notes sont **verrouillées** (trigger `grade_lock`) (T17).
-- **`competency`** : référentiel **par matière et par niveau, d'après le bulletin officiel**, commun à toutes les classes
-  du niveau (1re Générale et 1re STMG) et tenu par la Direction. Un devoir ne peut viser que des compétences de sa
-  matière et de son niveau (T20). Pas d'évaluation compétence par compétence : l'appréciation globale en tient lieu.
+- **`competency`** : une **base proposée** par l'établissement, par matière et par niveau (`class_id` NULL), et les
+  **compétences de l'enseignant** pour chaque classe. L'enseignant reprend la base en tout ou partie
+  (`adopt_base_competencies()`, `based_on`) et écrit les siennes. Un devoir ne vise que les compétences de l'enseignant
+  pour sa classe et sa matière (T20). Pas d'évaluation compétence par compétence : l'appréciation globale en tient lieu.
 - **`subject.in_general_average`** : Arts plastiques, Musique et Vie de classe sont hors moyenne générale ;
   `general_average()` et la vue `v_council_grid` alimentent la grille du conseil (T18).
 - **`report_card.general_comment`** : appréciation générale, **rédigée par la Directrice après le conseil** ; la base
@@ -180,8 +181,9 @@ Règles validées par la Direction pour **Tamatave** (Tana sera paramétré plus
 - **`published_document` / `document_receipt`** : documents envoyés aux familles avec accusé de lecture et signature
   éventuelle. **`requested_document`** : pièces demandées (dépôt par la famille, vérification par l'établissement).
 - **`homework`** : cahier de textes (séance, travail à faire, date de remise postérieure à la séance) (T23).
-- **`student.nationalities`** et **`higher_ed_procedure()`** : en Terminale, **Parcoursup** (nationalité française,
-  UE / EEE ou suisse) ou **Études en France / Campus France** (autres nationalités, dont malgache) (T28).
+- **`student.nationalities`** et **`higher_ed_steps()`** : en Terminale, **Parcoursup obligatoire pour tous** ; puis
+  **Campus France** et **TLScontact** (visa) pour les élèves ni français ni d'un pays de l'UE / EEE / Suisse. Pas de
+  fiche Avenir (candidats libres) (T28).
 - **`internship_type` / `internship`** : stage d'observation de 3e (**1 semaine**) et stage de seconde (**2 semaines**),
   avec les trois signatures de la convention (T26). **`orientation_wish`** : intentions de la
   famille et avis du conseil, par trimestre.

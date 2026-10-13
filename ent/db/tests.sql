@@ -368,7 +368,7 @@ DO $$ BEGIN
   ASSERT EXISTS (SELECT 1 FROM role_permission WHERE role = 'BUREAU' AND permission = 'council.view'), 'T19: Bureau avec grille';
 END $$;
 
--- T20. Compétences : référentiel par matière et niveau, partagé par les classes du niveau
+-- T20. Compétences : base proposée par niveau, reprise ou complétée par l'enseignant
 INSERT INTO school_class (id, year_id, site_id, level_code, track, name)
 SELECT v.id::uuid, y.id, s.id, v.lvl, v.track::track_code, v.name
 FROM academic_year y, site s, (VALUES
@@ -378,15 +378,17 @@ WHERE s.code = 'TMV';
 INSERT INTO competency (subject_id, level_code, position, label)
 SELECT id, 'TLE', v.pos, v.label FROM subject, (VALUES (1, 'Analyser une situation de gestion'), (2, 'Argumenter')) v(pos, label)
 WHERE code = 'MANAGEMENT';
-INSERT INTO competency (subject_id, level_code, position, label)
-SELECT id, '1RE', 1, 'Mobiliser les notions' FROM subject WHERE code = 'MANAGEMENT';
-DO $$ BEGIN
+DO $$ DECLARE a uuid := 'c0000000-0000-0000-0000-000000000001'; BEGIN
+  ASSERT adopt_base_competencies(a) = 2, 'T20: base reprise';
+  ASSERT adopt_base_competencies(a) = 0, 'T20: pas de doublon';
+  INSERT INTO competency (subject_id, class_id, author_id, position, label)
+  SELECT subject_id, class_id, teacher_id, 3, 'Construire un raisonnement chiffré' FROM teaching_assignment WHERE id = a;
   INSERT INTO evaluation_competency (evaluation_id, competency_id, position)
-  SELECT 'd0000000-0000-0000-0000-000000000001', id, 1 FROM competency WHERE level_code = 'TLE' AND position = 1;
+  SELECT 'd0000000-0000-0000-0000-000000000001', id, 1 FROM competency WHERE label = 'Construire un raisonnement chiffré';
   BEGIN
     INSERT INTO evaluation_competency (evaluation_id, competency_id, position)
-    SELECT 'd0000000-0000-0000-0000-000000000001', id, 2 FROM competency WHERE level_code = '1RE';
-    RAISE EXCEPTION 'T20: compétence d''un autre niveau acceptée';
+    SELECT 'd0000000-0000-0000-0000-000000000001', id, 2 FROM competency WHERE class_id IS NULL AND label = 'Argumenter';
+    RAISE EXCEPTION 'T20: compétence de la base utilisée sans reprise';
   EXCEPTION WHEN raise_exception THEN
     IF SQLERRM LIKE 'T20:%' THEN RAISE; END IF;
   END;
@@ -526,12 +528,12 @@ DO $$ DECLARE r record; BEGIN
   END;
 END $$;
 
--- T28. Terminale : Parcoursup ou Campus France selon la nationalité ------------
+-- T28. Terminale : Parcoursup pour tous, puis Campus France et TLS si visa -----
 UPDATE student SET nationalities = '{MG}' WHERE id = '20000000-0000-0000-0000-000000000001';
 UPDATE student SET nationalities = '{MG,FR}' WHERE id = '20000000-0000-0000-0000-000000000002';
 DO $$ BEGIN
-  ASSERT higher_ed_procedure('20000000-0000-0000-0000-000000000001') = 'CAMPUS_FRANCE', 'T28: malgache → Campus France';
-  ASSERT higher_ed_procedure('20000000-0000-0000-0000-000000000002') = 'PARCOURSUP', 'T28: double nationalité → Parcoursup';
+  ASSERT higher_ed_steps('20000000-0000-0000-0000-000000000001') = '{PARCOURSUP,CAMPUS_FRANCE,TLS}', 'T28: malgache → Parcoursup + Campus France + TLS';
+  ASSERT higher_ed_steps('20000000-0000-0000-0000-000000000002') = '{PARCOURSUP}', 'T28: double nationalité → Parcoursup seul';
 END $$;
 
 ROLLBACK;

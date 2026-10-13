@@ -418,13 +418,12 @@ test('publication : élèves à la date choisie, parents un jour après', () => 
 });
 
 // --- Terminale : Parcoursup et Campus France --------------------------------------
-import { higherEdProcedure, exportWindowOpen, campusFranceCsv } from '../src/rules/orientation.js';
-test('Terminale : Parcoursup ou Études en France selon la nationalité', () => {
-  assert.equal(higherEdProcedure(['FR']), 'PARCOURSUP');
-  assert.equal(higherEdProcedure(['MG']), 'CAMPUS_FRANCE');
-  assert.equal(higherEdProcedure(['MG', 'FR']), 'PARCOURSUP');       // double nationalité
-  assert.equal(higherEdProcedure(['BE']), 'PARCOURSUP');
-  assert.equal(higherEdProcedure(['KM']), 'CAMPUS_FRANCE');
+import { higherEdSteps, exportWindowOpen, campusFranceCsv } from '../src/rules/orientation.js';
+test('Terminale : Parcoursup pour tous, puis Campus France et TLScontact si visa', () => {
+  assert.deepEqual(higherEdSteps(['FR']), ['PARCOURSUP']);
+  assert.deepEqual(higherEdSteps(['MG']), ['PARCOURSUP', 'CAMPUS_FRANCE', 'TLS']);
+  assert.deepEqual(higherEdSteps(['MG', 'FR']), ['PARCOURSUP']);        // double nationalité : pas de visa
+  assert.deepEqual(higherEdSteps(['KM']), ['PARCOURSUP', 'CAMPUS_FRANCE', 'TLS']);
 });
 
 test('export Campus France : après le Bac, jusqu\'à début septembre', () => {
@@ -432,11 +431,18 @@ test('export Campus France : après le Bac, jusqu\'à début septembre', () => {
   assert.equal(exportWindowOpen('2026-10-13', w), false);
   assert.equal(exportWindowOpen('2027-08-01', w), true);
   const csv = campusFranceCsv([{ lastName: 'RANDRIA', firstName: 'Mamy', birthDate: '2008-04-02', nationalities: ['MG'], cls: 'Terminale Générale', bac: 'Admis', mention: 'Bien', email: 'm@ex.mg' }]);
-  assert.equal(csv.split('\r\n')[1], 'RANDRIA;Mamy;02/04/2008;MG;Terminale Générale;Admis;Bien;Études en France (Campus France);m@ex.mg');
+  assert.equal(csv.split('\r\n')[1], 'RANDRIA;Mamy;02/04/2008;MG;Terminale Générale;Admis;Bien;Parcoursup + Campus France (Études en France) + TLScontact (visa);m@ex.mg');
 });
 
 import { formatDateFr } from '../src/rules/calendar.js';
 test('dates en français : « 1er » pour le premier du mois', () => {
   assert.equal(formatDateFr('2026-10-01'), 'jeudi 1er octobre 2026');
   assert.equal(formatDateFr('2027-01-20'), 'mercredi 20 janvier 2027');
+});
+
+import { competencyProposals } from '../src/rules/grading.js';
+test('compétences : base proposée + compétences écrites par l\'enseignant', () => {
+  const base = ['Chercher', 'Modéliser', 'Raisonner'];
+  assert.deepEqual(competencyProposals(base, []), base);
+  assert.deepEqual(competencyProposals(base, ['modéliser ', 'Analyser un document']), ['Chercher', 'Raisonner']);
 });

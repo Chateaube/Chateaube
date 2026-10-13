@@ -334,7 +334,7 @@ export default function SettingsModule({ settings, onChange, onReset }) {
           </Card>
 
           {/* Référentiels de compétences */}
-          <Card title="Référentiels de compétences" subtitle="Par matière et par niveau, d'après le bulletin officiel ; communs à toutes les classes du niveau">
+          <Card title="Base de compétences proposée aux enseignants" subtitle="Par matière et par niveau ; chaque enseignant la reprend en tout ou partie et ajoute ses propres compétences">
             <CompetencyEditor settings={settings} onChange={onChange} />
           </Card>
 

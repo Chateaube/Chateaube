@@ -63,9 +63,19 @@ export const REMARKS = {
   },
 };
 
-// Niveau d'une classe (« 1re STMG » → « 1re ») : le référentiel de compétences est commun au niveau
+// Niveau d'une classe (« 1re STMG » → « 1re ») : la BASE proposée est commune au niveau
 export const levelOf = (cls) => cls.split(' ')[0];
 export const competenciesFor = (service, settings) => settings.competencies?.[`${service.subject}|${levelOf(service.cls)}`] ?? [];
+
+// Compétences retenues par l'enseignant pour chaque classe × matière :
+// reprises de la base proposée et/ou écrites par lui-même
+export const TEACHER_COMPETENCIES = {
+  s1: ['Analyser une situation d\'organisation', 'Mobiliser les notions du programme', 'Argumenter une décision', 'Communiquer à l\'écrit et à l\'oral'],
+  s2: ['Analyser une situation de gestion', 'Argumenter', 'Construire un raisonnement chiffré'],
+  s3: ['Construire une culture civique', 'Argumenter et débattre', 'Analyser un fait d\'actualité'],
+  s4: [], // vide : la base de l'établissement est proposée
+  s5: [],
+};
 
 // Avis pour le conseil (non imprimés sur le bulletin) — liste paramétrable
 export const COUNCIL_FLAGS = [

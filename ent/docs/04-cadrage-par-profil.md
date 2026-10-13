@@ -147,11 +147,11 @@ dans le cahier des charges du lot de développement correspondant.
 - **Création d'un devoir** : devoir du, note publiée le, publication aux parents un jour après les élèves (paramètre de
   l'Espace Parents), remarques par note, notation sur, coefficient, « Ramener sur 20 », commentaire, thèmes,
   compétences évaluées.
-- **Compétences** : référentiel par matière et par niveau, selon le bulletin officiel (géré par la Direction).
-- **Terminale** : Parcoursup et Campus France, la procédure étant déterminée par la nationalité de l'élève.
+- **Compétences** : base proposée par matière et niveau ; chaque enseignant la reprend ou écrit les siennes.
+- **Terminale** : Parcoursup obligatoire pour tous (malgaches comme français), puis Campus France et TLScontact (visa) pour les élèves qui en ont besoin.
 
 | # | Question | Proposition |
 |---|---|---|
-| Q1 | Qui saisit les référentiels officiels de compétences (Direction, coordinateurs de discipline) ? | Direction |
-| Q2 | Parcoursup : les élèves candidats libres d'un établissement hors contrat ont-ils une « fiche Avenir » remplie par l'établissement ? | à vérifier auprès de l'Académie de La Réunion |
+| Q1 | Qui saisit les référentiels de compétences ? | **décidé** : pas de référentiel imposé ; une base proposée par la Direction, que chaque enseignant reprend ou complète avec les siennes |
+| Q2 | Parcoursup : l'établissement remplit-il une « fiche Avenir » ? | **décidé** : non |
 | Q3 | Campus France : quelles pièces l'établissement fournit-il (bulletins de 1re et Terminale, attestation de scolarité) ? | bulletins + attestation |

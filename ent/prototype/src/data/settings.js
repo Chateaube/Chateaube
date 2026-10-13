@@ -38,8 +38,8 @@ export const DEFAULT_SETTINGS = {
     parentDelayDays: 1, // Espace Parents : note publiée aux parents 1 jour après les élèves
   },
 
-  // Référentiels de compétences par matière et par niveau, d'après le bulletin officiel
-  // (communs à toutes les classes d'un même niveau : 1re Générale et 1re STMG partagent EMC).
+  // Base de compétences PROPOSÉE aux enseignants, par matière et par niveau (commune aux classes
+  // d'un même niveau). Chaque enseignant la reprend ou non et écrit ses propres compétences.
   competencies: {
     'Management|1re': ['Analyser une situation d\'organisation', 'Mobiliser les notions du programme', 'Argumenter une décision', 'Communiquer à l\'écrit et à l\'oral'],
     'Management|Terminale': ['Analyser une situation de gestion', 'Mobiliser les notions', 'Argumenter', 'Communiquer'],

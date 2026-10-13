@@ -395,18 +395,32 @@ CREATE FUNCTION general_average(p_enrollment uuid, p_period uuid) RETURNS numeri
   WHERE enrollment_id = p_enrollment AND period_id = p_period AND in_general_average AND average IS NOT NULL
 $$ LANGUAGE sql STABLE;
 
--- Une évaluation ne peut viser que des compétences du référentiel de sa matière et de son niveau.
+-- Une évaluation ne vise que les compétences de l'enseignant pour SA classe et SA matière.
 CREATE FUNCTION evaluation_competency_guard() RETURNS trigger AS $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM evaluation e
     JOIN teaching_assignment ta ON ta.id = e.assignment_id
-    JOIN school_class c ON c.id = ta.class_id
-    JOIN competency k ON k.id = NEW.competency_id AND k.subject_id = ta.subject_id AND k.level_code = c.level_code
+    JOIN competency k ON k.id = NEW.competency_id AND k.subject_id = ta.subject_id AND k.class_id = ta.class_id
     WHERE e.id = NEW.evaluation_id) THEN
-    RAISE EXCEPTION 'Compétence hors du référentiel de la matière et du niveau';
+    RAISE EXCEPTION 'Compétence hors de la liste de l''enseignant pour cette classe et cette matière';
   END IF;
   RETURN NEW;
+END $$ LANGUAGE plpgsql;
+
+-- Reprend dans la liste de l'enseignant les compétences de la base qu'il n'a pas encore.
+CREATE FUNCTION adopt_base_competencies(p_assignment uuid) RETURNS int AS $$
+DECLARE n int;
+BEGIN
+  INSERT INTO competency (subject_id, class_id, author_id, based_on, position, label)
+  SELECT b.subject_id, ta.class_id, ta.teacher_id, b.id, b.position, b.label
+  FROM teaching_assignment ta
+  JOIN school_class c ON c.id = ta.class_id
+  JOIN competency b ON b.class_id IS NULL AND b.subject_id = ta.subject_id AND b.level_code = c.level_code
+  WHERE ta.id = p_assignment
+  ON CONFLICT DO NOTHING;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  RETURN n;
 END $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER evaluation_competency_check BEFORE INSERT ON evaluation_competency
@@ -450,11 +464,12 @@ JOIN evaluation e ON e.id = g.evaluation_id
 JOIN teaching_assignment ta ON ta.id = e.assignment_id
 JOIN school_class c ON c.id = ta.class_id;
 
--- Terminale : Parcoursup (nationalité française, UE / EEE ou suisse) ou Études en France (Campus France).
-CREATE FUNCTION higher_ed_procedure(p_student uuid) RETURNS text AS $$
+-- Terminale : Parcoursup OBLIGATOIRE pour tous ; puis Campus France et TLScontact (visa) pour les
+-- élèves ni français ni d'un pays de l'UE / EEE / Suisse. Pas de fiche Avenir (candidats libres).
+CREATE FUNCTION higher_ed_steps(p_student uuid) RETURNS text[] AS $$
   SELECT CASE WHEN nationalities && ARRAY['FR','DE','AT','BE','BG','CY','HR','DK','ES','EE','FI','GR','HU','IE','IT','LV','LT',
                                           'LU','MT','NL','PL','PT','CZ','RO','SK','SI','SE','IS','LI','NO','CH']
-              THEN 'PARCOURSUP' ELSE 'CAMPUS_FRANCE' END
+              THEN ARRAY['PARCOURSUP'] ELSE ARRAY['PARCOURSUP', 'CAMPUS_FRANCE', 'TLS'] END
   FROM student WHERE id = p_student
 $$ LANGUAGE sql STABLE;
 

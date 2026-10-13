@@ -70,7 +70,7 @@ export const ORIENTATION = {
       { when: '1er trimestre', label: 'Découverte des quatre spécialités de Terminale STMG', state: 'now' },
       { when: '2e trimestre', label: 'Intentions de la famille, puis avis provisoire du conseil de classe', state: 'next' },
       { when: '3e trimestre', label: 'Choix définitif et avis du conseil', state: 'next' },
-      { when: 'Terminale', label: 'Parcoursup (nationalité française, UE ou suisse) ou Études en France via Campus France (autres nationalités, dont malgache)', state: 'next' },
+      { when: 'Terminale', label: 'Parcoursup (obligatoire pour tous), puis Campus France et TLScontact pour la demande de visa si l\'élève n\'est pas de nationalité française', state: 'next' },
     ],
     choices: ['Gestion et finance', 'Mercatique (marketing)', 'Ressources humaines et communication', 'Systèmes d\'information de gestion'],
     meeting: 'Rendez-vous possible avec la professeure principale (Mme Ranaivo) le jeudi de 15h30 à 17h.',

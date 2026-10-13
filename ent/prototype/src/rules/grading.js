@@ -77,6 +77,12 @@ export function generalAverage(subjectAverages) {
   return coefs ? round2(sum / coefs) : null;
 }
 
+/** Compétences de la base proposée que l'enseignant n'a pas encore reprises (comparaison sans casse). */
+export function competencyProposals(base, mine) {
+  const have = new Set(mine.map((c) => c.trim().toLowerCase()));
+  return base.filter((c) => !have.has(c.trim().toLowerCase()));
+}
+
 // Mentions et avertissements du conseil de classe (le conseil décide ; ceci n'est qu'une proposition)
 export const COUNCIL_DECISIONS = [
   { id: '', label: '—' },

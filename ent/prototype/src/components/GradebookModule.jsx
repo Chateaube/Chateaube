@@ -2,9 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, Icon, StudentSelect } from './ui.jsx';
 import { Annotated, RulePanel, GradeCell } from './gradeUi.jsx';
 import {
-  TERM, SERVICES, EVALUATIONS, GRADES, REMARKS, competenciesFor, levelOf, COUNCIL_FLAGS, CLASS_SUBJECTS, OTHER_AVERAGES,
+  TERM, SERVICES, EVALUATIONS, GRADES, REMARKS, competenciesFor, levelOf, TEACHER_COMPETENCIES, COUNCIL_FLAGS, CLASS_SUBJECTS, OTHER_AVERAGES,
 } from '../data/grades.js';
-import { studentAverage, notesCount, termValidation, classStats, generalAverage, fmtAvg, parentPublishOn } from '../rules/grading.js';
+import { studentAverage, notesCount, termValidation, classStats, generalAverage, fmtAvg, parentPublishOn, competencyProposals } from '../rules/grading.js';
 import { checkAppreciation, autoFix } from '../rules/appreciation.js';
 import { generateDraft } from '../rules/assistant.js';
 
@@ -75,8 +75,8 @@ function EvaluationForm({ draft, setDraft, settings, competencies, onCreate, onC
         <input value={draft.themesText} onChange={(e) => set({ themesText: e.target.value })} placeholder="Séparez les thèmes par une virgule" className={`mt-1 w-full ${inputCls}`} />
       </label>
       <div>
-        <p className="text-xs text-slate-600">Compétences évaluées <span className="text-slate-400">(référentiel officiel de la matière et du niveau)</span></p>
-        {competencies.length === 0 ? <p className="mt-1 text-xs text-slate-400">Aucun référentiel défini pour cette matière à ce niveau (Paramètres).</p> : (
+        <p className="text-xs text-slate-600">Compétences évaluées <span className="text-slate-400">(vos compétences pour cette classe)</span></p>
+        {competencies.length === 0 ? <p className="mt-1 text-xs text-slate-400">Aucune compétence : définissez-les à l'étape « 1. Compétences ».</p> : (
           <div className="mt-1 space-y-1">
             {competencies.map((c) => (
               <label key={c} className="flex items-center gap-2 text-sm text-slate-700">
@@ -229,26 +229,49 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
 }
 
 /* ---------------- 1. Compétences ---------------- */
-function CompetenciesStep({ service, settings, evaluations }) {
-  const list = competenciesFor(service, settings);
+// Base proposée par l'établissement (par matière et niveau) + compétences écrites par l'enseignant.
+function CompetenciesStep({ service, settings, evaluations, mine, setMine }) {
+  const base = competenciesFor(service, settings);
+  const proposals = competencyProposals(base, mine);
+  const [label, setLabel] = useState('');
   return (
-    <Card title={`Compétences — ${service.subject} · niveau ${levelOf(service.cls)}`}
-      subtitle="Référentiel officiel (bulletin officiel), commun à toutes les classes du niveau ; tenu à jour par la Direction dans Paramètres">
-      {list.length === 0 ? <p className="text-sm text-slate-500">Aucun référentiel défini pour cette matière à ce niveau.</p> : (
-        <ul className="divide-y divide-slate-100">
-          {list.map((c, i) => {
+    <div className="grid gap-5 xl:grid-cols-[1fr_360px] xl:items-start">
+      <Card title={`Mes compétences — ${service.cls} · ${service.subject}`} subtitle="Celles que vous évaluez dans vos devoirs ; modifiables à tout moment">
+        {mine.length === 0 && <p className="mb-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">Aucune compétence pour l'instant : reprenez la base proposée ou écrivez les vôtres.</p>}
+        <ol className="space-y-1.5">
+          {mine.map((c, i) => {
             const n = evaluations.filter((ev) => ev.competencies?.includes(c)).length;
             return (
-              <li key={c} className="flex items-center justify-between gap-3 py-2 text-sm">
-                <span className="text-slate-800"><span className="mr-2 text-xs text-slate-400">C{i + 1}</span>{c}</span>
-                <Badge tone={n ? 'green' : 'amber'}>{n ? `évaluée dans ${n} devoir${n > 1 ? 's' : ''}` : 'pas encore évaluée'}</Badge>
+              <li key={i} className="flex items-center gap-2">
+                <span className="w-6 text-right text-xs text-slate-400">C{i + 1}</span>
+                <input value={c} onChange={(e) => setMine(mine.map((x, k) => (k === i ? e.target.value : x)))} className={`flex-1 ${inputCls}`} />
+                <Badge tone={n ? 'green' : 'slate'}>{n ? `${n} devoir${n > 1 ? 's' : ''}` : 'non évaluée'}</Badge>
+                <button aria-label={`Retirer ${c}`} onClick={() => setMine(mine.filter((_, k) => k !== i))} className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600"><Icon name="x" /></button>
               </li>
             );
           })}
-        </ul>
-      )}
-      <p className="mt-3 text-xs text-slate-500">Les compétences se cochent dans chaque devoir (« Compétences évaluées »). Pas de bilan individuel : l'appréciation globale en tient lieu.</p>
-    </Card>
+        </ol>
+        <div className="mt-3 flex gap-2">
+          <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Écrire une compétence…" className={`flex-1 ${inputCls}`} />
+          <Button variant="secondary" disabled={!label.trim()} onClick={() => { setMine([...mine, label.trim()]); setLabel(''); }}>Ajouter</Button>
+        </div>
+        <p className="mt-3 text-xs text-slate-500">Pas de bilan individuel par compétence : l'appréciation globale en tient lieu.</p>
+      </Card>
+      <Card title="Base proposée par l'établissement" subtitle={`${service.subject} · niveau ${levelOf(service.cls)}`}
+        action={proposals.length > 1 && <Button variant="secondary" className="!py-1 text-xs" onClick={() => setMine([...mine, ...proposals])}>Tout reprendre</Button>}>
+        {base.length === 0 ? <p className="text-sm text-slate-500">Pas de base proposée pour cette matière à ce niveau.</p>
+          : proposals.length === 0 ? <p className="text-sm text-emerald-700">Toute la base est reprise dans vos compétences.</p> : (
+            <ul className="space-y-1.5">
+              {proposals.map((c) => (
+                <li key={c} className="flex items-center justify-between gap-2 text-sm">
+                  <span className="text-slate-700">{c}</span>
+                  <Button variant="ghost" className="!px-2 !py-0.5 text-xs" onClick={() => setMine([...mine, c])}>＋ Reprendre</Button>
+                </li>
+              ))}
+            </ul>
+          )}
+      </Card>
+    </div>
   );
 }
 
@@ -373,6 +396,7 @@ export default function GradebookModule({ settings }) {
   const [evaluations, setEvaluations] = useState(EVALUATIONS);
   const [grades, setGrades] = useState(GRADES);
   const [remarks, setRemarks] = useState(REMARKS);
+  const [myComps, setMyComps] = useState(TEACHER_COMPETENCIES);
   const [validated, setValidated] = useState({});
   const [comments, setComments] = useState({});
   const [flags, setFlags] = useState({ 's1:RAJAONARIVELO Tsiry': { ids: ['BAVARD'], note: '' } });
@@ -389,7 +413,7 @@ export default function GradebookModule({ settings }) {
   };
   const stepDone = {
     notes: Boolean(validated[serviceId]),
-    competences: competenciesFor(service, settings).every((c) => evaluations[serviceId].some((ev) => ev.competencies?.includes(c))),
+    competences: (myComps[serviceId]?.length ?? 0) > 0,
     appreciations: service.students.every((s) => comments[`${serviceId}:${s}`]?.validated),
   };
 
@@ -421,8 +445,8 @@ export default function GradebookModule({ settings }) {
           ))}
         </div>
       )}
-      {currentStep === 'notes' && <NotesStep {...props} competencies={competenciesFor(service, settings)} />}
-      {currentStep === 'competences' && <CompetenciesStep service={service} settings={settings} evaluations={evaluations[serviceId]} />}
+      {currentStep === 'notes' && <NotesStep {...props} competencies={myComps[serviceId] ?? []} />}
+      {currentStep === 'competences' && <CompetenciesStep service={service} settings={settings} evaluations={evaluations[serviceId]} mine={myComps[serviceId] ?? []} setMine={(v) => setMyComps({ ...myComps, [serviceId]: v })} />}
       {currentStep === 'appreciations' && <AppreciationsStep {...props} comments={comments} setComments={setComments} flags={flags} setFlags={setFlags} />}
     </div>
   );
