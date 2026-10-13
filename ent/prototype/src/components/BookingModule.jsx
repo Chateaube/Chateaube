@@ -22,7 +22,7 @@ const h = (hhmm) => hhmm.replace(':', 'h');
 function Timeline({ resources, bookings, date, onPick, draft }) {
   const closesAt = SCHOOL_HOURS[weekdayOf(date)]?.[1] ?? '07:00';
   return (
-    <div className="-mx-4 overflow-x-auto px-4">
+    <div className="-mx-5 overflow-x-auto px-5">
       <div className="min-w-[720px]">
         {/* Échelle horaire */}
         <div className="ml-48 flex border-b border-slate-200 pb-1 text-[11px] text-slate-500">
@@ -123,7 +123,7 @@ export default function BookingModule() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Ressources pédagogiques</p>
+          <p className="text-sm font-medium text-coral-700">Ressources pédagogiques</p>
           <h1 className="text-2xl font-semibold text-navy-900">Réservation de matériel</h1>
           <p className="text-sm text-slate-500">Vidéoprojecteurs, enceintes, TV, salles spécialisées et matériel informatique — par site.</p>
         </div>

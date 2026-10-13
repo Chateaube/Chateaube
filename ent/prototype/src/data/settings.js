@@ -3,6 +3,9 @@
 // sans recoder. En production, ces valeurs vivent dans les tables
 // dunning_policy, dunning_month, tuition_cutoff_rule et calendar_day_off.
 
+import { COMPETENCY_HISTORY } from './competencyHistory.js';
+import { mergeCompetencySets } from '../rules/grading.js';
+
 export const DEFAULT_SETTINGS = {
   siteId: 'TMV',
   schoolYear: { start: '2026-09-01', end: '2027-07-04' },
@@ -38,13 +41,13 @@ export const DEFAULT_SETTINGS = {
     parentDelayDays: 1, // Espace Parents : note publiée aux parents 1 jour après les élèves
   },
 
-  // Base de compétences PROPOSÉE aux enseignants, par matière et par niveau (commune aux classes
-  // d'un même niveau). Chaque enseignant la reprend ou non et écrit ses propres compétences.
+  // Base de compétences PROPOSÉE aux enseignants, par matière et par niveau (série au lycée :
+  // 1re G ≠ 1re STMG). Par défaut : les compétences écrites par les enseignants de Tamatave lors
+  // des trois derniers trimestres (data/competencyHistory.js). Chaque enseignant la reprend ou non
+  // et écrit ses propres compétences ; la Direction peut la modifier dans les Paramètres.
   competencies: {
-    'Management|1re': ['Analyser une situation d\'organisation', 'Mobiliser les notions du programme', 'Argumenter une décision', 'Communiquer à l\'écrit et à l\'oral'],
-    'Management|Terminale': ['Analyser une situation de gestion', 'Mobiliser les notions', 'Argumenter', 'Communiquer'],
-    'Enseignement moral et civique|1re': ['Construire une culture civique', 'Argumenter et débattre', 'S\'engager dans un projet collectif'],
-    'Mathématiques|5e': ['Chercher', 'Modéliser', 'Représenter', 'Raisonner', 'Calculer', 'Communiquer'],
+    ...Object.fromEntries(Object.entries(COMPETENCY_HISTORY).map(([k, sets]) => [k, mergeCompetencySets(sets)])),
+    'Management|Tle STMG': ['Analyser une situation de gestion', 'Mobiliser les notions', 'Argumenter', 'Communiquer'],
   },
 
   // Calendrier : jours fériés (Madagascar) et vacances (exemple à remplacer)

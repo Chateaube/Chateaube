@@ -42,7 +42,7 @@ function AttendanceTab({ rows, setRows, toast }) {
   const update = (id, patch, msg) => { setRows(rows.map((r) => (r.id === id ? { ...r, ...patch } : r))); toast(msg); };
   return (
     <Card title="Absences et retards" subtitle="Issus de l'appel des enseignants en temps réel">
-      <div className="-mx-4 overflow-x-auto">
+      <div className="-mx-5 overflow-x-auto">
         <table className="w-full min-w-[900px] text-sm">
           <thead>
             <tr className="border-y border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
@@ -239,7 +239,7 @@ export default function VieScolaireModule({ settings, role = 'VIE_SCOLAIRE' }) {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Mardi 13 octobre 2026 · Tamatave</p>
+        <p className="text-sm font-medium text-coral-700">Tamatave</p>
         <h1 className="text-2xl font-semibold text-navy-900">{role === 'ENSEIGNANT' ? 'Punitions & téléphones' : 'Vie scolaire'}</h1>
       </div>
       {role !== 'ENSEIGNANT' && <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

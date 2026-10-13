@@ -2,72 +2,82 @@ import React from 'react';
 
 export function Card({ title, subtitle, action, children, className = '' }) {
   return (
-    <section className={`min-w-0 rounded-xl border border-slate-200 bg-white shadow-sm ${className}`}>
+    <section className={`min-w-0 rounded-2xl border border-slate-200/70 bg-white shadow-soft ${className}`}>
       {(title || action) && (
-        <header className="flex flex-wrap items-start justify-between gap-2 border-b border-slate-100 px-4 py-3">
+        <header className="flex flex-wrap items-start justify-between gap-2 px-5 pt-4 pb-1">
           <div>
-            <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+            <h3 className="font-display text-[1.05rem] font-semibold tracking-tight text-slate-900">{title}</h3>
             {subtitle && <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>}
           </div>
           {action}
         </header>
       )}
-      <div className="p-4">{children}</div>
+      <div className="p-5 pt-3">{children}</div>
     </section>
   );
 }
 
 const TONES = {
-  slate: 'bg-slate-100 text-slate-700 ring-slate-200',
-  navy: 'bg-navy-50 text-navy-700 ring-navy-100',
-  green: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-  amber: 'bg-amber-50 text-amber-800 ring-amber-200',
-  red: 'bg-red-50 text-red-700 ring-red-200',
-  violet: 'bg-violet-50 text-violet-700 ring-violet-200',
+  slate: 'bg-slate-100 text-slate-600',
+  navy: 'bg-navy-50 text-navy-700',
+  green: 'bg-sage-50 text-sage-700',
+  amber: 'bg-amber-50 text-amber-800',
+  red: 'bg-coral-50 text-coral-700',
+  violet: 'bg-violet-50 text-violet-700',
 };
 
 export function Badge({ tone = 'slate', children, className = '' }) {
   return (
-    <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${TONES[tone]} ${className}`}>
+    <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${TONES[tone]} ${className}`}>
       {children}
     </span>
   );
 }
 
 export function Stat({ label, value, hint, tone = 'slate' }) {
-  const color = { slate: 'text-slate-900', green: 'text-emerald-700', amber: 'text-amber-700', red: 'text-red-700' }[tone];
+  const color = { slate: 'text-slate-900', green: 'text-sage-700', amber: 'text-amber-700', red: 'text-coral-700' }[tone];
+  const dot = { slate: 'bg-slate-300', green: 'bg-sage-500', amber: 'bg-amber-400', red: 'bg-coral-500' }[tone];
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3">
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className={`mt-1 text-xl font-semibold tabular-nums ${color}`}>{value}</p>
+    <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-soft">
+      <p className="flex items-center gap-2 text-xs font-medium text-slate-500"><span className={`h-1.5 w-1.5 rounded-full ${dot}`} />{label}</p>
+      <p className={`mt-1.5 font-display text-2xl font-semibold tabular-nums tracking-tight ${color}`}>{value}</p>
       {hint && <p className="mt-0.5 text-xs text-slate-500">{hint}</p>}
     </div>
   );
 }
 
 export function Progress({ value, tone = 'navy' }) {
-  const bar = { navy: 'bg-navy-500', green: 'bg-emerald-500', amber: 'bg-amber-500', red: 'bg-red-500' }[tone];
+  const bar = { navy: 'bg-navy-500', green: 'bg-sage-500', amber: 'bg-amber-400', red: 'bg-coral-500' }[tone];
   return (
-    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-valuenow={Math.round(value)} aria-valuemin={0} aria-valuemax={100}>
-      <div className={`h-full rounded-full ${bar}`} style={{ width: `${Math.min(100, value)}%` }} />
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-valuenow={Math.round(value)} aria-valuemin={0} aria-valuemax={100}>
+      <div className={`h-full rounded-full ${bar} transition-[width] duration-500`} style={{ width: `${Math.min(100, value)}%` }} />
     </div>
   );
 }
 
 export function Button({ variant = 'primary', className = '', ...props }) {
   const styles = {
-    primary: 'bg-navy-500 text-white hover:bg-navy-700 disabled:bg-slate-300',
-    secondary: 'bg-white text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 disabled:text-slate-400',
-    danger: 'bg-red-600 text-white hover:bg-red-700 disabled:bg-slate-300',
+    primary: 'bg-navy-900 text-white shadow-sm hover:bg-navy-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none',
+    secondary: 'bg-white text-slate-700 ring-1 ring-inset ring-slate-200 hover:bg-slate-50 hover:ring-slate-300 disabled:text-slate-400',
+    danger: 'bg-coral-700 text-white shadow-sm hover:bg-coral-500 disabled:bg-slate-200 disabled:text-slate-400',
     ghost: 'text-navy-700 hover:bg-navy-50',
   }[variant];
   return (
     <button
       type="button"
-      className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition disabled:cursor-not-allowed ${styles} ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-navy-100 disabled:cursor-not-allowed ${styles} ${className}`}
       {...props}
     />
   );
+}
+
+// Pastille d'initiales, couleur stable par personne (plus humain qu'une liste de noms)
+const AVATAR_TONES = ['bg-coral-100 text-coral-700', 'bg-sage-100 text-sage-700', 'bg-navy-100 text-navy-700', 'bg-amber-100 text-amber-800', 'bg-violet-100 text-violet-700'];
+export function Avatar({ name, className = 'h-8 w-8 text-xs' }) {
+  const words = String(name).replace(/^(M\.|Mme|Mr)\s+/, '').split(/[\s-]+/).filter(Boolean);
+  const initials = (words.length > 1 ? words[0][0] + words[words.length - 1][0] : (words[0] ?? '?').slice(0, 2)).toUpperCase();
+  const tone = AVATAR_TONES[[...String(name)].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_TONES.length];
+  return <span aria-hidden="true" className={`inline-flex shrink-0 items-center justify-center rounded-full font-semibold ${tone} ${className}`}>{initials}</span>;
 }
 
 // Jeu d'icônes minimal (traits 1.75px, 20×20)
@@ -88,6 +98,8 @@ const PATHS = {
   bell: 'M5 14V9a5 5 0 0 1 10 0v5l1.5 2h-13zM8 18h4',
   pin: 'M10 18s6-5.5 6-10a6 6 0 0 0-12 0c0 4.5 6 10 6 10zM10 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4z',
   clock: 'M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM10 6v4l3 2',
+  search: 'M9 3a6 6 0 1 0 0 12A6 6 0 0 0 9 3zM13.5 13.5 17 17',
+  menu: 'M3 6h14M3 10h14M3 14h14',
 };
 
 export function Icon({ name, className = 'h-4 w-4' }) {
@@ -109,7 +121,7 @@ export function StudentSelect({ students, value, onChange, suffix, label = 'Él�
     <div className="flex flex-wrap items-end gap-2">
       <label className="min-w-0 flex-1 text-xs font-medium text-slate-600">
         {label}
-        <select value={value} onChange={(e) => onChange(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900">
+        <select value={value} onChange={(e) => onChange(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900">
           {students.map((s) => <option key={s} value={s}>{s}{suffix ? suffix(s) : ''}</option>)}
         </select>
       </label>

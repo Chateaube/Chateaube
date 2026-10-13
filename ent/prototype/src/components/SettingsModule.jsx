@@ -175,7 +175,7 @@ export default function SettingsModule({ settings, onChange, onReset }) {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Administration</p>
+          <p className="text-sm font-medium text-coral-700">Administration</p>
           <h1 className="text-2xl font-semibold text-navy-900">Paramètres</h1>
           <p className="text-sm text-slate-500">Écolage, relances et calendrier scolaire : modifiables sans intervention technique.</p>
         </div>
@@ -194,7 +194,7 @@ export default function SettingsModule({ settings, onChange, onReset }) {
           <Card title="Échéancier d'écolage" subtitle="Année 2026-2027 · Tamatave">
             <NumberField label="Jour d'échéance mensuelle" value={settings.tuition.dueDay} min={1} max={28} suffix="du mois"
               onChange={(v) => set('tuition', { dueDay: v })} />
-            <div className="-mx-4 mt-4 overflow-x-auto">
+            <div className="-mx-5 mt-4 overflow-x-auto">
               <table className="w-full min-w-[480px] text-sm">
                 <thead>
                   <tr className="border-y border-slate-100 bg-slate-50 text-left text-xs text-slate-500">

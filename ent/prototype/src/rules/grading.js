@@ -77,6 +77,17 @@ export function generalAverage(subjectAverages) {
   return coefs ? round2(sum / coefs) : null;
 }
 
+/** Fusionne les compétences de plusieurs trimestres (sans doublon, comparaison sans casse), dans l'ordre. */
+export function mergeCompetencySets(sets) {
+  const seen = new Set();
+  const out = [];
+  for (const set of sets) for (const c of set.items) {
+    const k = c.trim().toLowerCase();
+    if (!seen.has(k)) { seen.add(k); out.push(c.trim()); }
+  }
+  return out;
+}
+
 /** Compétences de la base proposée que l'enseignant n'a pas encore reprises (comparaison sans casse). */
 export function competencyProposals(base, mine) {
   const have = new Set(mine.map((c) => c.trim().toLowerCase()));

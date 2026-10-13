@@ -21,7 +21,7 @@ export default function HomeworkModule() {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Visible par les élèves et leurs parents</p>
+        <p className="text-sm font-medium text-coral-700">Visible par les élèves et leurs parents</p>
         <h1 className="text-2xl font-semibold text-navy-900">Cahier de textes</h1>
       </div>
       <div className="grid gap-5 xl:grid-cols-[1fr_380px] xl:items-start">

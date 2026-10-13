@@ -45,7 +45,7 @@ function FeesTab({ fees, setFees, settings }) {
         </label>
       }
     >
-      <div className="-mx-4 overflow-x-auto">
+      <div className="-mx-5 overflow-x-auto">
         <table className="w-full min-w-[900px] text-sm">
           <thead>
             <tr className="border-y border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
@@ -90,7 +90,7 @@ function ArticlesTab({ articles, setArticles }) {
       <div className="space-y-4">
         {groups.map((g) => (
           <div key={g}>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{g}</p>
+            <p className="mb-1 text-xs font-semibold text-slate-500">{g}</p>
             <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
               {articles.filter((a) => a.group === g).map((a) => (
                 <li key={a.id} className={`flex flex-wrap items-center gap-3 px-3 py-2 text-sm ${a.active ? '' : 'opacity-50'}`}>
@@ -173,7 +173,7 @@ function StatementTab({ families, setFamilies, articles }) {
             );
           })}
         </div>
-        <div className="-mx-4 overflow-x-auto">
+        <div className="-mx-5 overflow-x-auto">
           <table className="w-full min-w-[680px] text-sm">
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
@@ -276,7 +276,7 @@ function CashTab({ movements, setMovements }) {
         {Object.entries(JOURNALS).slice(0, 2).map(([k, j]) => <Stat key={k} label={`Caisse ${j.label.toLowerCase()}`} value={formatAr(balance[k])} hint={`Ouverture ${formatAr(CASH_OPENING[k])}`} />)}
       </div>
       <Card title="Mouvements de caisse — mardi 13 octobre 2026" subtitle={`Caisse de Tamatave · caisse droits d'examen : ${formatAr(balance.DROITS_EXAMEN)} (à reverser aux centres)`}>
-        <div className="-mx-4 overflow-x-auto">
+        <div className="-mx-5 overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
@@ -347,7 +347,7 @@ export default function AccountingModule({ settings }) {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Espace comptabilité · Tamatave</p>
+          <p className="text-sm font-medium text-coral-700">Espace comptabilité · Tamatave</p>
           <h1 className="text-2xl font-semibold text-navy-900">Comptabilité</h1>
           <p className="text-sm text-slate-500">Trois journaux étanches : écolage, frais annexes, droits d'examen.</p>
         </div>

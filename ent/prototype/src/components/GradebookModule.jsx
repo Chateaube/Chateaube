@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, Icon, StudentSelect } from './ui.jsx';
 import { Annotated, RulePanel, GradeCell } from './gradeUi.jsx';
 import {
-  TERM, SERVICES, EVALUATIONS, GRADES, REMARKS, competenciesFor, levelOf, TEACHER_COMPETENCIES, COUNCIL_FLAGS, CLASS_SUBJECTS, OTHER_AVERAGES,
+  TERM, SERVICES, EVALUATIONS, GRADES, REMARKS, competenciesFor, historyFor, levelOf, TEACHER_COMPETENCIES, COUNCIL_FLAGS, CLASS_SUBJECTS, OTHER_AVERAGES,
 } from '../data/grades.js';
 import { studentAverage, notesCount, termValidation, classStats, generalAverage, fmtAvg, parentPublishOn, competencyProposals } from '../rules/grading.js';
 import { checkAppreciation, autoFix } from '../rules/appreciation.js';
@@ -129,7 +129,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
         {evaluations.length === 0 ? (
           <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-600">Aucune note pour ce trimestre. Ajoutez une première évaluation (DS, oral, exposé…).</p>
         ) : (
-          <div className="-mx-4 overflow-x-auto">
+          <div className="-mx-5 overflow-x-auto">
             <table className="w-full text-sm" style={{ minWidth: 260 + evaluations.length * 130 }}>
               <thead>
                 <tr className="border-y border-slate-100 bg-slate-50 text-left align-bottom text-xs text-slate-500">
@@ -257,22 +257,45 @@ function CompetenciesStep({ service, settings, evaluations, mine, setMine }) {
         </div>
         <p className="mt-3 text-xs text-slate-500">Pas de bilan individuel par compétence : l'appréciation globale en tient lieu.</p>
       </Card>
-      <Card title="Base proposée par l'établissement" subtitle={`${service.subject} · niveau ${levelOf(service.cls)}`}
+      <Card title="Base proposée par l'établissement" subtitle={`${service.subject} · ${levelOf(service.cls)} — compétences des trimestres précédents`}
         action={proposals.length > 1 && <Button variant="secondary" className="!py-1 text-xs" onClick={() => setMine([...mine, ...proposals])}>Tout reprendre</Button>}>
         {base.length === 0 ? <p className="text-sm text-slate-500">Pas de base proposée pour cette matière à ce niveau.</p>
           : proposals.length === 0 ? <p className="text-sm text-emerald-700">Toute la base est reprise dans vos compétences.</p> : (
-            <ul className="space-y-1.5">
-              {proposals.map((c) => (
-                <li key={c} className="flex items-center justify-between gap-2 text-sm">
-                  <span className="text-slate-700">{c}</span>
-                  <Button variant="ghost" className="!px-2 !py-0.5 text-xs" onClick={() => setMine([...mine, c])}>＋ Reprendre</Button>
-                </li>
+            <div className="space-y-4">
+              {groupProposals(proposals, historyFor(service)).map((g) => (
+                <div key={g.label}>
+                  <div className="mb-1.5 flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-slate-500">{g.label}</p>
+                    {g.items.length > 1 && <button className="text-xs font-medium text-navy-700 hover:underline" onClick={() => setMine([...mine, ...g.items])}>Reprendre ce trimestre</button>}
+                  </div>
+                  <ul className="space-y-1">
+                    {g.items.map((c) => (
+                      <li key={c} className="flex items-start justify-between gap-2 rounded-lg px-2 py-1 text-sm hover:bg-slate-50">
+                        <span className="text-slate-700">{c}</span>
+                        <Button variant="ghost" className="shrink-0 !px-2 !py-0.5 text-xs" aria-label={`Reprendre : ${c}`} onClick={() => setMine([...mine, c])}>＋</Button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
       </Card>
     </div>
   );
+}
+
+// Regroupe les propositions par trimestre d'origine (avec l'enseignant qui les a écrites) ;
+// celles ajoutées par la Direction vont dans « Autres propositions ».
+function groupProposals(proposals, history) {
+  const left = new Set(proposals);
+  const groups = history.map((set, i) => {
+    const items = set.items.filter((c) => left.has(c));
+    items.forEach((c) => left.delete(c));
+    return { label: `Trimestre précédent ${history.length > 1 ? `n° ${i + 1} ` : ''}· ${set.teacher}`, items };
+  }).filter((g) => g.items.length);
+  if (left.size) groups.push({ label: 'Autres propositions', items: [...left] });
+  return groups;
 }
 
 /* ---------------- 3. Appréciations ---------------- */
@@ -343,7 +366,7 @@ function AppreciationsStep({ service, evaluations, grades, validated, settings, 
           className={`w-full resize-y rounded-lg border px-3 py-2 text-sm leading-relaxed outline-none focus:ring-2 ${result.ok ? 'border-slate-300 focus:ring-navy-200' : 'border-red-300 focus:ring-red-200'}`} />
         {entry.text.trim() && (result.errors.length > 0 || result.warnings.length > 0) && (
           <div className="mt-2 rounded-lg bg-slate-50 p-3 text-sm leading-relaxed text-slate-700">
-            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Aperçu annoté</p>
+            <p className="mb-1 text-[11px] font-semibold text-slate-500">Aperçu annoté</p>
             <Annotated text={entry.text} issues={[...result.errors, ...result.warnings]} />
           </div>
         )}
@@ -362,7 +385,7 @@ function AppreciationsStep({ service, evaluations, grades, validated, settings, 
         </div>
 
         <div className="mt-5 rounded-lg border border-dashed border-slate-300 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Pour le conseil de classe — non imprimé sur le bulletin</p>
+          <p className="text-xs font-semibold text-slate-500">Pour le conseil de classe — non imprimé sur le bulletin</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {COUNCIL_FLAGS.map((f) => {
               const on = myFlags.ids.includes(f.id);
@@ -420,7 +443,7 @@ export default function GradebookModule({ settings }) {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{TERM.label} · conseil de classe le {TERM.council}</p>
+        <p className="text-sm font-medium text-coral-700">{TERM.label} · conseil de classe le {TERM.council}</p>
         <h1 className="text-2xl font-semibold text-navy-900">Notes & appréciations</h1>
       </div>
       <div className="flex gap-2 overflow-x-auto pb-1">

@@ -288,7 +288,8 @@ test('un reçu par journal', () => {
 
 // --- Notes et conseil de classe -------------------------------------------------
 import { studentAverage, termValidation, generalAverage, classStats, notesCount } from '../src/rules/grading.js';
-import { SERVICES, EVALUATIONS, GRADES, CLASS_SUBJECTS, competenciesFor } from '../src/data/grades.js';
+import { SERVICES, EVALUATIONS, GRADES, CLASS_SUBJECTS, competenciesFor, historyFor, levelOf } from '../src/data/grades.js';
+import { mergeCompetencySets } from '../src/rules/grading.js';
 
 test('moyenne pondérée ramenée sur 20 (barème /10, coefficient 2)', () => {
   // Aina : DS 16/20 ×2, interro 9/10 → 18/20, oral 17, exposé 16 → (32+18+17+16)/5 = 16,6
@@ -322,12 +323,21 @@ test('moyenne générale : Arts plastiques, Musique et Vie de classe exclus', ()
   assert.deepEqual(classStats([10, 12, null, 14]), { avg: 12, min: 10, max: 14 });
 });
 
-test('compétences : référentiel officiel commun à un même niveau (1re Générale = 1re STMG)', () => {
+test('compétences : base proposée par niveau (collège) ou par série (lycée), issue des trimestres précédents', () => {
+  assert.equal(levelOf('5e B'), '5e');
+  assert.equal(levelOf('2de A'), '2de');
+  assert.equal(levelOf('1re Générale'), '1re G');
+  assert.equal(levelOf('1re STMG'), '1re STMG');
+  assert.equal(levelOf('Terminale Générale'), 'Tle G');
   const emc1STMG = SERVICES.find((s) => s.id === 's3');
   const emc1G = SERVICES.find((s) => s.id === 's4');
-  assert.deepEqual(competenciesFor(emc1G, DEFAULT_SETTINGS), competenciesFor(emc1STMG, DEFAULT_SETTINGS));
-  assert.equal(competenciesFor(emc1G, DEFAULT_SETTINGS).length, 3);
+  const base = competenciesFor(emc1STMG, DEFAULT_SETTINGS);
+  assert.ok(base.length >= 3);
+  assert.notDeepEqual(competenciesFor(emc1G, DEFAULT_SETTINGS), base);
+  assert.equal(historyFor(emc1STMG).length, 3); // trois trimestres précédents
   assert.notDeepEqual(competenciesFor(SERVICES[0], DEFAULT_SETTINGS), competenciesFor(SERVICES[1], DEFAULT_SETTINGS)); // Management 1re ≠ Terminale
+  // fusion sans doublon, sans tenir compte de la casse
+  assert.deepEqual(mergeCompetencySets([{ items: ['Lire', 'Écrire'] }, { items: ['lire ', 'Compter'] }]), ['Lire', 'Écrire', 'Compter']);
 });
 
 import { councilProposal } from '../src/rules/grading.js';

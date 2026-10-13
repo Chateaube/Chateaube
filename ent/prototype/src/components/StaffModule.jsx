@@ -32,7 +32,7 @@ export default function StaffModule() {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Administration · Tamatave</p>
+        <p className="text-sm font-medium text-coral-700">Administration · Tamatave</p>
         <h1 className="text-2xl font-semibold text-navy-900">Gestion des agents</h1>
         <p className="text-sm text-slate-500">Registre du personnel : entrées, sorties et accès à l'ENT.</p>
       </div>
@@ -54,7 +54,7 @@ export default function StaffModule() {
           </div>
         }
       >
-        <div className="-mx-4 overflow-x-auto">
+        <div className="-mx-5 overflow-x-auto">
           <table className="w-full min-w-[860px] text-sm">
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50 text-left text-xs text-slate-500">

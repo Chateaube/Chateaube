@@ -12,8 +12,18 @@
 | **Mobile d'abord pour les familles** | Parents et élèves consultent surtout sur smartphone : navigation par onglets en bas d'écran, notifications push ou SMS. |
 | **Accessibilité** | Contrastes AA, libellés sur tous les champs, états jamais signalés par la couleur seule (icône + texte), navigation au clavier dans les grilles de saisie (Entrée accepte une suggestion). |
 
-**Charte graphique** : bleu institutionnel `#003366` / `#005baa` (repris du site vitrine), sémantique constante
-(vert = conforme/payé, ambre = à surveiller, rouge = bloquant, violet = flux « droits d'examen » ou IA).
+**Charte graphique « Papier & encre »** (épurée mais chaleureuse, pour éviter l'effet « logiciel ») :
+
+| Élément | Choix |
+|---|---|
+| Fond | ivoire `#f6f2eb`, gris chauds pour les textes et bordures (pas de gris bleutés) |
+| Couleur d'identité et actions | bleu d'encre `#172f52` / `#2f5b94`, dérivé du bleu institutionnel `#003366` du site vitrine |
+| Accent | corail `#e0714f` (élément actif, notification, ce qui demande l'attention) |
+| Sémantique constante | sauge = conforme/payé, safran = à surveiller, terre cuite = bloquant, violet = droits d'examen ou IA |
+| Typographie | titres en **Fraunces** (serif douce), texte en **Plus Jakarta Sans** (ronde, très lisible), incluses hors ligne |
+| Formes | cartes arrondies (16 px) à ombre légère et sans bordure dure ; boutons et étiquettes en pilule |
+| Repères humains | salutation personnalisée (« Bonjour Mme Ranaivo »), pastilles d'initiales, une couleur stable par matière |
+| Ton | phrases en minuscules plutôt que des libellés en capitales, vocabulaire de l'établissement |
 
 ## 2.2 Portails et matrice des droits
 

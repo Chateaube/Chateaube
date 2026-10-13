@@ -1,17 +1,130 @@
 @import "tailwindcss";
 
-/* Couleurs institutionnelles reprises du site vitrine (#003366 / #005baa) */
-@theme {
-  --color-navy-50: #eef4fb;
-  --color-navy-100: #d6e4f4;
-  --color-navy-200: #a9c6e8;
-  --color-navy-500: #005baa;
-  --color-navy-700: #00427f;
-  --color-navy-900: #003366;
-  --font-sans: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+/*
+ * Thème « Papier & encre » — épuré mais chaleureux.
+ *  - fond ivoire et gris chauds (au lieu de gris bleutés « tableau de bord ») ;
+ *  - bleu d'encre de l'établissement (#003366 adouci) pour l'identité et les actions ;
+ *  - une touche corail pour ce qui demande l'attention, du sauge pour ce qui va bien ;
+ *  - titres en Fraunces (serif douce), texte en Plus Jakarta Sans (ronde, très lisible).
+ * Les polices sont incluses dans le fichier (latin uniquement) : le prototype reste hors ligne.
+ */
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 800;
+  src: url(../node_modules/@fontsource-variable/plus-jakarta-sans/files/plus-jakarta-sans-latin-wght-normal.woff2) format('woff2-variations');
+}
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url(../node_modules/@fontsource-variable/fraunces/files/fraunces-latin-wght-normal.woff2) format('woff2-variations');
 }
 
-body { @apply bg-slate-50 text-slate-800 antialiased; }
+@theme {
+  /* Gris chauds (remplacent les gris bleutés par défaut dans tous les écrans) */
+  --color-slate-50: #faf8f4;
+  --color-slate-100: #f3efe8;
+  --color-slate-200: #e8e2d8;
+  --color-slate-300: #d6cec1;
+  --color-slate-400: #a99f91;
+  --color-slate-500: #7c7366;
+  --color-slate-600: #5f574c;
+  --color-slate-700: #4a443b;
+  --color-slate-800: #332f29;
+  --color-slate-900: #221f1b;
+
+  /* Rouges adoucis (terre cuite) et verts sauge : alertes lisibles sans agressivité */
+  --color-red-50: #fdf3ef;
+  --color-red-100: #fbe3d9;
+  --color-red-200: #f3c6b4;
+  --color-red-300: #e9a184;
+  --color-red-400: #df7d5a;
+  --color-red-500: #d2603b;
+  --color-red-600: #bb4e2c;
+  --color-red-700: #9c3f24;
+  --color-red-800: #7e3420;
+  --color-red-900: #642b1c;
+  --color-emerald-50: #f0f6f0;
+  --color-emerald-100: #dcebdc;
+  --color-emerald-200: #bcd8bd;
+  --color-emerald-300: #93be96;
+  --color-emerald-400: #6ea173;
+  --color-emerald-500: #55895b;
+  --color-emerald-600: #437249;
+  --color-emerald-700: #375c3c;
+  --color-emerald-800: #2e4a32;
+  --color-emerald-900: #263d2a;
+  --color-amber-50: #fdf7e9;
+  --color-amber-100: #faecc8;
+  --color-amber-200: #f3dc9f;
+
+  /* Bleu d'encre de l'établissement */
+  --color-navy-50: #eef3f9;
+  --color-navy-100: #dce6f2;
+  --color-navy-200: #b6cae3;
+  --color-navy-500: #2f5b94;
+  --color-navy-700: #22457a;
+  --color-navy-900: #172f52;
+
+  /* Accents */
+  --color-coral-50: #fdf2ed;
+  --color-coral-100: #fadfd3;
+  --color-coral-500: #e0714f;
+  --color-coral-700: #a94a2b;
+  --color-sage-50: #eff5ef;
+  --color-sage-100: #dceadb;
+  --color-sage-500: #5b8f62;
+  --color-sage-700: #3e6b45;
+
+  --color-paper: #f6f2eb;
+
+  --font-sans: "Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+
+  --shadow-soft: 0 1px 2px rgb(34 31 27 / 0.04), 0 10px 30px -14px rgb(34 31 27 / 0.14);
+}
+
+body {
+  @apply bg-paper text-slate-800 antialiased;
+  font-feature-settings: "ss01", "cv11";
+}
+
+/* Titres de page : serif douce, moins « tableau de bord » */
+h1 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+/*
+ * Champs de formulaire : coins arrondis, bordure chaude, focus visible et doux.
+ * Hors @layer : prend le pas sur les utilitaires des écrans sans les réécrire un par un.
+ */
+main input:not([type=checkbox]):not([type=radio]):not([type=range]),
+main select,
+main textarea {
+  border-radius: 0.75rem;
+  border-color: var(--color-slate-200);
+  background-color: white;
+  transition: border-color .15s, box-shadow .15s;
+}
+main input:not([type=checkbox]):not([type=radio]):focus,
+main select:focus,
+main textarea:focus {
+  outline: none;
+  border-color: var(--color-navy-200);
+  box-shadow: 0 0 0 4px rgb(47 91 148 / 0.12);
+}
+main input[type=checkbox], main input[type=radio] { accent-color: var(--color-navy-700); }
+
+/* Tableaux : en-têtes discrets, lignes aérées */
+main thead th { font-weight: 600; color: var(--color-slate-500); }
+
+::selection { background: var(--color-coral-100); }
 
 @media print {
   @page { size: A4 landscape; margin: 10mm; }
@@ -19,5 +132,5 @@ body { @apply bg-slate-50 text-slate-800 antialiased; }
 }
 
 .hatched {
-  background-image: repeating-linear-gradient(135deg, rgb(226 232 240) 0 6px, rgb(241 245 249) 6px 12px);
+  background-image: repeating-linear-gradient(135deg, var(--color-slate-200) 0 6px, var(--color-slate-100) 6px 12px);
 }

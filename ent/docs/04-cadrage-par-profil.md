@@ -147,7 +147,7 @@ dans le cahier des charges du lot de développement correspondant.
 - **Création d'un devoir** : devoir du, note publiée le, publication aux parents un jour après les élèves (paramètre de
   l'Espace Parents), remarques par note, notation sur, coefficient, « Ramener sur 20 », commentaire, thèmes,
   compétences évaluées.
-- **Compétences** : base proposée par matière et niveau ; chaque enseignant la reprend ou écrit les siennes.
+- **Compétences** : base proposée par matière et niveau (par série au lycée : 1re G ≠ 1re STMG), pré-remplie avec les compétences réelles des trois derniers trimestres (avec le nom de l'enseignant) ; chaque enseignant la reprend en un clic, trimestre par trimestre, ou écrit les siennes.
 - **Terminale** : Parcoursup obligatoire pour tous (malgaches comme français), puis Campus France et TLScontact (visa) pour les élèves qui en ont besoin.
 
 | # | Question | Proposition |

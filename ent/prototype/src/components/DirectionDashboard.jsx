@@ -60,9 +60,9 @@ function DunningCalendar({ settings, today }) {
           <div
             key={i}
             title={skipped ?? (active ? 'Mois de relance actif' : 'Hors cycle de relance')}
-            className={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-semibold
-              ${skipped ? 'hatched text-amber-800 ring-1 ring-amber-300' : active ? 'bg-navy-500 text-white' : 'bg-slate-100 text-slate-400'}
-              ${m === current ? 'outline-2 outline-offset-1 outline-navy-900' : ''}`}
+            className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold
+              ${skipped ? 'hatched text-amber-800' : active ? 'bg-white text-navy-700 ring-1 ring-navy-100' : 'bg-slate-100 text-slate-400'}
+              ${m === current ? 'outline-2 outline-offset-2 outline-coral-500' : ''}`}
           >
             {l}
           </div>
@@ -121,7 +121,7 @@ export default function DirectionDashboard({ account, settings }) {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Mardi 13 octobre 2026 · Année 2026-2027</p>
+          <p className="text-sm font-medium text-coral-700">Année scolaire 2026-2027</p>
           <h1 className="text-2xl font-semibold text-navy-900">Tableau de bord Direction</h1>
           <p className="text-sm text-slate-500">Connectée en tant que {account.name} · droits d'administration complets</p>
         </div>
@@ -129,7 +129,7 @@ export default function DirectionDashboard({ account, settings }) {
       </div>
 
       {/* Bandeau : mois gelé (octobre) */}
-      <div className={`flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between ${frozen ? 'border-amber-200 bg-amber-50' : 'border-navy-100 bg-navy-50'}`}>
+      <div className={`flex flex-col gap-3 rounded-2xl p-5 sm:flex-row sm:items-center sm:justify-between ${frozen ? 'bg-amber-50' : 'bg-navy-50'}`}>
         <div className="flex gap-3">
           <Icon name="clock" className={`mt-0.5 h-5 w-5 shrink-0 ${frozen ? 'text-amber-700' : 'text-navy-500'}`} />
           {frozen ? (
@@ -169,10 +169,10 @@ export default function DirectionDashboard({ account, settings }) {
         />
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-3">
+      <div className="grid gap-5 2xl:grid-cols-3">
         {/* Alertes d'écolage */}
         <Card
-          className="xl:col-span-2"
+          className="2xl:col-span-2"
           title="Alertes d'écolage"
           subtitle={`Échéance le ${settings.tuition.dueDay} → relance → avertissement → mise à pied${settings.dunning.suspensionRequiresDirection ? ' (validée par la Direction)' : ''}`}
           action={
@@ -187,18 +187,18 @@ export default function DirectionDashboard({ account, settings }) {
             {stages.map((s, i) => {
               const keys = s.key === 'MISE_A_PIED' ? ['A_VALIDER', 'MISE_A_PIED'] : [s.key];
               const n = visibleCases.filter((c) => keys.includes(c.stage)).length;
-              const tone = ['border-navy-200 bg-navy-50', 'border-amber-200 bg-amber-50', 'border-red-200 bg-red-50'][i];
+              const tone = ['bg-navy-50', 'bg-amber-50', 'bg-red-50'][i];
               return (
-                <li key={s.key} className={`rounded-lg border p-2.5 ${tone}`}>
+                <li key={s.key} className={`rounded-xl p-3 ${tone}`}>
                   <p className="text-xs font-medium text-slate-600">{i + 1}. {s.label}</p>
-                  <p className="text-lg font-semibold tabular-nums text-slate-900">{n}</p>
+                  <p className="font-display text-2xl font-semibold tabular-nums text-slate-900">{n}</p>
                   <p className="text-[11px] text-slate-500">{s.delay}</p>
                 </li>
               );
             })}
           </ol>
 
-          <div className="-mx-4 overflow-x-auto">
+          <div className="-mx-5 overflow-x-auto">
             <table className="w-full min-w-[760px] text-sm">
               <thead>
                 <tr className="border-y border-slate-100 bg-slate-50 text-left text-xs text-slate-500">

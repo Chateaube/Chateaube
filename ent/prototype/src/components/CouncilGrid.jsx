@@ -70,7 +70,7 @@ export default function CouncilGrid({ settings, role }) {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Conseil de classe · Direction et Bureau uniquement</p>
+          <p className="text-sm font-medium text-coral-700">Conseil de classe · Direction et Bureau uniquement</p>
           <h1 className="text-2xl font-semibold text-navy-900">1re STMG — {TERM.label}</h1>
           <p className="text-sm text-slate-500">Tamatave · conseil le {TERM.council} · professeure principale : Mme Ranaivo</p>
         </div>
@@ -90,7 +90,7 @@ export default function CouncilGrid({ settings, role }) {
       </div>
 
       <Card title="Grille de notes" subtitle={`Moyennes /20 par matière · moyenne générale hors ${CLASS_SUBJECTS.filter((s) => excluded.includes(s.id)).map((s) => s.label).join(', ')}`}>
-        <div className="-mx-4 overflow-x-auto print:overflow-visible">
+        <div className="-mx-5 overflow-x-auto print:overflow-visible">
           <table className="w-full min-w-[1320px] text-sm print:min-w-0 print:text-[9px]">
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50 text-xs text-slate-500">

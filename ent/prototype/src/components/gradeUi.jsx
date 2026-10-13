@@ -47,7 +47,7 @@ export function RulePanel({ result }) {
       </div>
       {result.errors.length > 0 && (
         <div>
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-red-700">À corriger ({result.errors.length})</p>
+          <p className="mb-1 text-xs font-semibold text-red-700">À corriger ({result.errors.length})</p>
           <ul className="space-y-1.5">
             {result.errors.map((e, i) => <li key={i} className="rounded-md bg-red-50 px-2.5 py-1.5 text-xs text-red-900">{e.message}</li>)}
           </ul>
@@ -55,7 +55,7 @@ export function RulePanel({ result }) {
       )}
       {result.warnings.length > 0 && (
         <div>
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-amber-700">Suggestions ({result.warnings.length})</p>
+          <p className="mb-1 text-xs font-semibold text-amber-700">Suggestions ({result.warnings.length})</p>
           <ul className="space-y-1.5">
             {result.warnings.map((w, i) => <li key={i} className="rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900">{w.message}</li>)}
           </ul>

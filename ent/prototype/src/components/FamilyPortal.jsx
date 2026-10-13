@@ -21,13 +21,16 @@ const NOW = '2026-10-13T18:30';
 const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 const longDate = (iso) => formatDateFr(iso).replace(/^\S+ /, '');           // « 20 janvier 2027 »
 const shortDate = (iso) => cap(formatDateFr(iso).replace(/ \d{4}$/, ''));    // « Mardi 13 octobre »
+// Une couleur douce et stable par matière : repère visuel d'un écran à l'autre
+const SUBJECT_COLORS = ['#e0714f', '#5b8f62', '#2f5b94', '#d6a23a', '#8a6bb8', '#3f9a9a', '#c4607e'];
+const subjectColor = (name) => SUBJECT_COLORS[[...name].reduce((a, c) => a + c.charCodeAt(0), 0) % SUBJECT_COLORS.length];
 const MEASURE = Object.fromEntries(MEASURES.map((m) => [m.id, m]));
 const fullName = (child) => `RAKOTOARISOA ${child.name}`;
 
 function Section({ title, children, action }) {
   return (
-    <section className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-      {(title || action) && <div className="mb-2 flex items-center justify-between gap-2">{title && <h2 className="text-sm font-semibold text-slate-900">{title}</h2>}{action}</div>}
+    <section className="rounded-2xl bg-white p-4 shadow-soft">
+      {(title || action) && <div className="mb-2 flex items-center justify-between gap-2">{title && <h2 className="font-display text-[15px] font-semibold text-slate-900">{title}</h2>}{action}</div>}
       {children}
     </section>
   );
@@ -39,7 +42,7 @@ function Home({ child, isParent }) {
   return (
     <>
       {isParent && PARENT.alerts.map((a) => (
-        <div key={a.title} className={`rounded-xl p-3 ring-1 ${a.tone === 'red' ? 'bg-red-50 ring-red-200' : 'bg-amber-50 ring-amber-200'}`}>
+        <div key={a.title} className={`rounded-2xl p-4 ${a.tone === 'red' ? 'bg-red-50' : 'bg-amber-50'}`}>
           <p className={`text-sm font-semibold ${a.tone === 'red' ? 'text-red-900' : 'text-amber-900'}`}>{a.title}</p>
           <p className={`text-sm ${a.tone === 'red' ? 'text-red-800' : 'text-amber-800'}`}>{a.body}</p>
         </div>
@@ -102,7 +105,7 @@ function Notes({ child, audience, settings }) {
   }, [child, audience, settings]);
   return (
     <>
-      <div className="grid grid-cols-3 gap-1 rounded-lg bg-white p-1 ring-1 ring-slate-200">
+      <div className="grid grid-cols-3 gap-1 rounded-full bg-white p-1 shadow-soft">
         {['T1', 'T2', 'T3'].map((t) => (
           <button key={t} onClick={() => setTerm(t)} className={`rounded-md py-1.5 text-sm font-medium ${term === t ? 'bg-navy-500 text-white' : 'text-slate-600'}`}>{t.replace('T', '')}{t === 'T1' ? 'er' : 'e'} trimestre</button>
         ))}
@@ -116,7 +119,7 @@ function Notes({ child, audience, settings }) {
       {term !== 'T1' ? <Section><p className="text-sm text-slate-500">Aucune note pour ce trimestre pour l'instant.</p></Section> : bySubject.map(([subject, notes]) => (
         <Section key={subject}>
           <button onClick={() => setOpen(open === subject ? null : subject)} className="flex w-full items-center justify-between text-left">
-            <span className="text-sm font-semibold uppercase tracking-wide text-slate-900">{subject}</span>
+            <span className="flex items-center gap-2.5 text-sm font-semibold text-slate-900"><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: subjectColor(subject) }} />{subject}</span>
             <span className="text-xs text-slate-500">{notes.length} note{notes.length > 1 ? 's' : ''} {open === subject ? '▴' : '▾'}</span>
           </button>
           {open === subject && <ul className="mt-3 space-y-2">{notes.map((n) => <NoteCard key={n.id} n={n} />)}</ul>}
@@ -261,7 +264,7 @@ function Internships({ child, isParent }) {
         <div><dt className="inline text-slate-500">Tuteur : </dt><dd className="inline text-slate-800">{s.tutor}</dd></div>
         <div><dt className="inline text-slate-500">Référente : </dt><dd className="inline text-slate-800">{s.referent}</dd></div>
       </dl>
-      <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Convention de stage</p>
+      <p className="mt-3 text-xs font-semibold text-slate-500">Convention de stage</p>
       <ul className="mt-1 space-y-1 text-sm">
         {[['entreprise', 'Entreprise'], ['etablissement', 'Établissement'], ['famille', 'Responsable légal']].map(([k, l]) => (
           <li key={k} className={s.signatures[k] ? 'text-emerald-700' : 'text-amber-700'}>{s.signatures[k] ? '✓' : '○'} {l} {s.signatures[k] ? 'a signé' : ': signature attendue'}</li>
@@ -385,19 +388,19 @@ export default function FamilyPortal({ settings, audience = 'PARENT' }) {
   return (
     <div className="mx-auto w-full max-w-[420px]">
       <p className="mb-2 text-center text-xs text-slate-500">Aperçu du portail {isParent ? 'parents' : 'élèves'} (application mobile)</p>
-      <div className="flex h-[780px] max-h-[calc(100vh-6rem)] flex-col overflow-hidden rounded-[28px] border-8 border-slate-900 bg-slate-100 shadow-xl">
-        <header className="bg-navy-900 px-4 pb-3 pt-4 text-white">
+      <div className="flex h-[780px] max-h-[calc(100vh-6rem)] flex-col overflow-hidden rounded-[36px] border-[10px] border-slate-800 bg-paper shadow-2xl">
+        <header className="rounded-b-[28px] bg-navy-900 px-5 pb-4 pt-5 text-white">
           <p className="text-xs text-navy-200">Chateaubriand · Tamatave</p>
-          <p className="text-base font-semibold">{isParent ? `Bonjour ${PARENT.name}` : `Bonjour ${child.name} · ${child.cls}`}</p>
+          <p className="mt-0.5 font-display text-xl font-semibold">{isParent ? `Bonjour ${PARENT.name}` : `Bonjour ${child.name} · ${child.cls}`}</p>
           {isParent && !['payments', 'messages'].includes(view) && (
             <div className="mt-3 flex gap-2">
               {PARENT.children.map((c) => (
-                <button key={c.id} onClick={() => setChildId(c.id)} className={`rounded-full px-3 py-1 text-sm ${c.id === childId ? 'bg-white text-navy-900' : 'bg-white/10 text-white'}`}>{c.name} · {c.cls}</button>
+                <button key={c.id} onClick={() => setChildId(c.id)} className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition ${c.id === childId ? 'bg-white text-navy-900' : 'bg-white/10 text-white hover:bg-white/20'}`}>{c.name} · {c.cls}</button>
               ))}
             </div>
           )}
         </header>
-        <div role="region" aria-label="Contenu du portail" className="flex-1 space-y-3 overflow-y-auto p-3">
+        <div role="region" aria-label="Contenu du portail" className="flex-1 space-y-3 overflow-y-auto p-4">
           {tab === 'more' && sub && <button onClick={() => setSub(null)} className="text-sm font-medium text-navy-500">‹ Plus</button>}
           {view === 'home' && <Home child={child} isParent={isParent} />}
           {view === 'notes' && <Notes child={child} audience={audience} settings={settings} />}
@@ -411,19 +414,19 @@ export default function FamilyPortal({ settings, audience = 'PARENT' }) {
           {tab === 'more' && !sub && (
             <div className="grid grid-cols-2 gap-2">
               {MORE.filter((m) => !m[3] || m[3] === audience).map(([id, label, icon]) => (
-                <button key={id} onClick={() => setSub(id)} className="flex flex-col items-start gap-2 rounded-xl bg-white p-4 text-left text-sm font-medium text-slate-800 shadow-sm ring-1 ring-slate-200">
+                <button key={id} onClick={() => setSub(id)} className="flex flex-col items-start gap-2 rounded-2xl bg-white p-4 text-left text-sm font-medium text-slate-800 shadow-soft">
                   <Icon name={icon} className="h-5 w-5 text-navy-500" />{label}
                 </button>
               ))}
             </div>
           )}
         </div>
-        <nav className="grid grid-cols-5 border-t border-slate-200 bg-white" aria-label="Navigation du portail">
+        <nav className="grid grid-cols-5 border-t border-slate-100 bg-white px-1 pb-1" aria-label="Navigation du portail">
           {TABS.map(([id, label, icon]) => (
             <button key={id} onClick={() => go(id)} aria-current={tab === id ? 'page' : undefined}
-              className={`relative flex flex-col items-center gap-0.5 py-2 text-[11px] ${tab === id ? 'text-navy-500' : 'text-slate-500'}`}>
+              className={`relative flex flex-col items-center gap-0.5 py-2 text-[11px] ${tab === id ? 'font-semibold text-navy-900' : 'text-slate-400'}`}>
               <Icon name={icon} className="h-5 w-5" />{label}
-              {id === 'life' && pendingAcks > 0 && <span className="absolute right-3 top-1 rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white">{pendingAcks}</span>}
+              {id === 'life' && pendingAcks > 0 && <span className="absolute right-3 top-1 rounded-full bg-coral-500 px-1.5 text-[10px] font-semibold text-white">{pendingAcks}</span>}
             </button>
           ))}
         </nav>

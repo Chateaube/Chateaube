@@ -1,5 +1,6 @@
 // Données de démonstration — notes, compétences et conseil de classe (FICTIVES).
 import { CLASS_LIST } from './people.js';
+import { COMPETENCY_HISTORY } from './competencyHistory.js';
 
 export const TERM = { id: 'T1', label: '1er trimestre', council: 'jeudi 10 décembre 2026' };
 
@@ -63,8 +64,17 @@ export const REMARKS = {
   },
 };
 
-// Niveau d'une classe (« 1re STMG » → « 1re ») : la BASE proposée est commune au niveau
-export const levelOf = (cls) => cls.split(' ')[0];
+// Niveau d'une classe pour la BASE proposée : commun aux classes d'un même niveau au collège,
+// distinct par série au lycée (« 1re STMG » → « 1re STMG », « 1re Générale » → « 1re G »).
+export function levelOf(cls) {
+  const [head, ...rest] = cls.split(' ');
+  const serie = rest.join(' ');
+  if (/^(6e|5e|4e|3e)$/.test(head)) return head;
+  if (/^2/.test(head)) return '2de';
+  const lvl = head.startsWith('1') ? '1re' : 'Tle';
+  return `${lvl} ${/^g/i.test(serie) ? 'G' : serie}`;
+}
+export const historyFor = (service) => COMPETENCY_HISTORY[`${service.subject}|${levelOf(service.cls)}`] ?? [];
 export const competenciesFor = (service, settings) => settings.competencies?.[`${service.subject}|${levelOf(service.cls)}`] ?? [];
 
 // Compétences retenues par l'enseignant pour chaque classe × matière :

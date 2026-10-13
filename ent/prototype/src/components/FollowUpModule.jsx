@@ -33,7 +33,7 @@ function Authorizations() {
         </div>
       }
     >
-      <div className="-mx-4 overflow-x-auto">
+      <div className="-mx-5 overflow-x-auto">
         <table className="w-full min-w-[720px] text-sm">
           <thead><tr className="border-y border-slate-100 bg-slate-50 text-left text-xs text-slate-500"><th className="px-4 py-2 font-medium">Élève</th>{AUTHORIZATIONS.map((a) => <th key={a.id} className="px-2 font-medium">{a.label}</th>)}</tr></thead>
           <tbody>
@@ -126,7 +126,7 @@ function StagesOrientation() {
   return (
     <div className="space-y-5">
       <Card title="Stages" subtitle={`${STAGE_TYPES.map((t) => `${t.level} : ${t.duration}`).join(' · ')} — conventions signées par l'entreprise, l'établissement et le responsable légal`}>
-        <div className="-mx-4 overflow-x-auto">
+        <div className="-mx-5 overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
             <thead><tr className="border-y border-slate-100 bg-slate-50 text-left text-xs text-slate-500"><th className="px-4 py-2 font-medium">Élève</th><th className="px-2 font-medium">Stage</th><th className="px-2 font-medium">Dates</th><th className="px-2 font-medium">Convention</th></tr></thead>
             <tbody>
@@ -197,7 +197,7 @@ function Terminale() {
           </div>
         }
       >
-        <div className="-mx-4 overflow-x-auto">
+        <div className="-mx-5 overflow-x-auto">
           <table className="w-full min-w-[860px] text-sm">
             <thead><tr className="border-y border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
               <th className="px-4 py-2 font-medium">Élève</th><th className="px-2 font-medium">Nationalité</th>
@@ -231,7 +231,7 @@ export default function FollowUpModule() {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Familles · Tamatave</p>
+        <p className="text-sm font-medium text-coral-700">Familles · Tamatave</p>
         <h1 className="text-2xl font-semibold text-navy-900">Documents, stages & orientation</h1>
       </div>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

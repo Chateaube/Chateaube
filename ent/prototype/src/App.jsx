@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Icon } from './components/ui.jsx';
+import { Icon, Avatar } from './components/ui.jsx';
 import DirectionDashboard from './components/DirectionDashboard.jsx';
 import BookingModule from './components/BookingModule.jsx';
 import GradebookModule from './components/GradebookModule.jsx';
@@ -102,7 +102,16 @@ const PROFILES = {
   },
 };
 
-const STORAGE_KEY = 'ent-chateaubriand-settings-v2'; // v2 : canaux sans SMS, relance des accusés
+// Personne connectée, par profil (démonstration)
+const PERSONAS = {
+  BUREAU: { name: 'Mme Hanta', short: 'Mme Hanta', detail: 'Économat · Tamatave' },
+  VIE_SCOLAIRE: { name: 'M. Be', short: 'M. Be', detail: 'Vie scolaire · Tamatave' },
+  ENSEIGNANT: { name: 'Mme RANAIVO', short: 'Mme Ranaivo', detail: 'Management · SGN' },
+  PARENT: { name: 'Mme RAKOTOARISOA', short: 'Mme Rakotoarisoa', detail: 'Maman d\'Aina et de Toky' },
+  ELEVE: { name: 'Aina RAKOTOARISOA', short: 'Aina', detail: '1re STMG · Tamatave' },
+};
+
+const STORAGE_KEY = 'ent-chateaubriand-settings-v3'; // v3 : base de compétences issue des trimestres précédents
 
 function loadSettings() {
   try {
@@ -127,34 +136,37 @@ export default function App() {
   const Current = NAV.flatMap((g) => g.items).find((i) => i.id === screen).screen;
   const switchProfile = (p) => { setProfile(p); setScreen(PROFILES[p].home); };
 
+  const persona = profile === 'DIRECTION' ? { name: account.name, detail: account.email } : PERSONAS[profile];
+
   return (
     <div className="min-h-screen lg:flex">
-      <aside className="print:hidden border-b border-navy-700 bg-navy-900 text-navy-100 lg:sticky lg:top-0 lg:h-screen lg:w-60 lg:shrink-0 lg:overflow-y-auto lg:border-b-0">
-        <div className="flex items-center justify-between gap-2 px-4 py-4">
-          <div>
-            <p className="text-base font-semibold text-white">Chateaubriand</p>
-            <p className="text-xs text-navy-200">ENT · Tana & Tamatave</p>
+      <aside className="print:hidden border-b border-slate-200/70 bg-white/70 backdrop-blur lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:shrink-0 lg:flex-col lg:overflow-y-auto lg:border-b-0 lg:border-r">
+        <div className="flex items-center gap-3 px-5 pt-5 pb-4">
+          <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-navy-900 font-display text-xl font-semibold text-white">
+            C<span className="absolute -right-0.5 -bottom-0.5 h-3 w-3 rounded-full border-2 border-white bg-coral-500" />
+          </span>
+          <div className="min-w-0">
+            <p className="font-display text-lg leading-tight font-semibold text-navy-900">Chateaubriand</p>
+            <p className="text-xs text-slate-500">Espace numérique · Tana & Tamatave</p>
           </div>
-          <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide">Prototype</span>
         </div>
 
-        <div className="px-3 pb-3">
-          <p className="mb-1 px-1 text-[11px] text-navy-200">Voir l'ENT en tant que</p>
-          <div className="grid grid-cols-3 gap-1 rounded-lg bg-white/10 p-1 lg:grid-cols-3" role="tablist" aria-label="Profil">
+        <div className="px-4 pb-4">
+          <p className="mb-1.5 px-1 text-[11px] font-medium text-slate-400">Voir l'ENT en tant que</p>
+          <div className="flex gap-1 overflow-x-auto rounded-2xl bg-slate-100 p-1 lg:grid lg:grid-cols-3" role="tablist" aria-label="Profil">
             {Object.entries(PROFILES).map(([k, p]) => (
               <button key={k} role="tab" aria-selected={profile === k} onClick={() => switchProfile(k)}
-                className={`rounded-md px-0.5 py-1 text-[11px] font-medium ${profile === k ? 'bg-white text-navy-900' : 'text-white hover:bg-white/10'}`}>
+                className={`shrink-0 rounded-xl px-2 py-1.5 text-[11px] font-medium transition ${profile === k ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
                 {p.label}
               </button>
             ))}
           </div>
-          <p className="mt-1.5 px-1 text-[11px] text-navy-200">{PROFILES[profile].title}</p>
         </div>
 
-        <nav aria-label="Navigation principale" className="flex gap-1 overflow-x-auto px-2 pb-3 lg:block lg:space-y-4 lg:overflow-visible">
+        <nav aria-label="Navigation principale" className="flex gap-1 overflow-x-auto px-3 pb-3 lg:block lg:flex-1 lg:space-y-5 lg:overflow-visible">
           {NAV.map((g) => (
             <div key={g.group} className="contents lg:block">
-              <p className="hidden px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-navy-200/70 lg:block">{g.group}</p>
+              <p className="hidden px-3 pb-1.5 text-[11px] font-semibold text-slate-400 lg:block">{g.group}</p>
               {g.items.map((item) => {
                 const active = item.id === screen;
                 const enabled = Boolean(item.screen);
@@ -164,11 +176,13 @@ export default function App() {
                     onClick={() => enabled && setScreen(item.id)}
                     disabled={!enabled}
                     title={enabled ? undefined : 'Prévu dans l\'architecture — hors périmètre du prototype'}
-                    className={`flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-md px-2.5 py-1.5 text-sm lg:w-full
-                      ${active ? 'bg-white text-navy-900' : enabled ? 'text-white hover:bg-white/10' : 'hidden text-navy-200/50 lg:flex'}`}
+                    className={`group flex shrink-0 items-center gap-3 whitespace-nowrap rounded-xl px-3 py-2 text-sm transition lg:w-full
+                      ${active ? 'bg-navy-50 font-semibold text-navy-900' : enabled ? 'text-slate-600 hover:bg-slate-100 hover:text-slate-900' : 'hidden text-slate-300 lg:flex'}`}
                   >
-                    <Icon name={item.icon} className="h-4 w-4 shrink-0" />
+                    <Icon name={item.icon} className={`h-[18px] w-[18px] shrink-0 ${active ? 'text-navy-700' : enabled ? 'text-slate-400 group-hover:text-slate-600' : ''}`} />
                     <span className="truncate">{item.label}</span>
+                    {active && <span className="ml-auto hidden h-1.5 w-1.5 rounded-full bg-coral-500 lg:block" />}
+                    {!enabled && <span className="ml-auto text-[10px] font-normal">bientôt</span>}
                   </button>
                 );
               })}
@@ -176,27 +190,48 @@ export default function App() {
           ))}
         </nav>
 
-        {profile === 'DIRECTION' && <div className="hidden border-t border-white/10 px-4 py-3 lg:block">
-          <label className="block text-[11px] text-navy-200">
-            Compte Direction (droits identiques)
-            <select
-              value={accountId}
-              onChange={(e) => setAccountId(e.target.value)}
-              className="mt-1 w-full rounded-md border-0 bg-white/10 px-2 py-1 text-sm text-white"
-            >
-              {DIRECTION_ACCOUNTS.map((a) => <option key={a.id} value={a.id} className="text-slate-900">{a.name}</option>)}
-            </select>
-          </label>
-          <p className="mt-2 flex items-center gap-1.5 text-[11px] text-navy-200">
-            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white text-[9px] font-bold text-navy-900">G</span>
-            Connexion Google · {account.email}
+        <div className="hidden border-t border-slate-200/70 p-4 lg:block">
+          <div className="flex items-center gap-3">
+            <Avatar name={persona.name} className="h-9 w-9 text-xs" />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-slate-800">{persona.name}</p>
+              <p className="truncate text-[11px] text-slate-500">{persona.detail}</p>
+            </div>
+          </div>
+          {profile === 'DIRECTION' && (
+            <label className="mt-3 block text-[11px] text-slate-500">
+              Compte Direction (droits identiques)
+              <select value={accountId} onChange={(e) => setAccountId(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-800">
+                {DIRECTION_ACCOUNTS.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            </label>
+          )}
+          <p className="mt-3 flex items-center gap-1.5 text-[11px] text-slate-400">
+            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white text-[9px] font-bold text-navy-900 ring-1 ring-slate-200">G</span>
+            Connexion Google · prototype
           </p>
-        </div>}
+        </div>
       </aside>
 
-      <main className="mx-auto w-full max-w-[1400px] px-4 py-6 lg:px-8">
-        <Current key={`${profile}-${screen}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={setScreen} role={profile} />
-      </main>
+      <div className="min-w-0 flex-1">
+        <header className="print:hidden mx-auto flex w-full max-w-[1400px] items-center justify-between gap-3 px-4 pt-5 lg:px-10 lg:pt-7">
+          <p className="text-sm text-slate-500">
+            <span className="font-medium text-slate-700">Bonjour{persona.short ? ` ${persona.short}` : ''}</span>
+            <span className="hidden sm:inline"> · mardi 13 octobre 2026 · {PROFILES[profile].title}</span>
+          </p>
+          <div className="flex items-center gap-2">
+            <span className="hidden rounded-full bg-coral-50 px-2.5 py-1 text-[11px] font-medium text-coral-700 sm:inline">Prototype · données fictives</span>
+            <span className="relative flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-500 shadow-soft" aria-label="Notifications" role="img">
+              <Icon name="bell" className="h-[18px] w-[18px]" />
+              <span className="absolute top-2 right-2.5 h-2 w-2 rounded-full border-2 border-white bg-coral-500" />
+            </span>
+          </div>
+        </header>
+        <main className="mx-auto w-full max-w-[1400px] px-4 py-5 lg:px-10 lg:py-6">
+          <Current key={`${profile}-${screen}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={setScreen} role={profile} />
+        </main>
+      </div>
     </div>
   );
 }

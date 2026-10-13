@@ -92,11 +92,11 @@ export default function CollectPayment({ settings }) {
           <Button variant="ghost" className="!py-1 text-xs" onClick={() => setSelected([])}>Tout décocher</Button>
         </div>
 
-        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Écolage — {months.length} mois ({unpaidMonths.length} restant{unpaidMonths.length > 1 ? 's' : ''})</p>
+        <p className="mb-1.5 text-xs font-semibold text-slate-500">Écolage — {months.length} mois ({unpaidMonths.length} restant{unpaidMonths.length > 1 ? 's' : ''})</p>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {months.map((m) => <DueTile key={m.key} item={m} checked={keys.includes(m.key)} onToggle={() => toggle(m.key)} />)}
         </div>
-        <p className="mb-1.5 mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">Frais annuels et examens</p>
+        <p className="mb-1.5 mt-4 text-xs font-semibold text-slate-500">Frais annuels et examens</p>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {others.map((m) => <DueTile key={m.key} item={m} checked={keys.includes(m.key)} onToggle={() => toggle(m.key)} />)}
         </div>
