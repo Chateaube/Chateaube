@@ -347,7 +347,7 @@ export default function AccountingModule({ settings }) {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm font-medium text-coral-700">Espace comptabilité · Tamatave</p>
+          <p className="text-sm font-semibold text-navy-500">Espace comptabilité · Tamatave</p>
           <h1 className="text-2xl font-semibold text-navy-900">Comptabilité</h1>
           <p className="text-sm text-slate-500">Trois journaux étanches : écolage, frais annexes, droits d'examen.</p>
         </div>

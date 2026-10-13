@@ -70,7 +70,7 @@ export default function CouncilGrid({ settings, role }) {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm font-medium text-coral-700">Conseil de classe · Direction et Bureau uniquement</p>
+          <p className="text-sm font-semibold text-navy-500">Conseil de classe · Direction et Bureau uniquement</p>
           <h1 className="text-2xl font-semibold text-navy-900">1re STMG — {TERM.label}</h1>
           <p className="text-sm text-slate-500">Tamatave · conseil le {TERM.council} · professeure principale : Mme Ranaivo</p>
         </div>

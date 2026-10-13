@@ -15,7 +15,7 @@ export default function BureauHome({ go }) {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-medium text-coral-700">Bureau de Tamatave</p>
+        <p className="text-sm font-semibold text-navy-500">Bureau de Tamatave</p>
         <h1 className="text-2xl font-semibold text-navy-900">Administration & économat</h1>
       </div>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

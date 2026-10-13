@@ -61,8 +61,8 @@ function DunningCalendar({ settings, today }) {
             key={i}
             title={skipped ?? (active ? 'Mois de relance actif' : 'Hors cycle de relance')}
             className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold
-              ${skipped ? 'hatched text-amber-800' : active ? 'bg-white text-navy-700 ring-1 ring-navy-100' : 'bg-slate-100 text-slate-400'}
-              ${m === current ? 'outline-2 outline-offset-2 outline-coral-500' : ''}`}
+              ${skipped ? 'hatched text-amber-800 ring-1 ring-amber-300' : active ? 'bg-navy-500 text-white' : 'bg-slate-100 text-slate-400'}
+              ${m === current ? 'outline-2 outline-offset-2 outline-navy-900' : ''}`}
           >
             {l}
           </div>
@@ -121,7 +121,7 @@ export default function DirectionDashboard({ account, settings }) {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm font-medium text-coral-700">Année scolaire 2026-2027</p>
+          <p className="text-sm font-semibold text-navy-500">Année scolaire 2026-2027</p>
           <h1 className="text-2xl font-semibold text-navy-900">Tableau de bord Direction</h1>
           <p className="text-sm text-slate-500">Connectée en tant que {account.name} · droits d'administration complets</p>
         </div>
@@ -129,7 +129,7 @@ export default function DirectionDashboard({ account, settings }) {
       </div>
 
       {/* Bandeau : mois gelé (octobre) */}
-      <div className={`flex flex-col gap-3 rounded-2xl p-5 sm:flex-row sm:items-center sm:justify-between ${frozen ? 'bg-amber-50' : 'bg-navy-50'}`}>
+      <div className={`flex flex-col gap-3 rounded-2xl p-5 sm:flex-row sm:items-center sm:justify-between ${frozen ? 'border border-amber-200 bg-amber-50' : 'border border-navy-100 bg-navy-50'}`}>
         <div className="flex gap-3">
           <Icon name="clock" className={`mt-0.5 h-5 w-5 shrink-0 ${frozen ? 'text-amber-700' : 'text-navy-500'}`} />
           {frozen ? (
@@ -187,9 +187,9 @@ export default function DirectionDashboard({ account, settings }) {
             {stages.map((s, i) => {
               const keys = s.key === 'MISE_A_PIED' ? ['A_VALIDER', 'MISE_A_PIED'] : [s.key];
               const n = visibleCases.filter((c) => keys.includes(c.stage)).length;
-              const tone = ['bg-navy-50', 'bg-amber-50', 'bg-red-50'][i];
+              const tone = ['border-navy-200 bg-navy-50', 'border-amber-200 bg-amber-50', 'border-red-200 bg-red-50'][i];
               return (
-                <li key={s.key} className={`rounded-xl p-3 ${tone}`}>
+                <li key={s.key} className={`rounded-xl border p-3 ${tone}`}>
                   <p className="text-xs font-medium text-slate-600">{i + 1}. {s.label}</p>
                   <p className="font-display text-2xl font-semibold tabular-nums text-slate-900">{n}</p>
                   <p className="text-[11px] text-slate-500">{s.delay}</p>

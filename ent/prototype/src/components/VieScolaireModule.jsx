@@ -239,7 +239,7 @@ export default function VieScolaireModule({ settings, role = 'VIE_SCOLAIRE' }) {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-medium text-coral-700">Tamatave</p>
+        <p className="text-sm font-semibold text-navy-500">Tamatave</p>
         <h1 className="text-2xl font-semibold text-navy-900">{role === 'ENSEIGNANT' ? 'Punitions & téléphones' : 'Vie scolaire'}</h1>
       </div>
       {role !== 'ENSEIGNANT' && <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

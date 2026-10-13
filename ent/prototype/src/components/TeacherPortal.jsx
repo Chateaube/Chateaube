@@ -46,7 +46,7 @@ export default function TeacherPortal({ go }) {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-medium text-coral-700">Portail enseignant</p>
+        <p className="text-sm font-semibold text-navy-500">Portail enseignant</p>
         <h1 className="text-2xl font-semibold text-navy-900">Bonjour {TEACHER.name}</h1>
         <p className="text-sm text-slate-500">{TEACHER.subjects} · {TEACHER.site}</p>
       </div>

@@ -443,7 +443,7 @@ export default function GradebookModule({ settings }) {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-medium text-coral-700">{TERM.label} · conseil de classe le {TERM.council}</p>
+        <p className="text-sm font-semibold text-navy-500">{TERM.label} · conseil de classe le {TERM.council}</p>
         <h1 className="text-2xl font-semibold text-navy-900">Notes & appréciations</h1>
       </div>
       <div className="flex gap-2 overflow-x-auto pb-1">

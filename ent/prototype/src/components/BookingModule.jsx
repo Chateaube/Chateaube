@@ -123,7 +123,7 @@ export default function BookingModule() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm font-medium text-coral-700">Ressources pédagogiques</p>
+          <p className="text-sm font-semibold text-navy-500">Ressources pédagogiques</p>
           <h1 className="text-2xl font-semibold text-navy-900">Réservation de matériel</h1>
           <p className="text-sm text-slate-500">Vidéoprojecteurs, enceintes, TV, salles spécialisées et matériel informatique — par site.</p>
         </div>

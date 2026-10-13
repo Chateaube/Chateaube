@@ -22,7 +22,7 @@ const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 const longDate = (iso) => formatDateFr(iso).replace(/^\S+ /, '');           // « 20 janvier 2027 »
 const shortDate = (iso) => cap(formatDateFr(iso).replace(/ \d{4}$/, ''));    // « Mardi 13 octobre »
 // Une couleur douce et stable par matière : repère visuel d'un écran à l'autre
-const SUBJECT_COLORS = ['#e0714f', '#5b8f62', '#2f5b94', '#d6a23a', '#8a6bb8', '#3f9a9a', '#c4607e'];
+const SUBJECT_COLORS = ['#f97316', '#10b981', '#005baa', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899'];
 const subjectColor = (name) => SUBJECT_COLORS[[...name].reduce((a, c) => a + c.charCodeAt(0), 0) % SUBJECT_COLORS.length];
 const MEASURE = Object.fromEntries(MEASURES.map((m) => [m.id, m]));
 const fullName = (child) => `RAKOTOARISOA ${child.name}`;
@@ -426,7 +426,7 @@ export default function FamilyPortal({ settings, audience = 'PARENT' }) {
             <button key={id} onClick={() => go(id)} aria-current={tab === id ? 'page' : undefined}
               className={`relative flex flex-col items-center gap-0.5 py-2 text-[11px] ${tab === id ? 'font-semibold text-navy-900' : 'text-slate-400'}`}>
               <Icon name={icon} className="h-5 w-5" />{label}
-              {id === 'life' && pendingAcks > 0 && <span className="absolute right-3 top-1 rounded-full bg-coral-500 px-1.5 text-[10px] font-semibold text-white">{pendingAcks}</span>}
+              {id === 'life' && pendingAcks > 0 && <span className="absolute right-3 top-1 rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white">{pendingAcks}</span>}
             </button>
           ))}
         </nav>

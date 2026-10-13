@@ -23,7 +23,7 @@ Ouvrir `prototype/dist/index.html` dans un navigateur : un seul fichier, sans se
 et la date de référence est fixée au 13 octobre 2026 (relances d'écolage suspendues, campagne des candidats libres en cours).
 
 Le sélecteur **« Voir l'ENT en tant que »** (en haut du menu) bascule entre les six portails. La charte visuelle
-« Papier & encre » (fond ivoire, bleu d'encre, accent corail, titres Fraunces) est décrite dans
+(bleu de l'établissement, couleurs d'état franches, titres Fraunces, cartes arrondies) est décrite dans
 [`docs/02-architecture-ux.md`](docs/02-architecture-ux.md#21-principes-de-conception).
 
 **Direction (administrateur)** : tableau de bord (changer la *date de référence* au 10/11/2026 pour voir des mises à

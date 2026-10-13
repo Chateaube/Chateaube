@@ -18,28 +18,29 @@ export function Card({ title, subtitle, action, children, className = '' }) {
 }
 
 const TONES = {
-  slate: 'bg-slate-100 text-slate-600',
-  navy: 'bg-navy-50 text-navy-700',
-  green: 'bg-sage-50 text-sage-700',
-  amber: 'bg-amber-50 text-amber-800',
-  red: 'bg-coral-50 text-coral-700',
-  violet: 'bg-violet-50 text-violet-700',
+  slate: 'bg-slate-100 text-slate-700 ring-slate-200',
+  navy: 'bg-navy-50 text-navy-700 ring-navy-100',
+  green: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  amber: 'bg-amber-50 text-amber-800 ring-amber-200',
+  red: 'bg-red-50 text-red-700 ring-red-200',
+  violet: 'bg-violet-50 text-violet-700 ring-violet-200',
 };
 
 export function Badge({ tone = 'slate', children, className = '' }) {
   return (
-    <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${TONES[tone]} ${className}`}>
+    <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${TONES[tone]} ${className}`}>
       {children}
     </span>
   );
 }
 
 export function Stat({ label, value, hint, tone = 'slate' }) {
-  const color = { slate: 'text-slate-900', green: 'text-sage-700', amber: 'text-amber-700', red: 'text-coral-700' }[tone];
-  const dot = { slate: 'bg-slate-300', green: 'bg-sage-500', amber: 'bg-amber-400', red: 'bg-coral-500' }[tone];
+  const color = { slate: 'text-navy-900', green: 'text-emerald-700', amber: 'text-amber-700', red: 'text-red-700' }[tone];
+  const bar = { slate: 'bg-navy-500', green: 'bg-emerald-500', amber: 'bg-amber-500', red: 'bg-red-500' }[tone];
   return (
-    <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-soft">
-      <p className="flex items-center gap-2 text-xs font-medium text-slate-500"><span className={`h-1.5 w-1.5 rounded-full ${dot}`} />{label}</p>
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200/70 bg-white p-4 pl-5 shadow-soft">
+      <span className={`absolute inset-y-0 left-0 w-1.5 ${bar}`} />
+      <p className="text-xs font-medium text-slate-500">{label}</p>
       <p className={`mt-1.5 font-display text-2xl font-semibold tabular-nums tracking-tight ${color}`}>{value}</p>
       {hint && <p className="mt-0.5 text-xs text-slate-500">{hint}</p>}
     </div>
@@ -47,7 +48,7 @@ export function Stat({ label, value, hint, tone = 'slate' }) {
 }
 
 export function Progress({ value, tone = 'navy' }) {
-  const bar = { navy: 'bg-navy-500', green: 'bg-sage-500', amber: 'bg-amber-400', red: 'bg-coral-500' }[tone];
+  const bar = { navy: 'bg-navy-500', green: 'bg-emerald-500', amber: 'bg-amber-500', red: 'bg-red-500' }[tone];
   return (
     <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-valuenow={Math.round(value)} aria-valuemin={0} aria-valuemax={100}>
       <div className={`h-full rounded-full ${bar} transition-[width] duration-500`} style={{ width: `${Math.min(100, value)}%` }} />
@@ -57,9 +58,9 @@ export function Progress({ value, tone = 'navy' }) {
 
 export function Button({ variant = 'primary', className = '', ...props }) {
   const styles = {
-    primary: 'bg-navy-900 text-white shadow-sm hover:bg-navy-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none',
+    primary: 'bg-navy-500 text-white shadow-sm hover:bg-navy-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none',
     secondary: 'bg-white text-slate-700 ring-1 ring-inset ring-slate-200 hover:bg-slate-50 hover:ring-slate-300 disabled:text-slate-400',
-    danger: 'bg-coral-700 text-white shadow-sm hover:bg-coral-500 disabled:bg-slate-200 disabled:text-slate-400',
+    danger: 'bg-red-600 text-white shadow-sm hover:bg-red-700 disabled:bg-slate-200 disabled:text-slate-400',
     ghost: 'text-navy-700 hover:bg-navy-50',
   }[variant];
   return (
@@ -72,7 +73,7 @@ export function Button({ variant = 'primary', className = '', ...props }) {
 }
 
 // Pastille d'initiales, couleur stable par personne (plus humain qu'une liste de noms)
-const AVATAR_TONES = ['bg-coral-100 text-coral-700', 'bg-sage-100 text-sage-700', 'bg-navy-100 text-navy-700', 'bg-amber-100 text-amber-800', 'bg-violet-100 text-violet-700'];
+const AVATAR_TONES = ['bg-orange-100 text-orange-700', 'bg-emerald-100 text-emerald-700', 'bg-sky-100 text-sky-700', 'bg-amber-100 text-amber-800', 'bg-violet-100 text-violet-700'];
 export function Avatar({ name, className = 'h-8 w-8 text-xs' }) {
   const words = String(name).replace(/^(M\.|Mme|Mr)\s+/, '').split(/[\s-]+/).filter(Boolean);
   const initials = (words.length > 1 ? words[0][0] + words[words.length - 1][0] : (words[0] ?? '?').slice(0, 2)).toUpperCase();

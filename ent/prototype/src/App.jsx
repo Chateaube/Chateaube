@@ -140,23 +140,23 @@ export default function App() {
 
   return (
     <div className="min-h-screen lg:flex">
-      <aside className="print:hidden border-b border-slate-200/70 bg-white/70 backdrop-blur lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:shrink-0 lg:flex-col lg:overflow-y-auto lg:border-b-0 lg:border-r">
+      <aside className="print:hidden border-b border-navy-700 bg-navy-900 text-navy-100 lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:shrink-0 lg:flex-col lg:overflow-y-auto lg:border-b-0">
         <div className="flex items-center gap-3 px-5 pt-5 pb-4">
-          <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-navy-900 font-display text-xl font-semibold text-white">
-            C<span className="absolute -right-0.5 -bottom-0.5 h-3 w-3 rounded-full border-2 border-white bg-coral-500" />
+          <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white font-display text-xl font-semibold text-navy-900">
+            C<span className="absolute -right-0.5 -bottom-0.5 h-3 w-3 rounded-full border-2 border-navy-900 bg-orange-400" />
           </span>
           <div className="min-w-0">
-            <p className="font-display text-lg leading-tight font-semibold text-navy-900">Chateaubriand</p>
-            <p className="text-xs text-slate-500">Espace numérique · Tana & Tamatave</p>
+            <p className="font-display text-lg leading-tight font-semibold text-white">Chateaubriand</p>
+            <p className="text-xs text-navy-200">Espace numérique · Tana & Tamatave</p>
           </div>
         </div>
 
         <div className="px-4 pb-4">
-          <p className="mb-1.5 px-1 text-[11px] font-medium text-slate-400">Voir l'ENT en tant que</p>
-          <div className="flex gap-1 overflow-x-auto rounded-2xl bg-slate-100 p-1 lg:grid lg:grid-cols-3" role="tablist" aria-label="Profil">
+          <p className="mb-1.5 px-1 text-[11px] font-medium text-navy-200">Voir l'ENT en tant que</p>
+          <div className="flex gap-1 overflow-x-auto rounded-2xl bg-white/10 p-1 lg:grid lg:grid-cols-3" role="tablist" aria-label="Profil">
             {Object.entries(PROFILES).map(([k, p]) => (
               <button key={k} role="tab" aria-selected={profile === k} onClick={() => switchProfile(k)}
-                className={`shrink-0 rounded-xl px-2 py-1.5 text-[11px] font-medium transition ${profile === k ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
+                className={`shrink-0 rounded-xl px-2 py-1.5 text-[11px] font-medium transition ${profile === k ? 'bg-white text-navy-900 shadow-sm' : 'text-white hover:bg-white/10'}`}>
                 {p.label}
               </button>
             ))}
@@ -166,7 +166,7 @@ export default function App() {
         <nav aria-label="Navigation principale" className="flex gap-1 overflow-x-auto px-3 pb-3 lg:block lg:flex-1 lg:space-y-5 lg:overflow-visible">
           {NAV.map((g) => (
             <div key={g.group} className="contents lg:block">
-              <p className="hidden px-3 pb-1.5 text-[11px] font-semibold text-slate-400 lg:block">{g.group}</p>
+              <p className="hidden px-3 pb-1.5 text-[11px] font-semibold text-navy-200/80 lg:block">{g.group}</p>
               {g.items.map((item) => {
                 const active = item.id === screen;
                 const enabled = Boolean(item.screen);
@@ -177,11 +177,11 @@ export default function App() {
                     disabled={!enabled}
                     title={enabled ? undefined : 'Prévu dans l\'architecture — hors périmètre du prototype'}
                     className={`group flex shrink-0 items-center gap-3 whitespace-nowrap rounded-xl px-3 py-2 text-sm transition lg:w-full
-                      ${active ? 'bg-navy-50 font-semibold text-navy-900' : enabled ? 'text-slate-600 hover:bg-slate-100 hover:text-slate-900' : 'hidden text-slate-300 lg:flex'}`}
+                      ${active ? 'bg-white font-semibold text-navy-900 shadow-sm' : enabled ? 'text-white hover:bg-white/10' : 'hidden text-navy-200/50 lg:flex'}`}
                   >
-                    <Icon name={item.icon} className={`h-[18px] w-[18px] shrink-0 ${active ? 'text-navy-700' : enabled ? 'text-slate-400 group-hover:text-slate-600' : ''}`} />
+                    <Icon name={item.icon} className={`h-[18px] w-[18px] shrink-0 ${active ? 'text-navy-500' : enabled ? 'text-navy-200 group-hover:text-white' : ''}`} />
                     <span className="truncate">{item.label}</span>
-                    {active && <span className="ml-auto hidden h-1.5 w-1.5 rounded-full bg-coral-500 lg:block" />}
+                    {active && <span className="ml-auto hidden h-1.5 w-1.5 rounded-full bg-orange-400 lg:block" />}
                     {!enabled && <span className="ml-auto text-[10px] font-normal">bientôt</span>}
                   </button>
                 );
@@ -190,24 +190,24 @@ export default function App() {
           ))}
         </nav>
 
-        <div className="hidden border-t border-slate-200/70 p-4 lg:block">
+        <div className="hidden border-t border-white/10 p-4 lg:block">
           <div className="flex items-center gap-3">
             <Avatar name={persona.name} className="h-9 w-9 text-xs" />
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-slate-800">{persona.name}</p>
-              <p className="truncate text-[11px] text-slate-500">{persona.detail}</p>
+              <p className="truncate text-sm font-semibold text-white">{persona.name}</p>
+              <p className="truncate text-[11px] text-navy-200">{persona.detail}</p>
             </div>
           </div>
           {profile === 'DIRECTION' && (
-            <label className="mt-3 block text-[11px] text-slate-500">
+            <label className="mt-3 block text-[11px] text-navy-200">
               Compte Direction (droits identiques)
               <select value={accountId} onChange={(e) => setAccountId(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-800">
-                {DIRECTION_ACCOUNTS.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                className="mt-1 w-full rounded-xl border-0 bg-white/10 px-2.5 py-1.5 text-sm text-white">
+                {DIRECTION_ACCOUNTS.map((a) => <option key={a.id} value={a.id} className="text-slate-900">{a.name}</option>)}
               </select>
             </label>
           )}
-          <p className="mt-3 flex items-center gap-1.5 text-[11px] text-slate-400">
+          <p className="mt-3 flex items-center gap-1.5 text-[11px] text-navy-200">
             <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white text-[9px] font-bold text-navy-900 ring-1 ring-slate-200">G</span>
             Connexion Google · prototype
           </p>
@@ -221,10 +221,10 @@ export default function App() {
             <span className="hidden sm:inline"> · mardi 13 octobre 2026 · {PROFILES[profile].title}</span>
           </p>
           <div className="flex items-center gap-2">
-            <span className="hidden rounded-full bg-coral-50 px-2.5 py-1 text-[11px] font-medium text-coral-700 sm:inline">Prototype · données fictives</span>
+            <span className="hidden rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-medium text-amber-800 sm:inline">Prototype · données fictives</span>
             <span className="relative flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-500 shadow-soft" aria-label="Notifications" role="img">
               <Icon name="bell" className="h-[18px] w-[18px]" />
-              <span className="absolute top-2 right-2.5 h-2 w-2 rounded-full border-2 border-white bg-coral-500" />
+              <span className="absolute top-2 right-2.5 h-2 w-2 rounded-full border-2 border-white bg-red-500" />
             </span>
           </div>
         </header>
