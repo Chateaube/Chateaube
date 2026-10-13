@@ -29,18 +29,41 @@
 | Tâches | pg-boss (file d'attente dans PostgreSQL) | Pas d'infrastructure supplémentaire |
 | Hébergement | Une instance managée (VPS ou cloud) + sauvegardes quotidiennes chiffrées hors site | Taille de l'établissement (environ 600 élèves) : une seule application suffit, inutile de multiplier les services |
 
-## 3.2 Authentification & autorisations
+## 3.2 Tana et Tamatave : une plateforme, deux espaces cloisonnés
+
+**Question posée :** faut-il séparer les deux sites dès la conception, pour que chacun ait ses propres archives ?
+
+**Recommandation : une seule application et une seule base, mais un cloisonnement strict par site.** Ce n'est pas deux
+applications.
+
+| Option | Avantages | Inconvénients |
+|---|---|---|
+| Deux applications séparées | Isolation totale | Le transfert d'avril des 1re/Tle devient une **ressaisie** (notes, factures, historique perdus ou recopiés) ; deux mises à jour, deux sauvegardes, deux comptes pour la Direction ; pas de vision consolidée |
+| **Une application, données cloisonnées par site (recommandé)** | Transfert d'avril sans perte (T6) ; la Direction voit les deux sites ; une seule maintenance ; chaque site garde **ses** paramètres (tarifs, calendrier, relances) | Exige un filtrage rigoureux par site, ce que le modèle prévoit déjà |
+
+Concrètement :
+- **Chaque donnée porte son site** (classe, caisse, ressource, paramètres, agents). Un utilisateur du Bureau ou de la
+  Vie scolaire de Tamatave ne voit que Tamatave. Seule la Direction voit les deux sites.
+- **Cloisonnement en base** avec la *Row-Level Security* de PostgreSQL : même en cas de bug applicatif, une requête de
+  Tamatave ne peut pas lire Tana.
+- **Archives par site et par année** : à la clôture d'une année, chaque site produit son archive (bulletins PDF,
+  grand livre, états de compte, registre des agents), en lecture seule et exportable.
+- **Numérotation propre à chaque site** des reçus (`ECO-TMV-00413`, `ECO-TANA-…`) et des caisses.
+- **Démarrage par Tamatave** : Tana existe dans le modèle mais reste désactivé tant que ses paramètres ne sont pas saisis.
+
+## 3.3 Authentification & autorisations
 
 - **Personnel (Direction, professeurs, vie scolaire, comptabilité)** : *Se connecter avec Google* (OpenID Connect).
   À la première connexion, l'adresse doit figurer dans `sso_allowlist` ; le `sub` Google est alors lié au compte. Les
   adresses Gmail personnelles ne permettent pas de restreindre l'accès par domaine, d'où cette liste blanche. Si
   l'établissement adopte un jour Google Workspace, on ajoutera un contrôle du paramètre `hd` (domaine).
 - **Parents / élèves** : lien magique par e-mail ou code par SMS (beaucoup n'ont pas de compte Google), session longue sur mobile.
-- **RBAC** : `role_permission` × périmètre de site (`user_role.site_id`). Les deux comptes Direction ont le même rôle
-  sans restriction de site, donc des droits strictement identiques. Aucune exception individuelle n'est possible.
+- **RBAC** : `role_permission` × périmètre de site (`user_role.site_id`). Rôles : Direction (administrateur, tous
+  sites), Bureau (administration / économat + vie scolaire), Vie scolaire, Enseignant, Parent, Élève. Les deux comptes
+  Direction ont le même rôle, donc des droits strictement identiques. Aucune exception individuelle n'est possible.
 - **Filtrage par site** côté API (et en option *Row-Level Security* PostgreSQL) via `v_current_site`.
 
-## 3.3 Tâches planifiées
+## 3.4 Tâches planifiées
 
 | Tâche | Fréquence | Règle |
 |---|---|---|
@@ -51,7 +74,7 @@
 | Rappel des pièces manquantes (candidats libres) | hebdomadaire en octobre | notification `DOCUMENT_MANQUANT` |
 | Ouverture de la fenêtre Campus France | 1er juillet | bandeau Direction, export activé jusqu'à `closes_on` |
 
-## 3.4 Assistant IA de rédaction
+## 3.5 Assistant IA de rédaction
 
 1. Le professeur clique sur « Proposer ». L'API (jamais le navigateur) envoie au LLM le **prompt système** de l'établissement
    (`SYSTEM_PROMPT` dans `prototype/src/rules/assistant.js`) et des **données minimales** : prénom, matière, moyenne,
@@ -64,21 +87,21 @@
 
 Le contrôleur est la vraie garantie : il s'applique aussi aux textes écrits entièrement à la main.
 
-## 3.5 Notifications
+## 3.6 Notifications
 
 - Canal préféré par responsable (`guardian.preferred_channel`). **SMS** par défaut pour les relances et les retards (bonne
   couverture à Madagascar), e-mail pour les documents, push pour les annonces.
 - Chaque envoi est tracé par canal (`notification_delivery`) avec un nouvel essai automatique ; un échec SMS bascule sur l'e-mail.
 - Les annonces ciblées sont calculées à l'envoi à partir de `announcement_audience` (OU entre lignes, ET dans une ligne).
 
-## 3.6 Sécurité & conformité
+## 3.7 Sécurité & conformité
 
 - Chiffrement en transit (TLS) et au repos (sauvegardes, pièces d'identité des dossiers d'examen).
 - Journal d'audit sur les actions sensibles ; conservation des données limitée et documentée (données de mineurs).
 - Les données personnelles envoyées au fournisseur d'IA sont réduites au strict minimum, sans conservation chez le fournisseur.
 - Sauvegardes quotidiennes avec test de restauration trimestriel.
 
-## 3.7 Feuille de route proposée
+## 3.8 Feuille de route proposée
 
 | Lot | Contenu | Échéance indicative |
 |---|---|---|

@@ -8,7 +8,7 @@ Avant de développer, on valide **un profil à la fois** avec les personnes conc
 3. **Lister** ce qui manque et ce qui est inutile.
 4. **Valider** la fiche. Le développement de ce profil ne commence qu'ensuite.
 
-Ordre conseillé : Direction → Administration/Comptabilité → Enseignants → Vie scolaire → Parents → Élèves. Les choix de
+Ordre conseillé : Direction → Bureau (administration / économat) → Enseignants → Vie scolaire → Parents → Élèves. Les choix de
 Direction et de Comptabilité conditionnent les autres profils (tarifs, relances, droits).
 
 ---
@@ -25,7 +25,7 @@ Direction et de Comptabilité conditionnent les autres profils (tarifs, relances
 | A5 | Le calendrier officiel des vacances de Tamatave 2026-2027 | à fournir |
 | A6 | Faut-il un journal des actions (qui a validé quoi, et quand) consultable à l'écran ? | oui |
 
-## B. Administration & Comptabilité (secrétaire-comptable, caisse)
+## B. Bureau : administration / économat (caisse, inscriptions)
 **Écrans à parcourir :** Comptabilité (Classes & tarifs, Articles & services, États de compte, Caisse).
 
 | # | Question | Réponse provisoire |
@@ -34,7 +34,7 @@ Direction et de Comptabilité conditionnent les autres profils (tarifs, relances
 | B2 | Inscription, réinscription, fascicule, location, articles : journal « Frais annexes » séparé de l'écolage ? | oui |
 | B3 | Liste définitive des articles et services (manuels, passeport de vie scolaire, natation, tee-shirt, autres) et leurs prix | à compléter |
 | B4 | Remises : fratrie, enfant du personnel, bourse ? Comment les afficher sur l'état de compte ? | non traité |
-| B5 | Modes de paiement acceptés et format du reçu (numérotation, mentions obligatoires) | espèces, mobile money, virement, chèque |
+| B5 | Modes de paiement acceptés et format du reçu (numérotation, mentions obligatoires) | **décidé** : espèces, chèque (n° + banque), virement (n° de bordereau + banque) ; pas de mobile money |
 | B6 | Dépenses de caisse : quelles catégories ? quel plafond sans accord de la Direction ? | non traité |
 | B7 | Reversement des droits d'examen : à quelle date, par quel moyen, et avec quelle pièce justificative ? | non traité |
 | B8 | Exports nécessaires (Excel, logiciel comptable, banque) | non traité |
@@ -65,7 +65,7 @@ Direction et de Comptabilité conditionnent les autres profils (tarifs, relances
 |---|---|---|
 | E1 | Les parents ont-ils un smartphone et une adresse e-mail ? (sinon, SMS uniquement) | SMS par défaut |
 | E2 | Que voir : notes au fil de l'eau, ou seulement les bulletins ? | notes + bulletins |
-| E3 | Paiement en ligne par mobile money dès le départ, ou seulement l'affichage du solde ? | affichage + reçu |
+| E3 | Que voit le parent de ses paiements ? | **décidé** : solde, historique et reçus ; pas de paiement en ligne |
 | E4 | Langue : français uniquement, ou aussi malgache pour les notifications ? | français |
 | E5 | Plusieurs responsables par enfant (parents séparés) : qui reçoit les relances ? | le payeur désigné |
 
@@ -73,3 +73,38 @@ Direction et de Comptabilité conditionnent les autres profils (tarifs, relances
 
 **Livrable de chaque atelier :** la fiche ci-dessus remplie. Les réponses sont reportées dans les paramètres (sans code) ou
 dans le cahier des charges du lot de développement correspondant.
+
+---
+
+## Décisions du 13 octobre et nouvelles questions
+
+**Décidé :**
+- Encaissement : sélectionner l'élève, puis cocher les mois et frais à régler (les échéances échues sont proposées, les
+  mois payés sont grisés).
+- Le compte d'un nouvel élève commence au mois de son arrivée.
+- Notes : type, barème et coefficient choisis par l'enseignant ; au moins 4 notes par trimestre pour valider.
+- Compétences définies par classe et matière, avec une copie proposée entre classes du même niveau.
+- Grille du conseil réservée à la Direction et au Bureau ; moyenne générale hors Arts plastiques, Musique et Vie de classe.
+- Avis des enseignants pour le conseil, non imprimés sur le bulletin.
+- Portails séparés : Direction (administrateur), Bureau (avec accès à la vie scolaire), Vie scolaire, Enseignant, Parent.
+- Une seule plateforme pour Tana et Tamatave, données cloisonnées par site (voir `03-architecture-technique.md` §3.2).
+
+| # | Question | Proposition |
+|---|---|---|
+| N1 | Chèque rejeté par la banque : que se passe-t-il (frais, relance immédiate, interdiction du chèque) ? | relance immédiate + paiement suivant en espèces ou virement |
+| N2 | Paiement partiel d'un mois (ex. la moitié d'octobre) : autorisé ? | autorisé, le reste reste « échu » |
+| N3 | Nouvel élève arrivé après le 15 : mois d'arrivée complet ou au prorata ? | mois complet |
+| N4 | Nouvel élève en cours d'année : fascicule et location des manuels au plein tarif ? | plein tarif |
+| N5 | Annulation d'un reçu : qui peut le faire ? | Direction uniquement, avec motif (contre-passation, jamais de suppression) |
+| N6 | Clôture de caisse chaque soir (contrôle des espèces) et bordereau de remise des chèques en banque ? | oui |
+| N7 | Minimum de 4 notes : aussi pour les matières à faible horaire (EPS, Arts, Musique) ? | oui, réglable par matière si besoin |
+| N8 | Élève absent à plusieurs évaluations : devoir de rattrapage, ou signalement seulement ? | signalement au conseil (actuel) |
+| N9 | Coefficients des matières dans la moyenne générale : tous à 1, ou selon la filière (spécialités STMG) ? | tous à 1 |
+| N10 | Mentions du conseil : félicitations ≥ 16, compliments ≥ 14, encouragements selon l'avis des enseignants ? | oui (réglable) |
+| N11 | Afficher le rang des élèves dans la grille ? sur le bulletin ? | grille seulement, désactivé par défaut |
+| N12 | Collège : faut-il le socle commun officiel (8 composantes, 4 niveaux) en plus des compétences libres, pour le DNB ? | oui en 3e |
+| N13 | Le professeur principal peut-il voir la grille de **sa** classe pour rédiger l'appréciation générale ? | lecture seule de sa classe |
+| N14 | Qui rédige l'appréciation générale du bulletin : professeur principal ou Direction ? | professeur principal, validée par la Direction |
+| N15 | Les parents voient-ils les notes au fil de l'eau, ou seulement après validation du trimestre ? | au fil de l'eau |
+| N16 | Le Bureau gère-t-il aussi le registre des agents (contrats, entrées / sorties) ? | Direction seule pour l'instant |
+| N17 | Combien de personnes au Bureau, et faut-il distinguer la caisse de l'économat (droits différents) ? | à préciser |

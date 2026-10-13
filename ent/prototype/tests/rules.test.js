@@ -234,3 +234,106 @@ test('caisse : entrées et sorties par journal', () => {
   assert.equal(b.DROITS_EXAMEN, 950_000);
   assert.equal(b.FRAIS_ANNEXES, 110_000);
 });
+
+// --- Encaissement ---------------------------------------------------------------
+import { studentDues, defaultSelection, validateInstrument, buildReceipts } from '../src/rules/billing.js';
+import { STUDENT_ACCOUNTS } from '../src/data/accounting.js';
+
+const feesOf = (cls) => CLASS_FEES.find((r) => r.cls === cls);
+
+test('encaissement : septembre payé, octobre proposé d\'office', () => {
+  const toky = STUDENT_ACCOUNTS.find((s) => s.id === 'e2');
+  const items = studentDues(toky, feesOf('5e'), DEFAULT_SETTINGS, '2026-10-13');
+  assert.equal(items.find((i) => i.key === 'ECO-09').status, 'PAYE');
+  assert.equal(items.find((i) => i.key === 'ECO-10').status, 'ECHU');
+  assert.equal(items.find((i) => i.key === 'ECO-11').status, 'A_ECHOIR');
+  assert.deepEqual(defaultSelection(items), ['ECO-10']);
+  assert.equal(items.filter((i) => i.journal === 'ECOLAGE').length, 10);
+});
+
+test('nouvel élève en octobre : le compte commence en octobre', () => {
+  const fy = STUDENT_ACCOUNTS.find((s) => s.id === 'e4');
+  const items = studentDues(fy, feesOf('4e'), DEFAULT_SETTINGS, '2026-10-13');
+  const months = items.filter((i) => i.journal === 'ECOLAGE');
+  assert.equal(months[0].key, 'ECO-10');
+  assert.equal(months.length, 9);                       // octobre → juin
+  assert.ok(items.some((i) => i.key === 'INSCRIPTION')); // inscription, pas réinscription
+  assert.equal(months[0].due, '2026-10-12');            // dû à la date d'arrivée, pas le 5
+  assert.deepEqual(defaultSelection(items), ['INSCRIPTION', 'FASCICULE', 'LOCATION', 'ECO-10']);
+});
+
+test('Terminale : 9 mois, droits d\'examen dans un journal séparé', () => {
+  const mamy = STUDENT_ACCOUNTS.find((s) => s.id === 'e3');
+  const items = studentDues(mamy, feesOf('Terminale Générale'), DEFAULT_SETTINGS, '2026-10-13');
+  assert.equal(items.filter((i) => i.journal === 'ECOLAGE').at(-1).key, 'ECO-05');
+  assert.equal(items.find((i) => i.key === 'EXAMEN').status, 'PAYE');
+});
+
+test('moyens de paiement : espèces, chèque, virement uniquement', () => {
+  assert.deepEqual(validateInstrument({ method: 'ESPECES' }), []);
+  assert.equal(validateInstrument({ method: 'CHEQUE', ref: '', bank: '' }).length, 2);
+  assert.ok(validateInstrument({ method: 'CHEQUE', ref: '12AB', bank: 'BNI Madagascar' })[0].includes('6 à 10 chiffres'));
+  assert.deepEqual(validateInstrument({ method: 'VIREMENT', ref: 'BRD-55120', bank: 'BOA Madagascar' }), []);
+  assert.equal(validateInstrument({ method: 'MVOLA' }).length, 1);
+});
+
+test('un reçu par journal', () => {
+  const fy = STUDENT_ACCOUNTS.find((s) => s.id === 'e4');
+  const items = studentDues(fy, feesOf('4e'), DEFAULT_SETTINGS, '2026-10-13');
+  let n = 100;
+  const receipts = buildReceipts(items, ['INSCRIPTION', 'FASCICULE', 'ECO-10', 'ECO-11'], { method: 'CHEQUE', ref: '4410275', bank: 'BNI Madagascar' }, () => n++);
+  assert.deepEqual(receipts.map((r) => [r.journal, r.total]), [['FRAIS_ANNEXES', 315_000], ['ECOLAGE', 700_000]]);
+  assert.ok(receipts.every((r) => r.ref === '4410275'));
+});
+
+// --- Notes et conseil de classe -------------------------------------------------
+import { studentAverage, termValidation, generalAverage, classStats, copySuggestions, notesCount } from '../src/rules/grading.js';
+import { SERVICES, EVALUATIONS, GRADES, COMPETENCIES, CLASS_SUBJECTS } from '../src/data/grades.js';
+
+test('moyenne pondérée ramenée sur 20 (barème /10, coefficient 2)', () => {
+  // Aina : DS 16/20 ×2, interro 9/10 → 18/20, oral 17, exposé 16 → (32+18+17+16)/5 = 16,6
+  assert.equal(studentAverage(EVALUATIONS.s1, GRADES.s1['RAKOTOARISOA Aina']), 16.6);
+  // Tsiry : ABS non compté → (18+10+12)/4 = 10
+  assert.equal(studentAverage(EVALUATIONS.s1, GRADES.s1['RAJAONARIVELO Tsiry']), 10);
+  assert.equal(studentAverage([], {}), null);
+});
+
+test('trimestre : 4 évaluations minimum et aucune saisie à corriger', () => {
+  const s1 = termValidation(EVALUATIONS.s1, SERVICES[0].students, GRADES.s1, 4);
+  assert.equal(s1.missing, 0);
+  assert.equal(s1.ok, false);                                   // « 1O » de Fanja à confirmer
+  assert.deepEqual(s1.pending.map((p) => p.student), ['RAHARISON Fanja']);
+  assert.deepEqual(s1.below, ['RAHARISON Fanja', 'RAJAONARIVELO Tsiry', 'RAMAROSON Fitia']);
+  const fixed = { ...GRADES.s1, 'RAHARISON Fanja': { ...GRADES.s1['RAHARISON Fanja'], v3: '10' } };
+  assert.equal(termValidation(EVALUATIONS.s1, SERVICES[0].students, fixed, 4).ok, true);
+  const tle = termValidation(EVALUATIONS.s2, SERVICES[1].students, GRADES.s2, 4);
+  assert.equal(tle.missing, 1);
+  assert.deepEqual(tle.below, []);                              // pas de faux signalement « absences »
+  const withEmpty = termValidation([...EVALUATIONS.s2, { id: 'w4', title: 'Exposé', scale: 20, coef: 1 }], SERVICES[1].students, GRADES.s2, 4);
+  assert.equal(withEmpty.ok, false);                            // nouvelle note créée mais pas saisie
+  assert.equal(withEmpty.empty.length, SERVICES[1].students.length);
+  assert.equal(notesCount(EVALUATIONS.s1, fixed['RAHARISON Fanja']), 4);
+});
+
+test('moyenne générale : Arts plastiques, Musique et Vie de classe exclus', () => {
+  const avgs = CLASS_SUBJECTS.map((s) => ({ ...s, avg: s.inAverage ? 12 : 20 }));
+  assert.equal(generalAverage(avgs), 12);
+  assert.equal(generalAverage([{ inAverage: true, avg: 10, coef: 1 }, { inAverage: true, avg: 16, coef: 2 }, { inAverage: true, avg: null }]), 14);
+  assert.deepEqual(classStats([10, 12, null, 14]), { avg: 12, min: 10, max: 14 });
+});
+
+test('compétences : copie suggérée depuis la même matière au même niveau', () => {
+  const emc1G = SERVICES.find((s) => s.id === 's4');
+  assert.deepEqual(copySuggestions(emc1G, SERVICES, COMPETENCIES).map((s) => s.id), ['s3']);
+  assert.deepEqual(copySuggestions(SERVICES[1], SERVICES, COMPETENCIES), []); // Tle : pas d'autre classe
+});
+
+import { councilProposal } from '../src/rules/grading.js';
+test('conseil : proposition de mention ou d\'avertissement', () => {
+  assert.equal(councilProposal(16.2, ['EXEMPLAIRE']), 'FELICITATIONS');
+  assert.equal(councilProposal(14.5, []), 'COMPLIMENTS');
+  assert.equal(councilProposal(11, ['ENCOURAGEMENTS']), 'ENCOURAGEMENTS');
+  assert.equal(councilProposal(9.5, ['BAVARD', 'BAVARD', 'MANQUE_TRAVAIL']), 'AVERT_COMPORTEMENT');
+  assert.equal(councilProposal(8, ['AVERT_TRAVAIL', 'MANQUE_TRAVAIL', 'BAVARD', 'AVERT_COMPORTEMENT']), 'AVERT_TRAVAIL_COMPORTEMENT');
+  assert.equal(councilProposal(15, ['BAVARD']), 'COMPLIMENTS'); // un seul avis : pas d'avertissement
+});

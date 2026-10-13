@@ -100,24 +100,3 @@ export const INITIAL_BOOKINGS = [
   { id: 'b9', resourceId: 'tana-sp1', date: '2026-10-15', start: '15:00', end: '17:00', who: 'Vie scolaire', cls: '—', purpose: 'Répétition spectacle' },
   { id: 'b10', resourceId: 'tmv-vp1', date: '2026-10-14', start: '08:00', end: '10:00', who: 'M. Rasolo', cls: '4e', purpose: 'Géographie' },
 ];
-
-// --- Notes & appréciations ---------------------------------------------------
-export const CLASS_INFO = { name: '1re STMG', site: 'Tamatave', period: '1er trimestre', nextLevel: 'Terminale' };
-
-export const SUBJECTS = [
-  { id: 'MATHS', label: 'Mathématiques', mode: 'NUMERIQUE' },
-  { id: 'MANAGEMENT', label: 'Management', mode: 'NUMERIQUE' },
-  { id: 'PARCOURS-NUM', label: 'Parcours d\'ouverture — Numérique', mode: 'APPRECIATION_SEULE', strand: 'NUMERIQUE' },
-  { id: 'PARCOURS-ORI', label: 'Parcours d\'ouverture — Orientation', mode: 'APPRECIATION_SEULE', strand: 'ORIENTATION' },
-  { id: 'PARCOURS-ART', label: 'Parcours d\'ouverture — Art', mode: 'APPRECIATION_SEULE', strand: 'ART' },
-];
-
-export const COMPETENCIES = ['Chercher', 'Modéliser', 'Raisonner', 'Communiquer'];
-
-export const STUDENTS = [
-  { id: 's1', firstName: 'Aina', lastName: 'RAKOTOARISOA', average: 15.4, trend: 'hausse', focus: 'la rédaction des justifications', grades: ['16', '14.5', ''], mastery: [4, 3, 4, 3], draft: '' },
-  { id: 's2', firstName: 'Fanja', lastName: 'RAHARISON', average: 11.2, trend: 'stable', focus: 'les fonctions exponentielles', grades: ['1O', '12', ''], mastery: [3, 2, 3, 3], draft: 'Tu es sérieuse en classe mais tu dois approfondir.' },
-  { id: 's3', firstName: 'Hery', lastName: 'RANDRIAMAMPIANINA', average: 8.6, trend: 'baisse', focus: 'les pourcentages d\'évolution', grades: ['7', 'o', ''], mastery: [2, 2, 1, 2], draft: 'Résultats insuffisants. Il devra faire ses preuves au prochain trimestre. Admis en classe de Terminale.' },
-  { id: 's4', firstName: 'Mialy', lastName: 'ANDRIAMBOLOLONA', average: 13.1, trend: 'hausse', focus: 'la lecture de graphiques', grades: ['13', '125', ''], mastery: [3, 3, 3, 4], draft: '' },
-  { id: 's5', firstName: 'Tsiry', lastName: 'RAJAONARIVELO', average: 9.9, trend: 'stable', focus: 'les suites', grades: ['ABS', '9.5', ''], mastery: [2, 3, 2, 2], draft: 'Bon trimestre.' },
-];

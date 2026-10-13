@@ -18,7 +18,8 @@ CREATE EXTENSION IF NOT EXISTS btree_gist;   -- contraintes d'exclusion (réserv
 -- -----------------------------------------------------------------------------
 CREATE TYPE cycle_code        AS ENUM ('PRESCOLAIRE', 'PRIMAIRE', 'COLLEGE', 'LYCEE');
 CREATE TYPE track_code        AS ENUM ('GENERALE', 'STMG');
-CREATE TYPE role_code         AS ENUM ('DIRECTION', 'PROFESSEUR', 'VIE_SCOLAIRE', 'COMPTABILITE', 'PARENT', 'ELEVE');
+-- DIRECTION = administrateur (tout) ; BUREAU = administration / économat (+ accès vie scolaire)
+CREATE TYPE role_code         AS ENUM ('DIRECTION', 'BUREAU', 'VIE_SCOLAIRE', 'PROFESSEUR', 'PARENT', 'ELEVE');
 CREATE TYPE auth_provider     AS ENUM ('GOOGLE', 'MAGIC_LINK', 'PASSWORD');
 CREATE TYPE assignment_reason AS ENUM ('INSCRIPTION', 'TRANSFERT_EXAMEN', 'DEMENAGEMENT', 'AUTRE');
 
@@ -27,7 +28,8 @@ CREATE TYPE fee_item_kind     AS ENUM ('INSCRIPTION', 'REINSCRIPTION', 'ECOLAGE'
 CREATE TYPE cash_direction    AS ENUM ('ENTREE', 'SORTIE');
 CREATE TYPE contract_type     AS ENUM ('CDI', 'CDD', 'VACATAIRE', 'STAGIAIRE');
 CREATE TYPE invoice_status    AS ENUM ('BROUILLON', 'EMISE', 'PARTIELLE', 'PAYEE', 'ANNULEE');
-CREATE TYPE payment_method    AS ENUM ('ESPECES', 'VIREMENT', 'CHEQUE', 'MVOLA', 'ORANGE_MONEY', 'AIRTEL_MONEY');
+-- Modes acceptés : espèces, chèque, virement (pas de mobile money)
+CREATE TYPE payment_method    AS ENUM ('ESPECES', 'CHEQUE', 'VIREMENT');
 CREATE TYPE dunning_stage     AS ENUM ('RELANCE', 'AVERTISSEMENT', 'MISE_A_PIED', 'REGULARISE', 'SUSPENDU');
 CREATE TYPE day_off_kind      AS ENUM ('FERIE', 'VACANCES', 'FERMETURE');
 CREATE TYPE dunning_count_from AS ENUM ('ECHEANCE', 'ETAPE_PRECEDENTE');
@@ -400,9 +402,16 @@ CREATE TABLE payment (
   payer_guardian_id uuid REFERENCES guardian(id),
   amount_mga    bigint NOT NULL CHECK (amount_mga > 0),
   method        payment_method NOT NULL,
-  external_ref  text,                          -- réf. Mvola / virement
+  instrument_ref text,                         -- n° de chèque ou n° de bordereau / référence du virement
+  bank_name     text,                          -- banque émettrice
+  batch_id      uuid,                          -- un même chèque peut produire un reçu par journal
+  cheque_status text CHECK (cheque_status IN ('A_DEPOSER', 'DEPOSE', 'ENCAISSE', 'REJETE')),
   received_at   timestamptz NOT NULL DEFAULT now(),
-  received_by   uuid NOT NULL REFERENCES app_user(id)
+  received_by   uuid NOT NULL REFERENCES app_user(id),
+  -- traçabilité obligatoire hors espèces
+  CHECK ((method = 'ESPECES') = (instrument_ref IS NULL AND bank_name IS NULL)),
+  CHECK (method <> 'CHEQUE' OR (instrument_ref ~ '^[0-9]{6,10}$' AND cheque_status IS NOT NULL)),
+  CHECK (method = 'CHEQUE' OR cheque_status IS NULL)
 );
 
 CREATE TABLE payment_allocation (
@@ -589,6 +598,8 @@ CREATE TABLE subject (
   label         text NOT NULL,
   grading_mode  grading_mode NOT NULL DEFAULT 'NUMERIQUE',
   opening_strand opening_strand,               -- renseigné pour le Parcours d'ouverture
+  in_general_average boolean NOT NULL DEFAULT true, -- faux : Arts plastiques, Musique, Vie de classe
+  general_coef  numeric(4,2) NOT NULL DEFAULT 1,  -- poids dans la moyenne générale
   CHECK (opening_strand IS NULL OR grading_mode = 'APPRECIATION_SEULE')
 );
 
@@ -724,21 +735,44 @@ CREATE TABLE campus_france_entry (
 -- -----------------------------------------------------------------------------
 -- 7. Évaluations, compétences, bulletins & appréciations
 -- -----------------------------------------------------------------------------
+-- Règles de notation par année et par site (modifiables dans Paramètres)
+CREATE TABLE grading_policy (
+  year_id       uuid REFERENCES academic_year(id),
+  site_id       uuid REFERENCES site(id),
+  min_evaluations smallint NOT NULL DEFAULT 4 CHECK (min_evaluations > 0), -- notes minimum par trimestre
+  felicitations_from numeric(4,2) NOT NULL DEFAULT 16,
+  compliments_from   numeric(4,2) NOT NULL DEFAULT 14,
+  warning_from_subjects smallint NOT NULL DEFAULT 2, -- avertissement proposé si N matières le signalent
+  show_rank     boolean NOT NULL DEFAULT false,
+  PRIMARY KEY (year_id, site_id)
+);
+
+CREATE TABLE evaluation_type (                 -- DS, Interrogation, Oral, Exposé, Devoir maison, TP…
+  code          text PRIMARY KEY,
+  label         text NOT NULL,
+  is_active     boolean NOT NULL DEFAULT true
+);
+
+-- Référentiel de compétences PROPRE À UNE CLASSE ET UNE MATIÈRE (défini par l'enseignant,
+-- copiable d'une classe du même niveau : 1re Générale ↔ 1re STMG).
 CREATE TABLE competency (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  class_id      uuid REFERENCES school_class(id),
   subject_id    uuid REFERENCES subject(id),   -- NULL = transversale (socle)
-  code          text NOT NULL,                 -- 'D1.3', 'RAISONNER'
+  position      smallint NOT NULL DEFAULT 1,
   label         text NOT NULL,
-  UNIQUE (subject_id, code)
+  copied_from   uuid REFERENCES competency(id),
+  UNIQUE (class_id, subject_id, label)
 );
 
 CREATE TABLE evaluation (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   assignment_id uuid NOT NULL REFERENCES teaching_assignment(id),
   period_id     uuid NOT NULL REFERENCES period(id),
+  eval_type     text NOT NULL DEFAULT 'DS' REFERENCES evaluation_type(code),
   title         text NOT NULL,
   held_on       date NOT NULL,
-  scale_max     numeric(5,2) NOT NULL DEFAULT 20,
+  scale_max     numeric(5,2) NOT NULL DEFAULT 20 CHECK (scale_max > 0),
   coefficient   numeric(4,2) NOT NULL DEFAULT 1,
   mode          grading_mode NOT NULL DEFAULT 'NUMERIQUE',
   published_at  timestamptz
@@ -776,6 +810,25 @@ CREATE TABLE competency_result (
   FOREIGN KEY (evaluation_id, competency_id) REFERENCES evaluation_competency ON DELETE CASCADE
 );
 
+-- Bilan de compétences du trimestre (niveau de maîtrise 1 à 4 par compétence)
+CREATE TABLE term_competency (
+  enrollment_id uuid REFERENCES enrollment(id),
+  period_id     uuid REFERENCES period(id),
+  competency_id uuid REFERENCES competency(id) ON DELETE CASCADE,
+  mastery       smallint NOT NULL CHECK (mastery BETWEEN 1 AND 4),
+  PRIMARY KEY (enrollment_id, period_id, competency_id)
+);
+
+-- Validation des notes d'un service (classe × matière) pour un trimestre :
+-- verrouille la saisie et alimente la grille du conseil (cf. validate_term()).
+CREATE TABLE term_validation (
+  assignment_id uuid REFERENCES teaching_assignment(id),
+  period_id     uuid REFERENCES period(id),
+  validated_at  timestamptz NOT NULL DEFAULT now(),
+  validated_by  uuid NOT NULL REFERENCES app_user(id),
+  PRIMARY KEY (assignment_id, period_id)
+);
+
 -- Parcours d'ouverture : suivi des séances (1 à 2 par mois et par volet).
 CREATE TABLE opening_session (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -793,9 +846,35 @@ CREATE TABLE report_card (
   decision      class_decision,                -- 3e trimestre
   decision_level_code text REFERENCES level(code),
   decision_text text,                          -- « Admis.e en classe de 1re »
+  council_mention text CHECK (council_mention IN ('FELICITATIONS', 'COMPLIMENTS', 'ENCOURAGEMENTS',
+                  'AVERT_TRAVAIL', 'AVERT_COMPORTEMENT', 'AVERT_TRAVAIL_COMPORTEMENT')),
   published_at  timestamptz,
   UNIQUE (enrollment_id, period_id),
   CHECK (decision_text IS NULL OR decision_text ~ '^(Admis\.e|Retenu\.e|Réorienté\.e) ')
+);
+
+-- Avis des enseignants pour le conseil (non imprimés sur le bulletin) : élève exemplaire,
+-- bavard.e, avertissement travail / comportement… Utiles si l'enseignant est absent du conseil.
+CREATE TABLE council_flag_type (
+  code          text PRIMARY KEY,
+  label         text NOT NULL,
+  tone          text NOT NULL CHECK (tone IN ('POSITIF', 'VIGILANCE', 'ALERTE'))
+);
+
+CREATE TABLE council_flag (
+  report_card_id uuid REFERENCES report_card(id) ON DELETE CASCADE,
+  subject_id    uuid REFERENCES subject(id),
+  flag_code     text REFERENCES council_flag_type(code),
+  author_id     uuid NOT NULL REFERENCES app_user(id),
+  PRIMARY KEY (report_card_id, subject_id, flag_code)
+);
+
+CREATE TABLE council_note (                    -- remarque libre pour le conseil
+  report_card_id uuid REFERENCES report_card(id) ON DELETE CASCADE,
+  subject_id    uuid REFERENCES subject(id),
+  author_id     uuid NOT NULL REFERENCES app_user(id),
+  body          text NOT NULL,
+  PRIMARY KEY (report_card_id, subject_id)
 );
 
 CREATE TABLE report_comment (

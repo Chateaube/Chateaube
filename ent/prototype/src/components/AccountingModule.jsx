@@ -6,6 +6,9 @@ import {
 import { accountStatement, annualCost, cashBalance } from '../rules/accounting.js';
 import { planMonths } from '../rules/calendar.js';
 import { formatAr } from '../rules/finance.js';
+import { PAYMENT_METHODS, validateInstrument } from '../rules/billing.js';
+import { BANKS } from '../data/accounting.js';
+import CollectPayment from './CollectPayment.jsx';
 
 const TODAY = '2026-10-13';
 const fmtDate = (iso) => iso.split('-').reverse().join('/');
@@ -132,7 +135,8 @@ function ArticlesTab({ articles, setArticles }) {
 function StatementTab({ families, setFamilies, articles }) {
   const [famId, setFamId] = useState(families[0].id);
   const [sale, setSale] = useState({ articleId: '', qty: 1, child: '', amount: null });
-  const [pay, setPay] = useState({ journal: 'ECOLAGE', amount: null, method: 'Espèces' });
+  const [pay, setPay] = useState({ journal: 'ECOLAGE', amount: null, method: 'ESPECES', ref: '', bank: '' });
+  const payErrors = validateInstrument(pay);
   const fam = families.find((f) => f.id === famId);
   const { rows, byJournal, totals } = useMemo(() => accountStatement(fam.lines), [fam]);
   const addLine = (line) => setFamilies(families.map((f) => (f.id === famId ? { ...f, lines: [...f.lines, { date: TODAY, ...line }] } : f)));
@@ -234,13 +238,22 @@ function StatementTab({ families, setFamilies, articles }) {
             </select>
             <div className="flex gap-2">
               <AmountInput value={pay.amount} onChange={(v) => setPay({ ...pay, amount: v })} className="flex-1 py-1.5" />
-              <select value={pay.method} onChange={(e) => setPay({ ...pay, method: e.target.value })} className={`flex-1 ${inputCls}`}>
-                {['Espèces', 'Mvola', 'Orange Money', 'Airtel Money', 'Virement', 'Chèque'].map((m) => <option key={m}>{m}</option>)}
+              <select value={pay.method} onChange={(e) => setPay({ ...pay, method: e.target.value, ref: '', bank: '' })} className={`flex-1 ${inputCls}`}>
+                {Object.entries(PAYMENT_METHODS).map(([k, m]) => <option key={k} value={k}>{m.label}</option>)}
               </select>
             </div>
-            <Button className="w-full" disabled={!(pay.amount > 0)} onClick={() => {
-              addLine({ label: `Paiement ${pay.method}`, journal: pay.journal, credit: pay.amount });
-              setPay({ ...pay, amount: null });
+            {PAYMENT_METHODS[pay.method].needsRef && (
+              <div className="flex gap-2">
+                <input value={pay.ref} onChange={(e) => setPay({ ...pay, ref: e.target.value })} placeholder={PAYMENT_METHODS[pay.method].refLabel} className={`min-w-0 flex-1 ${inputCls}`} />
+                <select value={pay.bank} onChange={(e) => setPay({ ...pay, bank: e.target.value })} className={`min-w-0 flex-1 ${inputCls}`}>
+                  <option value="">Banque…</option>{BANKS.map((b) => <option key={b}>{b}</option>)}
+                </select>
+              </div>
+            )}
+            <Button className="w-full" disabled={!(pay.amount > 0) || payErrors.length > 0} onClick={() => {
+              const m = PAYMENT_METHODS[pay.method];
+              addLine({ label: `Paiement ${m.label.toLowerCase()}${m.needsRef ? ` n° ${pay.ref} (${pay.bank})` : ''}`, journal: pay.journal, credit: pay.amount });
+              setPay({ ...pay, amount: null, ref: '', bank: '' });
             }}>Encaisser et éditer le reçu</Button>
           </div>
         </Card>
@@ -322,10 +335,10 @@ function CashTab({ movements, setMovements }) {
   );
 }
 
-const TABS = [['fees', 'Classes & tarifs'], ['articles', 'Articles & services'], ['statements', 'États de compte'], ['cash', 'Caisse : entrées / sorties']];
+const TABS = [['collect', 'Encaisser'], ['fees', 'Classes & tarifs'], ['articles', 'Articles & services'], ['statements', 'États de compte'], ['cash', 'Caisse : entrées / sorties']];
 
 export default function AccountingModule({ settings }) {
-  const [tab, setTab] = useState('fees');
+  const [tab, setTab] = useState('collect');
   const [fees, setFees] = useState(CLASS_FEES);
   const [articles, setArticles] = useState(ARTICLES);
   const [families, setFamilies] = useState(FAMILIES);
@@ -347,6 +360,7 @@ export default function AccountingModule({ settings }) {
           </button>
         ))}
       </div>
+      {tab === 'collect' && <CollectPayment settings={settings} />}
       {tab === 'fees' && <FeesTab fees={fees} setFees={setFees} settings={settings} />}
       {tab === 'articles' && <ArticlesTab articles={articles} setArticles={setArticles} />}
       {tab === 'statements' && <StatementTab families={families} setFamilies={setFamilies} articles={articles} />}

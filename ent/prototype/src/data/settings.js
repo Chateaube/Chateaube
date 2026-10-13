@@ -28,6 +28,14 @@ export const DEFAULT_SETTINGS = {
     channels: ['SMS', 'EMAIL'],
   },
 
+  grading: {
+    minEvaluations: 4, // notes minimum par trimestre pour valider
+    defaultScale: 20,
+    defaultCoef: 1,
+    evaluationTypes: ['DS', 'Interrogation', 'Oral', 'Exposé', 'Devoir maison', 'TP', 'Projet', 'Autre'],
+    excludedSubjects: ['AP', 'MUS', 'VDC'], // Arts plastiques, Musique, Vie de classe : hors moyenne générale
+  },
+
   // Calendrier : jours fériés (Madagascar) et vacances (exemple à remplacer)
   calendar: [
     { id: 'f1', kind: 'FERIE', label: 'Toussaint', start: '2026-11-01', end: '2026-11-01' },

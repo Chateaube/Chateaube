@@ -10,11 +10,11 @@ entre écolage et droits d'examen.
 |---|---|
 | 1. Modèle de données (entités, diagramme, règles, hypothèses à valider) | [`docs/01-modele-de-donnees.md`](docs/01-modele-de-donnees.md) |
 | Schéma PostgreSQL exécutable | [`db/schema.sql`](db/schema.sql) · [`db/functions.sql`](db/functions.sql) · [`db/seed.sql`](db/seed.sql) |
-| Scénarios de vérification (14 règles métier) | [`db/tests.sql`](db/tests.sql) |
+| Scénarios de vérification (20 règles métier) | [`db/tests.sql`](db/tests.sql) |
 | 2. Architecture UX/UI et arborescence par profil | [`docs/02-architecture-ux.md`](docs/02-architecture-ux.md) |
 | Architecture technique (SSO, tâches planifiées, IA, sécurité) | [`docs/03-architecture-technique.md`](docs/03-architecture-technique.md) |
 | Cadrage par profil (questions à valider avant de développer) | [`docs/04-cadrage-par-profil.md`](docs/04-cadrage-par-profil.md) |
-| 3. Prototype React + Tailwind (Direction, Enseignant, Parent) | [`prototype/`](prototype/) — version compilée : [`prototype/dist/index.html`](prototype/dist/index.html) |
+| 3. Prototype React + Tailwind (Direction, Bureau, Vie scolaire, Enseignant, Parent) | [`prototype/`](prototype/) — version compilée : [`prototype/dist/index.html`](prototype/dist/index.html) |
 | Moteur de règles (notes, appréciations, réservations, calendrier et relances, comptabilité) | [`prototype/src/rules/`](prototype/src/rules/) + [tests](prototype/tests/rules.test.js) |
 
 ## Voir le prototype
@@ -22,22 +22,25 @@ entre écolage et droits d'examen.
 Ouvrir `prototype/dist/index.html` dans un navigateur : un seul fichier, sans serveur ni connexion. Les données sont fictives
 et la date de référence est fixée au 13 octobre 2026 (relances d'écolage suspendues, campagne des candidats libres en cours).
 
-Le sélecteur **« Voir l'ENT en tant que »** (en haut du menu) bascule entre les profils Direction, Enseignant et Parent.
+Le sélecteur **« Voir l'ENT en tant que »** (en haut du menu) bascule entre les cinq portails.
 
-**Direction**
-- **Tableau de bord** : changer la *date de référence* (par exemple 10/11/2026) pour voir les dossiers passer en « Mise à
-  pied à valider », puis valider ou accorder un délai.
-- **Comptabilité** : Classes & tarifs (montants modifiables), Articles & services, États de compte (facturer un article,
-  encaisser), Caisse : entrées / sorties.
-- **Notes & bulletins** : l'élève Hery a une appréciation non conforme. Essayer « Proposer avec l'assistant », puis l'onglet
-  *Notes & compétences* (« 1O », « o », « 125 », « 12.5 »).
-- **Réservations** : conflit affiché d'emblée, avec des alternatives cliquables.
-- **Gestion des agents** : registre du personnel, enregistrer une entrée ou une sortie.
-- **Paramètres** : échéance le 5, délais 5 / 10 / 25 jours, jours comptés, mois gelés, calendrier (fériés, vacances), avec
-  une simulation des dates.
+**Direction (administrateur)** : tableau de bord (changer la *date de référence* au 10/11/2026 pour voir des mises à
+pied à valider), comptabilité, conseils de classe, vie scolaire, réservations, gestion des agents, paramètres
+(échéancier, relances, calendrier, notation).
 
-**Enseignant** : cours du jour, appel (avec SMS aux parents), tâches à faire.
-**Parent** : application mobile avec alertes, emploi du temps, notes, paiements et messages.
+**Bureau (administration / économat)** : accueil du jour ; **Encaisser** : choisir l'élève (ex. *RASOAMANANA Fy*,
+arrivé le 12/10), cocher les mois, payer par chèque ou virement (n° et banque obligatoires), un reçu par journal ;
+grille du **conseil de classe** (mentions proposées, moyenne générale hors arts, musique et vie de classe) ; accès à la
+vie scolaire.
+
+**Vie scolaire** : absences et retards du jour, justificatifs, SMS aux parents, incidents.
+
+**Enseignant** : tableau de bord et appel ; **Notes & appréciations** en 3 étapes :
+1. **Notes** : « 1O » de Fanja à corriger, « + Ajouter une note » en Terminale STMG pour atteindre 4 notes.
+2. **Compétences** : en 1re Générale · EMC, essayer « Copier et adapter ».
+3. **Appréciations** : moyennes, assistant, avis pour le conseil.
+
+**Parent** : application mobile avec alertes, notes, paiements (espèces, chèque, virement) et messages.
 
 ## Développement
 

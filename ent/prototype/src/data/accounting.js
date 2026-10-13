@@ -48,7 +48,7 @@ export const FAMILIES = [
     lines: [
       { date: '2026-08-25', label: 'Réinscription — Aina (1re STMG)', journal: 'FRAIS_ANNEXES', debit: 180_000 },
       { date: '2026-08-25', label: 'Réinscription — Toky (5e)', journal: 'FRAIS_ANNEXES', debit: 150_000 },
-      { date: '2026-08-25', label: 'Paiement Mvola — réf. MV82731', journal: 'FRAIS_ANNEXES', credit: 330_000 },
+      { date: '2026-08-25', label: 'Paiement chèque n° 4410275 (BNI)', journal: 'FRAIS_ANNEXES', credit: 330_000 },
       { date: '2026-09-01', label: 'Fascicule + location manuels — Aina', journal: 'FRAIS_ANNEXES', debit: 190_000 },
       { date: '2026-09-01', label: 'Fascicule + location manuels — Toky', journal: 'FRAIS_ANNEXES', debit: 140_000 },
       { date: '2026-09-05', label: 'Écolage septembre — Aina', journal: 'ECOLAGE', debit: 420_000 },
@@ -58,7 +58,7 @@ export const FAMILIES = [
       { date: '2026-10-02', label: 'Droits Pré-Bac (EAF) — Aina', journal: 'DROITS_EXAMEN', debit: 450_000 },
       { date: '2026-10-05', label: 'Écolage octobre — Aina', journal: 'ECOLAGE', debit: 420_000 },
       { date: '2026-10-05', label: 'Écolage octobre — Toky', journal: 'ECOLAGE', debit: 340_000 },
-      { date: '2026-10-08', label: 'Paiement Mvola — droits d\'examen', journal: 'DROITS_EXAMEN', credit: 450_000 },
+      { date: '2026-10-08', label: 'Paiement virement — bordereau 88213 (BOA)', journal: 'DROITS_EXAMEN', credit: 450_000 },
       { date: '2026-10-09', label: 'Séances de natation × 2 — Toky', journal: 'FRAIS_ANNEXES', debit: 30_000 },
     ],
   },
@@ -72,7 +72,7 @@ export const FAMILIES = [
       { date: '2026-09-05', label: 'Écolage septembre — Mamy', journal: 'ECOLAGE', debit: 450_000 },
       { date: '2026-10-02', label: 'Droits Bac — Mamy', journal: 'DROITS_EXAMEN', debit: 600_000 },
       { date: '2026-10-05', label: 'Écolage octobre — Mamy', journal: 'ECOLAGE', debit: 450_000 },
-      { date: '2026-10-07', label: 'Paiement Orange Money — droits Bac', journal: 'DROITS_EXAMEN', credit: 600_000 },
+      { date: '2026-10-07', label: 'Paiement chèque n° 2290341 (BFV)', journal: 'DROITS_EXAMEN', credit: 600_000 },
     ],
   },
 ];
@@ -84,10 +84,27 @@ export const CASH_NATURES = {
 };
 export const CASH_MOVEMENTS = [
   { id: 'c1', time: '07:42', dir: 'IN', nature: 'Encaissement famille', journal: 'ECOLAGE', label: 'Écolage octobre — RAZAFY Kanto', method: 'Espèces', amount: 420_000, agent: 'Mme Soa' },
-  { id: 'c2', time: '08:15', dir: 'IN', nature: 'Encaissement famille', journal: 'DROITS_EXAMEN', label: 'Droits DNB — RAVELO Hasina', method: 'Mvola', amount: 350_000, agent: 'Mme Soa' },
+  { id: 'c2', time: '08:15', dir: 'IN', nature: 'Encaissement famille', journal: 'DROITS_EXAMEN', label: 'Droits DNB — RAVELO Hasina', method: 'Chèque n° 3318820', amount: 350_000, agent: 'Mme Soa' },
   { id: 'c3', time: '09:05', dir: 'IN', nature: 'Encaissement famille', journal: 'FRAIS_ANNEXES', label: 'Tee-shirt × 2 — RASOA Lova', method: 'Espèces', amount: 70_000, agent: 'Mme Soa' },
   { id: 'c4', time: '10:30', dir: 'OUT', nature: 'Dépense de fonctionnement', journal: 'ECOLAGE', label: 'Ramettes de papier et encre imprimante', method: 'Espèces', amount: 85_000, agent: 'Mme Soa' },
-  { id: 'c5', time: '11:10', dir: 'IN', nature: 'Encaissement famille', journal: 'DROITS_EXAMEN', label: 'Droits Bac — RANDRIA Mamy', method: 'Orange Money', amount: 600_000, agent: 'Mme Soa' },
+  { id: 'c5', time: '11:10', dir: 'IN', nature: 'Encaissement famille', journal: 'DROITS_EXAMEN', label: 'Droits Bac — RANDRIA Mamy', method: 'Virement — bordereau 77104', amount: 600_000, agent: 'Mme Soa' },
   { id: 'c6', time: '14:20', dir: 'OUT', nature: 'Dépôt en banque', journal: 'ECOLAGE', label: 'Dépôt BOA — bordereau 5521', method: 'Espèces', amount: 400_000, agent: 'Mme Soa' },
 ];
 export const CASH_OPENING = { ECOLAGE: 250_000, FRAIS_ANNEXES: 40_000, DROITS_EXAMEN: 0 };
+
+// Encaissement : comptes élèves (clés payées) — la grille et le plan donnent les montants
+export const BANKS = ['BNI Madagascar', 'BOA Madagascar', 'BFV-SG', 'BMOI', 'Société Générale', 'AccèsBanque', 'Autre'];
+
+export const STUDENT_ACCOUNTS = [
+  { id: 'e1', name: 'RAKOTOARISOA Aina', cls: '1re STMG', family: 'Famille RAKOTOARISOA', isNew: false, enrolledOn: '2026-09-01',
+    paid: ['REINSCRIPTION', 'FASCICULE', 'LOCATION', 'ECO-09', 'EXAMEN'],
+    exam: { label: 'Droits Pré-Bac (EAF)', amount: 450_000, due: '2026-10-31' } },
+  { id: 'e2', name: 'RAKOTOARISOA Toky', cls: '5e', family: 'Famille RAKOTOARISOA', isNew: false, enrolledOn: '2026-09-01',
+    paid: ['REINSCRIPTION', 'FASCICULE', 'LOCATION', 'ECO-09'] },
+  { id: 'e3', name: 'RANDRIA Mamy', cls: 'Terminale Générale', family: 'Famille RANDRIA', isNew: false, enrolledOn: '2026-09-01',
+    paid: ['REINSCRIPTION', 'EXAMEN'], exam: { label: 'Droits Bac', amount: 600_000, due: '2026-10-31' } },
+  { id: 'e4', name: 'RASOAMANANA Fy', cls: '4e', family: 'Famille RASOAMANANA', isNew: true, enrolledOn: '2026-10-12', paid: [] },
+  { id: 'e5', name: 'RAZAFY Kanto', cls: '1re STMG', family: 'Famille RAZAFY', isNew: false, enrolledOn: '2026-09-01',
+    paid: ['REINSCRIPTION', 'FASCICULE', 'LOCATION', 'ECO-09', 'ECO-10'],
+    exam: { label: 'Droits Pré-Bac (EAF)', amount: 450_000, due: '2026-10-31' } },
+];

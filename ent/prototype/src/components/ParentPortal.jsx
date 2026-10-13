@@ -92,8 +92,14 @@ function Payments() {
             </div>
           ))}
         </div>
-        <Button className="mt-4 w-full" onClick={() => setInfo(!info)}>Payer par mobile money</Button>
-        {info && <p className="mt-2 rounded-lg bg-slate-50 p-2 text-xs text-slate-600">Paiement Mvola / Orange Money / Airtel Money : intégration à définir avec l'opérateur. En attendant, la caisse enregistre le paiement et le reçu apparaît ici.</p>}
+        <Button variant="secondary" className="mt-4 w-full" onClick={() => setInfo(!info)}>Comment payer ?</Button>
+        {info && (
+          <div className="mt-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
+            <p>Au bureau de l'établissement : <span className="font-medium">espèces</span> ou <span className="font-medium">chèque</span> à l'ordre de l'École Chateaubriand.</p>
+            <p className="mt-1">Par <span className="font-medium">virement</span> : RIB fourni par le bureau ; indiquez le nom de l'élève en référence et gardez le bordereau.</p>
+            <p className="mt-1">Le reçu apparaît ici dès l'enregistrement par le bureau.</p>
+          </div>
+        )}
       </Section>
       <Section title="Prochaine échéance">
         <p className="text-sm text-slate-700">Écolage de novembre : <span className="font-semibold">760 000 Ar</span> le jeudi 5 novembre.</p>

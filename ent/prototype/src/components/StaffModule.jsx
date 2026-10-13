@@ -5,7 +5,7 @@ import { STAFF, POSTES, CONTRATS } from '../data/people.js';
 const TODAY = '2026-10-13';
 const fmtDate = (iso) => (iso ? iso.split('-').reverse().join('/') : '—');
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
-const ACCESS = { PROFESSEUR: 'Professeur', VIE_SCOLAIRE: 'Vie scolaire', COMPTABILITE: 'Comptabilité', DIRECTION: 'Direction' };
+const ACCESS = { PROFESSEUR: 'Professeur', VIE_SCOLAIRE: 'Vie scolaire', BUREAU: 'Bureau', DIRECTION: 'Direction' };
 
 /** Statut d'un agent à une date : l'accès à l'ENT suit automatiquement ses dates d'entrée et de sortie. */
 export function staffStatus(a, today = TODAY) {

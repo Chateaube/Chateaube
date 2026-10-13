@@ -132,9 +132,31 @@ Règles validées par la Direction pour **Tamatave** (Tana sera paramétré plus
 - **`invoice_line`** : détail des factures (quantité × prix unitaire).
 - **`v_account_statement`** : état de compte par inscription, séparé par journal. Un paiement n'éteint que les dettes de son
   journal.
+- **`payment`** : trois modes seulement, **espèces, chèque, virement** (pas de mobile money). Hors espèces, le
+  **n° de chèque** (6 à 10 chiffres) ou le **n° de bordereau / référence du virement** et la **banque** sont obligatoires.
+  Un chèque a un statut (à déposer, déposé, encaissé, rejeté) et un `batch_id` relie les reçus émis pour un même chèque
+  (un reçu par journal) (T15).
+- **Compte d'un élève arrivé en cours d'année** : la facturation de l'écolage commence au mois de son inscription. Un
+  élève arrivé le 12 octobre ne paie pas septembre ; son écolage d'octobre est dû à sa date d'arrivée (T16).
 - **`cash_movement`** : caisse du site, avec les **entrées** (encaissements, apports) et les **sorties** (dépenses,
   reversements aux centres d'examen, dépôts en banque). Chaque mouvement est attribué à l'agent qui le saisit. Une sortie ne
   peut pas dépasser le solde de son journal (T13).
+
+### Notes, compétences et conseil de classe
+- **`evaluation`** : type (`evaluation_type` : DS, interrogation, oral, exposé…), barème (`scale_max`, 20 par défaut) et
+  coefficient (1 par défaut), choisis par l'enseignant. Il peut y en avoir autant que nécessaire.
+- **`subject_average()`** : moyenne /20 pondérée, sans ABS, DISP ni NN (T17).
+- **`validate_term()`** : au moins **4 évaluations** (`grading_policy.min_evaluations`) et toutes les cases remplies,
+  puis les notes sont **verrouillées** (trigger `grade_lock`) (T17).
+- **`competency`** : référentiel **propre à chaque classe et matière** ; `copy_competencies()` le copie vers une classe
+  du même niveau (1re Générale ↔ 1re STMG) (T20). `term_competency` : bilan sur 4 niveaux par trimestre.
+- **`subject.in_general_average`** : Arts plastiques, Musique et Vie de classe sont hors moyenne générale ;
+  `general_average()` et la vue `v_council_grid` alimentent la grille du conseil (T18).
+- **`council_flag`** / **`council_note`** : avis des enseignants pour le conseil (élève exemplaire, bavard.e,
+  avertissement travail / comportement…), jamais imprimés sur le bulletin. `report_card.council_mention` enregistre la
+  décision (félicitations, compliments, encouragements, avertissements).
+- **Rôles** : `DIRECTION` (administrateur), `BUREAU` (administration / économat, avec les droits de la vie scolaire),
+  `VIE_SCOLAIRE`, `PROFESSEUR`, `PARENT`, `ELEVE`. Seuls la Direction et le Bureau ont `council.view` (T19).
 
 ### Gestion des agents
 - **`staff_member`** : registre du personnel (enseignants, intervenants, surveillants, secrétariat, entretien, gardiennage)

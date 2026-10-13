@@ -2,7 +2,10 @@ import React, { useState } from 'react';
 import { Icon } from './components/ui.jsx';
 import DirectionDashboard from './components/DirectionDashboard.jsx';
 import BookingModule from './components/BookingModule.jsx';
-import AppreciationModule from './components/AppreciationModule.jsx';
+import GradebookModule from './components/GradebookModule.jsx';
+import CouncilGrid from './components/CouncilGrid.jsx';
+import VieScolaireModule from './components/VieScolaireModule.jsx';
+import BureauHome from './components/BureauHome.jsx';
 import SettingsModule from './components/SettingsModule.jsx';
 import AccountingModule from './components/AccountingModule.jsx';
 import StaffModule from './components/StaffModule.jsx';
@@ -11,11 +14,18 @@ import ParentPortal from './components/ParentPortal.jsx';
 import { DEFAULT_SETTINGS } from './data/settings.js';
 import { DIRECTION_ACCOUNTS } from './data/demo.js';
 
-// Arborescence par profil (cf. docs/02-architecture-ux.md).
+// Un portail par profil (cf. docs/02-architecture-ux.md, matrice des droits).
+// Direction = administrateur (accès à tout). Bureau = administration / économat,
+// avec accès à la Vie scolaire ; la Vie scolaire n'a pas accès au Bureau.
 // Les entrées sans `screen` existent dans l'architecture mais pas dans ce prototype.
+const VIE_SCOLAIRE = { id: 'vs', label: 'Vie scolaire', icon: 'users', screen: VieScolaireModule };
+const COUNCIL = { id: 'council', label: 'Conseils de classe', icon: 'cap', screen: CouncilGrid };
+const BOOKING = { id: 'booking', label: 'Réservations', icon: 'calendar', screen: BookingModule };
+
 const PROFILES = {
   DIRECTION: {
     label: 'Direction',
+    title: 'Administrateur — accès complet',
     home: 'dashboard',
     nav: [
       { group: 'Pilotage', items: [
@@ -24,14 +34,14 @@ const PROFILES = {
         { id: 'accounting', label: 'Comptabilité', icon: 'wallet', screen: AccountingModule },
       ] },
       { group: 'Pédagogie', items: [
-        { id: 'grades', label: 'Notes & bulletins', icon: 'pen', screen: AppreciationModule },
+        COUNCIL,
         { id: 'timetable', label: 'Emplois du temps', icon: 'clock' },
-        { id: 'booking', label: 'Réservations', icon: 'calendar', screen: BookingModule },
+        BOOKING,
         { id: 'exams', label: 'Examens & Campus France', icon: 'cap' },
       ] },
-      { group: 'Communication', items: [
+      { group: 'Vie scolaire & communication', items: [
+        VIE_SCOLAIRE,
         { id: 'news', label: 'Annonces', icon: 'megaphone' },
-        { id: 'notify', label: 'Notifications parents', icon: 'bell' },
       ] },
       { group: 'Administration', items: [
         { id: 'staff', label: 'Gestion des agents', icon: 'users', screen: StaffModule },
@@ -39,22 +49,42 @@ const PROFILES = {
       ] },
     ],
   },
+  BUREAU: {
+    label: 'Bureau',
+    title: 'Administration / économat',
+    home: 'bureau',
+    nav: [
+      { group: 'Bureau', items: [
+        { id: 'bureau', label: 'Accueil', icon: 'home', screen: BureauHome },
+        { id: 'accounting', label: 'Encaissements & comptabilité', icon: 'wallet', screen: AccountingModule },
+        { id: 'enrol', label: 'Inscriptions', icon: 'users' },
+        COUNCIL,
+      ] },
+      { group: 'Accès partagé', items: [VIE_SCOLAIRE, BOOKING] },
+    ],
+  },
+  VIE_SCOLAIRE: {
+    label: 'Vie scol.',
+    title: 'Vie scolaire',
+    home: 'vs',
+    nav: [{ group: 'Vie scolaire', items: [VIE_SCOLAIRE, BOOKING, { id: 'news', label: 'Annonces', icon: 'megaphone' }] }],
+  },
   ENSEIGNANT: {
     label: 'Enseignant',
+    title: 'Enseignant.e',
     home: 'teacher',
     nav: [
       { group: 'Ma journée', items: [
         { id: 'teacher', label: 'Mon tableau de bord', icon: 'home', screen: TeacherPortal },
-        { id: 'grades', label: 'Notes & appréciations', icon: 'pen', screen: AppreciationModule },
-        { id: 'booking', label: 'Réservations', icon: 'calendar', screen: BookingModule },
+        { id: 'grades', label: 'Notes & appréciations', icon: 'pen', screen: GradebookModule },
+        BOOKING,
       ] },
-      { group: 'Communication', items: [
-        { id: 'notify', label: 'Message à un parent', icon: 'bell' },
-      ] },
+      { group: 'Communication', items: [{ id: 'notify', label: 'Message à un parent', icon: 'bell' }] },
     ],
   },
   PARENT: {
     label: 'Parent',
+    title: 'Famille',
     home: 'parent',
     nav: [{ group: 'Famille', items: [{ id: 'parent', label: 'Portail parents', icon: 'users', screen: ParentPortal }] }],
   },
@@ -65,7 +95,7 @@ const STORAGE_KEY = 'ent-chateaubriand-settings-v1';
 function loadSettings() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (saved?.dunning && saved?.tuition && saved?.calendar) return { ...DEFAULT_SETTINGS, ...saved };
+    if (saved?.dunning && saved?.tuition && saved?.calendar) return { ...DEFAULT_SETTINGS, ...saved, grading: { ...DEFAULT_SETTINGS.grading, ...saved.grading } };
   } catch { /* stockage indisponible : valeurs par défaut */ }
   return DEFAULT_SETTINGS;
 }
@@ -98,7 +128,7 @@ export default function App() {
 
         <div className="px-3 pb-3">
           <p className="mb-1 px-1 text-[11px] text-navy-200">Voir l'ENT en tant que</p>
-          <div className="grid grid-cols-3 gap-1 rounded-lg bg-white/10 p-1" role="tablist" aria-label="Profil">
+          <div className="grid grid-cols-3 gap-1 rounded-lg bg-white/10 p-1 lg:grid-cols-3" role="tablist" aria-label="Profil">
             {Object.entries(PROFILES).map(([k, p]) => (
               <button key={k} role="tab" aria-selected={profile === k} onClick={() => switchProfile(k)}
                 className={`rounded-md px-0.5 py-1 text-[11px] font-medium ${profile === k ? 'bg-white text-navy-900' : 'text-white hover:bg-white/10'}`}>
@@ -106,6 +136,7 @@ export default function App() {
               </button>
             ))}
           </div>
+          <p className="mt-1.5 px-1 text-[11px] text-navy-200">{PROFILES[profile].title}</p>
         </div>
 
         <nav aria-label="Navigation principale" className="flex gap-1 overflow-x-auto px-2 pb-3 lg:block lg:space-y-4 lg:overflow-visible">
@@ -124,8 +155,8 @@ export default function App() {
                     className={`flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-md px-2.5 py-1.5 text-sm lg:w-full
                       ${active ? 'bg-white text-navy-900' : enabled ? 'text-white hover:bg-white/10' : 'hidden text-navy-200/50 lg:flex'}`}
                   >
-                    <Icon name={item.icon} />
-                    {item.label}
+                    <Icon name={item.icon} className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{item.label}</span>
                   </button>
                 );
               })}

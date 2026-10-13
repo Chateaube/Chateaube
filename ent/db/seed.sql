@@ -138,6 +138,9 @@ INSERT INTO subject (code, label, grading_mode, opening_strand) VALUES
   ('PARCOURS-ORI', 'Parcours d''ouverture — Orientation', 'APPRECIATION_SEULE', 'ORIENTATION'),
   ('PARCOURS-ART', 'Parcours d''ouverture — Art',         'APPRECIATION_SEULE', 'ART');
 
+INSERT INTO subject (code, label, in_general_average) VALUES
+  ('ARTS-PLA', 'Arts plastiques', false), ('MUSIQUE', 'Musique', false), ('VIE-CLASSE', 'Vie de classe', false);
+
 INSERT INTO subject (code, label) VALUES
   ('FRANCAIS', 'Français'), ('MATHS', 'Mathématiques'), ('HG', 'Histoire-Géographie'),
   ('ANGLAIS', 'Anglais'), ('SVT', 'SVT'), ('PC', 'Physique-Chimie'),
@@ -166,7 +169,9 @@ INSERT INTO permission (code, description) VALUES
   ('announce.class',     'Publier une annonce vers ses classes'),
   ('notify.parent',      'Notifier individuellement un parent'),
   ('booking.write',      'Réserver du matériel'),
-  ('booking.manage',     'Gérer le parc de matériel et arbitrer les conflits');
+  ('booking.manage',     'Gérer le parc de matériel et arbitrer les conflits'),
+  ('council.view',       'Consulter et éditer la grille du conseil de classe'),
+  ('students.enrol',     'Inscrire un élève, gérer son dossier administratif');
 
 INSERT INTO role_permission SELECT 'DIRECTION', code FROM permission;
 INSERT INTO role_permission (role, permission) VALUES
@@ -174,5 +179,17 @@ INSERT INTO role_permission (role, permission) VALUES
   ('PROFESSEUR',   'notify.parent'), ('PROFESSEUR', 'booking.write'),
   ('VIE_SCOLAIRE', 'attendance.write'), ('VIE_SCOLAIRE', 'notify.parent'), ('VIE_SCOLAIRE', 'announce.class'),
   ('VIE_SCOLAIRE', 'booking.write'), ('VIE_SCOLAIRE', 'booking.manage'), ('VIE_SCOLAIRE', 'exams.manage'),
-  ('COMPTABILITE', 'finance.read'), ('COMPTABILITE', 'finance.write'), ('COMPTABILITE', 'notify.parent'),
-  ('COMPTABILITE', 'booking.write');
+  ('BUREAU', 'finance.read'), ('BUREAU', 'finance.write'), ('BUREAU', 'notify.parent'),
+  ('BUREAU', 'booking.write'), ('BUREAU', 'council.view'), ('BUREAU', 'students.enrol'),
+  -- le Bureau a aussi accès à la vie scolaire (l'inverse n'est pas vrai)
+  ('BUREAU', 'attendance.write'), ('BUREAU', 'announce.class'), ('BUREAU', 'exams.manage'), ('BUREAU', 'booking.manage');
+
+-- Notation
+INSERT INTO grading_policy (year_id, site_id) SELECT y.id, s.id FROM academic_year y, site s WHERE s.code = 'TMV';
+INSERT INTO evaluation_type (code, label) VALUES
+  ('DS', 'Devoir surveillé'), ('INTERRO', 'Interrogation'), ('ORAL', 'Oral'), ('EXPOSE', 'Exposé'),
+  ('DM', 'Devoir maison'), ('TP', 'Travaux pratiques'), ('PROJET', 'Projet'), ('AUTRE', 'Autre');
+INSERT INTO council_flag_type (code, label, tone) VALUES
+  ('EXEMPLAIRE', 'Élève exemplaire', 'POSITIF'), ('ENCOURAGEMENTS', 'Encouragements', 'POSITIF'),
+  ('BAVARD', 'Élève bavard.e', 'VIGILANCE'), ('MANQUE_TRAVAIL', 'Manque de travail personnel', 'VIGILANCE'),
+  ('AVERT_TRAVAIL', 'Avertissement travail', 'ALERTE'), ('AVERT_COMPORTEMENT', 'Avertissement comportement', 'ALERTE');

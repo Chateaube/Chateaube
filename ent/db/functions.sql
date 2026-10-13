@@ -71,7 +71,7 @@ END $$ LANGUAGE plpgsql STABLE;
 
 -- -----------------------------------------------------------------------------
 -- Échéancier d'écolage : seuls les mois du plan du niveau sont facturables
--- (Tamatave 1re/Tle : septembre → mai, soit 9 échéances).
+-- (Tamatave 1re/Tle : septembre → mai, soit 9 échéances), à partir du mois d'inscription.
 -- -----------------------------------------------------------------------------
 CREATE FUNCTION tuition_month_allowed(p_enrollment uuid, p_month date) RETURNS boolean AS $$
   SELECT NOT EXISTS (
@@ -85,6 +85,9 @@ CREATE FUNCTION tuition_month_allowed(p_enrollment uuid, p_month date) RETURNS b
       AND ((extract(month FROM p_month)::int + 3) % 12) NOT BETWEEN ((r.first_payable_month + 3) % 12)
                                                               AND ((r.last_payable_month + 3) % 12)
   )
+  -- un élève arrivé en cours d'année : son compte commence au mois de son inscription
+  AND NOT EXISTS (SELECT 1 FROM enrollment e
+                   WHERE e.id = p_enrollment AND p_month < date_trunc('month', e.enrolled_on)::date)
 $$ LANGUAGE sql STABLE;
 
 CREATE FUNCTION invoice_cutoff_guard() RETURNS trigger AS $$
@@ -316,3 +319,92 @@ SELECT i.enrollment_id, p.category, p.received_at::date, 'Paiement ' || p.receip
 FROM payment_allocation pa
 JOIN payment p ON p.id = pa.payment_id
 JOIN invoice i ON i.id = pa.invoice_id;
+
+
+-- =============================================================================
+--  NOTES, COMPÉTENCES ET CONSEIL DE CLASSE
+-- =============================================================================
+
+-- Moyenne /20 d'un élève dans un service (classe × matière) pour un trimestre :
+-- notes ramenées sur 20, pondérées par le coefficient ; ABS, DISP et NN exclus.
+CREATE FUNCTION subject_average(p_enrollment uuid, p_assignment uuid, p_period uuid) RETURNS numeric AS $$
+  SELECT round(sum(g.value / e.scale_max * 20 * e.coefficient) / nullif(sum(e.coefficient), 0), 2)
+  FROM evaluation e
+  JOIN grade g ON g.evaluation_id = e.id AND g.enrollment_id = p_enrollment AND g.status = 'NOTE'
+  WHERE e.assignment_id = p_assignment AND e.period_id = p_period
+$$ LANGUAGE sql STABLE;
+
+-- Validation des notes du trimestre par l'enseignant :
+--   au moins min_evaluations évaluations ET une case remplie (note, ABS, DISP ou NN)
+--   pour chaque élève de la classe et chaque évaluation.
+CREATE FUNCTION validate_term(p_assignment uuid, p_period uuid, p_actor uuid) RETURNS void AS $$
+DECLARE
+  v_class uuid; v_year uuid; v_site uuid; v_min int; v_evals int; v_empty int;
+BEGIN
+  SELECT ta.class_id, c.year_id, c.site_id INTO v_class, v_year, v_site
+  FROM teaching_assignment ta JOIN school_class c ON c.id = ta.class_id WHERE ta.id = p_assignment;
+  SELECT coalesce((SELECT min_evaluations FROM grading_policy WHERE year_id = v_year AND site_id = v_site), 4) INTO v_min;
+  SELECT count(*) INTO v_evals FROM evaluation WHERE assignment_id = p_assignment AND period_id = p_period;
+  IF v_evals < v_min THEN
+    RAISE EXCEPTION 'Validation impossible : % évaluation(s) sur % minimum', v_evals, v_min;
+  END IF;
+  SELECT count(*) INTO v_empty
+  FROM evaluation ev
+  JOIN enrollment en ON en.class_id = v_class AND en.left_on IS NULL
+  LEFT JOIN grade g ON g.evaluation_id = ev.id AND g.enrollment_id = en.id
+  WHERE ev.assignment_id = p_assignment AND ev.period_id = p_period AND g.evaluation_id IS NULL;
+  IF v_empty > 0 THEN
+    RAISE EXCEPTION 'Validation impossible : % case(s) vide(s) (saisir une note ou ABS / DISP / NN)', v_empty;
+  END IF;
+  INSERT INTO term_validation (assignment_id, period_id, validated_by) VALUES (p_assignment, p_period, p_actor)
+  ON CONFLICT (assignment_id, period_id) DO UPDATE SET validated_at = now(), validated_by = p_actor;
+END $$ LANGUAGE plpgsql;
+
+-- Une fois validées, les notes sont verrouillées (réouverture = suppression de la validation).
+CREATE FUNCTION grade_lock_guard() RETURNS trigger AS $$
+DECLARE r record;
+BEGIN
+  SELECT e.assignment_id, e.period_id INTO r FROM evaluation e WHERE e.id = coalesce(NEW.evaluation_id, OLD.evaluation_id);
+  IF EXISTS (SELECT 1 FROM term_validation WHERE assignment_id = r.assignment_id AND period_id = r.period_id) THEN
+    RAISE EXCEPTION 'Notes validées pour ce trimestre : rouvrir la saisie avant toute modification';
+  END IF;
+  RETURN coalesce(NEW, OLD);
+END $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER grade_lock BEFORE INSERT OR UPDATE OR DELETE ON grade
+  FOR EACH ROW EXECUTE FUNCTION grade_lock_guard();
+
+-- Grille du conseil de classe : moyenne de chaque élève dans chaque matière.
+CREATE VIEW v_council_grid AS
+SELECT en.id AS enrollment_id, en.class_id, ev.period_id, ta.subject_id, s.label AS subject,
+       s.in_general_average, s.general_coef,
+       subject_average(en.id, ta.id, ev.period_id) AS average,
+       EXISTS (SELECT 1 FROM term_validation tv WHERE tv.assignment_id = ta.id AND tv.period_id = ev.period_id) AS validated
+FROM teaching_assignment ta
+JOIN subject s ON s.id = ta.subject_id
+JOIN enrollment en ON en.class_id = ta.class_id
+JOIN (SELECT DISTINCT assignment_id, period_id FROM evaluation) ev ON ev.assignment_id = ta.id;
+
+-- Moyenne générale : matières comptées uniquement (hors Arts plastiques, Musique, Vie de classe),
+-- pondérées par general_coef.
+CREATE FUNCTION general_average(p_enrollment uuid, p_period uuid) RETURNS numeric AS $$
+  SELECT round(sum(average * general_coef) / nullif(sum(general_coef), 0), 2)
+  FROM v_council_grid
+  WHERE enrollment_id = p_enrollment AND period_id = p_period AND in_general_average AND average IS NOT NULL
+$$ LANGUAGE sql STABLE;
+
+-- Copie d'un référentiel de compétences vers une autre classe du MÊME NIVEAU (ex. 1re G → 1re STMG).
+CREATE FUNCTION copy_competencies(p_from_class uuid, p_to_class uuid, p_subject uuid) RETURNS int AS $$
+DECLARE n int;
+BEGIN
+  IF (SELECT level_code FROM school_class WHERE id = p_from_class) IS DISTINCT FROM
+     (SELECT level_code FROM school_class WHERE id = p_to_class) THEN
+    RAISE EXCEPTION 'Copie limitée aux classes du même niveau';
+  END IF;
+  INSERT INTO competency (class_id, subject_id, position, label, copied_from)
+  SELECT p_to_class, subject_id, position, label, id FROM competency
+  WHERE class_id = p_from_class AND subject_id = p_subject
+  ON CONFLICT (class_id, subject_id, label) DO NOTHING;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  RETURN n;
+END $$ LANGUAGE plpgsql;

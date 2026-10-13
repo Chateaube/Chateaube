@@ -72,8 +72,8 @@ INSERT INTO invoice (id, number, enrollment_id, category, fee_schedule_id, due_o
 VALUES ('50000000-0000-0000-0000-000000000001', 'EXA-T4', '30000000-0000-0000-0000-000000000001',
         'DROITS_EXAMEN', '40000000-0000-0000-0000-000000000001', '2026-10-31', 600000);
 
-INSERT INTO payment (id, receipt_no, category, site_id, amount_mga, method, received_by)
-SELECT '60000000-0000-0000-0000-000000000001', 'R-T4', 'DROITS_EXAMEN', id, 600000, 'MVOLA',
+INSERT INTO payment (id, receipt_no, category, site_id, amount_mga, method, instrument_ref, bank_name, cheque_status, received_by)
+SELECT '60000000-0000-0000-0000-000000000001', 'R-T4', 'DROITS_EXAMEN', id, 600000, 'CHEQUE', '4410275', 'BNI Madagascar', 'A_DEPOSER',
        '00000000-0000-0000-0000-000000000001'
 FROM site WHERE code = 'TMV';
 
@@ -266,5 +266,129 @@ DO $$ DECLARE u uuid := '00000000-0000-0000-0000-000000000003'; BEGIN
   END;
 END $$;
 
+-- T15. Paiements : espèces, chèque ou virement ; n° et banque obligatoires hors espèces
+DO $$ DECLARE s uuid := (SELECT id FROM site WHERE code = 'TMV'); a uuid := '00000000-0000-0000-0000-000000000001'; BEGIN
+  INSERT INTO payment (receipt_no, category, site_id, amount_mga, method, received_by) VALUES ('R-T15a', 'ECOLAGE', s, 1000, 'ESPECES', a);
+  INSERT INTO payment (receipt_no, category, site_id, amount_mga, method, instrument_ref, bank_name, received_by)
+  VALUES ('R-T15b', 'ECOLAGE', s, 1000, 'VIREMENT', 'BRD-55120', 'BOA Madagascar', a);
+  BEGIN
+    INSERT INTO payment (receipt_no, category, site_id, amount_mga, method, cheque_status, received_by) VALUES ('R-T15c', 'ECOLAGE', s, 1000, 'CHEQUE', 'A_DEPOSER', a);
+    RAISE EXCEPTION 'T15: chèque sans numéro accepté';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO payment (receipt_no, category, site_id, amount_mga, method, received_by) VALUES ('R-T15d', 'ECOLAGE', s, 1000, 'MVOLA', a);
+    RAISE EXCEPTION 'T15: mobile money accepté';
+  EXCEPTION WHEN invalid_text_representation THEN NULL;
+  END;
+END $$;
+
+-- T16. Nouvel élève arrivé le 12 octobre : son compte commence en octobre ----
+INSERT INTO student (id, first_name, last_name, birth_date) VALUES ('20000000-0000-0000-0000-000000000002', 'Fy', 'RASOAMANANA', '2012-05-02');
+INSERT INTO enrollment (id, student_id, year_id, class_id, enrolled_on)
+SELECT '30000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000002', y.id, '10000000-0000-0000-0000-000000000001', '2026-10-12'
+FROM academic_year y;
+DO $$ BEGIN
+  INSERT INTO invoice (number, enrollment_id, category, period_month, due_on, amount_mga)
+  VALUES ('ECO-T16-OCT', '30000000-0000-0000-0000-000000000002', 'ECOLAGE', '2026-10-01', '2026-10-12', 450000);
+  BEGIN
+    INSERT INTO invoice (number, enrollment_id, category, period_month, due_on, amount_mga)
+    VALUES ('ECO-T16-SEP', '30000000-0000-0000-0000-000000000002', 'ECOLAGE', '2026-09-01', '2026-09-05', 450000);
+    RAISE EXCEPTION 'T16: septembre facturé à un élève arrivé en octobre';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM LIKE 'T16:%' THEN RAISE; END IF;
+  END;
+END $$;
+UPDATE enrollment SET left_on = '2026-10-13' WHERE id = '30000000-0000-0000-0000-000000000002'; -- hors classe pour T17
+
+-- T17. Notes : 4 évaluations minimum, cases remplies, moyenne pondérée, verrouillage
+INSERT INTO teaching_assignment (id, class_id, subject_id, teacher_id)
+SELECT 'c0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', id, '00000000-0000-0000-0000-000000000003'
+FROM subject WHERE code = 'MANAGEMENT';
+INSERT INTO evaluation (id, assignment_id, period_id, eval_type, title, held_on, scale_max, coefficient)
+SELECT v.id::uuid, 'c0000000-0000-0000-0000-000000000001', p.id, v.t, v.title, '2026-10-01', v.scale, v.coef
+FROM period p, (VALUES
+  ('d0000000-0000-0000-0000-000000000001', 'DS', 'DS n°1', 20, 2),
+  ('d0000000-0000-0000-0000-000000000002', 'INTERRO', 'Interro', 10, 1),
+  ('d0000000-0000-0000-0000-000000000003', 'ORAL', 'Oral', 20, 1)) v(id, t, title, scale, coef)
+WHERE p.rank = 1;
+INSERT INTO grade (evaluation_id, enrollment_id, status, value, entered_by) VALUES
+  ('d0000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 'NOTE', 16, '00000000-0000-0000-0000-000000000003'),
+  ('d0000000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-000000000001', 'NOTE', 9,  '00000000-0000-0000-0000-000000000003'),
+  ('d0000000-0000-0000-0000-000000000003', '30000000-0000-0000-0000-000000000001', 'NOTE', 17, '00000000-0000-0000-0000-000000000003');
+DO $$ DECLARE a uuid := 'c0000000-0000-0000-0000-000000000001'; p uuid := (SELECT id FROM period WHERE rank = 1); BEGIN
+  BEGIN
+    PERFORM validate_term(a, p, '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T17: validé avec 3 évaluations';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM LIKE 'T17:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO evaluation (id, assignment_id, period_id, eval_type, title, held_on)
+  VALUES ('d0000000-0000-0000-0000-000000000004', a, p, 'EXPOSE', 'Exposé', '2026-10-08');
+  BEGIN
+    PERFORM validate_term(a, p, '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T17: validé avec une case vide';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM LIKE 'T17:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO grade (evaluation_id, enrollment_id, status, entered_by)
+  VALUES ('d0000000-0000-0000-0000-000000000004', '30000000-0000-0000-0000-000000000001', 'ABSENT', '00000000-0000-0000-0000-000000000003');
+  PERFORM validate_term(a, p, '00000000-0000-0000-0000-000000000003');
+  -- (16 × 2 + 9/10 × 20 + 17) / 4 = 16,75 ; l'absence ne compte pas
+  ASSERT subject_average('30000000-0000-0000-0000-000000000001', a, p) = 16.75, 'T17: moyenne pondérée';
+  BEGIN
+    UPDATE grade SET value = 20 WHERE evaluation_id = 'd0000000-0000-0000-0000-000000000001';
+    RAISE EXCEPTION 'T17: note modifiée après validation';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM LIKE 'T17:%' THEN RAISE; END IF;
+  END;
+END $$;
+
+-- T18. Moyenne générale : Musique (hors moyenne) n'est pas comptée ------------
+INSERT INTO teaching_assignment (id, class_id, subject_id, teacher_id)
+SELECT 'c0000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', id, '00000000-0000-0000-0000-000000000003'
+FROM subject WHERE code = 'MUSIQUE';
+INSERT INTO evaluation (id, assignment_id, period_id, title, held_on)
+SELECT 'd0000000-0000-0000-0000-000000000005', 'c0000000-0000-0000-0000-000000000002', id, 'Chant', '2026-10-02' FROM period WHERE rank = 1;
+INSERT INTO grade (evaluation_id, enrollment_id, status, value, entered_by)
+VALUES ('d0000000-0000-0000-0000-000000000005', '30000000-0000-0000-0000-000000000001', 'NOTE', 20, '00000000-0000-0000-0000-000000000003');
+DO $$ BEGIN
+  ASSERT general_average('30000000-0000-0000-0000-000000000001', (SELECT id FROM period WHERE rank = 1)) = 16.75,
+    'T18: musique exclue de la moyenne générale';
+  ASSERT (SELECT count(*) FROM v_council_grid WHERE enrollment_id = '30000000-0000-0000-0000-000000000001') = 2, 'T18: deux matières dans la grille';
+END $$;
+
+-- T19. Portails : le Bureau voit la vie scolaire, pas l'inverse ; les profs ne voient pas la grille du conseil
+DO $$ BEGIN
+  ASSERT NOT EXISTS (SELECT permission FROM role_permission WHERE role = 'VIE_SCOLAIRE'
+                     EXCEPT SELECT permission FROM role_permission WHERE role = 'BUREAU'), 'T19: Bureau ⊇ Vie scolaire';
+  ASSERT NOT EXISTS (SELECT 1 FROM role_permission WHERE role = 'VIE_SCOLAIRE' AND permission IN ('finance.read', 'council.view')),
+    'T19: la vie scolaire n''a pas accès au Bureau';
+  ASSERT NOT EXISTS (SELECT 1 FROM role_permission WHERE role = 'PROFESSEUR' AND permission = 'council.view'), 'T19: prof sans grille';
+  ASSERT EXISTS (SELECT 1 FROM role_permission WHERE role = 'BUREAU' AND permission = 'council.view'), 'T19: Bureau avec grille';
+END $$;
+
+-- T20. Compétences : copie 1re STMG → 1re Générale (même niveau) seulement ---
+INSERT INTO school_class (id, year_id, site_id, level_code, track, name)
+SELECT v.id::uuid, y.id, s.id, v.lvl, v.track::track_code, v.name
+FROM academic_year y, site s, (VALUES
+  ('10000000-0000-0000-0000-000000000002', '1RE', 'STMG', '1re STMG'),
+  ('10000000-0000-0000-0000-000000000003', '1RE', 'GENERALE', '1re Générale')) v(id, lvl, track, name)
+WHERE s.code = 'TMV';
+INSERT INTO competency (class_id, subject_id, position, label)
+SELECT '10000000-0000-0000-0000-000000000002', id, v.pos, v.label
+FROM subject, (VALUES (1, 'Comprendre un enjeu de société'), (2, 'Construire un argumentaire')) v(pos, label)
+WHERE code = 'FRANCAIS';
+DO $$ DECLARE f uuid := (SELECT id FROM subject WHERE code = 'FRANCAIS'); BEGIN
+  ASSERT copy_competencies('10000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000003', f) = 2, 'T20: copie';
+  ASSERT copy_competencies('10000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000003', f) = 0, 'T20: pas de doublon';
+  BEGIN
+    PERFORM copy_competencies('10000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', f);
+    RAISE EXCEPTION 'T20: copie vers un autre niveau acceptée';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM LIKE 'T20:%' THEN RAISE; END IF;
+  END;
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T14 passent'
+\echo 'OK — tous les scénarios T1 à T20 passent'

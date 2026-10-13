@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, Icon } from './ui.jsx';
+import { CLASS_SUBJECTS } from '../data/grades.js';
 import {
   dunningSchedule, pausesBetween, planMonths, dueDateOf, formatDateFr, monthName, madagascarHolidays,
 } from '../rules/calendar.js';
@@ -248,6 +249,41 @@ export default function SettingsModule({ settings, onChange, onReset }) {
                   ))}
                 </div>
               </div>
+            </div>
+          </Card>
+
+          {/* Notes */}
+          <Card title="Notes & conseil de classe" subtitle="Règles communes à toutes les classes de Tamatave">
+            <NumberField label="Notes minimum par trimestre (pour valider)" value={settings.grading.minEvaluations} min={1} max={10} suffix="évaluations"
+              onChange={(v) => set('grading', { minEvaluations: v })} />
+            <div className="mt-4">
+              <p className="text-xs font-medium text-slate-600">Types d'évaluation proposés aux enseignants</p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {settings.grading.evaluationTypes.map((t) => (
+                  <span key={t} className="inline-flex items-center gap-1 rounded-full bg-navy-50 px-2.5 py-1 text-xs font-medium text-navy-900">
+                    {t}
+                    <button type="button" aria-label={`Retirer ${t}`} onClick={() => set('grading', { evaluationTypes: settings.grading.evaluationTypes.filter((x) => x !== t) })} className="text-navy-500 hover:text-red-600">×</button>
+                  </span>
+                ))}
+                <form onSubmit={(e) => { e.preventDefault(); const v = e.target.elements.t.value.trim(); if (v && !settings.grading.evaluationTypes.includes(v)) set('grading', { evaluationTypes: [...settings.grading.evaluationTypes, v] }); e.target.reset(); }}>
+                  <input name="t" placeholder="+ Ajouter" className="w-28 rounded-full border border-dashed border-slate-300 px-2.5 py-0.5 text-xs" />
+                </form>
+              </div>
+            </div>
+            <div className="mt-4">
+              <p className="text-xs font-medium text-slate-600">Matières comptées dans la moyenne générale (grille du conseil)</p>
+              <div className="mt-1.5 grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
+                {CLASS_SUBJECTS.map((s) => {
+                  const included = !settings.grading.excludedSubjects.includes(s.id);
+                  return (
+                    <label key={s.id} className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" checked={included} onChange={() => set('grading', { excludedSubjects: toggleIn(settings.grading.excludedSubjects, s.id) })} />
+                      <span className={included ? 'text-slate-800' : 'text-slate-400 line-through'}>{s.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+              <p className="mt-1 text-xs text-slate-500">Par défaut : Arts plastiques, Musique et Vie de classe sont hors moyenne.</p>
             </div>
           </Card>
 

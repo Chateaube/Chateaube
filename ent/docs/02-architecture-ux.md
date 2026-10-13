@@ -15,9 +15,28 @@
 **Charte graphique** : bleu institutionnel `#003366` / `#005baa` (repris du site vitrine), sémantique constante
 (vert = conforme/payé, ambre = à surveiller, rouge = bloquant, violet = flux « droits d'examen » ou IA).
 
-## 2.2 Arborescence par profil
+## 2.2 Portails et matrice des droits
 
-### Direction (Cheffe d'établissement **et** Directrice adjointe : menu et droits identiques)
+Cinq portails distincts. Chaque personne ne voit que le sien, et les droits sont portés par le rôle (jamais par la
+personne).
+
+| Fonction | Direction (administrateur) | Bureau (administration / économat) | Vie scolaire | Enseignant | Parent |
+|---|:-:|:-:|:-:|:-:|:-:|
+| Tableau de bord de pilotage, validation des mises à pied | ✔ | — | — | — | — |
+| Paramètres (relances, calendrier, notation), gestion des agents | ✔ | — | — | — | — |
+| Encaissements, états de compte, caisse, tarifs | ✔ | ✔ | — | — | son compte |
+| Inscriptions, dossiers administratifs, examens | ✔ | ✔ | dossiers d'examen | — | — |
+| Grille du conseil de classe, décisions | ✔ | ✔ | — | — | — |
+| Absences, retards, incidents, notifications aux parents | ✔ | ✔ | ✔ | appel de ses cours | ses enfants |
+| Notes, compétences, appréciations | lecture | — | — | ses classes | ses enfants |
+| Réservations de matériel | ✔ | ✔ | ✔ (gestion du parc) | ✔ | — |
+
+Règle demandée : **le Bureau a accès à la Vie scolaire, l'inverse non.** En base, les permissions du Bureau
+contiennent celles de la Vie scolaire (scénario T19), et les enseignants n'ont pas accès à la grille du conseil.
+
+## 2.3 Arborescence par profil
+
+### Direction : administrateur (Cheffe d'établissement **et** Directrice adjointe, menu et droits identiques)
 ```
 Pilotage
 ├── Tableau de bord ............ alertes écolage, KPI par site, bandeau du mois, échéances examens
@@ -50,17 +69,21 @@ Administration
 └── Journal d'audit
 ```
 
-### Professeur
+### Enseignant
 ```
-Mon tableau de bord ............ cours du jour, saisies en retard, réservations à venir, annonces profs
+Mon tableau de bord ............ cours du jour, appel, tâches (notes, appréciations), annonces profs
 Mes classes
 ├── Appel & retards (→ notification parent en 1 clic)
 ├── Cahier de textes / devoirs
 └── Trombinoscope
-Évaluations
-├── Saisie des notes (grille notes + compétences, correction intelligente)
-├── Appréciations (assistant IA + contrôleur de rédaction)
-└── Parcours d'ouverture (appréciation seule, séances Numérique / Orientation / Art)
+Notes & appréciations (par classe × matière, en 3 étapes)
+├── 1. Notes : type (DS, oral, exposé…), barème (/20 par défaut), coefficient (1 par défaut), « + Ajouter une note »,
+│   moyenne pondérée ; validation du trimestre avec 4 notes minimum et toutes les cases remplies
+├── 2. Compétences : référentiel propre à la classe et à la matière, copie proposée depuis la même matière au
+│   même niveau (1re Générale ↔ 1re STMG), bilan sur 4 niveaux
+└── 3. Appréciations : moyenne de la matière et moyenne générale (T1 / T2 / T3), assistant + contrôleur, avis pour le
+    conseil (élève exemplaire, bavard.e, avertissement travail / comportement…), non imprimés sur le bulletin
+Parcours d'ouverture ........... appréciation seule (Numérique / Orientation / Art)
 Réservations ................... vidéoprojecteurs, enceintes, TV, salles, informatique
 Emploi du temps
 Communication .................. annonces à mes classes, message à un parent
@@ -78,17 +101,18 @@ Emplois du temps ............... pauses déjeuner par classe et par jour, salles
 Annonces ....................... par classe, niveau ou site
 ```
 
-### Comptabilité
+### Bureau : administration / économat (+ accès à la Vie scolaire)
 ```
-Tableau de bord ................ encaissements du jour par caisse (Tana / Tamatave), deux catégories séparées
-Écolage
-├── Échéanciers par famille (mois facturables, verrou de mai pour 1re/Tle TMV)
-├── Encaissements (espèces, virement, Mvola, Orange Money, Airtel Money) + reçus
-└── Recouvrement : relances automatiques (J+5), avertissements (J+10), propositions de mise à pied (J+25) → Direction
-Droits d'examen
-├── Encaissements (ventilation automatique : 40 000 Ar conservés / reste à reverser)
-└── Reversements aux centres d'examen
-États & exports ................ grand livre par catégorie, balance, export tableur
+Accueil ........................ encaissements du jour, chèques à déposer, échéances échues, dossiers à traiter
+Encaissements & comptabilité
+├── Encaisser : choisir l'élève → cocher les mois (échus proposés d'office, payés grisés) → espèces / chèque
+│   (n° + banque) / virement (n° de bordereau + banque) → un reçu par journal
+├── Classes & tarifs · Articles & services · États de compte · Caisse (entrées / sorties)
+├── Droits d'examen : ventilation automatique (40 000 Ar conservés / reste à reverser), reversements
+└── Recouvrement : relances (J+5), avertissements (J+10), propositions de mise à pied (J+25) → Direction
+Inscriptions ................... nouvel élève (compte ouvert au mois d'arrivée), réinscriptions
+Conseils de classe ............. grilles de notes, avis des enseignants, décisions
+Vie scolaire (accès partagé) ... absences, retards, incidents
 ```
 
 ### Parent (application mobile / PWA)
@@ -112,9 +136,10 @@ Examens ........................ convocation, centre (LF Tamatave / LF Tana), ca
 Orientation .................... Parcours d'ouverture, Campus France (Terminale)
 ```
 
-## 2.3 Écrans clés (prototypés dans `prototype/`)
+## 2.4 Écrans clés (prototypés dans `prototype/`)
 
-Le sélecteur **« Voir l'ENT en tant que »** (Direction / Enseignant / Parent) permet de parcourir chaque portail.
+Le sélecteur **« Voir l'ENT en tant que »** (Direction, Bureau, Vie scolaire, Enseignant, Parent) permet de parcourir
+chaque portail.
 
 - **Comptabilité** : Classes & tarifs (grille éditable, coût annuel calculé), Articles & services, États de compte
   (facturer un article, encaisser un paiement), Caisse : entrées / sorties.
@@ -134,7 +159,7 @@ Le sélecteur **« Voir l'ENT en tant que »** (Direction / Enseignant / Parent)
    (passages fautifs soulignés), panneau du contrôleur (4 règles bloquantes + suggestions), assistant de proposition,
    décision au format inclusif générée automatiquement. Un onglet **Notes & compétences** montre la correction de saisie.
 
-## 2.4 Parcours critiques
+## 2.5 Parcours critiques
 
 **Bascule d'avril (Direction)** : Élèves & mobilité → Campagnes → « Préparer » (liste des 1re/Tle de Tamatave, classes
 d'accueil à Tana, soldes d'écolage) → « Exécuter » → l'élève apparaît à Tana dès la date d'effet ; ses notes et factures
@@ -144,6 +169,11 @@ restent visibles, sa fiche affiche « Tamatave (sept. → avr.) · Tana (avr. �
 en rouge « Mise à pied à valider » → la Direction valide (notification) ou accorde un délai. Les jours sont comptés selon le
 calendrier scolaire (hors fériés, vacances et octobre).
 
-**Appréciation (Professeur)** : saisie ou « Proposer avec l'assistant » → le contrôleur souligne les problèmes →
-« Corriger la forme » applique les corrections sûres (format inclusif) → « Valider » s'active à zéro erreur → publication
-du bulletin par la Direction.
+**Trimestre (Enseignant → Bureau / Direction)** : saisie des notes (au moins 4) → validation, qui verrouille les notes →
+bilan des compétences → appréciation avec moyennes et avis pour le conseil → la grille du conseil se remplit
+automatiquement → le conseil choisit les mentions et avertissements (propositions calculées) → bulletin publié par la
+Direction.
+
+**Encaissement (Bureau)** : rechercher l'élève → les échéances échues sont cochées d'office, celles déjà payées sont
+grisées → ajuster (mois suivants, frais annuels) → chèque (n° + banque) ou virement (n° de bordereau + banque) ou
+espèces → un reçu par journal, envoyé au parent.
