@@ -10,7 +10,7 @@ entre frais de scolarité et droits d'examen.
 |---|---|
 | 1. Modèle de données (entités, diagramme, règles, hypothèses à valider) | [`docs/01-modele-de-donnees.md`](docs/01-modele-de-donnees.md) |
 | Schéma PostgreSQL exécutable | [`db/schema.sql`](db/schema.sql) · [`db/functions.sql`](db/functions.sql) · [`db/seed.sql`](db/seed.sql) |
-| Scénarios de vérification (30 règles métier) | [`db/tests.sql`](db/tests.sql) |
+| Scénarios de vérification (31 règles métier) | [`db/tests.sql`](db/tests.sql) |
 | 2. Architecture UX/UI et arborescence par profil | [`docs/02-architecture-ux.md`](docs/02-architecture-ux.md) |
 | Architecture technique (SSO, tâches planifiées, IA, sécurité) | [`docs/03-architecture-technique.md`](docs/03-architecture-technique.md) |
 | Cadrage par profil (questions à valider avant de développer) | [`docs/04-cadrage-par-profil.md`](docs/04-cadrage-par-profil.md) |
@@ -35,8 +35,9 @@ pied à valider), comptabilité, conseils de classe, **vie scolaire** (absences,
 enseignements ; contrôle ligne par ligne (classes, dates, nationalités, téléphones, numéros sautés, doublons) puis import.
 Les données importées restent dans le navigateur de la personne qui importe : elles ne sont ni publiées ni partagées.
 
-**Documents** : certificat de scolarité depuis la fiche élève (ancienneté : nouvel élève ou ancien depuis n ans) ;
-bulletins du trimestre depuis le conseil de classe (aperçu, un bulletin ou toute la classe, une page A4 par élève).
+**Documents** (modèles de l'établissement) : certificat de scolarité en demi-page A4, 1 ou 2 exemplaires, signé par la
+Directrice adjointe ou la Cheffe d'établissement ; bulletins (Pédagogie → Bulletins) : une page A4 par élève, seulement
+les matières de l'élève (2 spécialités sur 3 en Terminale générale), lignes ajustées au texte des appréciations.
 
 **Bureau (administration / économat)** : accueil ; **Inscriptions** (pré-inscriptions, fiche élève à chaque inscription ou
 réinscription, comptes de l'ENT créés depuis la fiche) ; **Encaisser** (choisir l'élève, ex. *RASOAMANANA Fy* arrivé le 12/10,

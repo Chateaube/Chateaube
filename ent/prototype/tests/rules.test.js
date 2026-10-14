@@ -566,7 +566,7 @@ test('import Excel : classes, téléphones, nationalités, contrôles', () => {
   assert.deepEqual(p[0], { name: 'Mme Rabe', subjects: ['SES', 'Économie', 'Droit', 'Spécialité Mathématiques'], classes: ['2de', '1re STMG', 'Terminale STMG'] });
 });
 
-import { seniority, parseEntry, accord, certificateNumber, demoAppreciation, schoolYearLabel } from '../src/rules/documents.js';
+import { seniority, parseEntry, accord, certificateNumber, demoAppreciation, schoolYearLabel, classLongName, frDate } from '../src/rules/documents.js';
 test('ancienneté, certificat, appréciations de démonstration', () => {
   assert.deepEqual(seniority('2026-09-01'), { isNew: true, years: 0, label: 'Nouvel élève' });
   assert.equal(seniority('2024-09-02').years, 2);
@@ -583,5 +583,25 @@ test('ancienneté, certificat, appréciations de démonstration', () => {
   assert.equal(accord('', 'inscrit', 'inscrite'), 'inscrit(e)');
   assert.equal(certificateNumber(42), 'CS-2026-0042');
   assert.equal(schoolYearLabel('2026-10-13'), '2026-2027');
+  assert.equal(classLongName('2de'), 'Seconde Générale');
+  assert.equal(classLongName('Terminale Générale'), 'Terminale Générale');
+  assert.equal(classLongName('1re STMG'), 'Première STMG');
+  assert.equal(frDate('2011-07-05'), '05/07/2011');
   for (const a of [18, 15, 13, 11, 7, null]) assert.ok(checkAppreciation(demoAppreciation(a)).ok, `appréciation conforme (${a})`);
+});
+
+import { subjectsOf, specialtyErrors, subjectClassAverage, classLine } from '../src/rules/bulletin.js';
+import { TLE_G_SUBJECTS, TLE_G_STUDENTS } from '../src/data/bulletins.js';
+test('bulletin de Terminale : 2 spécialités sur 3 selon l\'élève', () => {
+  const st = { specialties: ['MATHS', 'PC'] };
+  const ids = subjectsOf(st, TLE_G_SUBJECTS).map((s) => s.id);
+  assert.ok(ids.includes('SPE_MATHS') && ids.includes('SPE_PC') && !ids.includes('SPE_SVT'));
+  assert.equal(ids.length, TLE_G_SUBJECTS.length - 1);
+  assert.deepEqual(specialtyErrors('Terminale Générale', ['MATHS']), ['Terminale Générale : 2 spécialités à choisir (1 choisie).']);
+  assert.deepEqual(specialtyErrors('Terminale Générale', ['MATHS', 'SVT']), []);
+  assert.deepEqual(specialtyErrors('3e', []), []);
+  // moyenne de classe d'une spécialité : seulement les élèves qui la suivent
+  const svt = TLE_G_STUDENTS.filter((s) => s.specialties.includes('SVT'));
+  assert.equal(subjectClassAverage('SPE_SVT', TLE_G_STUDENTS), subjectClassAverage('SPE_SVT', svt));
+  assert.equal(classLine('Terminale Générale', ['MATHS', 'PC']), 'Classe de Tle Générale - Spécialités Mathématiques et Physique-Chimie');
 });

@@ -84,9 +84,11 @@ erDiagram
 - **Ancienneté** : nouvel élève ou ancien élève « depuis n ans », calculée à partir de la première inscription dans
   l'établissement (`min(enrollment.enrolled_on)` ; date d'entrée saisie à l'import pour l'historique antérieur à l'ENT).
   Elle détermine les frais d'inscription (nouvel élève) ou de réinscription (ancien élève).
-- **Documents officiels** générés depuis la fiche : certificat de scolarité numéroté (`CS-2026-0042`) et bulletins
-  trimestriels selon le modèle de l'établissement (matières et professeurs, compétences, moyennes élève et classe,
-  appréciations, appréciation générale et décision du conseil), une page A4 par élève.
+- **Documents officiels**, sur les modèles de l'établissement : certificat de scolarité (demi-page A4, 1 ou 2 exemplaires)
+  et bulletins trimestriels (matières et professeurs, compétences, moyennes élève et classe, appréciations, absences,
+  appréciation générale). Les lignes d'un bulletin sont celles de l'élève : **spécialités** (`enrollment_specialty` :
+  3 en Première générale, 2 en Terminale générale), la moyenne de classe d'une spécialité ne portant que sur ses élèves.
+  Arts plastiques et Musique : collège uniquement.
 
 ### Comptes, rôles, SSO
 - **`app_user`** : `google_sub` stocke l'identifiant OIDC Google. **`sso_allowlist`** : les comptes Gmail personnels ne

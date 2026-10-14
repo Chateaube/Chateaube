@@ -58,3 +58,16 @@ export function demoAppreciation(avg) {
   if (avg >= 10) return 'Trimestre correct, les bases sont acquises. Il faut gagner en régularité dans le travail personnel.';
   return 'Des difficultés ce trimestre, mais des progrès sont possibles. Un travail régulier et des questions en classe aideront à remonter.';
 }
+
+/** Date au format des documents : 05/07/2011. */
+export const frDate = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
+
+/** Nom de classe en toutes lettres pour les documents officiels. */
+export function classLongName(cls) {
+  const map = { '6e': 'Sixième', '5e': 'Cinquième', '4e': 'Quatrième', '3e': 'Troisième', '2de': 'Seconde Générale' };
+  if (map[cls]) return map[cls];
+  const serie = /STMG/.test(cls) ? 'STMG' : 'Générale';
+  if (/^1/.test(cls)) return `Première ${serie}`;
+  if (/^(T|Terminale)/.test(cls)) return `Terminale ${serie}`;
+  return cls;
+}

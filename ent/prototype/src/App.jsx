@@ -17,6 +17,7 @@ import InscriptionsModule from './components/InscriptionsModule.jsx';
 import TeacherOversight from './components/TeacherOversight.jsx';
 import Messenger from './components/Messenger.jsx';
 import ImportModule from './components/ImportModule.jsx';
+import BulletinsModule from './components/BulletinsModule.jsx';
 import pillar from './assets/pilier.png';
 import { useScreenGuard } from './screenGuard.js';
 
@@ -30,6 +31,7 @@ import { DIRECTION_ACCOUNTS } from './data/demo.js';
 // Les entrées sans `screen` existent dans l'architecture mais pas dans ce prototype.
 const VIE_SCOLAIRE = { id: 'vs', label: 'Vie scolaire', icon: 'users', screen: VieScolaireModule };
 const COUNCIL = { id: 'council', label: 'Conseils de classe', icon: 'cap', screen: CouncilGrid };
+const BULLETINS = { id: 'bulletins', label: 'Bulletins', icon: 'pen', screen: BulletinsModule };
 const BOOKING = { id: 'booking', label: 'Réservations', icon: 'calendar', screen: BookingModule };
 const INSCRIPTIONS = { id: 'enrol', label: 'Inscriptions & fiches élèves', icon: 'users', screen: InscriptionsModule };
 const OVERSIGHT = [
@@ -59,6 +61,7 @@ const PROFILES = {
       ] },
       { group: 'Pédagogie', items: [
         COUNCIL,
+        BULLETINS,
         ...OVERSIGHT,
         { id: 'timetable', label: 'Emplois du temps', icon: 'clock' },
         BOOKING,
@@ -88,6 +91,7 @@ const PROFILES = {
         INSCRIPTIONS,
         IMPORT,
         COUNCIL,
+        BULLETINS,
         ...OVERSIGHT,
       ] },
       { group: 'Accès partagé', items: [MESSAGES, VIE_SCOLAIRE, FOLLOW_UP, BOOKING] },

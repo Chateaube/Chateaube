@@ -235,6 +235,15 @@ CREATE TABLE enrollment (
 
 -- Affectation GÉOGRAPHIQUE historisée (où l'élève est physiquement accueilli).
 -- Exemple : élève de Tle de Tamatave → ligne 1 (TMV, sept→avril) puis
+-- Spécialités suivies (voie générale) : 3 en Première, 2 en Terminale. Le bulletin ne garde
+-- que les spécialités de l'élève ; la moyenne de classe d'une spécialité porte sur ses seuls élèves.
+CREATE TYPE specialty_code AS ENUM ('MATHS', 'PC', 'SVT', 'SES', 'HGGSP', 'HLP', 'LLCER', 'NSI');
+CREATE TABLE enrollment_specialty (
+  enrollment_id uuid REFERENCES enrollment(id) ON DELETE CASCADE,
+  specialty     specialty_code,
+  PRIMARY KEY (enrollment_id, specialty)
+);
+
 -- ligne 2 (TANA, avril→fin d'année, reason = TRANSFERT_EXAMEN).
 CREATE TABLE site_assignment (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),

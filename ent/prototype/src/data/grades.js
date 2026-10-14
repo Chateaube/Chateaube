@@ -98,7 +98,7 @@ export const COUNCIL_FLAGS = [
 ];
 
 // --- Conseil de classe : 1re STMG -----------------------------------------------
-// inAverage : faux pour Arts plastiques, Musique et Vie de classe (hors moyenne générale)
+// inAverage : faux pour Vie de classe (hors moyenne générale). Arts plastiques et Musique : collège uniquement
 export const CLASS_SUBJECTS = [
   { id: 'FR', label: 'Français', teacher: 'Mme Nathalie', inAverage: true, coef: 1 },
   { id: 'MATHS', label: 'Mathématiques', teacher: 'M. Steven', inAverage: true, coef: 1 },
@@ -111,8 +111,6 @@ export const CLASS_SUBJECTS = [
   { id: 'SGN', label: 'Sc. de gestion et numérique', teacher: 'M. Fortuna', inAverage: true, coef: 1 },
   { id: 'DROIT', label: 'Droit', teacher: 'Mme Karele', inAverage: true, coef: 1 },
   { id: 'ECO', label: 'Économie', teacher: 'Mme Karele', inAverage: true, coef: 1 },
-  { id: 'AP', label: 'Arts plastiques', teacher: 'à désigner', inAverage: false, coef: 1 },
-  { id: 'MUS', label: 'Musique', teacher: 'à désigner', inAverage: false, coef: 1 },
   { id: 'VDC', label: 'Vie de classe', teacher: 'Mme Ranaivo', inAverage: false, coef: 1 },
 ];
 

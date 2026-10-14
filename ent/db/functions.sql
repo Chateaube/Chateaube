@@ -600,3 +600,35 @@ FROM (
   UNION ALL
   SELECT 'MESURE', m.id, m.enrollment_id, m.decided_on::timestamptz FROM discipline_measure m WHERE m.parent_ack_at IS NULL
 ) x;
+
+-- -----------------------------------------------------------------------------
+-- Spécialités : uniquement en voie générale, 3 en Première, 2 en Terminale
+-- -----------------------------------------------------------------------------
+CREATE FUNCTION specialty_count_for(p_enrollment uuid) RETURNS int AS $$
+  SELECT CASE WHEN c.track = 'GENERALE' AND c.level_code = '1RE' THEN 3
+              WHEN c.track = 'GENERALE' AND c.level_code = 'TLE' THEN 2
+              ELSE 0 END
+  FROM enrollment e JOIN school_class c ON c.id = e.class_id WHERE e.id = p_enrollment
+$$ LANGUAGE sql STABLE;
+
+CREATE FUNCTION enrollment_specialty_guard() RETURNS trigger AS $$
+DECLARE v_max int := specialty_count_for(NEW.enrollment_id);
+BEGIN
+  IF v_max = 0 THEN
+    RAISE EXCEPTION 'Pas de spécialité dans cette classe (voie générale, Première et Terminale uniquement)';
+  END IF;
+  IF (SELECT count(*) FROM enrollment_specialty WHERE enrollment_id = NEW.enrollment_id) >= v_max THEN
+    RAISE EXCEPTION 'Déjà % spécialités pour cet élève', v_max;
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER enrollment_specialty_guard BEFORE INSERT ON enrollment_specialty
+  FOR EACH ROW EXECUTE FUNCTION enrollment_specialty_guard();
+
+-- Élèves de voie générale dont le choix de spécialités est incomplet
+CREATE VIEW v_specialty_incomplete AS
+SELECT e.id AS enrollment_id, specialty_count_for(e.id) AS expected,
+       (SELECT count(*) FROM enrollment_specialty es WHERE es.enrollment_id = e.id) AS chosen
+FROM enrollment e
+WHERE specialty_count_for(e.id) > 0
+  AND (SELECT count(*) FROM enrollment_specialty es WHERE es.enrollment_id = e.id) < specialty_count_for(e.id);

@@ -581,5 +581,30 @@ DO $$ BEGIN
   END;
 END $$;
 
+-- T31. Spécialités : 2 en Terminale générale, aucune en STMG ---------------------
+INSERT INTO school_class (id, year_id, site_id, level_code, track, name)
+SELECT '10000000-0000-0000-0000-0000000000a1', y.id, s.id, 'TLE', 'GENERALE', 'Tle Générale'
+FROM academic_year y, site s WHERE s.code = 'TMV';
+INSERT INTO student (id, first_name, last_name, birth_date) VALUES ('20000000-0000-0000-0000-0000000000a1', 'Volana', 'RAZAFY', '2008-12-28');
+INSERT INTO enrollment (id, student_id, year_id, class_id, enrolled_on)
+SELECT '30000000-0000-0000-0000-0000000000a1', '20000000-0000-0000-0000-0000000000a1', y.id,
+       '10000000-0000-0000-0000-0000000000a1', '2026-09-01'
+FROM academic_year y WHERE y.is_current;
+DO $$ DECLARE e uuid := (SELECT id FROM enrollment WHERE class_id = '10000000-0000-0000-0000-0000000000a1'); BEGIN
+  ASSERT EXISTS (SELECT 1 FROM v_specialty_incomplete WHERE enrollment_id = e), 'T31: choix incomplet signalé';
+  INSERT INTO enrollment_specialty VALUES (e, 'MATHS'), (e, 'PC');
+  ASSERT NOT EXISTS (SELECT 1 FROM v_specialty_incomplete WHERE enrollment_id = e), 'T31: 2 spécialités = complet';
+  BEGIN
+    INSERT INTO enrollment_specialty VALUES (e, 'SVT');
+    RAISE EXCEPTION 'T31: troisième spécialité acceptée en Terminale';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T31:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    INSERT INTO enrollment_specialty VALUES ('30000000-0000-0000-0000-000000000001', 'MATHS');
+    RAISE EXCEPTION 'T31: spécialité acceptée en STMG';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T31:%' THEN RAISE; END IF;
+  END;
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T30 passent'
+\echo 'OK — tous les scénarios T1 à T31 passent'

@@ -1,65 +1,85 @@
 import React, { useState } from 'react';
 import { Button } from './ui.jsx';
-import logo from '../assets/logo-tamatave.png';
-import { seniority, accord, certificateNumber, schoolYearLabel } from '../rules/documents.js';
-import { formatDateFr } from '../rules/calendar.js';
+import logo from '../assets/logo-chateaubriand.png';
+import { accord, schoolYearOf, classLongName, frDate } from '../rules/documents.js';
 import { printOnly } from '../print.js';
 
-// Certificat de scolarité (A4) : modèle standard en attendant la matrice de l'établissement.
+// Certificat de scolarité selon la matrice de l'établissement : une demi-page A4,
+// imprimé en 1 ou 2 exemplaires selon la demande de l'élève (2 exemplaires = une page découpée).
 const TODAY = '2026-10-13';
-let seq = 41; // dernier n° délivré (démonstration)
 
-const longDate = (iso) => (iso ? formatDateFr(iso).replace(/^\S+ /, '') : '…');
-const levelLabel = (cls) => cls.replace(/^Terminale/, 'Terminale').replace(/^(\d)e$/, '$1e');
+// Signataires possibles (Direction)
+export const SIGNATORIES = [
+  { id: 'ADJOINTE', intro: 'Sheena Lo Thion Kao, Directrice Adjointe de Chateaubriand', title: 'La Directrice Adjointe,', name: 'Sheena Lo' },
+  { id: 'CHEFFE', intro: 'Cheffe d\'établissement de Chateaubriand', title: 'La Cheffe d\'Établissement,', name: '' },
+];
 
-export function CertificateSheet({ profile: p, number }) {
-  const s = seniority(p.enteredOn);
-  const born = accord(p.sex, 'né', 'née');
-  const enrolled = accord(p.sex, 'inscrit', 'inscrite');
+const SITES = [
+  ['CHATEAUBRIAND TAMATAVE', '27 Rue Nationale, 501 Toamasina', '+261 34 51 227 78', 'chateaubetamatave@gmail.com'],
+  ['CHATEAUBRIAND TANANARIVE', 'Lot II R 5 Betongolo, 101 Antananarivo', '+261 34 16 982 87', 'chateaube@yahoo.fr'],
+];
+
+export function CertificateSheet({ profile: p, signatory = SIGNATORIES[0] }) {
+  const y = schoolYearOf(TODAY);
   return (
-    <div style={{ fontFamily: 'Alice, Georgia, serif' }} className="certificate mx-auto flex min-h-[1000px] w-full max-w-[720px] flex-col bg-white p-12 text-[15px] leading-relaxed text-slate-900 shadow-soft">
-      <img src={logo} alt="École Collège Lycée Chateaubriand Tamatave — 27 Rue Nationale, 501 Toamasina · +261 34 51 227 78 · chateaubetamatave@gmail.com" className="w-full max-w-[520px]" />
-      <p className="mt-2 text-right text-xs text-slate-500">N° {number}</p>
-      <h2 className="mt-10 text-center font-display text-2xl font-bold tracking-[0.2em] text-navy-900">CERTIFICAT DE SCOLARITÉ</h2>
-      <p className="mt-1 text-center text-sm text-slate-600">Année scolaire {schoolYearLabel(TODAY)}</p>
-      <div className="mt-12 space-y-5">
-        <p>Je soussignée, Cheffe d'établissement de l'École Collège Lycée Chateaubriand de Tamatave, certifie que l'élève :</p>
-        <p className="text-center text-lg font-bold">{p.lastName} {p.firstName}</p>
-        <p>{born} le <strong>{longDate(p.birthDate)}</strong>{p.birthPlace ? <> à <strong>{p.birthPlace}</strong></> : null},</p>
-        <p>est régulièrement {enrolled} en classe de <strong>{levelLabel(p.cls)}</strong> au titre de l'année scolaire {schoolYearLabel(TODAY)}
-          {s && !s.isNew ? <>, et fréquente l'établissement depuis le <strong>{longDate(p.enteredOn)}</strong> ({s.years} an{s.years > 1 ? 's' : ''})</> : null}
-          {s?.isNew ? <>, depuis le <strong>{longDate(p.enteredOn)}</strong></> : null}.</p>
-        <p>Le présent certificat est délivré à l'intéressé{p.sex === 'F' ? 'e' : p.sex === 'M' ? '' : '(e)'} pour servir et valoir ce que de droit.</p>
+    <div className="certificate grid h-[148mm] w-full max-w-[210mm] grid-cols-[34%_1fr] gap-6 bg-white px-[10mm] py-[8mm] text-[11.5px] leading-snug text-black"
+      style={{ fontFamily: 'Poppins, sans-serif' }}>
+      <div className="flex flex-col">
+        <img src={logo} alt="École Collège Lycée Chateaubriand" className="w-[52mm]" />
+        <p className="mt-8 text-[9.5px]">Une scolarité basée sur<br />les programmes français depuis 1994</p>
+        {SITES.map(([n, a, t, m]) => (
+          <p key={n} className="mt-6 text-[9.5px] leading-tight text-navy-700">{n}<br />{a}<br />{t}<br />{m}</p>
+        ))}
       </div>
-      <div className="mt-16 ml-auto w-72 text-center">
-        <p>Fait à Toamasina, le {longDate(TODAY)}</p>
-        <p className="mt-2 font-semibold">La Cheffe d'établissement</p>
-        <div className="mt-3 h-28 rounded-lg border border-dashed border-slate-300 text-xs leading-[7rem] text-slate-400 print:border-0">signature et cachet</div>
+      <div className="flex flex-col">
+        <p className="text-right">Tamatave, le {frDate(TODAY)}</p>
+        <h2 className="mt-12 text-center text-[15px] font-bold tracking-wide">CERTIFICAT DE SCOLARITÉ</h2>
+        <p className="mt-6 text-justify">Je soussignée, {signatory.intro}, certifie que :</p>
+        <p className="mt-4 text-center font-bold">{p.lastName}&nbsp;&nbsp;&nbsp;{p.firstName}</p>
+        <p className="text-center font-bold">{accord(p.sex, 'Né', 'Née')} le {frDate(p.birthDate) || '…'}{p.birthPlace ? `, à ${p.birthPlace}` : ''}</p>
+        <p className="mt-4 text-justify">
+          est régulièrement {accord(p.sex, 'inscrit', 'inscrite')} au sein de notre établissement en classe de {classLongName(p.cls)} pour
+          l'année scolaire {y} – {y + 1} et est {accord(p.sex, 'assidu', 'assidue')} aux cours.
+        </p>
+        <p className="mt-3">Pour servir et faire valoir ce que de droit.</p>
+        <p className="mt-auto self-end pr-6 text-left">{signatory.title}<br /><strong>{signatory.name || ' '}</strong></p>
       </div>
-      <p className="mt-auto pt-10 text-center text-[11px] text-slate-500">Programme français · Candidats rattachés à l'Académie de La Réunion</p>
     </div>
   );
 }
 
-/** Bouton « Certificat de scolarité » : aperçu puis impression A4. */
+/** Bouton « Certificat de scolarité » : signataire, 1 ou 2 exemplaires, aperçu puis impression. */
 export function CertificateButton({ profile }) {
-  const [number, setNumber] = useState(null);
-  const missing = [!profile.birthDate && 'date de naissance', !profile.cls && 'classe'].filter(Boolean);
+  const [open, setOpen] = useState(false);
+  const [copies, setCopies] = useState(1);
+  const [sig, setSig] = useState(SIGNATORIES[0].id);
+  const signatory = SIGNATORIES.find((s) => s.id === sig);
+  const missing = [!profile.birthDate && 'date de naissance', !profile.sex && 'sexe (né / née)', !profile.birthPlace && 'lieu de naissance'].filter(Boolean);
   return (
     <>
-      <Button variant="secondary" className="!py-1 text-xs" onClick={() => setNumber(certificateNumber(++seq))}
-        title={missing.length ? `À compléter : ${missing.join(', ')}` : undefined}>Certificat de scolarité</Button>
-      {number && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 p-4" role="dialog" aria-label="Certificat de scolarité" onClick={() => setNumber(null)}>
-          <div className="mx-auto max-w-[760px]" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-white p-3">
-              <p className="text-sm text-slate-700">{missing.length ? <span className="text-amber-700">À compléter dans la fiche : {missing.join(', ')}.</span> : 'Aperçu avant impression (A4).'}</p>
+      <Button variant="secondary" className="!py-1 text-xs" onClick={() => setOpen(true)}>Certificat de scolarité</Button>
+      {open && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 p-4" role="dialog" aria-label="Certificat de scolarité" onClick={() => setOpen(false)}>
+          <div className="mx-auto max-w-[820px]" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-3 text-sm">
+              <label className="flex items-center gap-2">Exemplaires
+                <select value={copies} onChange={(e) => setCopies(Number(e.target.value))} className="rounded-lg border border-slate-200 px-2 py-1"><option value={1}>1</option><option value={2}>2</option></select>
+              </label>
+              <label className="flex items-center gap-2">Signataire
+                <select value={sig} onChange={(e) => setSig(e.target.value)} className="rounded-lg border border-slate-200 px-2 py-1">
+                  {SIGNATORIES.map((s) => <option key={s.id} value={s.id}>{s.title.replace(',', '')}</option>)}
+                </select>
+              </label>
               <span className="flex gap-2">
-                <Button onClick={() => printOnly('.cert-print', 'size: A4 portrait; margin: 12mm;')}>Imprimer</Button>
-                <Button variant="secondary" onClick={() => setNumber(null)}>Fermer</Button>
+                <Button onClick={() => printOnly('.cert-print', 'size: A4 portrait; margin: 0;')}>Imprimer</Button>
+                <Button variant="secondary" onClick={() => setOpen(false)}>Fermer</Button>
               </span>
+              {missing.length > 0 && <p className="w-full text-xs text-amber-700">À compléter dans la fiche : {missing.join(', ')}.</p>}
             </div>
-            <div className="cert-print"><CertificateSheet profile={profile} number={number} /></div>
+            <div className="cert-print bg-white">
+              <CertificateSheet profile={profile} signatory={signatory} />
+              {copies === 2 && (<><div className="cert-cut mx-[6mm] border-t-2 border-dashed border-slate-500" /><CertificateSheet profile={profile} signatory={signatory} /></>)}
+            </div>
           </div>
         </div>
       )}

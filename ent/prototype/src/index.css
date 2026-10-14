@@ -149,7 +149,8 @@ main .bulletin thead th { color: #fff; }
   body { background: white; }
   /* Reçus : seuls les tickets sont imprimés (voir printTickets) */
   #print-root .ticket { box-shadow: none; width: 74mm; padding: 0; break-after: page; }
-  #print-root .certificate, #print-root .bulletin { box-shadow: none; max-width: none; padding: 0; }
+  #print-root .bulletin { box-shadow: none; max-width: none; padding: 0; }
+  #print-root .certificate { box-shadow: none; max-width: none; height: 147mm; }
   #print-root .bulletin { break-after: page; }
 }
 
