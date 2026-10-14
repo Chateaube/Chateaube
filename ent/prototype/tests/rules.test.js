@@ -551,10 +551,13 @@ test('import Excel : classes, téléphones, nationalités, contrôles', () => {
   assert.deepEqual(a.ignored.map((i) => i.number), ['3E-004']);
   assert.deepEqual(a.gaps, ['3E-002']);
   const lova = a.students.find((s) => s.student.firstName === 'Lova');
-  assert.deepEqual(lova.student.nationalities, ['DE']);           // nationalité déplacée depuis « Lieu de naissance »
+  assert.equal(a.nationalityIsExtra, true);
+  assert.deepEqual(lova.student.nationalities, ['MG', 'DE']);     // « en + » : malgache ET allemande (déplacée depuis « Lieu de naissance »)
+  assert.deepEqual(a.students.find((s) => s.student.lastName === 'RASOA').student.nationalities, ['MG']); // vide = malgache
   assert.ok(lova.issues.some((i) => /déplacée/.test(i.text)));
   assert.ok(a.students.find((s) => s.student.lastName === 'RASOA').issues.some((i) => i.level === 'error' && /Prénom/.test(i.text)));
   assert.equal(a.students[0].student.birthDate, '2012-03-12');
-  const p = parseAssignments(parseTable('NOM\tMatière\tClasse\nMme Rabe\tSES, Eco-Droit\t2nde - 1e STMG - Tle STMG').rows);
-  assert.deepEqual(p[0], { name: 'Mme Rabe', subjects: ['SES', 'Eco-Droit'], classes: ['2de', '1re STMG', 'Terminale STMG'] });
+  const p = parseAssignments(parseTable('NOM\tMatière\tClasse\nMme Rabe\tSES, Eco-Droit, Spé Mathématiques\t2nde - 1e STMG - Tle STMG').rows);
+  // Économie et Droit : deux matières distinctes
+  assert.deepEqual(p[0], { name: 'Mme Rabe', subjects: ['SES', 'Économie', 'Droit', 'Spécialité Mathématiques'], classes: ['2de', '1re STMG', 'Terminale STMG'] });
 });

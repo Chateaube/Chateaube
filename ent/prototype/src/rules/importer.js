@@ -62,7 +62,7 @@ const EXAMS = { 'bac t': 'Bac technologique', 'bac g': 'Bac général', dnb: 'DN
  * Normalise une ligne élève. Retourne `null` pour une ligne vide (n° sans nom),
  * sinon `{ student, issues }` : issues = [{ level: 'error' | 'warning', text }].
  */
-export function normalizeStudentRow(row) {
+export function normalizeStudentRow(row, { nationalityIsExtra = false } = {}) {
   const number = col(row, 'N°', 'No', 'Numero');
   const lastName = col(row, 'Nom');
   const firstName = col(row, 'Prénom', 'Prenom');
@@ -77,6 +77,8 @@ export function normalizeStudentRow(row) {
     issues.push({ level: 'warning', text: 'Nationalité saisie dans la colonne « Lieu de naissance » : déplacée.' });
   }
   const codes = nat.split(/[\/,;]| et /).map((n) => n.trim()).filter(Boolean).map((n) => ({ n, code: nationalityCode(n) }));
+  // « Nationalité (en +) » : les élèves sont malgaches, la colonne indique une nationalité EN PLUS
+  if (nationalityIsExtra && !codes.some((c) => c.code === 'MG')) codes.unshift({ n: 'Malgache', code: 'MG' });
   codes.filter((c) => !c.code).forEach((c) => issues.push({ level: 'warning', text: `Nationalité non reconnue : « ${c.n} ».` }));
   const birth = col(row, 'Née le', 'Ne le', 'Date de naissance');
   const dm = birth.match(DATE);
@@ -103,18 +105,19 @@ export function normalizeStudentRow(row) {
 }
 
 /** Analyse complète d'un import d'élèves : élèves retenus, lignes ignorées, numéros manquants, doublons. */
-export function analyzeStudents(rows) {
+export function analyzeStudents(rows, headers = Object.keys(rows[0] ?? {})) {
+  const nationalityIsExtra = headers.some((h) => /nationalit/i.test(h) && /\(\s*en\s*\+\s*\)|en plus/i.test(h));
   const students = [];
   const ignored = [];
   const byNumber = {};
   for (const row of rows) {
-    const r = normalizeStudentRow(row);
+    const r = normalizeStudentRow(row, { nationalityIsExtra });
     if (!r) { ignored.push({ line: row.line, number: col(row, 'N°', 'No') }); continue; }
     if (r.student.number && byNumber[r.student.number]) r.issues.unshift({ level: 'error', text: `N° ${r.student.number} en double (ligne ${byNumber[r.student.number]}).` });
     byNumber[r.student.number] = row.line;
     students.push({ ...r, line: row.line });
   }
-  // numéros sautés dans chaque classe (ex. 6E-015 absent entre 6E-014 et 6E-016)
+  // numéros sautés dans chaque classe (ex. 6E-015 absent entre 6E-014 et 6E-016) : départs ou inscrits jamais venus
   const gaps = [];
   const groups = {};
   for (const { student } of students) {
@@ -127,7 +130,18 @@ export function analyzeStudents(rows) {
     for (let n = 1; n < max; n++) if (!nums.includes(n)) gaps.push(`${prefix}-${String(n).padStart(width, '0')}`);
   }
   const byClass = students.reduce((acc, { student }) => ({ ...acc, [student.cls]: (acc[student.cls] ?? 0) + 1 }), {});
-  return { students, ignored, gaps, byClass };
+  return { students, ignored, gaps, byClass, nationalityIsExtra };
+}
+
+// Matières : abréviations courantes ; Économie et Droit sont deux matières distinctes
+const SUBJECT_ALIASES = { maths: 'Mathématiques', math: 'Mathématiques', 'spe mathematiques': 'Spécialité Mathématiques', 'spe maths': 'Spécialité Mathématiques',
+  'spe svt': 'Spécialité SVT', 'spe physique-chimie': 'Spécialité Physique-chimie', eco: 'Économie', economie: 'Économie', droit: 'Droit' };
+export function normalizeSubjects(raw) {
+  return String(raw ?? '').split(/,| et /).map((s) => s.trim()).filter(Boolean).flatMap((s) => {
+    const k = strip(s);
+    if (/^eco(nomie)?[\s-]*droit$|^droit[\s-]*eco(nomie)?$/.test(k)) return ['Économie', 'Droit'];
+    return [SUBJECT_ALIASES[k] ?? s];
+  });
 }
 
 /** Enseignements : « Mme Karele | SES, Eco-Droit, Management | 2nde - 1e STMG - Tle STMG ». */
@@ -137,7 +151,7 @@ export function parseAssignments(rows) {
     if (!name) return null;
     return {
       name,
-      subjects: col(row, 'Matière', 'Matiere').split(/,| et /).map((s) => s.trim()).filter(Boolean),
+      subjects: normalizeSubjects(col(row, 'Matière', 'Matiere')),
       classes: col(row, 'Classe').split(/\s+-\s+|,/).map(normalizeClass).filter(Boolean),
     };
   }).filter(Boolean);

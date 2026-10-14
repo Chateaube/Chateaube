@@ -104,10 +104,11 @@ export default function ImportModule() {
             <Stat label="Élèves reconnus" value={analysis.students.length} hint={`${Object.keys(analysis.byClass).length} classes`} tone="green" />
             <Stat label="Lignes avec erreur" value={count('error')} hint="à corriger avant import" tone="red" />
             <Stat label="Lignes ignorées" value={analysis.ignored.length} hint={analysis.ignored.map((i) => i.number).join(', ') || 'aucune'} />
-            <Stat label="Numéros sautés" value={analysis.gaps.length} hint={analysis.gaps.join(', ') || 'aucun'} tone="amber" />
+            <Stat label="Numéros sautés" value={analysis.gaps.length} hint={analysis.gaps.length ? `${analysis.gaps.join(', ')} — départs ou inscrits jamais venus` : 'aucun'} />
           </div>
           <Card title="Contrôle avant import" subtitle="Rien n'est bloquant sauf les erreurs ; les manques se complètent ensuite dans les fiches élèves"
             action={<Button variant="secondary" className="!py-1 text-xs" onClick={exportToComplete}>Exporter la liste à compléter (Excel)</Button>}>
+            {analysis.nationalityIsExtra && <p className="mb-3 rounded-lg bg-navy-50 p-2.5 text-xs text-navy-900">Colonne « Nationalité (en +) » : chaque élève est malgache, la colonne indique une nationalité en plus (ex. malgache et française). Une case vide = malgache seulement.</p>}
             <div className="flex flex-wrap gap-2">
               {ORDER.filter((c) => analysis.byClass[c]).map((c) => <Badge key={c} tone="navy">{c} : {analysis.byClass[c]}</Badge>)}
               {Object.keys(analysis.byClass).filter((c) => !ORDER.includes(c)).map((c) => <Badge key={c} tone="red">Classe inconnue « {c} » : {analysis.byClass[c]}</Badge>)}
