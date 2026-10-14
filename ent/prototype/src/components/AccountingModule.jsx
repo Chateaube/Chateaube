@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { saveFile } from '../download.js';
 import { Badge, Button, Card, Icon, Stat } from './ui.jsx';
 import {
   JOURNALS, CLASS_FEES, FEE_COLUMNS, ARTICLES, FAMILIES, CASH_MOVEMENTS, CASH_NATURES, CASH_OPENING, CASH_HISTORY, CASH_YEAR_OPENING,
@@ -277,11 +278,7 @@ function MonthlyCashExport({ movements }) {
   const label = MONTH_OPTIONS.find(([m]) => m === month)[1].replace(' (en cours)', '');
   const download = () => {
     const csv = cashMonthCsv(r, { site: 'Tamatave', journalLabels: Object.fromEntries(Object.entries(JOURNALS).map(([k, j]) => [k, j.label])) });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-    a.download = `caisse-tamatave-${month}.csv`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+    saveFile(`caisse-tamatave-${month}.csv`, csv);
   };
   const days = Object.entries(r.byDay);
   return (

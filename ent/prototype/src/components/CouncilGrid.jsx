@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { saveFile } from '../download.js';
 import { Badge, Button, Card, Icon, Stat, StudentSelect } from './ui.jsx';
 import { RulePanel } from './gradeUi.jsx';
 import { TERM, EVALUATIONS, GRADES, CLASS_SUBJECTS, OTHER_AVERAGES, OTHER_FLAGS, COUNCIL_FLAGS, ABSENCES } from '../data/grades.js';
@@ -60,10 +61,7 @@ export default function CouncilGrid({ settings, role }) {
         flags: flagText(r), decision: DECISION[decisions[r.name] ?? r.proposal]?.label.replace('—', '') ?? '', appreciation: appreciations[r.name] ?? '',
       })),
     });
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-    const a = Object.assign(document.createElement('a'), { href: url, download: 'conseil-1re-STMG-T1.csv' });
-    a.click();
-    URL.revokeObjectURL(url);
+    saveFile('conseil-1re-STMG-T1.csv', csv);
   };
 
   return (

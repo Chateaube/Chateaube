@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { saveFile } from '../download.js';
 import { Badge, Button, Card, Stat } from './ui.jsx';
 import { CLASSES } from '../data/schoollife.js';
 import { AUTHORIZATIONS, DOCUMENTS, REQUESTED, STAGE_TYPES } from '../data/family.js';
@@ -160,9 +161,7 @@ function Terminale() {
   const withVisa = students.filter((s) => higherEdSteps(s.nationalities).includes('TLS')).length;
   const toggle = (i, step, field) => setStudents(students.map((x, j) => (j === i ? { ...x, [step]: { ...x[step], [field]: !x[step][field] } } : x)));
   const exportCsv = () => {
-    const url = URL.createObjectURL(new Blob([campusFranceCsv(students)], { type: 'text/csv;charset=utf-8' }));
-    Object.assign(document.createElement('a'), { href: url, download: 'campus-france-terminales-TMV.csv' }).click();
-    URL.revokeObjectURL(url);
+    saveFile('campus-france-terminales-TMV.csv', campusFranceCsv(students));
   };
   const Check = ({ i, step, field, label }) => (
     <label className="flex items-center gap-1.5 text-xs text-slate-600">
