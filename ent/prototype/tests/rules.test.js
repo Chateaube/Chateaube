@@ -616,3 +616,59 @@ test('spécialités : lecture de la colonne d\'import et contrôle', async () =>
   const r = normalizeStudentRow({ line: 2, 'N°': 'TG-001', Nom: 'TEST', Prénom: 'Élève', Classe: 'Tle G', 'Née le': '01/01/2009', Spécialités: 'Maths, PC' });
   assert.deepEqual(r.student.specialties, ['MATHS', 'PC']);
 });
+
+test('caisse : annulation de reçu validée par la Direction, clôture et versement', async () => {
+  const c = await import('../src/rules/cashControl.js');
+  const r = { number: 'ECO-TMV-00413', status: 'VALIDE', total: 420_000 };
+  assert.ok(c.requestCancel(r, { by: 'Mme Hanta', reason: 'court', at: 't' }).error);
+  const asked = c.requestCancel(r, { by: 'Mme Hanta', reason: 'Erreur d\'élève : payé pour le frère', at: 't' });
+  assert.equal(asked.receipt.status, 'ANNULATION_DEMANDEE');
+  assert.ok(c.decideCancel(asked.receipt, { by: 'Mme Hanta', role: 'BUREAU', approve: true, at: 't' }).error);
+  const done = c.decideCancel(asked.receipt, { by: 'Sheena Lo', role: 'DIRECTION', approve: true, at: 't2' });
+  assert.equal(done.receipt.status, 'ANNULE');
+  assert.equal(done.log.action, 'Annulation validée');
+  assert.ok(c.decideCancel(asked.receipt, { by: 'Sheena Lo', role: 'DIRECTION', approve: false, at: 't2' }).error, 'refus sans raison');
+  // clôture : fond 200 000 + 420 000 espèces − 85 000 = 535 000
+  const mv = [{ dir: 'IN', method: 'Espèces', amount: 420_000 }, { dir: 'IN', method: 'Chèque n° 1', amount: 350_000 }, { dir: 'OUT', method: 'Espèces', amount: 85_000 }];
+  assert.equal(c.expectedCash(200_000, mv), 535_000);
+  assert.equal(c.countTotal({ 20000: 26, 5000: 3, 100: 50 }), 540_000);
+  assert.equal(c.closingCheck(535_000, 540_000).errors.length, 1);
+  assert.equal(c.closingCheck(535_000, 535_000).status, 'JUSTE');
+  assert.ok(c.depositAlert(3_500_000, '2026-10-09', '2026-10-13').alert);
+  assert.deepEqual(c.validateDeposit({ amount: 100, bank: 'BOA', slip: '55' }, 50), ['Le versement dépasse les espèces en caisse.']);
+});
+
+test('réductions : appliquées aux seuls frais de scolarité, arrondies à 100 Ar', async () => {
+  const { reductionAmount, studentDues } = await import('../src/rules/billing.js');
+  const { DEFAULT_SETTINGS } = await import('../src/data/settings.js');
+  const { CLASS_FEES } = await import('../src/data/accounting.js');
+  assert.equal(reductionAmount(420_000, { kind: 'PERCENT', value: 15 }), 63_000);
+  assert.equal(reductionAmount(340_000, { kind: 'PERCENT', value: 33 }), 112_200);
+  assert.equal(reductionAmount(100_000, { kind: 'AMOUNT', value: 150_000 }), 100_000);
+  const fees = CLASS_FEES.find((f) => f.cls === '5e');
+  const st = { isNew: false, enrolledOn: '2026-09-01', paid: [], reduction: { label: 'Fratrie', kind: 'PERCENT', value: 10 } };
+  const items = studentDues(st, fees, DEFAULT_SETTINGS, '2026-10-13');
+  const sept = items.find((i) => i.key === 'ECO-09');
+  assert.equal(sept.amount, fees.ecolage - Math.round(fees.ecolage * 0.1 / 100) * 100);
+  assert.equal(items.find((i) => i.key === 'REINSCRIPTION').amount, fees.reinscription, 'réinscription non réduite');
+});
+
+test('manuels : prêt selon le stock, retour, perte à régler et blocage du bulletin', async () => {
+  const m = await import('../src/rules/manuals.js');
+  let manual = { id: 'm1', title: 'Management 1re STMG', stock: { NEUF: 1, BON: 0, USE: 0, DECHIRE: 3 } };
+  assert.ok(m.lend(manual, [], { student: 'A', cls: '1re STMG', state: 'DECHIRE', on: 'd' }).error);
+  assert.ok(m.lend(manual, [], { student: 'A', cls: '1re STMG', state: 'BON', on: 'd' }).error);
+  const r = m.lend(manual, [], { student: 'A', cls: '1re STMG', state: 'NEUF', on: '2026-09-07', dueBack: '2027-06-30' });
+  manual = r.manual;
+  assert.equal(manual.stock.NEUF, 0);
+  assert.ok(m.lend(manual, [r.loan], { student: 'A', cls: '1re STMG', state: 'NEUF', on: 'd' }).error);
+  assert.equal(m.totalCopies(manual, [r.loan]), 4);
+  const lost = m.giveBack(manual, r.loan, { state: 'PERDU', on: '2026-10-10' });
+  assert.equal(lost.loan.charge, 'A_REGLER');
+  assert.equal(m.manualBlocks('A', [lost.loan], [manual], '2026-10-13').length, 1);
+  const back = m.giveBack(manual, r.loan, { state: 'USE', on: '2027-06-20' });
+  assert.equal(back.manual.stock.USE, 1);
+  assert.equal(back.loan.charge, null);
+  assert.equal(m.manualBlocks('A', [back.loan], [manual], '2027-07-01').length, 0);
+  assert.equal(m.manualBlocks('A', [r.loan], [manual], '2027-07-01').length, 1, 'non rendu après la date prévue');
+});

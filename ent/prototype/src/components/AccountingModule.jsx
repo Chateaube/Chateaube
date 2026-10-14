@@ -3,12 +3,15 @@ import { saveFile } from '../download.js';
 import { Badge, Button, Card, Icon, Stat } from './ui.jsx';
 import {
   JOURNALS, CLASS_FEES, FEE_COLUMNS, ARTICLES, FAMILIES, CASH_MOVEMENTS, CASH_NATURES, CASH_OPENING, CASH_HISTORY, CASH_YEAR_OPENING,
+  RECEIPTS_TODAY, CASH_AUDIT, CASH_SAFE, CASH_CLOSINGS, REDUCTION_TYPES,
 } from '../data/accounting.js';
+import CashControl, { methodText } from './CashControl.jsx';
+import Reductions from './Reductions.jsx';
 import { accountStatement, annualCost, cashBalance, monthlyCashReport, cashMonthCsv } from '../rules/accounting.js';
 import { printOnly } from '../print.js';
 import { planMonths } from '../rules/calendar.js';
 import { formatAr } from '../rules/finance.js';
-import CollectPayment from './CollectPayment.jsx';
+import CollectPayment, { CASH_ACCOUNTS } from './CollectPayment.jsx';
 
 const TODAY = '2026-10-13';
 const fmtDate = (iso) => iso.split('-').reverse().join('/');
@@ -372,7 +375,7 @@ function CashTab({ movements, setMovements }) {
   );
 }
 
-const TABS = [['collect', 'Encaisser'], ['fees', 'Classes & tarifs'], ['articles', 'Articles & services'], ['statements', 'États de compte'], ['cash', 'Caisse : entrées / sorties']];
+const TABS = [['collect', 'Encaisser'], ['receipts', 'Reçus & clôture'], ['fees', 'Classes & tarifs'], ['articles', 'Articles & services'], ['reductions', 'Réductions'], ['statements', 'États de compte'], ['cash', 'Caisse : entrées / sorties']];
 
 export default function AccountingModule({ settings, role }) {
   const canEdit = role === 'DIRECTION'; // classes, tarifs, articles et services : Direction uniquement
@@ -381,6 +384,22 @@ export default function AccountingModule({ settings, role }) {
   const [articles, setArticles] = useState(ARTICLES);
   const [families] = useState(FAMILIES);
   const [movements, setMovements] = useState(CASH_MOVEMENTS);
+  const [accounts, setAccounts] = useState(CASH_ACCOUNTS);
+  const [receipts, setReceipts] = useState(RECEIPTS_TODAY);
+  const [audit, setAudit] = useState(CASH_AUDIT);
+  const [closings, setClosings] = useState(CASH_CLOSINGS);
+  const [reductionTypes, setReductionTypes] = useState(REDUCTION_TYPES);
+  const actor = canEdit ? 'Mme Sheena Lo (Direction)' : 'Mme Hanta (bureau)';
+  const closed = closings.some((c) => c.date === '2026-10-13');
+  const pendingCancels = receipts.filter((r) => r.status === 'ANNULATION_DEMANDEE').length;
+  // Chaque reçu émis à l'encaissement entre dans le journal des reçus et dans la caisse
+  const onCollected = (rs) => {
+    setReceipts((prev) => [...prev, ...rs]);
+    setMovements((prev) => [...prev, ...rs.map((r) => ({
+      id: `r-${r.number}`, date: r.date, time: r.time, dir: 'IN', nature: 'Encaissement famille', journal: r.journal,
+      label: `${r.lines.map((l) => l.label).join(', ')} — ${r.student}`, method: methodText(r), amount: r.total, agent: r.cashier, receipt: r.number,
+    }))]);
+  };
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -394,11 +413,13 @@ export default function AccountingModule({ settings, role }) {
         {TABS.map(([id, label]) => (
           <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
             className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ${tab === id ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>
-            {label}
+            {label}{id === 'receipts' && pendingCancels > 0 && <span className="ml-1.5 rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white">{pendingCancels}</span>}
           </button>
         ))}
       </div>
-      {tab === 'collect' && <CollectPayment settings={settings} articles={articles} />}
+      {tab === 'collect' && <CollectPayment settings={settings} articles={articles} accounts={accounts} setAccounts={setAccounts} reductionTypes={reductionTypes} onCollected={onCollected} cashier={actor} closed={closed} />}
+      {tab === 'receipts' && <CashControl role={role} actor={actor} receipts={receipts} setReceipts={setReceipts} audit={audit} setAudit={setAudit} movements={movements} setMovements={setMovements} accounts={accounts} setAccounts={setAccounts} closings={closings} setClosings={setClosings} safe={CASH_SAFE} />}
+      {tab === 'reductions' && <Reductions canEdit={canEdit} actor={actor} types={reductionTypes} setTypes={setReductionTypes} accounts={accounts} setAccounts={setAccounts} />}
       {tab === 'fees' && <FeesTab fees={fees} setFees={setFees} settings={settings} canEdit={canEdit} />}
       {tab === 'articles' && <ArticlesTab articles={articles} setArticles={setArticles} canEdit={canEdit} />}
       {tab === 'statements' && <StatementTab families={families} />}

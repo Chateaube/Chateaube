@@ -275,3 +275,16 @@ recoder.
   référence ; un adulte qui n'est pas responsable de l'élève ne peut pas signer (T33).
 - **Réservations** : `booking.timetable_slot_id` lie une réservation à une séance de l'emploi du temps (NULL : date et
   heure au choix).
+
+### Contrôle de caisse, réductions, manuels et remise des bulletins
+- **`payment_cancellation`** : un reçu n'est jamais supprimé. L'annulation est demandée avec un motif (10 caractères au
+  moins), puis validée ou refusée par la Direction seule ; un refus doit être expliqué (T34).
+- **`cash_closing`** : clôture quotidienne des espèces par site (comptage par billet). Un écart doit être expliqué ; après
+  la clôture, aucun encaissement n'est accepté ce jour-là (T37).
+- **`bank_deposit`** : versements des espèces sur le compte de l'école, bordereau obligatoire et unique (T37).
+- **`reduction_type`**, **`enrollment_reduction`** : réductions (fratrie, proche, enfant du personnel, redoublant en
+  Terminale) fixées et accordées par la Direction seule, avec un motif ; appliquées aux frais de scolarité (T35).
+- **`textbook`**, **`textbook_stock`**, **`textbook_loan`** : manuels (original ou photocopie, dos carré ou reliure),
+  stock par état (neuf, bon, usé, déchiré), prêts avec état à la sortie et au retour, pertes à régler (T36).
+- **`bulletin_handover`** et **`v_bulletin_blocked`** : les bulletins sont remis en main propre, jamais publiés. Frais
+  échus impayés ou manuel dû bloquent la remise ; seule la Direction lève le blocage, avec un motif (T36).

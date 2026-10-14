@@ -31,7 +31,7 @@ const DEMO_ACCOUNTS = [
       paid: ['REINSCRIPTION', 'FASCICULE', 'LOCATION', 'ECO-09', ...(i % 2 ? ['ECO-10'] : [])],
     }))),
 ];
-const CASH_ACCOUNTS = importedAccounts() ?? DEMO_ACCOUNTS;
+export const CASH_ACCOUNTS = importedAccounts() ?? DEMO_ACCOUNTS;
 const CASH_CLASSES = CLASS_FEES.map((f) => f.cls).filter((c) => CASH_ACCOUNTS.some((a) => a.cls === c));
 
 // Qui apporte le paiement au bureau (imprimé sur le ticket)
@@ -65,15 +65,17 @@ function DueTile({ item, checked, onToggle }) {
       <input type="checkbox" className="mt-0.5" checked={paid || checked} disabled={paid} onChange={onToggle} />
       <span className="min-w-0 flex-1">
         <span className="block font-medium">{item.short ?? item.label}</span>
-        <span className="block text-xs text-slate-500">{formatAr(item.amount)} · {paid ? 'payé' : `${ui.label.toLowerCase()} le ${fmtDate(item.due)}`}</span>
+        <span className="block text-xs text-slate-500">{item.discount ? <><s className="text-slate-400">{formatAr(item.base)}</s> </> : ''}{formatAr(item.amount)} · {paid ? 'payé' : `${ui.label.toLowerCase()} le ${fmtDate(item.due)}`}</span>
       </span>
       {item.status === 'ECHU' && !checked && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500" title="Échu, non sélectionné" />}
     </label>
   );
 }
 
-export default function CollectPayment({ settings, articles = [] }) {
-  const [accounts, setAccounts] = useState(CASH_ACCOUNTS);
+export default function CollectPayment({ settings, articles = [], accounts: sharedAccounts, setAccounts: setSharedAccounts, reductionTypes = [], onCollected, cashier = 'Mme Hanta (bureau)', closed = false }) {
+  const [localAccounts, setLocalAccounts] = useState(CASH_ACCOUNTS);
+  const accounts = sharedAccounts ?? localAccounts;
+  const setAccounts = setSharedAccounts ?? setLocalAccounts;
   const [cls, setCls] = useState('');
   const [bearer, setBearer] = useState({ role: 'PARENT', name: '' });
   const [query, setQuery] = useState('');
@@ -86,12 +88,17 @@ export default function CollectPayment({ settings, articles = [] }) {
   const [counter, setCounter] = useState({ ECOLAGE: 412, FRAIS_ANNEXES: 208, DROITS_EXAMEN: 57 });
 
   const student = accounts.find((a) => a.id === studentId);
+  // Réduction accordée par la Direction : type (taux) + motif, appliquée aux frais de scolarité
+  const reductionOf = (a) => {
+    const t = a.reduction && reductionTypes.find((x) => x.id === a.reduction.typeId);
+    return t ? { label: t.label, kind: t.kind, value: t.value } : null;
+  };
   const fees = CLASS_FEES.find((r) => r.cls === student.cls);
   // Articles et services vendus à l'élève : prix fixé au catalogue, réglés comme les autres échéances
   const items = useMemo(() => [
-    ...studentDues(student, fees, settings, TODAY),
+    ...studentDues({ ...student, reduction: reductionOf(student) }, fees, settings, TODAY),
     ...(student.extras ?? []).map((x) => ({ ...x, status: student.paid.includes(x.key) ? 'PAYE' : 'ECHU' })),
-  ], [student, fees, settings]);
+  ], [student, fees, settings, reductionTypes]);
   const [sale, setSale] = useState({ articleId: '', qty: 1 });
   const article = articles.find((a) => a.id === sale.articleId);
   const addArticle = () => {
@@ -119,9 +126,12 @@ export default function CollectPayment({ settings, articles = [] }) {
     const r = buildReceipts(items, keys, instrument, (j) => ++next[j]);
     setCounter(next);
     setAccounts(accounts.map((a) => (a.id === studentId ? { ...a, paid: [...a.paid, ...chosen.map((c) => c.key)] } : a)));
+    const time = new Date().toTimeString().slice(0, 5);
+    const at = `${TODAY.split('-').reverse().join('/')} ${time}`;
     setReceipts(r);
     setReceiptsBearer(bearerLabel);
-    setReceiptsAt(`${TODAY.split('-').reverse().join('/')} ${new Date().toTimeString().slice(0, 5)}`);
+    setReceiptsAt(at);
+    onCollected?.(r.map((x) => ({ ...x, date: TODAY, time, at, studentId, student: student.name, cls: student.cls, bearer: bearerLabel, cashier, status: 'VALIDE' })));
     setSelected([]);
   };
 
@@ -158,6 +168,9 @@ export default function CollectPayment({ settings, articles = [] }) {
         subtitle={`${student.cls} · ${student.family}${student.isNew ? ` · nouvel élève : compte ouvert au ${fmtDate(student.enrolledOn)}` : ''}`}
         action={overdue.length > 0 ? <Badge tone="red">{overdue.length} échéance{overdue.length > 1 ? 's' : ''} échue{overdue.length > 1 ? 's' : ''}</Badge> : <Badge tone="green">À jour</Badge>}
       >
+        {reductionOf(student) && (
+          <p className="mb-3 rounded-lg bg-sage-50 px-3 py-2 text-xs text-sage-700">Réduction accordée par la Direction : <strong>{reductionOf(student).label}</strong> ({reductionOf(student).kind === 'PERCENT' ? `−${reductionOf(student).value} %` : `−${formatAr(reductionOf(student).value)}`} sur les frais de scolarité) · {student.reduction.motif}</p>
+        )}
         <div className="mb-3 flex flex-wrap gap-2">
           <Button variant="secondary" className="!py-1 text-xs" onClick={() => setSelected(defaultSelection(items))}>Proposition : tout l'échu</Button>
           <Button variant="secondary" className="!py-1 text-xs" onClick={() => setSelected(items.filter((i) => i.status !== 'PAYE' && (i.journal !== 'ECOLAGE' || i.due <= '2026-12-31')).map((i) => i.key))}>Jusqu'à décembre (1er trimestre)</Button>
@@ -246,7 +259,8 @@ export default function CollectPayment({ settings, articles = [] }) {
             )}
             {!bearerName && <p className="text-xs text-red-700">Indiquer le nom de la personne qui remet le paiement.</p>}
           </fieldset>
-          <Button className="mt-4 w-full" disabled={!chosen.length || errors.length > 0 || !bearerName} onClick={collect}>
+          {closed && <p className="mt-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">La caisse du jour est clôturée : les encaissements reprennent demain.</p>}
+          <Button className="mt-4 w-full" disabled={closed || !chosen.length || errors.length > 0 || !bearerName} onClick={collect}>
             Encaisser {total > 0 && formatAr(total)}
           </Button>
           <p className="mt-2 text-[11px] text-slate-500">Un reçu est édité par journal (frais de scolarité, frais annexes, droits d'examen).</p>
@@ -256,7 +270,7 @@ export default function CollectPayment({ settings, articles = [] }) {
           <Card title={`Reçu${receipts.length > 1 ? 's' : ''} — format ticket de caisse`} subtitle="Imprimante thermique 80 mm · un ticket par journal"
             action={<Button variant="secondary" onClick={printTickets}>Imprimer</Button>}>
             <div className="ticket-print flex flex-col items-center gap-4 rounded-xl bg-slate-100 py-4">
-              {receipts.map((r) => <ReceiptTicket key={r.number} receipt={r} student={student} payer={receiptsBearer} cashier="Mme Hanta (bureau)" at={receiptsAt} />)}
+              {receipts.map((r) => <ReceiptTicket key={r.number} receipt={r} student={student} payer={receiptsBearer} cashier={cashier} at={receiptsAt} />)}
             </div>
             <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500"><Icon name="bell" />Reçu envoyé au parent payeur par e-mail et dans l'application.</p>
           </Card>

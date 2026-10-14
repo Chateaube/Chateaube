@@ -166,6 +166,11 @@ chaque portail.
 - **Comptabilité** : Encaisser (échéances, articles et services à prix fixe, toujours réglés en entier, ticket imprimé),
   Classes & tarifs et Articles & services (modifiables par la Direction seule, consultation pour le Bureau), États de
   compte (relevé de la famille en lecture seule, imprimable), Caisse : entrées / sorties.
+- **Reçus & clôture** : journal des reçus du jour, duplicata, annulation avec motif validée par la Direction, clôture
+  des espèces par comptage des billets, versements en banque avec bordereau, historique « qui a fait quoi ».
+- **Réductions** : types et taux fixés par la Direction, accordés élève par élève ; visibles sur le ticket.
+- **Manuels scolaires** : stock par état, prêts par classe, retours, pertes à régler ; un manuel dû bloque le bulletin.
+- **Remise des bulletins** : en main propre, tamponnés ; bloquée en cas d'impayé ou de manuel dû (levée par la Direction).
 - **Fiche signalétique** : le parent la remplit et la signe dans son compte (Plus → Fiche signalétique) ; le bureau la
   consulte, la valide et compare la signature de référence avec un document papier photographié.
 - **Bulletins** : date de naissance, absences en demi-journées justifiées / non justifiées, retards ; 1 page (recto) ou

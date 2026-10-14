@@ -47,11 +47,27 @@ export function studentDues(student, fees, settings, today) {
   if (student.exam) {
     items.push({ key: 'EXAMEN', label: student.exam.label, amount: student.exam.amount, journal: 'DROITS_EXAMEN', due: student.exam.due });
   }
+  // Réduction accordée par la Direction (fratrie, proche, enfant du personnel, redoublant…) :
+  // elle s'applique aux frais de scolarité mensuels, montant arrondi à 100 Ar
+  const r = student.reduction;
+  if (r) {
+    for (const it of items) {
+      if (it.journal !== 'ECOLAGE') continue;
+      const discount = reductionAmount(it.amount, r);
+      Object.assign(it, { base: it.amount, discount, amount: it.amount - discount, reductionLabel: r.label });
+    }
+  }
   return items.map((it) => {
     const paid = student.paid.includes(it.key);
     const status = paid ? 'PAYE' : it.due <= today ? 'ECHU' : 'A_ECHOIR';
     return { ...it, status };
   });
+}
+
+/** Montant d'une réduction : pourcentage (arrondi à 100 Ar) ou montant fixe, jamais plus que le tarif. */
+export function reductionAmount(amount, { kind, value }) {
+  const d = kind === 'PERCENT' ? Math.round((amount * value) / 100 / 100) * 100 : value;
+  return Math.max(0, Math.min(amount, d));
 }
 
 /** Proposition par défaut : tout ce qui est échu et non payé. */

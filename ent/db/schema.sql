@@ -1219,3 +1219,115 @@ CREATE TABLE student_record_signature (
   signed_at     timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (form_id, guardian_id)
 );
+
+-- =====  CONTRÔLE DE CAISSE  =====
+-- Un reçu n'est jamais supprimé : son annulation est demandée avec un motif, puis validée
+-- ou refusée par la Direction (qui, quand, pourquoi).
+CREATE TABLE payment_cancellation (
+  payment_id    uuid PRIMARY KEY REFERENCES payment(id),
+  reason        text NOT NULL CHECK (length(trim(reason)) >= 10),
+  requested_by  uuid NOT NULL REFERENCES app_user(id),
+  requested_at  timestamptz NOT NULL DEFAULT now(),
+  decided_by    uuid REFERENCES app_user(id),
+  decided_at    timestamptz,
+  approved      boolean,
+  decision_note text,
+  CHECK ((decided_by IS NULL) = (decided_at IS NULL) AND (decided_by IS NULL) = (approved IS NULL)),
+  CHECK (approved IS DISTINCT FROM false OR length(trim(coalesce(decision_note, ''))) >= 5)
+);
+
+-- Clôture quotidienne des espèces : comptage par billet, écart expliqué. Après clôture,
+-- plus aucun encaissement ce jour-là sur ce site.
+CREATE TABLE cash_closing (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id       uuid NOT NULL REFERENCES site(id),
+  day           date NOT NULL,
+  expected_mga  bigint NOT NULL,
+  counted_mga   bigint NOT NULL CHECK (counted_mga >= 0),
+  counts        jsonb NOT NULL,                -- { "20000": 12, "5000": 3, … }
+  explanation   text,
+  closed_by     uuid NOT NULL REFERENCES app_user(id),
+  closed_at     timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (site_id, day),
+  CHECK (counted_mga = expected_mga OR length(trim(coalesce(explanation, ''))) >= 10)
+);
+
+-- Versements des espèces sur le compte bancaire de l'école (bordereau obligatoire).
+CREATE TABLE bank_deposit (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id       uuid NOT NULL REFERENCES site(id),
+  amount_mga    bigint NOT NULL CHECK (amount_mga > 0),
+  bank_name     text NOT NULL,
+  slip_no       text NOT NULL CHECK (length(trim(slip_no)) > 0),
+  deposited_on  date NOT NULL,
+  recorded_by   uuid NOT NULL REFERENCES app_user(id),
+  recorded_at   timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (bank_name, slip_no)
+);
+
+-- =====  RÉDUCTIONS  =====
+-- Types et taux fixés par la Direction ; accordées élève par élève avec un motif.
+CREATE TABLE reduction_type (
+  code          text PRIMARY KEY,              -- 'FRATRIE', 'PROCHE', 'PERSONNEL', 'REDOUBLANT_TLE'
+  label         text NOT NULL,
+  kind          text NOT NULL CHECK (kind IN ('PERCENT', 'AMOUNT')),
+  value         numeric NOT NULL CHECK (value > 0),
+  CHECK (kind <> 'PERCENT' OR value <= 100)
+);
+CREATE TABLE enrollment_reduction (
+  enrollment_id uuid PRIMARY KEY REFERENCES enrollment(id),
+  type_code     text NOT NULL REFERENCES reduction_type(code),
+  motif         text NOT NULL CHECK (length(trim(motif)) >= 5),
+  granted_by    uuid NOT NULL REFERENCES app_user(id),
+  granted_at    timestamptz NOT NULL DEFAULT now()
+);
+
+-- =====  MANUELS SCOLAIRES  =====
+CREATE TYPE textbook_condition AS ENUM ('NEUF', 'BON', 'USE', 'DECHIRE');
+CREATE TABLE textbook (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id       uuid NOT NULL REFERENCES site(id),
+  title         text NOT NULL,
+  subject       text NOT NULL,
+  level_codes   text[] NOT NULL,
+  is_photocopy  boolean NOT NULL,              -- original ou photocopie
+  binding       text NOT NULL CHECK (binding IN ('DOS_CARRE', 'RELIURE'))
+);
+-- Exemplaires en réserve, par état
+CREATE TABLE textbook_stock (
+  textbook_id   uuid REFERENCES textbook(id),
+  condition     textbook_condition,
+  quantity      int NOT NULL CHECK (quantity >= 0),
+  PRIMARY KEY (textbook_id, condition)
+);
+CREATE TABLE textbook_loan (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  textbook_id   uuid NOT NULL REFERENCES textbook(id),
+  enrollment_id uuid NOT NULL REFERENCES enrollment(id),
+  state_out     textbook_condition NOT NULL CHECK (state_out <> 'DECHIRE'),
+  issued_on     date NOT NULL,
+  due_back      date NOT NULL,
+  state_in      textbook_condition,            -- NULL : non rendu
+  returned_on   date,
+  lost_on       date,                          -- perdu
+  charge_payment_id uuid REFERENCES payment(id), -- règlement « Manuel perdu ou endommagé »
+  CHECK ((state_in IS NULL) = (returned_on IS NULL)),
+  CHECK (NOT (lost_on IS NOT NULL AND returned_on IS NOT NULL))
+);
+-- Un seul exemplaire d'un même manuel en cours de prêt par élève
+CREATE UNIQUE INDEX textbook_loan_open ON textbook_loan (textbook_id, enrollment_id) WHERE returned_on IS NULL AND lost_on IS NULL;
+
+-- =====  REMISE DES BULLETINS EN MAIN PROPRE  =====
+-- Les bulletins ne sont jamais publiés dans l'application : ils sont remis tamponnés.
+CREATE TABLE bulletin_handover (
+  enrollment_id uuid REFERENCES enrollment(id),
+  term          smallint CHECK (term BETWEEN 1 AND 3),
+  given_at      timestamptz,
+  given_to      text,                          -- « l'élève », « Mme Rabe (mère) »…
+  given_by      uuid REFERENCES app_user(id),
+  override_by   uuid REFERENCES app_user(id),  -- Direction : remise malgré un blocage
+  override_reason text,
+  PRIMARY KEY (enrollment_id, term),
+  CHECK ((given_at IS NULL) = (given_by IS NULL) AND (given_at IS NULL) = (given_to IS NULL)),
+  CHECK ((override_by IS NULL) = (override_reason IS NULL))
+);

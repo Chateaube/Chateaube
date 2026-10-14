@@ -129,7 +129,7 @@ function Notes({ child, audience, settings }) {
         {audience === 'PARENT'
           ? `Chaque note est visible ${settings.grading.parentDelayDays} jour${settings.grading.parentDelayDays > 1 ? 's' : ''} après sa publication aux élèves, avec la moyenne de la classe sur le devoir.`
           : 'Chaque note est visible à sa date de publication, avec la moyenne de la classe sur le devoir.'}
-        {' '}Pas de moyenne par matière : le bulletin est remis après le conseil de classe.
+        {' '}Pas de moyenne par matière : le bulletin, tamponné, est remis en main propre après le conseil de classe.
       </p>
       {term !== 'T1' ? <Section><p className="text-sm text-slate-500">Aucune note pour ce trimestre pour l'instant.</p></Section> : bySubject.map(([subject, notes]) => (
         <Section key={subject}>

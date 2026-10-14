@@ -670,3 +670,61 @@ END $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER record_signature_check BEFORE INSERT ON student_record_signature
   FOR EACH ROW EXECUTE FUNCTION record_signature_guard();
+
+-- -----------------------------------------------------------------------------
+-- Contrôle de caisse, réductions, manuels et remise des bulletins
+-- -----------------------------------------------------------------------------
+CREATE FUNCTION is_direction(p_user uuid) RETURNS boolean AS $$
+  SELECT EXISTS (SELECT 1 FROM user_role WHERE user_id = p_user AND role = 'DIRECTION')
+$$ LANGUAGE sql STABLE;
+
+-- Seule la Direction décide d'une annulation de reçu, accorde une réduction ou lève un blocage.
+CREATE FUNCTION direction_only_guard() RETURNS trigger AS $$
+DECLARE v_user uuid := (to_jsonb(NEW) ->> CASE TG_TABLE_NAME
+    WHEN 'payment_cancellation' THEN 'decided_by'
+    WHEN 'enrollment_reduction' THEN 'granted_by'
+    WHEN 'bulletin_handover' THEN 'override_by' END)::uuid;
+BEGIN
+  IF v_user IS NOT NULL AND NOT is_direction(v_user) THEN
+    RAISE EXCEPTION 'Réservé à la Direction (%)', TG_TABLE_NAME;
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER payment_cancellation_direction BEFORE INSERT OR UPDATE ON payment_cancellation FOR EACH ROW EXECUTE FUNCTION direction_only_guard();
+CREATE TRIGGER enrollment_reduction_direction BEFORE INSERT OR UPDATE ON enrollment_reduction FOR EACH ROW EXECUTE FUNCTION direction_only_guard();
+CREATE TRIGGER bulletin_handover_direction BEFORE INSERT OR UPDATE ON bulletin_handover FOR EACH ROW EXECUTE FUNCTION direction_only_guard();
+
+-- Caisse clôturée : plus d'encaissement ce jour-là sur ce site.
+CREATE FUNCTION payment_after_closing_guard() RETURNS trigger AS $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM cash_closing WHERE site_id = NEW.site_id AND day = NEW.received_at::date) THEN
+    RAISE EXCEPTION 'La caisse du % est clôturée : encaissement impossible', to_char(NEW.received_at, 'DD/MM/YYYY');
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER payment_after_closing BEFORE INSERT ON payment FOR EACH ROW EXECUTE FUNCTION payment_after_closing_guard();
+
+-- Ce qui bloque la remise d'un bulletin : frais échus non réglés, manuel dû (perdu non réglé
+-- ou non rendu à la date prévue).
+CREATE VIEW v_bulletin_blocked AS
+SELECT e.id AS enrollment_id, 'FRAIS_IMPAYES' AS reason, count(*)::int AS items
+FROM enrollment e JOIN invoice i ON i.enrollment_id = e.id
+WHERE i.status IN ('EMISE', 'PARTIELLE') AND i.due_on < current_date
+GROUP BY e.id
+UNION ALL
+SELECT l.enrollment_id, 'MANUEL_DU', count(*)::int
+FROM textbook_loan l
+WHERE (l.lost_on IS NOT NULL AND l.charge_payment_id IS NULL)
+   OR (l.state_in = 'DECHIRE' AND l.state_out <> 'DECHIRE' AND l.charge_payment_id IS NULL)
+   OR (l.returned_on IS NULL AND l.lost_on IS NULL AND l.due_back < current_date)
+GROUP BY l.enrollment_id;
+
+CREATE FUNCTION bulletin_handover_guard() RETURNS trigger AS $$
+BEGIN
+  IF NEW.given_at IS NOT NULL AND NEW.override_by IS NULL
+     AND EXISTS (SELECT 1 FROM v_bulletin_blocked WHERE enrollment_id = NEW.enrollment_id) THEN
+    RAISE EXCEPTION 'Bulletin bloqué : frais impayés ou manuel dû (seule la Direction peut lever le blocage)';
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER bulletin_handover_check BEFORE INSERT OR UPDATE ON bulletin_handover FOR EACH ROW EXECUTE FUNCTION bulletin_handover_guard();

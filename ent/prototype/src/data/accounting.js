@@ -82,12 +82,46 @@ export const CASH_NATURES = {
   OUT: ['Dépense de fonctionnement', 'Reversement centre d\'examen', 'Remboursement famille', 'Dépôt en banque', 'Autre sortie'],
 };
 export const CASH_MOVEMENTS = [
-  { id: 'c1', date: '2026-10-13', time: '07:42', dir: 'IN', nature: 'Encaissement famille', journal: 'ECOLAGE', label: 'Frais de scolarité octobre — RAZAFY Kanto', method: 'Espèces', amount: 420_000, agent: 'Mme Soa' },
-  { id: 'c2', date: '2026-10-13', time: '08:15', dir: 'IN', nature: 'Encaissement famille', journal: 'DROITS_EXAMEN', label: 'Droits DNB — RAVELO Hasina', method: 'Chèque n° 3318820', amount: 350_000, agent: 'Mme Soa' },
-  { id: 'c3', date: '2026-10-13', time: '09:05', dir: 'IN', nature: 'Encaissement famille', journal: 'FRAIS_ANNEXES', label: 'Tee-shirt × 2 — RASOA Lova', method: 'Espèces', amount: 70_000, agent: 'Mme Soa' },
+  { id: 'c1', date: '2026-10-13', time: '07:42', dir: 'IN', nature: 'Encaissement famille', journal: 'ECOLAGE', label: 'Frais de scolarité octobre — RAZAFY Kanto', method: 'Espèces', amount: 420_000, agent: 'Mme Soa', receipt: 'ECO-TMV-00410' },
+  { id: 'c2', date: '2026-10-13', time: '08:15', dir: 'IN', nature: 'Encaissement famille', journal: 'DROITS_EXAMEN', label: 'Droits DNB — RAVELO Hasina', method: 'Chèque n° 3318820', amount: 350_000, agent: 'Mme Soa', receipt: 'EXA-TMV-00055' },
+  { id: 'c3', date: '2026-10-13', time: '09:05', dir: 'IN', nature: 'Encaissement famille', journal: 'FRAIS_ANNEXES', label: 'Tee-shirt × 2 — RASOA Lova', method: 'Espèces', amount: 70_000, agent: 'Mme Soa', receipt: 'ANX-TMV-00207' },
   { id: 'c4', date: '2026-10-13', time: '10:30', dir: 'OUT', nature: 'Dépense de fonctionnement', journal: 'ECOLAGE', label: 'Ramettes de papier et encre imprimante', method: 'Espèces', amount: 85_000, agent: 'Mme Soa' },
-  { id: 'c5', date: '2026-10-13', time: '11:10', dir: 'IN', nature: 'Encaissement famille', journal: 'DROITS_EXAMEN', label: 'Droits Bac — RANDRIA Mamy', method: 'Virement — bordereau 77104', amount: 600_000, agent: 'Mme Soa' },
-  { id: 'c6', date: '2026-10-13', time: '14:20', dir: 'OUT', nature: 'Dépôt en banque', journal: 'ECOLAGE', label: 'Dépôt BOA — bordereau 5521', method: 'Espèces', amount: 400_000, agent: 'Mme Soa' },
+  { id: 'c5', date: '2026-10-13', time: '11:10', dir: 'IN', nature: 'Encaissement famille', journal: 'DROITS_EXAMEN', label: 'Droits Bac — RANDRIA Mamy', method: 'Virement — bordereau 77104', amount: 600_000, agent: 'Mme Soa', receipt: 'EXA-TMV-00056' },
+  { id: 'c6', date: '2026-10-13', time: '14:20', dir: 'OUT', nature: 'Dépôt en banque', journal: 'ECOLAGE', label: 'Dépôt BOA — bordereau 5521', method: 'Espèces', amount: 400_000, agent: 'Mme Soa', bank: 'BOA Madagascar', slip: '5521' },
+];
+
+// Reçus du jour (journal des reçus) : chaque reçu correspond à une entrée de caisse
+const R = (number, journal, time, studentId, student, cls, lines, method, extra = {}) => ({
+  number, journal, date: '2026-10-13', time, at: `13/10/2026 ${time}`, studentId, student, cls, lines,
+  total: lines.reduce((t, l) => t + l.amount, 0), method, ref: null, bank: null, bearer: '', cashier: 'Mme Soa (bureau)', status: 'VALIDE', ...extra,
+});
+export const RECEIPTS_TODAY = [
+  R('ECO-TMV-00410', 'ECOLAGE', '07:42', 'e5', 'RAZAFY Kanto', '1re STMG', [{ key: 'ECO-10', label: 'Frais de scolarité octobre 2026', amount: 420_000 }], 'ESPECES', { bearer: 'Mme Razafy Voahangy (parent)' }),
+  R('EXA-TMV-00055', 'DROITS_EXAMEN', '08:15', null, 'RAVELO Hasina', '3e', [{ key: 'EXAMEN', label: 'Droits DNB', amount: 350_000 }], 'CHEQUE', { ref: '3318820', bank: 'BNI Madagascar', bearer: 'M. Ravelo Haja (parent)' }),
+  R('ANX-TMV-00207', 'FRAIS_ANNEXES', '09:05', null, 'RASOA Lova', '6e', [{ key: 'ART-ts', label: 'Tee-shirt scolaire × 2', amount: 70_000 }], 'ESPECES', {
+    bearer: 'Lova Rasoa (élève)', status: 'ANNULATION_DEMANDEE',
+    cancel: { reason: 'Mauvaise taille : la famille a rendu les deux tee-shirts neufs, remboursement en espèces', requestedBy: 'Mme Soa (bureau)', requestedAt: '13/10/2026 15:02' },
+  }),
+  R('EXA-TMV-00056', 'DROITS_EXAMEN', '11:10', 'e3', 'RANDRIA Mamy', 'Terminale Générale', [{ key: 'EXAMEN', label: 'Droits Bac', amount: 600_000 }], 'VIREMENT', { ref: '77104', bank: 'BOA Madagascar', bearer: 'M. Randria Feno (parent)' }),
+];
+export const CASH_AUDIT = [
+  { at: '13/10/2026 15:02', by: 'Mme Soa (bureau)', action: 'Demande d\'annulation', receipt: 'ANX-TMV-00207', detail: 'Mauvaise taille : la famille a rendu les deux tee-shirts neufs, remboursement en espèces' },
+  { at: '12/10/2026 17:05', by: 'Mme Soa (bureau)', action: 'Clôture de caisse', receipt: '—', detail: 'Caisse juste : 2 950 000 Ar comptés' },
+];
+
+// Espèces en caisse (coffre du bureau) à l'ouverture du 13 octobre, et clôtures précédentes
+export const CASH_SAFE = { morning: 2_950_000, lastDeposit: '2026-10-09', maxAmount: 2_500_000, maxDays: 3 };
+export const CASH_CLOSINGS = [
+  { date: '2026-10-12', expected: 2_950_000, counted: 2_950_000, diff: 0, status: 'JUSTE', explanation: '', by: 'Mme Soa (bureau)', at: '12/10/2026 17:05' },
+  { date: '2026-10-09', expected: 980_000, counted: 975_000, diff: -5_000, status: 'MANQUANT', explanation: 'Monnaie rendue en trop à un parent (erreur de rendu), signalé à la Direction', by: 'Mme Soa (bureau)', at: '09/10/2026 17:12' },
+];
+
+// Réductions accordées par la Direction (taux FICTIFS, à remplacer) : sur les frais de scolarité mensuels
+export const REDUCTION_TYPES = [
+  { id: 'FRATRIE', label: 'Fratrie (à partir du 2e enfant)', kind: 'PERCENT', value: 10 },
+  { id: 'PROCHE', label: 'Proche de l\'établissement', kind: 'PERCENT', value: 15 },
+  { id: 'PERSONNEL', label: 'Enfant du personnel', kind: 'PERCENT', value: 50 },
+  { id: 'REDOUBLANT_TLE', label: 'Redoublant en Terminale', kind: 'PERCENT', value: 20 },
 ];
 
 // Historique de caisse depuis la rentrée (démonstration) : encaissements des familles chaque jour
@@ -132,7 +166,8 @@ export const STUDENT_ACCOUNTS = [
     paid: ['REINSCRIPTION', 'FASCICULE', 'LOCATION', 'ECO-09', 'EXAMEN'],
     exam: { label: 'Droits Pré-Bac (EAF)', amount: 450_000, due: '2026-10-31' } },
   { id: 'e2', name: 'RAKOTOARISOA Toky', cls: '5e', family: 'Famille RAKOTOARISOA', isNew: false, enrolledOn: '2026-09-01',
-    paid: ['REINSCRIPTION', 'FASCICULE', 'LOCATION', 'ECO-09'] },
+    paid: ['REINSCRIPTION', 'FASCICULE', 'LOCATION', 'ECO-09'],
+    reduction: { typeId: 'FRATRIE', motif: 'Frère d\'Aina RAKOTOARISOA (1re STMG)', by: 'Mme Sheena Lo (Direction)', at: '01/09/2026' } },
   { id: 'e3', name: 'RANDRIA Mamy', cls: 'Terminale Générale', family: 'Famille RANDRIA', isNew: false, enrolledOn: '2026-09-01',
     paid: ['REINSCRIPTION', 'EXAMEN'], exam: { label: 'Droits Bac', amount: 600_000, due: '2026-10-31' } },
   { id: 'e4', name: 'RASOAMANANA Fy', cls: '4e', family: 'Famille RASOAMANANA', isNew: true, enrolledOn: '2026-10-12', paid: [] },

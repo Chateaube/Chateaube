@@ -14,6 +14,7 @@ import StaffModule from './components/StaffModule.jsx';
 import TeacherPortal from './components/TeacherPortal.jsx';
 import FamilyPortal from './components/FamilyPortal.jsx';
 import InscriptionsModule from './components/InscriptionsModule.jsx';
+import ManualsModule from './components/ManualsModule.jsx';
 import TeacherOversight from './components/TeacherOversight.jsx';
 import Messenger from './components/Messenger.jsx';
 import ImportModule from './components/ImportModule.jsx';
@@ -44,6 +45,7 @@ const MESSAGES = { id: 'messages', label: 'Messages', icon: 'bell', screen: () =
     <Messenger audience="STAFF" />
   </div>
 ) };
+const MANUALS = { id: 'manuals', label: 'Manuels scolaires', icon: 'cap', screen: ManualsModule };
 const IMPORT = { id: 'import', label: 'Importer des données (Excel)', icon: 'swap', screen: ImportModule };
 const FOLLOW_UP = { id: 'followup', label: 'Documents, stages & orientation', icon: 'pen', screen: FollowUpModule };
 
@@ -58,6 +60,7 @@ const PROFILES = {
         INSCRIPTIONS,
         { id: 'students', label: 'Mobilité Tamatave → Tana', icon: 'swap' },
         { id: 'accounting', label: 'Comptabilité', icon: 'wallet', screen: AccountingModule },
+        MANUALS,
       ] },
       { group: 'Pédagogie', items: [
         COUNCIL,
@@ -89,6 +92,7 @@ const PROFILES = {
         { id: 'bureau', label: 'Accueil', icon: 'home', screen: BureauHome },
         { id: 'accounting', label: 'Encaissements & comptabilité', icon: 'wallet', screen: AccountingModule },
         INSCRIPTIONS,
+        MANUALS,
         IMPORT,
         COUNCIL,
         BULLETINS,

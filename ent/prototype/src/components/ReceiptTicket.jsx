@@ -19,12 +19,14 @@ function Row({ left, right, bold }) {
 }
 const Rule = () => <div className="my-1.5 border-t border-dashed border-slate-400" />;
 
-export default function ReceiptTicket({ receipt, student, payer, cashier, at }) {
+export default function ReceiptTicket({ receipt, student, payer, cashier, at, duplicate = false }) {
   const method = PAYMENT_METHODS[receipt.method];
   return (
     <div className="ticket w-[300px] bg-white px-4 py-5 font-mono text-[11.5px] leading-snug text-black shadow-soft">
       <img src={logo} alt="École Collège Lycée Chateaubriand Tamatave — 27 Rue Nationale, 501 Toamasina · +261 34 51 227 78" className="w-full" />
       <Rule />
+      {duplicate && <p className="text-center font-bold tracking-widest">*** DUPLICATA ***</p>}
+      {receipt.status === 'ANNULE' && <p className="text-center font-bold tracking-widest">*** REÇU ANNULÉ ***</p>}
       <p className="text-center font-bold">REÇU N° {receipt.number}</p>
       <p className="text-center">{JOURNALS[receipt.journal].label}</p>
       <Rule />
@@ -33,7 +35,12 @@ export default function ReceiptTicket({ receipt, student, payer, cashier, at }) 
       <Row left="Classe" right={student.cls} />
       {payer && <Row left="Remis par" right={payer} />}
       <Rule />
-      {receipt.lines.map((l) => <Row key={l.key} left={l.label} right={num(l.amount)} />)}
+      {receipt.lines.map((l) => (
+        <React.Fragment key={l.key}>
+          <Row left={l.label} right={num(l.base ?? l.amount)} />
+          {l.discount > 0 && <Row left={`  Réduction ${l.reductionLabel.split(' (')[0].toLowerCase()}`} right={`−${num(l.discount)}`} />}
+        </React.Fragment>
+      ))}
       <Rule />
       <div className="text-[13px]"><Row bold left="TOTAL (Ar)" right={num(receipt.total)} /></div>
       <Row left="Soit en FMG" right={num(receipt.total * FMG_PER_ARIARY)} />

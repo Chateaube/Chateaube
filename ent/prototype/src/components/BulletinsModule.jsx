@@ -11,6 +11,7 @@ import { loadImport, saveImport } from '../importStore.js';
 import { demoAppreciation, accord } from '../rules/documents.js';
 import { formatDateFr } from '../rules/calendar.js';
 import { printOnly } from '../print.js';
+import BulletinHandover from './BulletinHandover.jsx';
 
 // Bulletins du trimestre (Direction, Bureau) : une page A4 par élève, selon la matrice de l'établissement.
 // Chaque bulletin ne contient que les matières de l'élève (spécialités en Terminale générale).
@@ -121,7 +122,8 @@ function SpecialtiesPanel({ onChange }) {
 const DEMO_CLASSES = [['1re STMG', buildPremiereSTMG], ['Terminale Générale', buildTerminaleG]];
 const classesNow = () => (importedTleG().length ? [[IMPORTED, buildImported], ...DEMO_CLASSES] : DEMO_CLASSES);
 
-export default function BulletinsModule({ settings }) {
+export default function BulletinsModule({ settings, role }) {
+  const [mode, setMode] = useState('print'); // impression ou remise en main propre
   const [CLASSES] = useState(classesNow);
   const [cls, setCls] = useState(CLASSES[0][0]);
   const [version, setVersion] = useState(0); // spécialités modifiées
@@ -163,6 +165,23 @@ export default function BulletinsModule({ settings }) {
           <Button onClick={() => printOnly('.bulletins-all', 'size: A4 portrait; margin: 8mm;')}>Imprimer toute la classe ({bulletins.length})</Button>
         </span>
       </div>
+      <div className="flex gap-1 rounded-lg bg-slate-100 p-1" role="tablist">
+        {[['print', 'Préparer et imprimer'], ['handover', 'Remise en main propre']].map(([id, label]) => (
+          <button key={id} role="tab" aria-selected={mode === id} onClick={() => setMode(id)}
+            className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ${mode === id ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>{label}</button>
+        ))}
+      </div>
+      {mode === 'handover' && (
+        <>
+          <label className="block w-60 text-xs font-medium text-slate-600">Classe
+            <select value={cls} onChange={(e) => { setCls(e.target.value); setStudent(CLASSES.find(([c]) => c === e.target.value)[1](settings)[0].student); }} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
+              {CLASSES.map(([c]) => <option key={c}>{c}</option>)}
+            </select>
+          </label>
+          <BulletinHandover cls={cls} students={bulletins.map((x) => x.student)} settings={settings} role={role} term="T1" />
+        </>
+      )}
+      {mode === 'print' && (<>
       <Card>
         <div className="grid gap-4 lg:grid-cols-[240px_1fr_auto] lg:items-end">
           <label className="text-xs font-medium text-slate-600">Classe
@@ -187,6 +206,7 @@ export default function BulletinsModule({ settings }) {
       </Card>
       {cls === IMPORTED && <SpecialtiesPanel onChange={() => setVersion((v) => v + 1)} />}
       <div className="overflow-x-auto rounded-2xl bg-slate-100 p-4"><div className="bulletin-one min-w-[760px]"><BulletinSheet b={enrich(current)} /></div></div>
+      </>)}
       <div className="bulletins-all hidden">{bulletins.map((x) => (
         <React.Fragment key={x.student}>
           <BulletinSheet b={enrich(x)} />

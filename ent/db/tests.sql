@@ -650,5 +650,96 @@ DO $$ DECLARE g uuid := 'e0000000-0000-0000-0000-000000000001'; other uuid; sig 
   END;
 END $$;
 
+-- T34. Annulation d'un reçu : motif obligatoire, décision par la Direction seule ------
+DO $$ DECLARE p uuid := (SELECT id FROM payment WHERE receipt_no = 'R-T32'); BEGIN
+  BEGIN
+    INSERT INTO payment_cancellation (payment_id, reason, requested_by) VALUES (p, 'erreur', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T34: motif trop court accepté';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO payment_cancellation (payment_id, reason, requested_by) VALUES (p, 'Erreur d''élève : payé pour le frère', '00000000-0000-0000-0000-000000000003');
+  BEGIN
+    UPDATE payment_cancellation SET decided_by = '00000000-0000-0000-0000-000000000003', decided_at = now(), approved = true WHERE payment_id = p;
+    RAISE EXCEPTION 'T34: décision prise hors Direction';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T34:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    UPDATE payment_cancellation SET decided_by = '00000000-0000-0000-0000-000000000002', decided_at = now(), approved = false WHERE payment_id = p;
+    RAISE EXCEPTION 'T34: refus sans explication accepté';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE payment_cancellation SET decided_by = '00000000-0000-0000-0000-000000000002', decided_at = now(), approved = true WHERE payment_id = p;
+END $$;
+
+-- T35. Réductions : accordées par la Direction seule, taux plafonné ------------------
+INSERT INTO reduction_type VALUES ('FRATRIE', 'Fratrie', 'PERCENT', 10), ('PERSONNEL', 'Enfant du personnel', 'PERCENT', 50);
+DO $$ BEGIN
+  BEGIN
+    INSERT INTO reduction_type VALUES ('X', 'Trop', 'PERCENT', 120);
+    RAISE EXCEPTION 'T35: taux supérieur à 100 pour cent accepté';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO enrollment_reduction (enrollment_id, type_code, motif, granted_by)
+    VALUES ('30000000-0000-0000-0000-0000000000a1', 'FRATRIE', 'Frère de Hery', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T35: réduction accordée hors Direction';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T35:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO enrollment_reduction (enrollment_id, type_code, motif, granted_by)
+  VALUES ('30000000-0000-0000-0000-0000000000a1', 'FRATRIE', 'Frère de Hery', '00000000-0000-0000-0000-000000000001');
+END $$;
+
+-- T36. Manuels et remise du bulletin : un manuel perdu non réglé bloque la remise ------
+DO $$ DECLARE t uuid; e uuid := '30000000-0000-0000-0000-0000000000a1'; BEGIN
+  INSERT INTO textbook (site_id, title, subject, level_codes, is_photocopy, binding)
+  SELECT id, 'Philosophie Terminale', 'Philosophie', '{TLE}', false, 'DOS_CARRE' FROM site WHERE code = 'TMV' RETURNING id INTO t;
+  INSERT INTO textbook_loan (textbook_id, enrollment_id, state_out, issued_on, due_back) VALUES (t, e, 'BON', '2026-09-07', '2027-06-30');
+  BEGIN
+    INSERT INTO textbook_loan (textbook_id, enrollment_id, state_out, issued_on, due_back) VALUES (t, e, 'NEUF', '2026-09-08', '2027-06-30');
+    RAISE EXCEPTION 'T36: deux exemplaires du même manuel prêtés';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  UPDATE textbook_loan SET lost_on = '2026-10-08' WHERE enrollment_id = e;
+  ASSERT EXISTS (SELECT 1 FROM v_bulletin_blocked WHERE enrollment_id = e AND reason = 'MANUEL_DU'), 'T36: manuel perdu non réglé = bulletin bloqué';
+  BEGIN
+    INSERT INTO bulletin_handover (enrollment_id, term, given_at, given_to, given_by) VALUES (e, 1, now(), 'Mme Razafy', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T36: bulletin remis malgré le blocage';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T36:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    INSERT INTO bulletin_handover (enrollment_id, term, given_at, given_to, given_by, override_by, override_reason)
+    VALUES (e, 1, now(), 'Mme Razafy', '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000003', 'Échéancier');
+    RAISE EXCEPTION 'T36: blocage levé hors Direction';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T36:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO bulletin_handover (enrollment_id, term, given_at, given_to, given_by, override_by, override_reason)
+  VALUES (e, 1, now(), 'Mme Razafy', '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000001', 'Échéancier accordé');
+END $$;
+
+-- T37. Clôture de caisse : écart expliqué ; plus d'encaissement après clôture -----------
+DO $$ DECLARE s uuid := (SELECT id FROM site WHERE code = 'TMV'); BEGIN
+  BEGIN
+    INSERT INTO cash_closing (site_id, day, expected_mga, counted_mga, counts, closed_by)
+    VALUES (s, current_date, 535000, 530000, '{"20000": 26, "5000": 2}', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T37: écart sans explication accepté';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO cash_closing (site_id, day, expected_mga, counted_mga, counts, explanation, closed_by)
+  VALUES (s, current_date, 535000, 530000, '{"20000": 26, "5000": 2}', 'Monnaie rendue en trop à un parent', '00000000-0000-0000-0000-000000000003');
+  BEGIN
+    INSERT INTO payment (receipt_no, category, site_id, amount_mga, method, received_by) VALUES ('R-T37', 'ECOLAGE', s, 1000, 'ESPECES', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T37: encaissement après clôture accepté';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T37:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO bank_deposit (site_id, amount_mga, bank_name, slip_no, deposited_on, recorded_by)
+  VALUES (s, 500000, 'BOA Madagascar', '5530', current_date, '00000000-0000-0000-0000-000000000003');
+  BEGIN
+    INSERT INTO bank_deposit (site_id, amount_mga, bank_name, slip_no, deposited_on, recorded_by)
+    VALUES (s, 500000, 'BOA Madagascar', '5530', current_date, '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T37: même bordereau enregistré deux fois';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T33 passent'
+\echo 'OK — tous les scénarios T1 à T37 passent'
