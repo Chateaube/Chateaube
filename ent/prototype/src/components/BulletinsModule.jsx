@@ -12,6 +12,13 @@ import { demoAppreciation, accord } from '../rules/documents.js';
 import { formatDateFr } from '../rules/calendar.js';
 import { printOnly } from '../print.js';
 import BulletinHandover from './BulletinHandover.jsx';
+import { ENGAGEMENTS, engagementLabels, engagementErrors } from '../rules/engagements.js';
+
+// Engagements de démonstration (délégués, suppléants…)
+const DEMO_ENGAGEMENTS = {
+  'RAKOTOARISOA Aina': ['DELEGUE'], 'RAZAFY Kanto': ['SUPPLEANT'], 'RAMAROSON Fitia': ['ECO_DELEGUE'],
+  'RANDRIA Mamy': ['DELEGUE', 'CVL'], 'RAZAFINDRATSIMA Volana': ['SUPPLEANT'], 'RABEMANANTSOA Fitia': ['PSC1'],
+};
 
 // Bulletins du trimestre (Direction, Bureau) : une page A4 par élève, selon la matrice de l'établissement.
 // Chaque bulletin ne contient que les matières de l'élève (spécialités en Terminale générale).
@@ -49,7 +56,7 @@ function buildPremiereSTMG(settings) {
 function buildTerminaleG() {
   const generals = TLE_G_STUDENTS.map((st) => generalAverage(subjectsOf(st, TLE_G_SUBJECTS).map((s) => ({ ...s, inAverage: true, coef: 1, avg: st.avgs[s.id] }))));
   return TLE_G_STUDENTS.map((st, i) => ({
-    term: '1er Trimestre', year: '2026/2027', student: st.name,
+    term: '1er Trimestre', year: '2026/2027', student: st.name, sex: st.sex,
     birthLine: `${accord(st.sex, 'Né', 'Née')} le ${longDate(st.birthDate)}`,
     classLine: classLine('Terminale Générale', st.specialties),
     rows: subjectsOf(st, TLE_G_SUBJECTS).map((s) => ({
@@ -135,7 +142,13 @@ export default function BulletinsModule({ settings, role }) {
   const [duplex, setDuplex] = useState(true);
   const [pages, setPages] = useState({}); // élève → nombre de pages imprimées (mesuré)
   const measureRef = useRef(null);
-  const enrich = (x) => ({ ...x, showGeneral, compact: pages[x.student]?.useCompact ?? false, generalAppreciation: general[`${cls}:${x.student}`] ?? '' });
+  const [engagements, setEngagements] = useState(DEMO_ENGAGEMENTS);
+  const enrich = (x) => ({ ...x, showGeneral, compact: pages[x.student]?.useCompact ?? false, generalAppreciation: general[`${cls}:${x.student}`] ?? '', engagements: engagementLabels(engagements[x.student], x.sex) });
+  const classEngagements = Object.fromEntries(bulletins.map((x) => [x.student, engagements[x.student] ?? []]));
+  const toggleEngagement = (id) => {
+    const cur = engagements[current.student] ?? [];
+    setEngagements({ ...engagements, [current.student]: cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id] });
+  };
   // Mesure de chaque bulletin à la taille d'impression : 1 page (recto) ou 2 (recto-verso), jamais plus
   useLayoutEffect(() => {
     const el = measureRef.current;
@@ -148,7 +161,7 @@ export default function BulletinsModule({ settings, role }) {
       out[n.dataset.student] = { normal, useCompact, printed: useCompact ? compact : normal };
     });
     setPages(out);
-  }, [bulletins, showGeneral, general]);
+  }, [bulletins, showGeneral, general, engagements]);
   const pagesOf = (name) => pages[name]?.printed ?? 1;
   const tooLong = bulletins.filter((x) => pagesOf(x.student) > 2);
 
@@ -197,6 +210,17 @@ export default function BulletinsModule({ settings, role }) {
             className="mt-1 w-full rounded-xl border border-slate-200 p-2 text-sm" placeholder="Ex. Très bonne progression globale sur l'année. Investissement sérieux et résultats solides." />
         </label>
         {cls === IMPORTED && <p className="mt-2 text-xs text-slate-500">Élèves importés : moyennes et appréciations vides tant que les enseignants n'ont pas saisi leurs notes. La mise en page et les spécialités sont celles du vrai bulletin.</p>}
+        <div className="mt-3">
+          <p className="text-xs font-medium text-slate-600">Engagements de {current.student} (imprimés à droite des absences)</p>
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            {ENGAGEMENTS.map((e) => {
+              const on = (engagements[current.student] ?? []).includes(e.id);
+              return <button key={e.id} type="button" aria-pressed={on} onClick={() => toggleEngagement(e.id)}
+                className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${on ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-600 ring-slate-300'}`}>{e.neutral}</button>;
+            })}
+          </div>
+          {engagementErrors(classEngagements).map((e) => <p key={e} className="mt-1 text-xs text-red-700">{e}</p>)}
+        </div>
         <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-600">
           <span>Ce bulletin : <strong>{pagesOf(current.student) === 1 ? '1 page (recto)' : `${pagesOf(current.student)} pages (recto-verso)`}</strong>{pages[current.student]?.useCompact ? ' · police légèrement réduite pour gagner une page' : ''}</span>
           <label className="flex items-center gap-1.5"><input type="checkbox" checked={duplex} onChange={(e) => setDuplex(e.target.checked)} />Imprimante en recto-verso (une page blanche après les bulletins d'une page, pour que chaque élève commence sur une nouvelle feuille)</label>

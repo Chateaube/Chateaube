@@ -295,3 +295,14 @@ recoder.
   les frais annuels.
 - **`bulletin_handover`** et **`v_bulletin_blocked`** : les bulletins sont remis en main propre, jamais publiés. Frais
   échus impayés ou manuel dû bloquent la remise ; seule la Direction lève le blocage, avec un motif (T36).
+
+### Salaires, engagements et bibliothèque
+- **`payroll_month`**, **`payroll_line`** : état de paie mensuel, validé par la Direction seule ; payé par le Bureau.
+  En espèces, émargement obligatoire du salarié et sortie de caisse « Salaires » ; par virement, référence obligatoire
+  (T38). Pendant la « semaine des salaires » (dernière semaine de cours du mois, jusqu'au paiement), pas de rappel de
+  versement en banque.
+- **`student_engagement`** : engagements imprimés sur le bulletin (délégué, suppléant, éco-délégué, élu CVL/CVC, tuteur,
+  équipe sportive, PSC1) ; au plus 2 délégués et 2 suppléants par classe (T39).
+- **`library_book`**, **`library_copy`**, **`library_loan`** : CDI. Désignation titre — auteur — éditeur (collection,
+  année), ISBN ; une cote par exemplaire (ROM-0012…). Élèves : un mois, prolongé d'un mois si le livre est présenté ;
+  professeurs : sans date limite. Un livre en retard bloque la remise du bulletin (T40).

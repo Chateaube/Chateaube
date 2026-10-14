@@ -6,6 +6,8 @@ import { studentDues } from '../rules/billing.js';
 import { manualBlocks } from '../rules/manuals.js';
 import { formatAr } from '../rules/finance.js';
 import { loadManuals } from '../manualsStore.js';
+import { loadLibrary } from '../libraryStore.js';
+import { overdueLoans } from '../rules/library.js';
 
 // Remise des bulletins en main propre (avec le tampon) : jamais publiés dans l'application.
 // Un bulletin n'est pas remis tant que des frais échus restent impayés ou qu'un manuel est dû ;
@@ -27,6 +29,9 @@ export function handoverBlocks(student, settings, manualsData) {
     const overdue = studentDues({ ...acc, reduction }, fees, settings, TODAY).filter((i) => i.status === 'ECHU');
     if (overdue.length) reasons.push(`Frais impayés : ${overdue.map((i) => i.short ?? i.label).join(', ')} (${formatAr(overdue.reduce((s, i) => s + i.amount, 0))})`);
   }
+  // livres du CDI en retard : bloquent comme un manuel
+  const late = overdueLoans(loadLibrary().loans, TODAY).filter((l) => l.borrower === student);
+  if (late.length) reasons.push(`Livre du CDI non rendu : ${late.map((l) => l.code).join(', ')}`);
   return [...reasons, ...manualBlocks(student, manualsData.loans, manualsData.manuals, TODAY)];
 }
 

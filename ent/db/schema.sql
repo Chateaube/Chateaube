@@ -1347,3 +1347,73 @@ CREATE TABLE bulletin_handover (
   CHECK ((given_at IS NULL) = (given_by IS NULL) AND (given_at IS NULL) = (given_to IS NULL)),
   CHECK ((override_by IS NULL) = (override_reason IS NULL))
 );
+
+-- =====  SALAIRES DU PERSONNEL  =====
+-- Rubrique de sortie à part : état de paie mensuel validé par la Direction, payé par le Bureau.
+-- En espèces : émargement (signature) du salarié et sortie de caisse « Salaires ».
+CREATE TABLE payroll_month (
+  site_id       uuid REFERENCES site(id),
+  month         date CHECK (extract(day FROM month) = 1),
+  validated_by  uuid REFERENCES app_user(id),
+  validated_at  timestamptz,
+  PRIMARY KEY (site_id, month),
+  CHECK ((validated_by IS NULL) = (validated_at IS NULL))
+);
+CREATE TABLE payroll_line (
+  site_id       uuid,
+  month         date,
+  staff_id      uuid REFERENCES staff_member(id),
+  net_mga       bigint NOT NULL CHECK (net_mga > 0),
+  method        payment_method NOT NULL CHECK (method IN ('ESPECES', 'VIREMENT')),
+  paid_at       timestamptz,
+  paid_by       uuid REFERENCES app_user(id),
+  signature_key text,                          -- émargement (espèces)
+  transfer_ref  text,                          -- référence du virement
+  cash_movement_id uuid REFERENCES cash_movement(id),
+  PRIMARY KEY (site_id, month, staff_id),
+  FOREIGN KEY (site_id, month) REFERENCES payroll_month(site_id, month),
+  CHECK ((paid_at IS NULL) = (paid_by IS NULL)),
+  CHECK (paid_at IS NULL OR method <> 'ESPECES' OR signature_key IS NOT NULL),
+  CHECK (paid_at IS NULL OR method <> 'VIREMENT' OR transfer_ref IS NOT NULL)
+);
+
+-- =====  ENGAGEMENTS DE L'ÉLÈVE (bulletin, livret, Parcoursup)  =====
+CREATE TYPE engagement_code AS ENUM ('DELEGUE', 'SUPPLEANT', 'ECO_DELEGUE', 'CVL', 'CVC', 'TUTEUR', 'SPORT', 'PSC1');
+CREATE TABLE student_engagement (
+  enrollment_id uuid REFERENCES enrollment(id),
+  code          engagement_code,
+  PRIMARY KEY (enrollment_id, code)
+);
+
+-- =====  BIBLIOTHÈQUE (CDI)  =====
+CREATE TABLE library_book (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id       uuid NOT NULL REFERENCES site(id),
+  kind          text NOT NULL CHECK (kind IN ('ROMAN', 'ANNALES', 'DOCUMENTAIRE', 'REFERENCE', 'BD')),
+  title         text NOT NULL,
+  author        text,
+  editor        text NOT NULL,
+  collection    text,
+  year          smallint,
+  isbn          text CHECK (isbn IS NULL OR isbn ~ '^[0-9]{9}[0-9X]$|^97[89][0-9]{10}$')
+);
+-- Un exemplaire = une étiquette (cote) : ROM-0012, ANN-0003…
+CREATE TABLE library_copy (
+  code          text PRIMARY KEY CHECK (code ~ '^(ROM|ANN|DOC|REF|BD)-[0-9]{4}$'),
+  book_id       uuid NOT NULL REFERENCES library_book(id),
+  condition     textbook_condition NOT NULL DEFAULT 'BON'
+);
+CREATE TABLE library_loan (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  copy_code     text NOT NULL REFERENCES library_copy(code),
+  enrollment_id uuid REFERENCES enrollment(id),        -- élève
+  staff_id      uuid REFERENCES staff_member(id),       -- professeur
+  out_on        date NOT NULL,
+  due_on        date,                                   -- élève : un mois ; professeur : NULL
+  renewals      smallint NOT NULL DEFAULT 0,
+  returned_on   date,
+  CHECK ((enrollment_id IS NULL) <> (staff_id IS NULL)),
+  CHECK (staff_id IS NULL OR due_on IS NULL),
+  CHECK (enrollment_id IS NULL OR due_on IS NOT NULL)
+);
+CREATE UNIQUE INDEX library_loan_open ON library_loan (copy_code) WHERE returned_on IS NULL;

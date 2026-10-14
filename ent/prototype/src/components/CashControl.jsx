@@ -4,7 +4,7 @@ import ReceiptTicket from './ReceiptTicket.jsx';
 import { JOURNALS, BANKS } from '../data/accounting.js';
 import { PAYMENT_METHODS } from '../rules/billing.js';
 import { formatAr } from '../rules/finance.js';
-import { DENOMINATIONS, expectedCash, countTotal, closingCheck, requestCancel, decideCancel, depositAlert, validateDeposit, depositReminder } from '../rules/cashControl.js';
+import { DENOMINATIONS, expectedCash, countTotal, closingCheck, requestCancel, decideCancel, depositAlert, validateDeposit, depositReminder, salaryWindow } from '../rules/cashControl.js';
 import { printOnly } from '../print.js';
 
 // Reçus et clôture : journal des reçus du jour (duplicata, annulation avec motif validée par la
@@ -60,7 +60,7 @@ function Decision({ receipt, onDecide }) {
   );
 }
 
-export default function CashControl({ role, actor, receipts, setReceipts, audit, setAudit, movements, setMovements, accounts, setAccounts, closings, setClosings, safe }) {
+export default function CashControl({ role, actor, receipts, setReceipts, audit, setAudit, movements, setMovements, accounts, setAccounts, closings, setClosings, safe, settings, salariesPaid = false }) {
   const isDirection = role === 'DIRECTION';
   const [cancelling, setCancelling] = useState(null);
   const [duplicate, setDuplicate] = useState(null);
@@ -76,7 +76,9 @@ export default function CashControl({ role, actor, receipts, setReceipts, audit,
   const lastDeposit = [safe.lastDeposit, ...movements.filter((m) => m.nature === 'Dépôt en banque').map((m) => m.date)].sort().at(-1);
   const alert = depositAlert(cash, lastDeposit, TODAY, { maxAmount: safe.maxAmount, maxDays: 99 });
   const depositDates = [safe.lastDeposit, ...movements.filter((m) => m.nature === 'Dépôt en banque').map((m) => m.date)];
-  const reminder = depositReminder(TODAY, depositDates, safe.depositDays);
+  // semaine des salaires (dernière semaine de cours du mois, jusqu'au paiement) : pas de rappel
+  const win = salaryWindow(TODAY, settings?.calendar ?? [], { paid: salariesPaid });
+  const reminder = depositReminder(TODAY, depositDates, safe.depositDays, win.inWindow);
   const slot = (iso) => safe.depositSlots[new Date(`${iso}T12:00:00Z`).getUTCDay()];
   const pending = receipts.filter((r) => r.status === 'ANNULATION_DEMANDEE');
   const valid = receipts.filter((r) => r.status !== 'ANNULE');
@@ -142,10 +144,12 @@ export default function CashControl({ role, actor, receipts, setReceipts, audit,
       {reminder.missed && (
         <p className="rounded-2xl bg-red-50 p-3 text-sm text-red-800"><strong>Versement oublié :</strong> aucun versement depuis le {reminder.missedDay} {reminder.missed.split('-').reverse().join('/')}. La Direction est prévenue.</p>
       )}
-      {reminder.dueToday ? (
+      {win.active ? (
+        <p className="rounded-2xl bg-navy-50 p-3 text-sm text-navy-900"><strong>Semaine des salaires :</strong> pas de rappel de versement, les espèces restent au bureau pour payer le personnel. Les rappels reprennent après le paiement des salaires.</p>
+      ) : reminder.dueToday ? (
         <p className="rounded-2xl bg-amber-50 p-3 text-sm text-amber-900"><strong>Jour de versement :</strong> aujourd'hui {slot(TODAY)}, verser les espèces ({formatAr(cash)}) et saisir le bordereau.</p>
       ) : (
-        <p className="rounded-2xl bg-navy-50 p-3 text-sm text-navy-900">Prochain versement en banque : <strong>{reminder.nextDay} {reminder.next.split('-').reverse().join('/')} {slot(reminder.next)}</strong>. Un rappel est envoyé au bureau ce jour-là, et à la Direction si le versement n'est pas saisi.</p>
+        <p className="rounded-2xl bg-navy-50 p-3 text-sm text-navy-900">Prochain versement en banque : <strong>{reminder.nextDay} {reminder.next.split('-').reverse().join('/')} {slot(reminder.next)}</strong>. Un rappel est envoyé au bureau ce jour-là, et à la Direction si le versement n'est pas saisi. Pas de rappel pendant la semaine des salaires (à partir du lundi {win.start.split('-').reverse().join('/')}).</p>
       )}
       {alert.alert && (
         <p className="rounded-2xl bg-red-50 p-3 text-sm text-red-800"><strong>Beaucoup d'espèces au bureau :</strong> {alert.reasons.join(' et ')} (seuil fixé par la Direction : {formatAr(safe.maxAmount)}). Verser sans attendre le prochain jour prévu.</p>

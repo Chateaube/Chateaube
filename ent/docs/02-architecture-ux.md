@@ -172,7 +172,13 @@ chaque portail.
   sur le ticket, mois exonérés affichés comme tels.
 - **Manuels scolaires** : lot de la classe (ce que reçoit et paie chaque élève, qui a quoi, distribution en un clic),
   stock et prix, prêts par titre, pertes à régler ; un manuel dû bloque le bulletin.
-- **Versements en banque** : rappel le mercredi et le vendredi, versement oublié signalé.
+- **Versements en banque** : rappel le mercredi et le vendredi, versement oublié signalé ; pas de rappel pendant la
+  semaine des salaires.
+- **Salaires** : état de paie validé par la Direction, paiement par le Bureau avec émargement (espèces) ou référence
+  (virement) ; espèces en caisse comparées aux salaires à payer.
+- **Bibliothèque (CDI)** : prêt et retour par cote ou recherche (titre, auteur, ISBN), prolongation avec le livre,
+  retards et rappels, catalogue, étiquettes imprimables ; « Livres du CDI » dans le portail des familles.
+- **Bulletins** : rubrique « Engagements » (délégué, suppléant…) imprimée à droite des absences.
 - **Remise des bulletins** : en main propre, tamponnés ; bloquée en cas d'impayé ou de manuel dû (levée par la Direction).
 - **Fiche signalétique** : le parent la remplit et la signe dans son compte (Plus → Fiche signalétique) ; le bureau la
   consulte, la valide et compare la signature de référence avec un document papier photographié.

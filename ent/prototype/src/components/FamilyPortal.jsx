@@ -17,6 +17,8 @@ import { STUDENT_PROFILES } from '../data/enrollment.js';
 import { FicheForm, FICHE_YEAR } from './FicheSignaletique.jsx';
 import SignaturePad from './SignaturePad.jsx';
 import { ficheOf, referenceOf, setReference } from '../ficheStore.js';
+import { loadLibrary } from '../libraryStore.js';
+import { designation } from '../rules/library.js';
 
 // Portail famille : PARENT (toutes les actions) ou ELEVE (presque la même chose, en lecture,
 // sans paiements, sans accusés de lecture ni signatures).
@@ -357,6 +359,28 @@ function Payments() {
   );
 }
 
+/* ---------- Livres du CDI empruntés ---------- */
+function LibraryLoans({ child }) {
+  const { books, loans } = loadLibrary();
+  const mine = loans.filter((l) => l.borrower === fullName(child) && !l.returnedOn);
+  const bookOf = (code) => books.find((b) => b.copies.some((c) => c.code === code));
+  return (
+    <Section title="Livres du CDI">
+      {mine.length === 0 ? <p className="text-sm text-slate-500">Aucun livre emprunté.</p> : (
+        <ul className="space-y-2">
+          {mine.map((l) => (
+            <li key={l.id} className="rounded-xl border border-slate-200 p-3 text-sm">
+              <p className="font-medium text-slate-800">{designation(bookOf(l.code))}</p>
+              <p className={`text-xs ${l.due < TODAY ? 'text-red-700' : 'text-slate-500'}`}>{l.code} · à rendre le {l.due.split('-').reverse().join('/')}{l.due < TODAY ? ' (en retard)' : ''}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-2 text-xs text-slate-500">Un mois de prêt. Pour le garder un mois de plus, repasser au bureau avec le livre.</p>
+    </Section>
+  );
+}
+
 /* ---------- Ma signature (signature de référence du compte) ---------- */
 function MySignature() {
   const [ref, setRef] = useState(() => referenceOf(ACCOUNT.id));
@@ -385,7 +409,7 @@ const TABS = [['home', 'Accueil', 'home'], ['life', 'Vie scol.', 'users'], ['not
 const MORE = [
   ['homework', 'Devoirs & cahier de textes', 'calendar'], ['documents', 'Documents & autorisations', 'pen'], ['stages', 'Stages', 'cap'],
   ['orientation', 'Orientation', 'cap'], ['payments', 'Paiements', 'wallet', 'PARENT'],
-  ['fiche', 'Fiche signalétique', 'pen', 'PARENT'], ['signature', 'Ma signature', 'pen', 'PARENT'],
+  ['library', 'Livres du CDI', 'cap'], ['fiche', 'Fiche signalétique', 'pen', 'PARENT'], ['signature', 'Ma signature', 'pen', 'PARENT'],
 ];
 
 export default function FamilyPortal({ settings, audience = 'PARENT' }) {
@@ -420,6 +444,7 @@ export default function FamilyPortal({ settings, audience = 'PARENT' }) {
           {view === 'home' && <Home child={child} isParent={isParent} openFiche={() => { setTab('more'); setSub('fiche'); }} />}
           {view === 'fiche' && <FicheForm key={child.id} studentKey={fullName(child)} profile={profileOf(child)} account={ACCOUNT.id} accountName={ACCOUNT.name} />}
           {view === 'signature' && <MySignature />}
+          {view === 'library' && <LibraryLoans child={child} />}
           {view === 'notes' && <Notes child={child} audience={audience} settings={settings} />}
           {view === 'homework' && <Homework child={child} isParent={isParent} />}
           {view === 'life' && <SchoolLife child={child} isParent={isParent} acks={acks} setAcks={setAcks} settings={settings} />}

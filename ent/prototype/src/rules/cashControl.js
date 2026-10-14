@@ -70,12 +70,34 @@ const weekday = (iso) => new Date(`${iso}T12:00:00Z`).getUTCDay();
  * Jours de versement fixés par l'établissement (ex. mercredi après-midi et vendredi après les cours).
  * Renvoie le prochain jour prévu, si c'est aujourd'hui (rappel), et le dernier jour prévu manqué.
  */
-export function depositReminder(today, depositDates, days = [3, 5]) {
-  const dueToday = days.includes(weekday(today)) && !depositDates.includes(today);
+export function depositReminder(today, depositDates, days = [3, 5], skip = () => false) {
+  // skip : jours prévus sans rappel (semaine des salaires : les espèces restent au bureau)
+  const planned = (d) => days.includes(weekday(d)) && !skip(d);
+  const dueToday = planned(today) && !depositDates.includes(today);
   let next = addDays(today, 1);
-  while (!days.includes(weekday(next))) next = addDays(next, 1);
+  for (let i = 0; i < 60 && !planned(next); i++) next = addDays(next, 1);
   let prev = addDays(today, -1);
-  while (!days.includes(weekday(prev))) prev = addDays(prev, -1);
+  for (let i = 0; i < 60 && !planned(prev); i++) prev = addDays(prev, -1);
   const missed = depositDates.some((d) => d >= prev) ? null : prev;
   return { dueToday, next, nextDay: DAY_NAMES[weekday(next)], missed, missedDay: missed ? DAY_NAMES[weekday(missed)] : null };
+}
+
+/**
+ * Semaine des salaires : de la dernière semaine de cours du mois (vacances comprises dans le calcul)
+ * jusqu'au paiement des salaires. Pendant cette période, les espèces restent au bureau pour payer
+ * le personnel : pas de rappel de versement.
+ */
+export function lastSchoolDayOfMonth(iso, calendar = []) {
+  const [y, m] = iso.split('-').map(Number);
+  let d = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10); // dernier jour du mois
+  const off = (x) => [0, 6].includes(weekday(x)) || calendar.some((e) => e.kind !== 'FERIE' ? e.start <= x && x <= e.end : e.start === x);
+  while (off(d) && d.slice(0, 7) === iso.slice(0, 7)) d = addDays(d, -1);
+  return d;
+}
+export function salaryWindow(today, calendar, { paid = false } = {}) {
+  const last = lastSchoolDayOfMonth(today, calendar);
+  const start = addDays(last, -((weekday(last) + 6) % 7)); // lundi de cette semaine
+  const [y, m] = today.split('-').map(Number);
+  const monthEnd = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+  return { start, lastSchoolDay: last, monthEnd, active: !paid && today >= start && today <= monthEnd, inWindow: (d) => !paid && d >= start && d <= monthEnd };
 }

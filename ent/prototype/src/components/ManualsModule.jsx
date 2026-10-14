@@ -28,6 +28,8 @@ const TABS = [['kit', 'Lot de la classe'], ['stock', 'Stock et prix'], ['loans',
 // Spécialités : élèves importés (fiche) sinon démonstration
 const importedSpecialties = () => Object.fromEntries((loadImport()?.students ?? []).map((s) => [`${s.lastName} ${s.firstName}`, s.specialties ?? []]));
 const kindLabel = (m) => (m.returnable ? (m.category === 'CAHIER' ? 'Cahier à rendre' : 'Manuel à rendre') : 'Cahier gardé (vendu)');
+/** « Foucher · programme 2019 » */
+export const editionLabel = (m) => [m.editor, m.programYear && `programme ${m.programYear}`].filter(Boolean).join(' · ');
 const priceLabel = (m) => (m.returnable ? `${formatAr(m.price)} / an` : formatAr(m.price));
 
 function Price({ value, onChange, canEdit, label }) {
@@ -86,7 +88,7 @@ function KitTab({ manuals, setManuals, loans, setLoans, specialtiesOf }) {
         <ul className="mt-4 divide-y divide-slate-100">
           {items.map((m) => (
             <li key={m.id} className="flex flex-wrap items-center gap-2 py-2 text-sm">
-              <span className="min-w-0 flex-1 font-medium text-slate-800">{m.title}</span>
+              <span className="min-w-0 flex-1 font-medium text-slate-800">{m.title}{editionLabel(m) && <span className="block text-xs font-normal text-slate-500">{editionLabel(m)}</span>}</span>
               {m.specialty && <Badge tone="violet">Spécialité {SPECIALTIES[m.specialty]}</Badge>}
               <Badge tone={m.returnable ? 'navy' : 'green'}>{kindLabel(m)}</Badge>
               <span className="w-28 text-right tabular-nums text-slate-600">{priceLabel(m)}</span>
@@ -132,7 +134,7 @@ function KitTab({ manuals, setManuals, loans, setLoans, specialtiesOf }) {
 /* ---------- Stock et prix ---------- */
 function StockTab({ manuals, setManuals, loans, canEdit }) {
   const [cls, setCls] = useState('');
-  const [draft, setDraft] = useState({ title: '', subject: '', level: '6e', category: 'MANUEL', returnable: true, kind: 'ORIGINAL', binding: 'DOS_CARRE', price: RENTAL_PRICE, replacementPrice: null, specialty: '', state: 'NEUF', qty: 1 });
+  const [draft, setDraft] = useState({ title: '', subject: '', level: '6e', category: 'MANUEL', returnable: true, kind: 'ORIGINAL', binding: 'DOS_CARRE', price: RENTAL_PRICE, replacementPrice: null, specialty: '', editor: '', programYear: '', state: 'NEUF', qty: 1 });
   const [move, setMove] = useState({ op: 'IN', id: '', state: 'NEUF', qty: 1 });
   const [stockError, setStockError] = useState('');
   const shown = manuals.filter((m) => !cls || m.levels.includes(cls));
@@ -180,7 +182,7 @@ function StockTab({ manuals, setManuals, loans, canEdit }) {
             <tbody>
               {shown.map((m) => (
                 <tr key={m.id} className="border-b border-slate-100 last:border-0">
-                  <td className="px-4 py-2"><p className="font-medium text-slate-800">{m.title}</p><p className="text-xs text-slate-500">{m.levels.join(', ')}{m.specialty ? ` · spécialité ${SPECIALTIES[m.specialty]}` : ''}</p></td>
+                  <td className="px-4 py-2"><p className="font-medium text-slate-800">{m.title}</p><p className="text-xs text-slate-500">{m.levels.join(', ')}{m.specialty ? ` · spécialité ${SPECIALTIES[m.specialty]}` : ''}{editionLabel(m) ? ` · ${editionLabel(m)}` : ''}</p></td>
                   <td className="px-2"><Badge tone={m.returnable ? 'navy' : 'green'}>{kindLabel(m)}</Badge><p className="mt-0.5 text-[11px] text-slate-500">{KINDS[m.kind]} · {BINDINGS[m.binding]}</p></td>
                   <td className="px-2 text-right"><Price canEdit={canEdit} value={m.price} onChange={(v) => update(m.id, { price: v ?? 0 })} label={`Prix — ${m.title}`} />{m.returnable && <span className="block text-[10px] text-slate-500">location / an</span>}</td>
                   <td className="px-2 text-right">{m.returnable ? <Price canEdit={canEdit} value={m.replacementPrice} onChange={(v) => update(m.id, { replacementPrice: v })} label={`Prix si perdu — ${m.title}`} /> : <span className="text-xs text-slate-400">gardé</span>}</td>
@@ -221,8 +223,10 @@ function StockTab({ manuals, setManuals, loans, canEdit }) {
                     className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${draft.category === c && draft.returnable === r ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-600 ring-slate-300'}`}>{l}</button>
                 ))}
               </div>
-              <input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="Titre (ex. Histoire-Géographie 4e)" className={`sm:col-span-2 ${inputCls}`} aria-label="Titre du nouveau titre" />
+              <input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="Désignation (ex. Histoire-Géographie 4e)" className={`sm:col-span-2 ${inputCls}`} aria-label="Titre du nouveau titre" />
               <input value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} placeholder="Matière" className={inputCls} aria-label="Matière" />
+              <input value={draft.editor} onChange={(e) => setDraft({ ...draft, editor: e.target.value })} placeholder="Éditeur (ex. Hachette)" className={inputCls} aria-label="Éditeur" />
+              <input value={draft.programYear} onChange={(e) => setDraft({ ...draft, programYear: e.target.value.replace(/\D/g, '').slice(0, 4) })} placeholder="Année du programme (ex. 2019)" className={inputCls} aria-label="Année du programme" />
               <select value={draft.level} onChange={(e) => setDraft({ ...draft, level: e.target.value, specialty: '' })} className={inputCls} aria-label="Classe">{ALL_CLASSES.map((c) => <option key={c}>{c}</option>)}</select>
               {/Générale/.test(draft.level) && /^(1re|Terminale)/.test(draft.level) && (
                 <select value={draft.specialty} onChange={(e) => setDraft({ ...draft, specialty: e.target.value })} className={`sm:col-span-2 ${inputCls}`} aria-label="Spécialité">
@@ -238,7 +242,7 @@ function StockTab({ manuals, setManuals, loans, canEdit }) {
               <Button className="sm:col-span-2" disabled={!draftOk} onClick={() => {
                 setManuals([...manuals, {
                   id: `m${Date.now()}`, title: draft.title.trim(), subject: draft.subject.trim() || '—', levels: [draft.level], category: draft.category, returnable: draft.returnable,
-                  kind: draft.kind, binding: draft.binding, price: draft.price, replacementPrice: draft.returnable ? draft.replacementPrice : null,
+                  kind: draft.kind, binding: draft.binding, price: draft.price, editor: draft.editor.trim(), programYear: Number(draft.programYear) || null, replacementPrice: draft.returnable ? draft.replacementPrice : null,
                   ...(draft.specialty ? { specialty: draft.specialty } : {}), stock: { NEUF: 0, BON: 0, USE: 0, DECHIRE: 0, [draft.state]: draft.qty },
                 }]);
                 setDraft({ ...draft, title: '', subject: '', qty: 1 });

@@ -764,3 +764,68 @@ CROSS JOIN LATERAL (
 ) d
 WHERE d.day IS NOT NULL
   AND NOT EXISTS (SELECT 1 FROM bank_deposit b WHERE b.site_id = ds.site_id AND b.deposited_on >= d.day);
+
+-- -----------------------------------------------------------------------------
+-- Salaires, engagements, bibliothèque
+-- -----------------------------------------------------------------------------
+-- Paiement d'un salaire seulement si l'état de paie du mois est validé par la Direction.
+CREATE FUNCTION payroll_payment_guard() RETURNS trigger AS $$
+BEGIN
+  IF NEW.paid_at IS NOT NULL AND NOT EXISTS (
+       SELECT 1 FROM payroll_month m WHERE m.site_id = NEW.site_id AND m.month = NEW.month AND m.validated_by IS NOT NULL) THEN
+    RAISE EXCEPTION 'État de paie non validé par la Direction : paiement impossible';
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER payroll_payment_check BEFORE INSERT OR UPDATE ON payroll_line FOR EACH ROW EXECUTE FUNCTION payroll_payment_guard();
+
+CREATE FUNCTION payroll_validation_guard() RETURNS trigger AS $$
+BEGIN
+  IF NEW.validated_by IS NOT NULL AND NOT is_direction(NEW.validated_by) THEN
+    RAISE EXCEPTION 'Seule la Direction valide l''état de paie';
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER payroll_validation_check BEFORE INSERT OR UPDATE ON payroll_month FOR EACH ROW EXECUTE FUNCTION payroll_validation_guard();
+
+-- Au plus 2 délégués et 2 suppléants par classe.
+CREATE FUNCTION engagement_guard() RETURNS trigger AS $$
+BEGIN
+  IF NEW.code IN ('DELEGUE', 'SUPPLEANT') AND (
+       SELECT count(*) FROM student_engagement se JOIN enrollment e ON e.id = se.enrollment_id
+        WHERE se.code = NEW.code AND e.class_id = (SELECT class_id FROM enrollment WHERE id = NEW.enrollment_id)) >= 2 THEN
+    RAISE EXCEPTION 'Au plus 2 % par classe', lower(NEW.code::text);
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER engagement_check BEFORE INSERT ON student_engagement FOR EACH ROW EXECUTE FUNCTION engagement_guard();
+
+-- Prolongation d'un emprunt d'élève : un mois à partir du jour où le livre est présenté.
+CREATE FUNCTION renew_library_loan(p_loan uuid, p_presented boolean, p_today date DEFAULT current_date) RETURNS date AS $$
+DECLARE v library_loan%ROWTYPE;
+BEGIN
+  SELECT * INTO v FROM library_loan WHERE id = p_loan;
+  IF v.staff_id IS NOT NULL THEN RAISE EXCEPTION 'Les professeurs n''ont pas de date limite'; END IF;
+  IF NOT p_presented THEN RAISE EXCEPTION 'Le livre doit être présenté au bureau pour être prolongé'; END IF;
+  UPDATE library_loan SET due_on = p_today + 30, renewals = renewals + 1 WHERE id = p_loan;
+  RETURN p_today + 30;
+END $$ LANGUAGE plpgsql;
+
+-- Livres du CDI en retard : bloquent la remise du bulletin (comme un manuel).
+CREATE OR REPLACE VIEW v_bulletin_blocked AS
+SELECT e.id AS enrollment_id, 'FRAIS_IMPAYES' AS reason, count(*)::int AS items
+FROM enrollment e JOIN invoice i ON i.enrollment_id = e.id
+WHERE i.status IN ('EMISE', 'PARTIELLE') AND i.due_on < current_date
+GROUP BY e.id
+UNION ALL
+SELECT l.enrollment_id, 'MANUEL_DU', count(*)::int
+FROM textbook_loan l
+WHERE (l.lost_on IS NOT NULL AND l.charge_payment_id IS NULL)
+   OR (l.state_in = 'DECHIRE' AND l.state_out <> 'DECHIRE' AND l.charge_payment_id IS NULL)
+   OR (l.returned_on IS NULL AND l.lost_on IS NULL AND l.due_back IS NOT NULL AND l.due_back < current_date)
+GROUP BY l.enrollment_id
+UNION ALL
+SELECT enrollment_id, 'LIVRE_CDI', count(*)::int
+FROM library_loan
+WHERE enrollment_id IS NOT NULL AND returned_on IS NULL AND due_on < current_date
+GROUP BY enrollment_id;

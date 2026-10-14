@@ -80,6 +80,7 @@ export const FAMILIES = [
 // Caisse de Tamatave : entrées / sorties du jour
 export const CASH_NATURES = {
   IN: ['Encaissement famille', 'Apport banque', 'Autre entrée'],
+  // les salaires ont leur propre rubrique (onglet Salaires, avec émargement) : pas de saisie libre ici
   OUT: ['Dépense de fonctionnement', 'Reversement centre d\'examen', 'Remboursement famille', 'Dépôt en banque', 'Autre sortie'],
 };
 export const CASH_MOVEMENTS = [
@@ -178,4 +179,19 @@ export const STUDENT_ACCOUNTS = [
   { id: 'e5', name: 'RAZAFY Kanto', cls: '1re STMG', family: 'Famille RAZAFY', isNew: false, enrolledOn: '2026-09-01',
     paid: ['REINSCRIPTION', 'FASCICULE', 'LOCATION', 'CAHIERS', 'ECO-09', 'ECO-10'],
     exam: { label: 'Droits Pré-Bac (EAF)', amount: 450_000, due: '2026-10-31' } },
+];
+
+// État de paie mensuel (montants nets FICTIFS) : préparé et validé par la Direction, payé par le Bureau.
+// Espèces : émargement (signature) du salarié au moment du paiement.
+export const PAYROLL = [
+  { staffId: 'p1', amount: 1_650_000, method: 'ESPECES' },
+  { staffId: 'p2', amount: 1_600_000, method: 'VIREMENT' },
+  { staffId: 'p3', amount: 1_350_000, method: 'ESPECES' },
+  { staffId: 'p4', amount: 1_500_000, method: 'ESPECES' },
+  { staffId: 'p5', amount: 1_550_000, method: 'VIREMENT' },
+  { staffId: 'p6', amount: 320_000, method: 'ESPECES', note: 'Vacations : 16 h' },
+  { staffId: 'p7', amount: 950_000, method: 'ESPECES' },
+  { staffId: 'p8', amount: 750_000, method: 'ESPECES' },
+  { staffId: 'p9', amount: 480_000, method: 'ESPECES' },
+  { staffId: 'p10', amount: 450_000, method: 'ESPECES' },
 ];

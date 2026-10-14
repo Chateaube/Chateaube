@@ -703,3 +703,38 @@ test('manuels : lot de la classe, location 25 000 Ar, cahiers vendus, spécialit
   assert.equal(m.manualBlocks('A', [r.loan], [cahier], '2030-01-01').length, 0, 'un cahier gardé ne bloque rien');
   assert.ok(m.lend({ ...cahier, stock: { NEUF: 5 } }, [r.loan], { student: 'A', cls: '6e', state: 'NEUF', on: 'd' }).error, 'déjà remis');
 });
+
+test('semaine des salaires : dernière semaine de cours du mois, pas de rappel de versement', async () => {
+  const c = await import('../src/rules/cashControl.js');
+  const cal = [{ kind: 'VACANCES', start: '2026-10-24', end: '2026-11-01' }];
+  assert.equal(c.lastSchoolDayOfMonth('2026-10-13', cal), '2026-10-23', 'vacances de la Toussaint dès le 24');
+  const w = c.salaryWindow('2026-10-13', cal);
+  assert.equal(w.start, '2026-10-19');
+  assert.equal(w.active, false);
+  assert.equal(c.salaryWindow('2026-10-21', cal).active, true);
+  assert.equal(c.salaryWindow('2026-10-21', cal, { paid: true }).active, false, 'salaires payés : les rappels reprennent');
+  const r = c.depositReminder('2026-10-21', ['2026-10-16'], [3, 5], w.inWindow);
+  assert.equal(r.dueToday, false, 'mercredi 21 : pas de rappel pendant la semaine des salaires');
+  assert.equal(r.missed, null);
+});
+
+test('bibliothèque : un mois pour les élèves, prolongation avec le livre, pas de limite pour les professeurs', async () => {
+  const l = await import('../src/rules/library.js');
+  const e = l.borrow('ROM-0001', [], { borrower: 'RANDRIA Mamy', kind: 'ELEVE', cls: 'Terminale Générale', on: '2026-10-13' }).loan;
+  assert.equal(e.due, '2026-11-12');
+  assert.ok(l.borrow('ROM-0001', [e], { borrower: 'X', kind: 'ELEVE', on: '2026-10-14' }).error);
+  assert.ok(l.renew(e, { on: '2026-11-10', presented: false }).error);
+  assert.equal(l.renew(e, { on: '2026-11-10', presented: true }).loan.due, '2026-12-10');
+  const p = l.borrow('ANN-0002', [], { borrower: 'Mme Ranaivo', kind: 'PROF', on: '2026-10-13' }).loan;
+  assert.equal(p.due, null);
+  assert.equal(l.overdueLoans([e, p], '2026-12-01').length, 1);
+  assert.equal(l.nextCode('ROMAN', [{ copies: [{ code: 'ROM-0007' }, { code: 'ANN-0009' }] }]), 'ROM-0008');
+  assert.equal(l.designation({ title: 'L\'Étranger', author: 'Albert Camus', editor: 'Gallimard', collection: 'Folio', year: 1972 }), 'L\'Étranger — Albert Camus — Gallimard (Folio, 1972)');
+});
+
+test('engagements sur le bulletin : accord et nombre de délégués', async () => {
+  const e = await import('../src/rules/engagements.js');
+  assert.deepEqual(e.engagementLabels(['DELEGUE', 'SUPPLEANT'], 'F'), ['Déléguée de classe', 'Déléguée suppléante']);
+  assert.deepEqual(e.engagementLabels(['DELEGUE']), ['Délégué(e) de classe']);
+  assert.equal(e.engagementErrors({ a: ['DELEGUE'], b: ['DELEGUE'], c: ['DELEGUE'] }).length, 1);
+});

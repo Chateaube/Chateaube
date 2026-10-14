@@ -1,6 +1,7 @@
 // Manuels et cahiers d'activité de Tamatave (démonstration ; prix de perte FICTIFS, à remplacer).
 // - Manuels de base : à rendre, en location à 25 000 Ar l'un pour l'année.
 // - Cahiers d'activité : soit à rendre (en location), soit gardés par l'élève (vendus, prix propre).
+// - Désignation d'un manuel : matière, niveau, éditeur et année du programme (souvent sans titre propre).
 // - Tous les élèves d'une classe reçoivent le même lot ; en 1re et Terminale générales, les
 //   manuels de spécialité ne vont qu'aux élèves qui suivent la spécialité.
 import { CLASSES } from './schoollife.js';
@@ -10,11 +11,11 @@ export const RENTAL_PRICE = 25_000;
 const S = (n, b = 0, u = 0, d = 0) => ({ NEUF: n, BON: b, USE: u, DECHIRE: d });
 const M = (id, title, subject, levels, o = {}) => ({
   id, title, subject, levels, category: 'MANUEL', returnable: true, kind: 'ORIGINAL', binding: 'DOS_CARRE',
-  price: RENTAL_PRICE, replacementPrice: 60_000, stock: S(4, 6, 2), ...o,
+  price: RENTAL_PRICE, replacementPrice: 60_000, stock: S(4, 6, 2), editor: '', programYear: null, ...o,
 });
 const C = (id, title, subject, levels, price, o = {}) => ({
   id, title, subject, levels, category: 'CAHIER', returnable: false, kind: 'ORIGINAL', binding: 'RELIURE',
-  price, replacementPrice: null, stock: S(20), ...o,
+  price, replacementPrice: null, stock: S(20), editor: '', programYear: null, ...o,
 });
 const COLLEGE = ['6e', '5e', '4e', '3e'];
 
@@ -25,7 +26,7 @@ export const MANUALS = [
   M('m12', 'Mathématiques 4e', 'Mathématiques', ['4e'], { replacementPrice: 58_000 }),
   M('m13', 'Mathématiques 3e', 'Mathématiques', ['3e'], { replacementPrice: 58_000 }),
   M('m14', 'Français 6e', 'Français', ['6e'], { replacementPrice: 52_000 }),
-  M('m4', 'Français 5e', 'Français', ['5e'], { replacementPrice: 52_000, stock: S(3, 4, 2, 1) }),
+  M('m4', 'Français 5e', 'Français', ['5e'], { editor: 'Belin', programYear: 2016, replacementPrice: 52_000, stock: S(3, 4, 2, 1) }),
   M('m15', 'Français 4e', 'Français', ['4e'], { replacementPrice: 54_000 }),
   M('m16', 'Français 3e', 'Français', ['3e'], { replacementPrice: 54_000 }),
   M('m17', 'Histoire-Géographie 6e-5e', 'Histoire-Géographie', ['6e', '5e'], { replacementPrice: 62_000 }),
@@ -50,18 +51,18 @@ export const MANUALS = [
   M('m43', 'Spécialité Mathématiques 1re', 'Mathématiques', ['1re Générale'], { specialty: 'MATHS', replacementPrice: 75_000 }),
   M('m44', 'Spécialité Physique-Chimie 1re', 'Physique-Chimie', ['1re Générale'], { specialty: 'PC', replacementPrice: 75_000 }),
   M('m45', 'Spécialité SVT 1re', 'SVT', ['1re Générale'], { specialty: 'SVT', replacementPrice: 75_000 }),
-  M('m1', 'Management 1re STMG', 'Management', ['1re STMG'], { replacementPrice: 72_000, stock: S(2, 3, 1, 1) }),
+  M('m1', 'Management 1re STMG', 'Management', ['1re STMG'], { editor: 'Foucher', programYear: 2019, replacementPrice: 72_000, stock: S(2, 3, 1, 1) }),
   M('m2', 'Sciences de gestion et numérique 1re', 'SGN', ['1re STMG'], { kind: 'PHOTOCOPIE', binding: 'RELIURE', replacementPrice: 35_000, stock: S(6) }),
-  M('m3', 'Mathématiques 1re STMG', 'Mathématiques', ['1re STMG'], { replacementPrice: 64_000, stock: S(0, 4, 2) }),
+  M('m3', 'Mathématiques 1re STMG', 'Mathématiques', ['1re STMG'], { editor: 'Hachette', programYear: 2019, replacementPrice: 64_000, stock: S(0, 4, 2) }),
   M('m46', 'Droit 1re STMG', 'Droit', ['1re STMG'], { replacementPrice: 58_000 }),
   M('m47', 'Économie 1re STMG', 'Économie', ['1re STMG'], { replacementPrice: 58_000 }),
   // Terminale
-  M('m6', 'Philosophie Terminale', 'Philosophie', ['Terminale Générale', 'Terminale STMG'], { replacementPrice: 66_000, stock: S(1, 5, 3) }),
+  M('m6', 'Philosophie Terminale', 'Philosophie', ['Terminale Générale', 'Terminale STMG'], { editor: 'Nathan', programYear: 2020, replacementPrice: 66_000, stock: S(1, 5, 3) }),
   M('m50', 'Histoire-Géographie Terminale', 'Histoire-Géographie', ['Terminale Générale', 'Terminale STMG'], { replacementPrice: 68_000 }),
   M('m51', 'Enseignement scientifique Terminale', 'Enseignement scientifique', ['Terminale Générale'], { replacementPrice: 66_000 }),
-  M('m52', 'Spécialité Mathématiques Terminale', 'Mathématiques', ['Terminale Générale'], { specialty: 'MATHS', replacementPrice: 78_000 }),
-  M('m53', 'Spécialité Physique-Chimie Terminale', 'Physique-Chimie', ['Terminale Générale'], { specialty: 'PC', replacementPrice: 78_000 }),
-  M('m54', 'Spécialité SVT Terminale', 'SVT', ['Terminale Générale'], { specialty: 'SVT', replacementPrice: 78_000 }),
+  M('m52', 'Spécialité Mathématiques Terminale', 'Mathématiques', ['Terminale Générale'], { editor: 'Hachette', programYear: 2020, specialty: 'MATHS', replacementPrice: 78_000 }),
+  M('m53', 'Spécialité Physique-Chimie Terminale', 'Physique-Chimie', ['Terminale Générale'], { editor: 'Bordas', programYear: 2020, specialty: 'PC', replacementPrice: 78_000 }),
+  M('m54', 'Spécialité SVT Terminale', 'SVT', ['Terminale Générale'], { editor: 'Nathan', programYear: 2020, specialty: 'SVT', replacementPrice: 78_000 }),
   M('m55', 'Management Terminale STMG', 'Management', ['Terminale STMG'], { replacementPrice: 72_000 }),
   M('m56', 'Droit et Économie Terminale STMG', 'Droit', ['Terminale STMG'], { replacementPrice: 64_000 }),
   C('m57', 'Anglais Terminale — annales et activités', 'Anglais', ['Terminale Générale', 'Terminale STMG'], 22_000),

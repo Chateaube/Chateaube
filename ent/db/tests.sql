@@ -768,5 +768,73 @@ DO $$ DECLARE s uuid := (SELECT id FROM site WHERE code = 'TMV'); BEGIN
   END;
 END $$;
 
+-- T38. Salaires : état de paie validé par la Direction, émargement pour les espèces -------
+DO $$ DECLARE s uuid := (SELECT id FROM site WHERE code = 'TMV'); st uuid := (SELECT id FROM staff_member LIMIT 1); BEGIN
+  INSERT INTO payroll_month (site_id, month) VALUES (s, '2026-10-01');
+  INSERT INTO payroll_line (site_id, month, staff_id, net_mga, method) VALUES (s, '2026-10-01', st, 1650000, 'ESPECES');
+  BEGIN
+    UPDATE payroll_line SET paid_at = now(), paid_by = '00000000-0000-0000-0000-000000000003', signature_key = 'sig/x.png' WHERE staff_id = st;
+    RAISE EXCEPTION 'T38: salaire payé avant validation';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T38:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    UPDATE payroll_month SET validated_by = '00000000-0000-0000-0000-000000000003', validated_at = now() WHERE site_id = s;
+    RAISE EXCEPTION 'T38: état de paie validé hors Direction';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T38:%' THEN RAISE; END IF;
+  END;
+  UPDATE payroll_month SET validated_by = '00000000-0000-0000-0000-000000000001', validated_at = now() WHERE site_id = s;
+  BEGIN
+    UPDATE payroll_line SET paid_at = now(), paid_by = '00000000-0000-0000-0000-000000000003' WHERE staff_id = st;
+    RAISE EXCEPTION 'T38: espèces sans émargement';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE payroll_line SET paid_at = now(), paid_by = '00000000-0000-0000-0000-000000000003', signature_key = 'sig/x.png' WHERE staff_id = st;
+END $$;
+
+-- T39. Engagements : au plus 2 délégués par classe -----------------------------------
+DO $$ DECLARE e2 uuid; e3 uuid; BEGIN
+  INSERT INTO student (id, first_name, last_name, birth_date) VALUES ('20000000-0000-0000-0000-0000000000b2', 'Lova', 'RABE', '2009-01-01'), ('20000000-0000-0000-0000-0000000000b3', 'Tiana', 'RASOA', '2009-02-02');
+  INSERT INTO enrollment (student_id, year_id, class_id, enrolled_on) SELECT '20000000-0000-0000-0000-0000000000b2', id, '10000000-0000-0000-0000-000000000001', '2026-09-01' FROM academic_year WHERE is_current RETURNING id INTO e2;
+  INSERT INTO enrollment (student_id, year_id, class_id, enrolled_on) SELECT '20000000-0000-0000-0000-0000000000b3', id, '10000000-0000-0000-0000-000000000001', '2026-09-01' FROM academic_year WHERE is_current RETURNING id INTO e3;
+  INSERT INTO student_engagement VALUES ('30000000-0000-0000-0000-000000000001', 'DELEGUE'), (e2, 'DELEGUE');
+  BEGIN
+    INSERT INTO student_engagement VALUES (e3, 'DELEGUE');
+    RAISE EXCEPTION 'T39: troisième délégué accepté';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T39:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO student_engagement VALUES (e3, 'SUPPLEANT');
+END $$;
+
+-- T40. CDI : un mois pour l'élève, prolongation avec le livre, professeur sans date limite ---
+DO $$ DECLARE b uuid; l uuid; BEGIN
+  INSERT INTO library_book (site_id, kind, title, author, editor, collection, year, isbn)
+  SELECT id, 'ROMAN', 'L''Étranger', 'Albert Camus', 'Gallimard', 'Folio', 1972, '9782070360024' FROM site WHERE code = 'TMV' RETURNING id INTO b;
+  INSERT INTO library_copy (code, book_id) VALUES ('ROM-0001', b), ('ROM-0002', b);
+  BEGIN
+    INSERT INTO library_copy (code, book_id) VALUES ('ROMAN-1', b);
+    RAISE EXCEPTION 'T40: cote mal formée acceptée';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO library_loan (copy_code, enrollment_id, out_on, due_on) VALUES ('ROM-0001', '30000000-0000-0000-0000-0000000000a1', current_date - 40, current_date - 10) RETURNING id INTO l;
+  ASSERT EXISTS (SELECT 1 FROM v_bulletin_blocked WHERE enrollment_id = '30000000-0000-0000-0000-0000000000a1' AND reason = 'LIVRE_CDI'), 'T40: livre en retard = bulletin bloqué';
+  BEGIN
+    INSERT INTO library_loan (copy_code, staff_id, out_on, due_on) VALUES ('ROM-0001', (SELECT id FROM staff_member LIMIT 1), current_date, NULL);
+    RAISE EXCEPTION 'T40: exemplaire prêté deux fois';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  BEGIN
+    PERFORM renew_library_loan(l, false);
+    RAISE EXCEPTION 'T40: prolongation sans le livre';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T40:%' THEN RAISE; END IF;
+  END;
+  ASSERT renew_library_loan(l, true) = current_date + 30, 'T40: prolongé d''un mois';
+  BEGIN
+    INSERT INTO library_loan (copy_code, staff_id, out_on, due_on) VALUES ('ROM-0002', (SELECT id FROM staff_member LIMIT 1), current_date, current_date + 30);
+    RAISE EXCEPTION 'T40: date limite imposée à un professeur';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO library_loan (copy_code, staff_id, out_on) VALUES ('ROM-0002', (SELECT id FROM staff_member LIMIT 1), current_date);
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T37 passent'
+\echo 'OK — tous les scénarios T1 à T40 passent'
