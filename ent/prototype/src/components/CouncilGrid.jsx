@@ -10,7 +10,7 @@ import { decisionText, checkAppreciation, autoFix } from '../rules/appreciation.
 
 const FLAG = Object.fromEntries(COUNCIL_FLAGS.map((f) => [f.id, f]));
 const DECISION = Object.fromEntries(COUNCIL_DECISIONS.map((d) => [d.id, d]));
-const SHORT = { FR: 'Fra', MATHS: 'Math', HG: 'H-G', LVA: 'Ang', LVB: 'Esp', EPS: 'EPS', EMC: 'EMC', MGT: 'Mgt', SGN: 'SGN', DE: 'D-É', AP: 'Arts', MUS: 'Mus', VDC: 'VdC' };
+const SHORT = { FR: 'Fra', MATHS: 'Math', HG: 'H-G', LVA: 'Ang', LVB: 'Esp', EPS: 'EPS', EMC: 'EMC', MGT: 'Mgt', SGN: 'SGN', DROIT: 'Droit', ECO: 'Éco', AP: 'Arts', MUS: 'Mus', VDC: 'VdC' };
 // Avancement des saisies par matière (démo)
 const ENTRY_STATUS = { LVB: 'En cours (3 / 4 notes)', MUS: 'En cours (2 / 4 notes)' };
 const tone = (v) => (v === null ? 'text-slate-400' : v < 10 ? 'text-red-700' : v >= 14 ? 'text-emerald-700' : 'text-slate-800');

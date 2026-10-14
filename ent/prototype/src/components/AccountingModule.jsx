@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, Icon, Stat } from './ui.jsx';
 import {
-  JOURNALS, CLASS_FEES, FEE_COLUMNS, ARTICLES, FAMILIES, CASH_MOVEMENTS, CASH_NATURES, CASH_OPENING,
+  JOURNALS, CLASS_FEES, FEE_COLUMNS, ARTICLES, FAMILIES, CASH_MOVEMENTS, CASH_NATURES, CASH_OPENING, CASH_HISTORY, CASH_YEAR_OPENING,
 } from '../data/accounting.js';
-import { accountStatement, annualCost, cashBalance } from '../rules/accounting.js';
+import { accountStatement, annualCost, cashBalance, monthlyCashReport, cashMonthCsv } from '../rules/accounting.js';
+import { printOnly } from '../print.js';
 import { planMonths } from '../rules/calendar.js';
 import { formatAr } from '../rules/finance.js';
 import { PAYMENT_METHODS, validateInstrument } from '../rules/billing.js';
@@ -103,6 +104,9 @@ function ArticlesTab({ articles, setArticles }) {
                   <label className="flex items-center gap-1 text-xs text-slate-600">
                     <input type="checkbox" checked={a.active} onChange={(e) => update(a.id, { active: e.target.checked })} />actif
                   </label>
+                  <button type="button" aria-label={`Supprimer ${a.label}`} title="Supprimer l'article (les ventes déjà facturées restent sur les états de compte)"
+                    onClick={() => window.confirm(`Supprimer « ${a.label} » du catalogue ?\nLes ventes déjà facturées restent sur les états de compte.`) && setArticles(articles.filter((x) => x.id !== a.id))}
+                    className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600"><Icon name="x" /></button>
                 </li>
               ))}
             </ul>
@@ -263,6 +267,91 @@ function StatementTab({ families, setFamilies, articles }) {
 }
 
 /* ---------- Caisse : entrées / sorties ---------- */
+/* ---------- Export mensuel de la caisse ---------- */
+const MONTH_OPTIONS = [['2026-09', 'Septembre 2026'], ['2026-10', 'Octobre 2026 (en cours)']];
+
+function MonthlyCashExport({ movements }) {
+  const [month, setMonth] = useState('2026-10');
+  const history = useMemo(() => [...CASH_HISTORY, ...movements], [movements]);
+  const r = useMemo(() => monthlyCashReport(CASH_YEAR_OPENING, history, month, Object.keys(JOURNALS)), [history, month]);
+  const label = MONTH_OPTIONS.find(([m]) => m === month)[1].replace(' (en cours)', '');
+  const download = () => {
+    const csv = cashMonthCsv(r, { site: 'Tamatave', journalLabels: Object.fromEntries(Object.entries(JOURNALS).map(([k, j]) => [k, j.label])) });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = `caisse-tamatave-${month}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+  const days = Object.entries(r.byDay);
+  return (
+    <Card title="Export mensuel de la caisse" subtitle="Pour le suivi et l'archivage : un exemplaire par mois (Excel et papier)"
+      action={(
+        <div className="flex flex-wrap items-center gap-2">
+          <select value={month} onChange={(e) => setMonth(e.target.value)} aria-label="Mois" className={inputCls}>
+            {MONTH_OPTIONS.map(([m, l]) => <option key={m} value={m}>{l}</option>)}
+          </select>
+          <Button variant="secondary" onClick={download}>Exporter vers Excel</Button>
+          <Button variant="secondary" onClick={() => printOnly('.cash-report', 'size: A4 portrait; margin: 12mm;')}>Imprimer</Button>
+        </div>
+      )}>
+      <div className="cash-report">
+        <div className="print-only mb-3 hidden">
+          <p className="text-lg font-semibold">École Chateaubriand Tamatave — caisse de {label.toLowerCase()}</p>
+          <p className="text-xs">Édité le 13/10/2026 par le bureau · {r.movements.length} mouvements</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
+                <th className="py-2 pr-2 font-medium">Journal</th><th className="px-2 text-right font-medium">Ouverture</th>
+                <th className="px-2 text-right font-medium">Entrées</th><th className="px-2 text-right font-medium">Sorties</th><th className="pl-2 text-right font-medium">Clôture</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.keys(r.byJournal).map((j) => (
+                <tr key={j} className="border-b border-slate-100">
+                  <td className="py-2 pr-2"><JournalBadge j={j} /></td>
+                  <td className="px-2 text-right tabular-nums">{formatAr(r.opening[j] ?? 0)}</td>
+                  <td className="px-2 text-right tabular-nums text-emerald-700">+ {formatAr(r.byJournal[j].in)}</td>
+                  <td className="px-2 text-right tabular-nums text-red-700">− {formatAr(r.byJournal[j].out)}</td>
+                  <td className="pl-2 text-right font-semibold tabular-nums">{formatAr(r.closing[j] ?? 0)}</td>
+                </tr>
+              ))}
+              <tr className="font-semibold">
+                <td className="py-2 pr-2">Total</td><td />
+                <td className="px-2 text-right tabular-nums text-emerald-700">+ {formatAr(r.totals.in)}</td>
+                <td className="px-2 text-right tabular-nums text-red-700">− {formatAr(r.totals.out)}</td><td />
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div>
+            <p className="mb-1 text-xs font-semibold text-slate-500">Par mode de paiement</p>
+            <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 text-sm">
+              {Object.entries(r.byMethod).map(([k, v]) => (
+                <li key={k} className="flex justify-between px-3 py-1.5"><span>{k}</span>
+                  <span className="tabular-nums">+ {formatAr(v.in)}{v.out ? ` · − ${formatAr(v.out)}` : ''}</span></li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="mb-1 text-xs font-semibold text-slate-500">Par jour ({days.length} jours de caisse)</p>
+            <ul className="max-h-48 divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-200 text-sm print:max-h-none">
+              {days.map(([d, v]) => (
+                <li key={d} className="flex justify-between px-3 py-1.5"><span>{d.split('-').reverse().join('/')}</span>
+                  <span className="tabular-nums"><span className="text-emerald-700">+ {formatAr(v.in)}</span> · <span className="text-red-700">− {formatAr(v.out)}</span></span></li>
+              ))}
+            </ul>
+          </div>
+        </div>
+        <p className="mt-3 text-xs text-slate-500">L'export Excel contient aussi le détail de chaque mouvement (date, heure, libellé, mode, agent). En production, le mois est clôturé le dernier jour : l'export est archivé automatiquement et ne peut plus être modifié.</p>
+      </div>
+    </Card>
+  );
+}
+
 function CashTab({ movements, setMovements }) {
   const [draft, setDraft] = useState({ dir: 'OUT', nature: CASH_NATURES.OUT[0], journal: 'ECOLAGE', label: '', method: 'Espèces', amount: null, agent: 'Mme Soa' });
   const balance = cashBalance(CASH_OPENING, movements);
@@ -322,7 +411,7 @@ function CashTab({ movements, setMovements }) {
             <div className="mt-1"><AmountInput value={draft.amount} onChange={(v) => setDraft({ ...draft, amount: v })} className="w-full bg-white py-1.5" /></div>
           </label>
           <Button disabled={!ok} onClick={() => {
-            setMovements([...movements, { ...draft, id: `c${Date.now()}`, time: new Date().toTimeString().slice(0, 5) }]);
+            setMovements([...movements, { ...draft, id: `c${Date.now()}`, date: '2026-10-13', time: new Date().toTimeString().slice(0, 5) }]);
             setDraft({ ...draft, label: '', amount: null });
           }}>Enregistrer</Button>
         </div>
@@ -331,6 +420,7 @@ function CashTab({ movements, setMovements }) {
         )}
         <p className="mt-2 text-xs text-slate-500">Chaque mouvement est attribué à l'agent connecté et horodaté ; une sortie ne peut pas dépasser le solde de son journal.</p>
       </Card>
+      <MonthlyCashExport movements={movements} />
     </div>
   );
 }

@@ -70,6 +70,7 @@ Concrètement :
 | Génération des échéances de frais de scolarité | mensuelle | refus au-delà du dernier mois payable (trigger `invoice_cutoff`) |
 | Relances de frais de scolarité | quotidienne, 8h | `advance_dunning_case()` sur chaque dossier : dates calculées par `dunning_schedule()` (jours comptés selon le calendrier scolaire, octobre gelé) ; délais comptés depuis l'étape précédente (10 / 15 / 10 jours, 5 / 5 / 5 le dernier mois du plan) |
 | Mises à pied dues | quotidienne | délai de mise à pied atteint → le dossier passe « à valider » (`v_dunning_awaiting_validation`) ; notification envoyée seulement après validation Direction |
+| Clôture mensuelle de la caisse | dernier jour du mois, 18h | export Excel (CSV) et PDF de la caisse du mois : soldes d'ouverture et de clôture par journal, totaux par mode de paiement et par jour, détail des mouvements ; archivé et non modifiable |
 | Fermeture des accès des agents sortis | quotidienne | `staff_access_active()` faux après la date de sortie → session révoquée |
 | Rappel des pièces manquantes (candidats libres) | hebdomadaire en octobre | notification `DOCUMENT_MANQUANT` |
 | Ouverture de la fenêtre Campus France | 1er juillet | bandeau Direction, export activé jusqu'à `closes_on` |

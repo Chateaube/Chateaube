@@ -481,3 +481,24 @@ test('relances : 10 j, puis 15 j, puis 10 j après l\'étape précédente ; dern
   assert.deepEqual(dunningSchedule('2027-05-05', S, { lastMonth: true }), { due: '2027-05-05', relance: '2027-05-13', warning: '2027-05-21', suspension: '2027-05-28' });
   assert.match(dunningStages(S)[0].delay, /10 jours comptés après l'étape précédente \(dernier mois : 5\)/);
 });
+
+import { monthlyCashReport, cashMonthCsv, methodOf } from '../src/rules/accounting.js';
+test('caisse : export mensuel (soldes d\'ouverture et de clôture, modes, journaux)', () => {
+  const H = [
+    { date: '2026-09-07', time: '08:00', dir: 'IN', journal: 'ECOLAGE', method: 'Espèces', amount: 400_000, label: 'Sept', nature: 'Encaissement famille', agent: 'A' },
+    { date: '2026-10-02', time: '09:00', dir: 'IN', journal: 'ECOLAGE', method: 'Chèque n° 1234567', amount: 300_000, label: 'Oct', nature: 'Encaissement famille', agent: 'A' },
+    { date: '2026-10-02', time: '10:00', dir: 'OUT', journal: 'ECOLAGE', method: 'Espèces', amount: 100_000, label: 'Dépôt', nature: 'Dépôt en banque', agent: 'A' },
+    { date: '2026-10-05', time: '10:00', dir: 'IN', journal: 'DROITS_EXAMEN', method: 'Virement — bordereau 9', amount: 600_000, label: 'Bac', nature: 'Encaissement famille', agent: 'A' },
+  ];
+  const r = monthlyCashReport({ ECOLAGE: 50_000, FRAIS_ANNEXES: 0, DROITS_EXAMEN: 0 }, H, '2026-10', ['ECOLAGE', 'FRAIS_ANNEXES', 'DROITS_EXAMEN']);
+  assert.equal(r.opening.ECOLAGE, 450_000);   // ouverture d'octobre = clôture de septembre
+  assert.equal(r.closing.ECOLAGE, 650_000);
+  assert.deepEqual(r.byMethod.Chèque, { in: 300_000, out: 0 });
+  assert.deepEqual(r.totals, { in: 900_000, out: 100_000 });
+  assert.equal(r.movements.length, 3);
+  assert.equal(methodOf({ method: 'Virement — bordereau 9' }), 'Virement');
+  const csv = cashMonthCsv(r, { site: 'Tamatave', journalLabels: { ECOLAGE: 'Frais de scolarité', FRAIS_ANNEXES: 'Frais annexes', DROITS_EXAMEN: 'Droits d\'examen' } });
+  assert.match(csv, /^﻿Caisse Tamatave — 10\/2026/);
+  assert.match(csv, /Frais de scolarité;450000;300000;100000;650000/);
+  assert.match(csv, /02\/10\/2026;09:00;Entrée;Encaissement famille;Oct;Frais de scolarité;Chèque n° 1234567;A;300000;/);
+});

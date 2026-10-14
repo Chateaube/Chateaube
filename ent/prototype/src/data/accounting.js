@@ -83,14 +83,47 @@ export const CASH_NATURES = {
   OUT: ['Dépense de fonctionnement', 'Reversement centre d\'examen', 'Remboursement famille', 'Dépôt en banque', 'Autre sortie'],
 };
 export const CASH_MOVEMENTS = [
-  { id: 'c1', time: '07:42', dir: 'IN', nature: 'Encaissement famille', journal: 'ECOLAGE', label: 'Frais de scolarité octobre — RAZAFY Kanto', method: 'Espèces', amount: 420_000, agent: 'Mme Soa' },
-  { id: 'c2', time: '08:15', dir: 'IN', nature: 'Encaissement famille', journal: 'DROITS_EXAMEN', label: 'Droits DNB — RAVELO Hasina', method: 'Chèque n° 3318820', amount: 350_000, agent: 'Mme Soa' },
-  { id: 'c3', time: '09:05', dir: 'IN', nature: 'Encaissement famille', journal: 'FRAIS_ANNEXES', label: 'Tee-shirt × 2 — RASOA Lova', method: 'Espèces', amount: 70_000, agent: 'Mme Soa' },
-  { id: 'c4', time: '10:30', dir: 'OUT', nature: 'Dépense de fonctionnement', journal: 'ECOLAGE', label: 'Ramettes de papier et encre imprimante', method: 'Espèces', amount: 85_000, agent: 'Mme Soa' },
-  { id: 'c5', time: '11:10', dir: 'IN', nature: 'Encaissement famille', journal: 'DROITS_EXAMEN', label: 'Droits Bac — RANDRIA Mamy', method: 'Virement — bordereau 77104', amount: 600_000, agent: 'Mme Soa' },
-  { id: 'c6', time: '14:20', dir: 'OUT', nature: 'Dépôt en banque', journal: 'ECOLAGE', label: 'Dépôt BOA — bordereau 5521', method: 'Espèces', amount: 400_000, agent: 'Mme Soa' },
+  { id: 'c1', date: '2026-10-13', time: '07:42', dir: 'IN', nature: 'Encaissement famille', journal: 'ECOLAGE', label: 'Frais de scolarité octobre — RAZAFY Kanto', method: 'Espèces', amount: 420_000, agent: 'Mme Soa' },
+  { id: 'c2', date: '2026-10-13', time: '08:15', dir: 'IN', nature: 'Encaissement famille', journal: 'DROITS_EXAMEN', label: 'Droits DNB — RAVELO Hasina', method: 'Chèque n° 3318820', amount: 350_000, agent: 'Mme Soa' },
+  { id: 'c3', date: '2026-10-13', time: '09:05', dir: 'IN', nature: 'Encaissement famille', journal: 'FRAIS_ANNEXES', label: 'Tee-shirt × 2 — RASOA Lova', method: 'Espèces', amount: 70_000, agent: 'Mme Soa' },
+  { id: 'c4', date: '2026-10-13', time: '10:30', dir: 'OUT', nature: 'Dépense de fonctionnement', journal: 'ECOLAGE', label: 'Ramettes de papier et encre imprimante', method: 'Espèces', amount: 85_000, agent: 'Mme Soa' },
+  { id: 'c5', date: '2026-10-13', time: '11:10', dir: 'IN', nature: 'Encaissement famille', journal: 'DROITS_EXAMEN', label: 'Droits Bac — RANDRIA Mamy', method: 'Virement — bordereau 77104', amount: 600_000, agent: 'Mme Soa' },
+  { id: 'c6', date: '2026-10-13', time: '14:20', dir: 'OUT', nature: 'Dépôt en banque', journal: 'ECOLAGE', label: 'Dépôt BOA — bordereau 5521', method: 'Espèces', amount: 400_000, agent: 'Mme Soa' },
 ];
-export const CASH_OPENING = { ECOLAGE: 250_000, FRAIS_ANNEXES: 40_000, DROITS_EXAMEN: 0 };
+
+// Historique de caisse depuis la rentrée (démonstration) : encaissements des familles chaque jour
+// de classe, dépôts en banque le vendredi, quelques dépenses ; droits d'examen à partir d'octobre.
+export const CASH_YEAR_OPENING = { ECOLAGE: 150_000, FRAIS_ANNEXES: 20_000, DROITS_EXAMEN: 0 };
+const NAMES = ['RAKOTO Fanja', 'RABE Lova', 'RANDRIA Tiana', 'RASOA Mialy', 'RAZAFY Hery', 'RAVELO Noro', 'RAHARISON Toky', 'RAJAONA Fy'];
+const MONTHS_FR = { '09': 'septembre', 10: 'octobre' };
+export const CASH_HISTORY = (() => {
+  const out = [];
+  let n = 0;
+  for (let d = new Date(Date.UTC(2026, 8, 7)); d < new Date(Date.UTC(2026, 9, 13)); d.setUTCDate(d.getUTCDate() + 1)) {
+    const wd = d.getUTCDay();
+    if (wd === 0 || wd === 6) continue;
+    const date = d.toISOString().slice(0, 10);
+    const mm = date.slice(5, 7);
+    const add = (m) => out.push({ id: `h${++n}`, date, agent: 'Mme Soa', ...m });
+    const who = NAMES[n % NAMES.length];
+    const payMethod = ['Espèces', `Chèque n° ${3318000 + n}`, 'Espèces', `Virement — bordereau ${77000 + n}`][n % 4];
+    add({ time: '07:50', dir: 'IN', nature: 'Encaissement famille', journal: 'ECOLAGE', label: `Frais de scolarité ${MONTHS_FR[mm]} — ${who}`, method: payMethod, amount: [340_000, 380_000, 420_000][n % 3] });
+    add({ time: '09:20', dir: 'IN', nature: 'Encaissement famille', journal: 'ECOLAGE', label: `Frais de scolarité ${MONTHS_FR[mm]} — ${NAMES[(n + 3) % NAMES.length]}`, method: 'Espèces', amount: 350_000 });
+    if (mm === '09' && wd !== 3) add({ time: '10:40', dir: 'IN', nature: 'Encaissement famille', journal: 'FRAIS_ANNEXES', label: `Réinscription et fascicule — ${NAMES[(n + 5) % NAMES.length]}`, method: 'Espèces', amount: 220_000 });
+    if (mm === '10' && wd !== 3) add({ time: '11:00', dir: 'IN', nature: 'Encaissement famille', journal: 'DROITS_EXAMEN', label: `Droits d'examen — ${NAMES[(n + 1) % NAMES.length]}`, method: n % 2 ? 'Espèces' : `Chèque n° ${3319000 + n}`, amount: 450_000 });
+    if (wd === 2) add({ time: '13:30', dir: 'OUT', nature: 'Dépense de fonctionnement', journal: 'ECOLAGE', label: 'Fournitures de bureau', method: 'Espèces', amount: 45_000 });
+    if (wd === 5) {
+      add({ time: '15:30', dir: 'OUT', nature: 'Dépôt en banque', journal: 'ECOLAGE', label: 'Dépôt BOA — fin de semaine', method: 'Espèces', amount: 3_000_000 });
+      if (mm === '09') add({ time: '15:40', dir: 'OUT', nature: 'Dépôt en banque', journal: 'FRAIS_ANNEXES', label: 'Dépôt BOA — frais annexes', method: 'Espèces', amount: 700_000 });
+      if (mm === '10') add({ time: '15:45', dir: 'OUT', nature: 'Dépôt en banque', journal: 'DROITS_EXAMEN', label: 'Dépôt BOA — droits d\'examen', method: 'Espèces', amount: 900_000 });
+    }
+  }
+  return out;
+})();
+// Solde d'ouverture du jour (13 octobre) = clôture de la veille
+const opening = { ...CASH_YEAR_OPENING };
+for (const m of CASH_HISTORY) opening[m.journal] += m.dir === 'IN' ? m.amount : -m.amount;
+export const CASH_OPENING = opening;
 
 // Encaissement : comptes élèves (clés payées) — la grille et le plan donnent les montants
 export const BANKS = ['BNI Madagascar', 'BOA Madagascar', 'BFV-SG', 'BMOI', 'Société Générale', 'AccèsBanque', 'Autre'];

@@ -4,6 +4,7 @@ import { JOURNALS, CLASS_FEES, STUDENT_ACCOUNTS, BANKS, FAMILIES } from '../data
 import { studentDues, defaultSelection, validateInstrument, buildReceipts, PAYMENT_METHODS } from '../rules/billing.js';
 import { formatAr } from '../rules/finance.js';
 import ReceiptTicket from './ReceiptTicket.jsx';
+import { printOnly } from '../print.js';
 import { CLASSES } from '../data/schoollife.js';
 
 // Comptes de la caisse : comptes détaillés de la démo + les autres élèves des classes
@@ -29,19 +30,8 @@ export const BEARERS = [
 
 const payerOf = (student) => FAMILIES.find((f) => f.name === student.family)?.payer;
 
-// Impression des seuls tickets, sur rouleau de 80 mm : les tickets sont copiés à la racine de la
-// page et le reste de l'écran est masqué le temps de l'impression.
-function printTickets() {
-  const copy = document.createElement('div');
-  copy.id = 'ticket-print-root';
-  copy.innerHTML = document.querySelector('.ticket-print').innerHTML;
-  const style = document.createElement('style');
-  style.textContent = '@media print { @page { size: 80mm 200mm; margin: 2mm; } #root { display: none; } }';
-  document.body.append(copy, style);
-  const done = () => { copy.remove(); style.remove(); window.removeEventListener('afterprint', done); };
-  window.addEventListener('afterprint', done);
-  window.print();
-}
+// Impression des seuls tickets, sur rouleau de 80 mm
+const printTickets = () => printOnly('.ticket-print', 'size: 80mm 200mm; margin: 2mm;');
 
 const TODAY = '2026-10-13';
 const fmtDate = (iso) => iso.split('-').reverse().join('/');
