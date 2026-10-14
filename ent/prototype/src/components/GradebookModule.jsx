@@ -451,7 +451,7 @@ export default function GradebookModule({ settings }) {
           const ok = validated[s.id];
           return (
             <button key={s.id} onClick={() => setServiceId(s.id)}
-              className={`shrink-0 rounded-lg border px-3 py-2 text-left text-sm ${s.id === serviceId ? 'border-navy-500 bg-navy-50 ring-1 ring-navy-500' : 'border-slate-200 bg-white hover:border-navy-200'}`}>
+              className={`nav-control shrink-0 rounded-lg border px-3 py-2 text-left text-sm ${s.id === serviceId ? 'border-navy-500 bg-navy-50 ring-1 ring-navy-500' : 'border-slate-200 bg-white hover:border-navy-200'}`}>
               <span className="block font-medium text-slate-900">{s.cls}</span>
               <span className="block text-xs text-slate-500">{s.subject}{ok ? ' · notes validées' : ''}</span>
             </button>

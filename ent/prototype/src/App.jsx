@@ -14,6 +14,7 @@ import StaffModule from './components/StaffModule.jsx';
 import TeacherPortal from './components/TeacherPortal.jsx';
 import FamilyPortal from './components/FamilyPortal.jsx';
 import InscriptionsModule from './components/InscriptionsModule.jsx';
+import TeacherOversight from './components/TeacherOversight.jsx';
 import { DEFAULT_SETTINGS } from './data/settings.js';
 import { DIRECTION_ACCOUNTS } from './data/demo.js';
 
@@ -25,6 +26,10 @@ const VIE_SCOLAIRE = { id: 'vs', label: 'Vie scolaire', icon: 'users', screen: V
 const COUNCIL = { id: 'council', label: 'Conseils de classe', icon: 'cap', screen: CouncilGrid };
 const BOOKING = { id: 'booking', label: 'Réservations', icon: 'calendar', screen: BookingModule };
 const INSCRIPTIONS = { id: 'enrol', label: 'Inscriptions & fiches élèves', icon: 'users', screen: InscriptionsModule };
+const OVERSIGHT = [
+  { id: 'oversight-grades', label: 'Notes & appréciations (profs)', icon: 'pen', screen: (p) => <TeacherOversight {...p} view="grades" /> },
+  { id: 'oversight-homework', label: 'Cahier de textes (profs)', icon: 'calendar', screen: (p) => <TeacherOversight {...p} view="homework" /> },
+];
 const FOLLOW_UP = { id: 'followup', label: 'Documents, stages & orientation', icon: 'pen', screen: FollowUpModule };
 
 const PROFILES = {
@@ -41,6 +46,7 @@ const PROFILES = {
       ] },
       { group: 'Pédagogie', items: [
         COUNCIL,
+        ...OVERSIGHT,
         { id: 'timetable', label: 'Emplois du temps', icon: 'clock' },
         BOOKING,
         { id: 'exams', label: 'Examens & Campus France', icon: 'cap' },
@@ -66,6 +72,7 @@ const PROFILES = {
         { id: 'accounting', label: 'Encaissements & comptabilité', icon: 'wallet', screen: AccountingModule },
         INSCRIPTIONS,
         COUNCIL,
+        ...OVERSIGHT,
       ] },
       { group: 'Accès partagé', items: [VIE_SCOLAIRE, FOLLOW_UP, BOOKING] },
     ],

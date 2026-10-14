@@ -122,13 +122,13 @@ export function StudentSelect({ students, value, onChange, suffix, label = 'Él�
     <div className="flex flex-wrap items-end gap-2">
       <label className="min-w-0 flex-1 text-xs font-medium text-slate-600">
         {label}
-        <select value={value} onChange={(e) => onChange(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900">
+        <select value={value} onChange={(e) => onChange(e.target.value)} className="nav-control mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900">
           {students.map((s) => <option key={s} value={s}>{s}{suffix ? suffix(s) : ''}</option>)}
         </select>
       </label>
       <div className="flex gap-1">
-        <Button variant="secondary" aria-label="Élève précédent" disabled={i <= 0} onClick={() => onChange(students[i - 1])}>‹</Button>
-        <Button variant="secondary" aria-label="Élève suivant" disabled={i >= students.length - 1} onClick={() => onChange(students[i + 1])}>›</Button>
+        <Button variant="secondary" className="nav-control" aria-label="Élève précédent" disabled={i <= 0} onClick={() => onChange(students[i - 1])}>‹</Button>
+        <Button variant="secondary" className="nav-control" aria-label="Élève suivant" disabled={i >= students.length - 1} onClick={() => onChange(students[i + 1])}>›</Button>
       </div>
       <span className="pb-2 text-xs tabular-nums text-slate-500">{i + 1} / {students.length}</span>
     </div>

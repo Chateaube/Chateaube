@@ -87,6 +87,10 @@ main input[type=checkbox], main input[type=radio] { accent-color: var(--color-na
 /* Tableaux : en-têtes discrets, lignes aérées */
 main thead th { font-weight: 600; color: var(--color-slate-500); }
 
+/* Consultation (Direction, Bureau) : lecture seule, seules la navigation et les onglets restent actifs */
+.consultation input:not(.nav-control), .consultation textarea { pointer-events: none; background-color: var(--color-slate-50); }
+.consultation button:not(.nav-control):not([role=tab]) { display: none; }
+
 ::selection { background: var(--color-navy-100); }
 
 @media print {
