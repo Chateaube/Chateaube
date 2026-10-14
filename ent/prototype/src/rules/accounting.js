@@ -24,10 +24,10 @@ export function accountStatement(lines) {
   return { rows, byJournal, totals };
 }
 
-/** Coût annuel d'une classe : (ré)inscription + frais de scolarité × nombre de mois du plan + fascicule + location. */
+/** Coût annuel d'une classe : (ré)inscription + frais de scolarité × nombre de mois du plan + fascicule + location + cahiers. */
 export function annualCost(row, plans, { newStudent = false } = {}) {
   const months = planMonths(plans[row.plan]).length;
-  return (newStudent ? row.inscription : row.reinscription) + row.ecolage * months + row.fascicule + row.location;
+  return (newStudent ? row.inscription : row.reinscription) + row.ecolage * months + row.fascicule + row.location + (row.cahiers ?? 0);
 }
 
 /** Solde de caisse par journal après les mouvements du jour. */

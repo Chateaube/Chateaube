@@ -672,27 +672,48 @@ DO $$ DECLARE p uuid := (SELECT id FROM payment WHERE receipt_no = 'R-T32'); BEG
 END $$;
 
 -- T35. Réductions : accordées par la Direction seule, taux plafonné ------------------
-INSERT INTO reduction_type VALUES ('FRATRIE', 'Fratrie', 'PERCENT', 10), ('PERSONNEL', 'Enfant du personnel', 'PERCENT', 50);
+INSERT INTO reduction_type VALUES ('REDOUBLANT_TLE', 'Redoublant en Terminale', 25, 50), ('PROCHE', 'Exonération famille et proches', 100, 0),
+  ('PERSONNEL', 'Enfant du personnel', NULL, NULL);
 DO $$ BEGIN
   BEGIN
-    INSERT INTO reduction_type VALUES ('X', 'Trop', 'PERCENT', 120);
+    INSERT INTO reduction_type VALUES ('X', 'Trop', 120, 0);
     RAISE EXCEPTION 'T35: taux supérieur à 100 pour cent accepté';
   EXCEPTION WHEN check_violation THEN NULL;
   END;
   BEGIN
     INSERT INTO enrollment_reduction (enrollment_id, type_code, motif, granted_by)
-    VALUES ('30000000-0000-0000-0000-0000000000a1', 'FRATRIE', 'Frère de Hery', '00000000-0000-0000-0000-000000000003');
+    VALUES ('30000000-0000-0000-0000-0000000000a1', 'REDOUBLANT_TLE', 'Redouble la Terminale', '00000000-0000-0000-0000-000000000003');
     RAISE EXCEPTION 'T35: réduction accordée hors Direction';
   EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T35:%' THEN RAISE; END IF;
   END;
+  BEGIN
+    INSERT INTO enrollment_reduction (enrollment_id, type_code, motif, granted_by)
+    VALUES ('30000000-0000-0000-0000-0000000000a1', 'PERSONNEL', 'Fils de Mme Soa', '00000000-0000-0000-0000-000000000001');
+    RAISE EXCEPTION 'T35: réduction sans taux accordée';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T35:%' THEN RAISE; END IF;
+  END;
   INSERT INTO enrollment_reduction (enrollment_id, type_code, motif, granted_by)
-  VALUES ('30000000-0000-0000-0000-0000000000a1', 'FRATRIE', 'Frère de Hery', '00000000-0000-0000-0000-000000000001');
+  VALUES ('30000000-0000-0000-0000-0000000000a1', 'REDOUBLANT_TLE', 'Redouble la Terminale', '00000000-0000-0000-0000-000000000001');
 END $$;
 
 -- T36. Manuels et remise du bulletin : un manuel perdu non réglé bloque la remise ------
 DO $$ DECLARE t uuid; e uuid := '30000000-0000-0000-0000-0000000000a1'; BEGIN
-  INSERT INTO textbook (site_id, title, subject, level_codes, is_photocopy, binding)
-  SELECT id, 'Philosophie Terminale', 'Philosophie', '{TLE}', false, 'DOS_CARRE' FROM site WHERE code = 'TMV' RETURNING id INTO t;
+  INSERT INTO textbook (site_id, title, subject, level_codes, category, is_returnable, is_photocopy, binding, price_mga, replacement_price_mga)
+  SELECT id, 'Philosophie Terminale', 'Philosophie', '{TLE}', 'MANUEL', true, false, 'DOS_CARRE', 25000, 66000 FROM site WHERE code = 'TMV' RETURNING id INTO t;
+  -- manuel de spécialité SVT : l'élève suit Maths et PC (T31), donc refusé
+  INSERT INTO textbook (id, site_id, title, subject, level_codes, category, is_returnable, specialty, is_photocopy, binding, price_mga, replacement_price_mga)
+  SELECT 'a0000000-0000-0000-0000-000000000001', id, 'Spécialité SVT Terminale', 'SVT', '{TLE}', 'MANUEL', true, 'SVT', false, 'DOS_CARRE', 25000, 78000 FROM site WHERE code = 'TMV';
+  BEGIN
+    INSERT INTO textbook_loan (textbook_id, enrollment_id, state_out, issued_on, due_back) VALUES ('a0000000-0000-0000-0000-000000000001', e, 'NEUF', '2026-09-07', '2027-06-30');
+    RAISE EXCEPTION 'T36: manuel de spécialité prêté à un élève qui ne la suit pas';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T36:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    INSERT INTO textbook (site_id, title, subject, level_codes, category, is_returnable, is_photocopy, binding, price_mga)
+    SELECT id, 'Manuel sans prix de perte', 'Français', '{TLE}', 'MANUEL', true, false, 'DOS_CARRE', 25000 FROM site WHERE code = 'TMV';
+    RAISE EXCEPTION 'T36: manuel à rendre sans prix de perte';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
   INSERT INTO textbook_loan (textbook_id, enrollment_id, state_out, issued_on, due_back) VALUES (t, e, 'BON', '2026-09-07', '2027-06-30');
   BEGIN
     INSERT INTO textbook_loan (textbook_id, enrollment_id, state_out, issued_on, due_back) VALUES (t, e, 'NEUF', '2026-09-08', '2027-06-30');
@@ -731,8 +752,14 @@ DO $$ DECLARE s uuid := (SELECT id FROM site WHERE code = 'TMV'); BEGIN
     RAISE EXCEPTION 'T37: encaissement après clôture accepté';
   EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T37:%' THEN RAISE; END IF;
   END;
+  -- versements prévus tous les jours ouvrés : sans versement hier, le versement est signalé oublié
+  INSERT INTO deposit_schedule (site_id, weekdays) VALUES (s, '{1,2,3,4,5}');
+  IF extract(isodow FROM current_date) BETWEEN 2 AND 6 THEN
+    ASSERT EXISTS (SELECT 1 FROM v_deposit_missed WHERE site_id = s), 'T37: versement oublié signalé';
+  END IF;
   INSERT INTO bank_deposit (site_id, amount_mga, bank_name, slip_no, deposited_on, recorded_by)
   VALUES (s, 500000, 'BOA Madagascar', '5530', current_date, '00000000-0000-0000-0000-000000000003');
+  ASSERT NOT EXISTS (SELECT 1 FROM v_deposit_missed WHERE site_id = s), 'T37: versement saisi';
   BEGIN
     INSERT INTO bank_deposit (site_id, amount_mga, bank_name, slip_no, deposited_on, recorded_by)
     VALUES (s, 500000, 'BOA Madagascar', '5530', current_date, '00000000-0000-0000-0000-000000000003');

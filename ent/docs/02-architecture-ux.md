@@ -168,8 +168,11 @@ chaque portail.
   compte (relevé de la famille en lecture seule, imprimable), Caisse : entrées / sorties.
 - **Reçus & clôture** : journal des reçus du jour, duplicata, annulation avec motif validée par la Direction, clôture
   des espèces par comptage des billets, versements en banque avec bordereau, historique « qui a fait quoi ».
-- **Réductions** : types et taux fixés par la Direction, accordés élève par élève ; visibles sur le ticket.
-- **Manuels scolaires** : stock par état, prêts par classe, retours, pertes à régler ; un manuel dû bloque le bulletin.
+- **Réductions** : taux (frais de scolarité, inscription) fixés par la Direction, accordés élève par élève ; visibles
+  sur le ticket, mois exonérés affichés comme tels.
+- **Manuels scolaires** : lot de la classe (ce que reçoit et paie chaque élève, qui a quoi, distribution en un clic),
+  stock et prix, prêts par titre, pertes à régler ; un manuel dû bloque le bulletin.
+- **Versements en banque** : rappel le mercredi et le vendredi, versement oublié signalé.
 - **Remise des bulletins** : en main propre, tamponnés ; bloquée en cas d'impayé ou de manuel dû (levée par la Direction).
 - **Fiche signalétique** : le parent la remplit et la signe dans son compte (Plus → Fiche signalétique) ; le bureau la
   consulte, la valide et compare la signature de référence avec un document papier photographié.

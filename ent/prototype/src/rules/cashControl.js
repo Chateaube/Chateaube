@@ -61,3 +61,21 @@ export function validateDeposit({ amount, bank, slip }, cashInSafe) {
   if (!String(slip ?? '').trim()) errors.push('N° du bordereau de versement.');
   return errors;
 }
+
+const DAY_NAMES = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+const addDays = (iso, n) => new Date(Date.parse(`${iso}T12:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+const weekday = (iso) => new Date(`${iso}T12:00:00Z`).getUTCDay();
+
+/**
+ * Jours de versement fixés par l'établissement (ex. mercredi après-midi et vendredi après les cours).
+ * Renvoie le prochain jour prévu, si c'est aujourd'hui (rappel), et le dernier jour prévu manqué.
+ */
+export function depositReminder(today, depositDates, days = [3, 5]) {
+  const dueToday = days.includes(weekday(today)) && !depositDates.includes(today);
+  let next = addDays(today, 1);
+  while (!days.includes(weekday(next))) next = addDays(next, 1);
+  let prev = addDays(today, -1);
+  while (!days.includes(weekday(prev))) prev = addDays(prev, -1);
+  const missed = depositDates.some((d) => d >= prev) ? null : prev;
+  return { dueToday, next, nextDay: DAY_NAMES[weekday(next)], missed, missedDay: missed ? DAY_NAMES[weekday(missed)] : null };
+}

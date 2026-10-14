@@ -1253,6 +1253,14 @@ CREATE TABLE cash_closing (
 );
 
 -- Versements des espèces sur le compte bancaire de l'école (bordereau obligatoire).
+-- Jours de versement prévus (ex. mercredi après-midi et vendredi après les cours) : rappel au bureau,
+-- alerte à la Direction si le versement n'est pas saisi.
+CREATE TABLE deposit_schedule (
+  site_id       uuid PRIMARY KEY REFERENCES site(id),
+  weekdays      smallint[] NOT NULL CHECK (weekdays <@ ARRAY[1,2,3,4,5,6]::smallint[] AND cardinality(weekdays) > 0),
+  cash_threshold_mga bigint NOT NULL DEFAULT 2500000
+);
+
 CREATE TABLE bank_deposit (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   site_id       uuid NOT NULL REFERENCES site(id),
@@ -1268,11 +1276,12 @@ CREATE TABLE bank_deposit (
 -- =====  RÉDUCTIONS  =====
 -- Types et taux fixés par la Direction ; accordées élève par élève avec un motif.
 CREATE TABLE reduction_type (
-  code          text PRIMARY KEY,              -- 'FRATRIE', 'PROCHE', 'PERSONNEL', 'REDOUBLANT_TLE'
+  code          text PRIMARY KEY,              -- 'REDOUBLANT_TLE', 'PROCHE', 'PERSONNEL' (pas de fratrie)
   label         text NOT NULL,
-  kind          text NOT NULL CHECK (kind IN ('PERCENT', 'AMOUNT')),
-  value         numeric NOT NULL CHECK (value > 0),
-  CHECK (kind <> 'PERCENT' OR value <= 100)
+  -- taux en % : frais de scolarité mensuels et inscription / réinscription ; tout le reste à 100 %
+  -- NULL = taux à définir (réduction non attribuable)
+  rate_tuition  numeric CHECK (rate_tuition BETWEEN 0 AND 100),
+  rate_enrollment numeric CHECK (rate_enrollment BETWEEN 0 AND 100)
 );
 CREATE TABLE enrollment_reduction (
   enrollment_id uuid PRIMARY KEY REFERENCES enrollment(id),
@@ -1290,8 +1299,15 @@ CREATE TABLE textbook (
   title         text NOT NULL,
   subject       text NOT NULL,
   level_codes   text[] NOT NULL,
+  category      text NOT NULL CHECK (category IN ('MANUEL', 'CAHIER')),
+  is_returnable boolean NOT NULL,              -- à rendre (location) ou gardé par l'élève (vendu)
+  specialty     specialty_code,                -- manuel de spécialité : seuls les élèves qui la suivent
   is_photocopy  boolean NOT NULL,              -- original ou photocopie
-  binding       text NOT NULL CHECK (binding IN ('DOS_CARRE', 'RELIURE'))
+  binding       text NOT NULL CHECK (binding IN ('DOS_CARRE', 'RELIURE')),
+  price_mga     bigint NOT NULL CHECK (price_mga > 0), -- location / an (à rendre) ou prix de vente (gardé)
+  replacement_price_mga bigint,                -- à payer si perdu ou rendu abîmé
+  CHECK (NOT is_returnable OR coalesce(replacement_price_mga, 0) > 0),
+  CHECK (is_returnable OR replacement_price_mga IS NULL)
 );
 -- Exemplaires en réserve, par état
 CREATE TABLE textbook_stock (
@@ -1306,7 +1322,7 @@ CREATE TABLE textbook_loan (
   enrollment_id uuid NOT NULL REFERENCES enrollment(id),
   state_out     textbook_condition NOT NULL CHECK (state_out <> 'DECHIRE'),
   issued_on     date NOT NULL,
-  due_back      date NOT NULL,
+  due_back      date,                          -- NULL : cahier gardé par l'élève (rien à rendre)
   state_in      textbook_condition,            -- NULL : non rendu
   returned_on   date,
   lost_on       date,                          -- perdu

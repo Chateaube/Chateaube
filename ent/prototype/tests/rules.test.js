@@ -638,19 +638,23 @@ test('caisse : annulation de reçu validée par la Direction, clôture et versem
   assert.deepEqual(c.validateDeposit({ amount: 100, bank: 'BOA', slip: '55' }, 50), ['Le versement dépasse les espèces en caisse.']);
 });
 
-test('réductions : appliquées aux seuls frais de scolarité, arrondies à 100 Ar', async () => {
+test('réductions : redoublant (−25 % scolarité, −50 % inscription), exonération des proches', async () => {
   const { reductionAmount, studentDues } = await import('../src/rules/billing.js');
   const { DEFAULT_SETTINGS } = await import('../src/data/settings.js');
   const { CLASS_FEES } = await import('../src/data/accounting.js');
-  assert.equal(reductionAmount(420_000, { kind: 'PERCENT', value: 15 }), 63_000);
-  assert.equal(reductionAmount(340_000, { kind: 'PERCENT', value: 33 }), 112_200);
-  assert.equal(reductionAmount(100_000, { kind: 'AMOUNT', value: 150_000 }), 100_000);
-  const fees = CLASS_FEES.find((f) => f.cls === '5e');
-  const st = { isNew: false, enrolledOn: '2026-09-01', paid: [], reduction: { label: 'Fratrie', kind: 'PERCENT', value: 10 } };
-  const items = studentDues(st, fees, DEFAULT_SETTINGS, '2026-10-13');
-  const sept = items.find((i) => i.key === 'ECO-09');
-  assert.equal(sept.amount, fees.ecolage - Math.round(fees.ecolage * 0.1 / 100) * 100);
-  assert.equal(items.find((i) => i.key === 'REINSCRIPTION').amount, fees.reinscription, 'réinscription non réduite');
+  assert.equal(reductionAmount(450_000, 25), 112_500);
+  assert.equal(reductionAmount(340_000, 33), 112_200);
+  assert.equal(reductionAmount(100_000, 150), 100_000);
+  const fees = CLASS_FEES.find((f) => f.cls === 'Terminale Générale');
+  const redoublant = { isNew: false, enrolledOn: '2026-09-01', paid: [], reduction: { label: 'Redoublant en Terminale', rates: { ECOLAGE: 25, INSCRIPTION: 50 } } };
+  const items = studentDues(redoublant, fees, DEFAULT_SETTINGS, '2026-10-13');
+  assert.equal(items.find((i) => i.key === 'ECO-09').amount, fees.ecolage * 0.75);
+  assert.equal(items.find((i) => i.key === 'REINSCRIPTION').amount, fees.reinscription / 2);
+  assert.equal(items.find((i) => i.key === 'FASCICULE').amount, fees.fascicule, 'autres frais à 100 %');
+  const proche = { ...redoublant, reduction: { label: 'Exonération famille et proches', rates: { ECOLAGE: 100, INSCRIPTION: 0 } } };
+  const items2 = studentDues(proche, fees, DEFAULT_SETTINGS, '2026-10-13');
+  assert.equal(items2.find((i) => i.key === 'ECO-09').status, 'EXONERE');
+  assert.equal(items2.find((i) => i.key === 'REINSCRIPTION').amount, fees.reinscription);
 });
 
 test('manuels : prêt selon le stock, retour, perte à régler et blocage du bulletin', async () => {
@@ -671,4 +675,31 @@ test('manuels : prêt selon le stock, retour, perte à régler et blocage du bul
   assert.equal(back.loan.charge, null);
   assert.equal(m.manualBlocks('A', [back.loan], [manual], '2027-07-01').length, 0);
   assert.equal(m.manualBlocks('A', [r.loan], [manual], '2027-07-01').length, 1, 'non rendu après la date prévue');
+});
+
+test('versements : rappel le mercredi et le vendredi, jour manqué signalé', async () => {
+  const { depositReminder } = await import('../src/rules/cashControl.js');
+  const tue = depositReminder('2026-10-13', ['2026-10-09']);
+  assert.equal(tue.next, '2026-10-14');
+  assert.equal(tue.nextDay, 'mercredi');
+  assert.equal(tue.missed, null);
+  assert.equal(depositReminder('2026-10-14', ['2026-10-09']).dueToday, true);
+  assert.equal(depositReminder('2026-10-14', ['2026-10-14']).dueToday, false);
+  const thu = depositReminder('2026-10-15', ['2026-10-09']);
+  assert.equal(thu.missed, '2026-10-14', 'versement du mercredi oublié');
+});
+
+test('manuels : lot de la classe, location 25 000 Ar, cahiers vendus, spécialités', async () => {
+  const m = await import('../src/rules/manuals.js');
+  const { MANUALS, RENTAL_PRICE } = await import('../src/data/manuals.js');
+  const pc = m.kitFor('Terminale Générale', ['MATHS', 'PC'], MANUALS);
+  assert.ok(pc.some((x) => x.specialty === 'PC') && !pc.some((x) => x.specialty === 'SVT'));
+  const t = m.kitTotals(pc);
+  assert.equal(t.rental, t.rentalCount * RENTAL_PRICE);
+  assert.ok(t.soldCount >= 1);
+  const cahier = { id: 'c', title: 'Cahier', returnable: false, stock: { NEUF: 1, BON: 0, USE: 0, DECHIRE: 0 } };
+  const r = m.lend(cahier, [], { student: 'A', cls: '6e', state: 'NEUF', on: 'd' });
+  assert.equal(r.loan.sold, true);
+  assert.equal(m.manualBlocks('A', [r.loan], [cahier], '2030-01-01').length, 0, 'un cahier gardé ne bloque rien');
+  assert.ok(m.lend({ ...cahier, stock: { NEUF: 5 } }, [r.loan], { student: 'A', cls: '6e', state: 'NEUF', on: 'd' }).error, 'déjà remis');
 });

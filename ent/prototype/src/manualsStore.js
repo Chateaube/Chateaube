@@ -2,7 +2,7 @@
 // (prototype : gardés dans ce navigateur ; en production, en base).
 import { MANUALS, LOANS } from './data/manuals.js';
 
-const KEY = 'ent-manuels-v1';
+const KEY = 'ent-manuels-v2'; // v2 : prix, cahiers à rendre ou vendus, spécialités
 export function loadManuals() {
   try {
     const d = JSON.parse(localStorage.getItem(KEY));

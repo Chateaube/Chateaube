@@ -716,7 +716,7 @@ SELECT l.enrollment_id, 'MANUEL_DU', count(*)::int
 FROM textbook_loan l
 WHERE (l.lost_on IS NOT NULL AND l.charge_payment_id IS NULL)
    OR (l.state_in = 'DECHIRE' AND l.state_out <> 'DECHIRE' AND l.charge_payment_id IS NULL)
-   OR (l.returned_on IS NULL AND l.lost_on IS NULL AND l.due_back < current_date)
+   OR (l.returned_on IS NULL AND l.lost_on IS NULL AND l.due_back IS NOT NULL AND l.due_back < current_date)
 GROUP BY l.enrollment_id;
 
 CREATE FUNCTION bulletin_handover_guard() RETURNS trigger AS $$
@@ -728,3 +728,39 @@ BEGIN
   RETURN NEW;
 END $$ LANGUAGE plpgsql;
 CREATE TRIGGER bulletin_handover_check BEFORE INSERT OR UPDATE ON bulletin_handover FOR EACH ROW EXECUTE FUNCTION bulletin_handover_guard();
+
+-- Prêt d'un titre : à rendre → date de retour obligatoire ; gardé → pas de date ;
+-- manuel de spécialité → seulement aux élèves qui suivent la spécialité.
+CREATE FUNCTION textbook_loan_guard() RETURNS trigger AS $$
+DECLARE t textbook%ROWTYPE;
+BEGIN
+  SELECT * INTO t FROM textbook WHERE id = NEW.textbook_id;
+  IF t.is_returnable AND NEW.due_back IS NULL THEN RAISE EXCEPTION 'Titre à rendre : date de retour obligatoire'; END IF;
+  IF NOT t.is_returnable AND NEW.due_back IS NOT NULL THEN RAISE EXCEPTION 'Cahier gardé par l''élève : pas de date de retour'; END IF;
+  IF t.specialty IS NOT NULL AND NOT EXISTS (SELECT 1 FROM enrollment_specialty WHERE enrollment_id = NEW.enrollment_id AND specialty = t.specialty) THEN
+    RAISE EXCEPTION 'Manuel de spécialité % : l''élève ne suit pas cette spécialité', t.specialty;
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER textbook_loan_check BEFORE INSERT ON textbook_loan FOR EACH ROW EXECUTE FUNCTION textbook_loan_guard();
+
+-- Réduction attribuable seulement si ses taux sont définis.
+CREATE FUNCTION enrollment_reduction_rates_guard() RETURNS trigger AS $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM reduction_type WHERE code = NEW.type_code AND coalesce(rate_tuition, 0) = 0 AND coalesce(rate_enrollment, 0) = 0) THEN
+    RAISE EXCEPTION 'Réduction % : taux à définir par la Direction avant de l''accorder', NEW.type_code;
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER enrollment_reduction_rates BEFORE INSERT OR UPDATE ON enrollment_reduction FOR EACH ROW EXECUTE FUNCTION enrollment_reduction_rates_guard();
+
+-- Versement oublié : dernier jour de versement prévu sans aucun versement depuis.
+CREATE VIEW v_deposit_missed AS
+SELECT ds.site_id, d.day AS missed_day
+FROM deposit_schedule ds
+CROSS JOIN LATERAL (
+  SELECT max(g)::date AS day FROM generate_series(current_date - 7, current_date - 1, interval '1 day') g
+  WHERE extract(isodow FROM g)::smallint = ANY (ds.weekdays)
+) d
+WHERE d.day IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM bank_deposit b WHERE b.site_id = ds.site_id AND b.deposited_on >= d.day);

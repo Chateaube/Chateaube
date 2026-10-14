@@ -11,7 +11,9 @@ import { accountStatement, annualCost, cashBalance, monthlyCashReport, cashMonth
 import { printOnly } from '../print.js';
 import { planMonths } from '../rules/calendar.js';
 import { formatAr } from '../rules/finance.js';
-import CollectPayment, { CASH_ACCOUNTS } from './CollectPayment.jsx';
+import CollectPayment, { CASH_ACCOUNTS, feesFor } from './CollectPayment.jsx';
+import { loadManuals } from '../manualsStore.js';
+import { kitFor } from '../rules/manuals.js';
 
 const TODAY = '2026-10-13';
 const fmtDate = (iso) => iso.split('-').reverse().join('/');
@@ -34,6 +36,7 @@ function AmountInput({ value, onChange, className = '' }) {
 
 /* ---------- Classes & tarifs ---------- */
 function FeesTab({ fees, setFees, settings, canEdit }) {
+  const manuals = useMemo(() => loadManuals().manuals, []);
   const [newStudent, setNewStudent] = useState(false);
   const plans = settings.tuition.plans;
   const update = (i, key, v) => setFees(fees.map((r, k) => (k === i ? { ...r, [key]: v ?? 0 } : r)));
@@ -59,18 +62,24 @@ function FeesTab({ fees, setFees, settings, canEdit }) {
             </tr>
           </thead>
           <tbody>
-            {fees.map((r, i) => (
+            {fees.map((raw, i) => {
+              // location et cahiers : calculés depuis le lot de manuels de la classe (hors spécialités)
+              const r = { ...raw, ...(feesFor({ cls: raw.cls, specialties: [] }, manuals) ?? {}), ecolage: raw.ecolage, inscription: raw.inscription, reinscription: raw.reinscription, fascicule: raw.fascicule };
+              const spe = kitFor(raw.cls, ['MATHS', 'PC', 'SVT'], manuals).filter((m) => m.specialty);
+              return (
               <tr key={r.cls} className="border-b border-slate-100 last:border-0">
                 <td className="px-4 py-2 font-medium text-slate-800">{r.cls}</td>
                 {FEE_COLUMNS.map((c) => (
                   <td key={c.key} className="px-2 py-1.5 text-right">
-                    {canEdit ? <AmountInput value={r[c.key]} onChange={(v) => update(i, c.key, v)} /> : <span className="tabular-nums">{formatAr(r[c.key])}</span>}
+                    {c.computed ? <span className="tabular-nums text-slate-600" title={c.hint}>{formatAr(r[c.key] ?? 0)}{c.key === 'location' && spe.length > 0 && <span className="block text-[11px] text-slate-500">+ {formatAr(spe[0].price)} par spécialité</span>}</span>
+                      : canEdit ? <AmountInput value={r[c.key]} onChange={(v) => update(i, c.key, v)} /> : <span className="tabular-nums">{formatAr(r[c.key])}</span>}
                   </td>
                 ))}
                 <td className="px-2 text-right tabular-nums text-slate-600">{planMonths(plans[r.plan]).length}</td>
                 <td className="whitespace-nowrap px-4 text-right font-semibold tabular-nums text-navy-900">{formatAr(annualCost(r, plans, { newStudent }))}</td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -78,6 +87,7 @@ function FeesTab({ fees, setFees, settings, canEdit }) {
         <span className="flex items-center gap-1.5"><JournalBadge j="ECOLAGE" /> frais de scolarité mensuels</span>
         <span className="flex items-center gap-1.5"><JournalBadge j="FRAIS_ANNEXES" /> inscription, réinscription, fascicule, location</span>
         <span>· Nombre de mois : réglé dans Paramètres (9 mois pour 1re et Terminale).</span>
+        <span>· Location des manuels et cahiers : calculés depuis le lot de chaque classe (Manuels scolaires).</span>
       </div>
     </Card>
   );

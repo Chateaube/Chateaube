@@ -4,7 +4,7 @@ import ReceiptTicket from './ReceiptTicket.jsx';
 import { JOURNALS, BANKS } from '../data/accounting.js';
 import { PAYMENT_METHODS } from '../rules/billing.js';
 import { formatAr } from '../rules/finance.js';
-import { DENOMINATIONS, expectedCash, countTotal, closingCheck, requestCancel, decideCancel, depositAlert, validateDeposit } from '../rules/cashControl.js';
+import { DENOMINATIONS, expectedCash, countTotal, closingCheck, requestCancel, decideCancel, depositAlert, validateDeposit, depositReminder } from '../rules/cashControl.js';
 import { printOnly } from '../print.js';
 
 // Reçus et clôture : journal des reçus du jour (duplicata, annulation avec motif validée par la
@@ -74,7 +74,10 @@ export default function CashControl({ role, actor, receipts, setReceipts, audit,
   const cash = expectedCash(safe.morning, movements);
   const todayClosing = closings.find((c) => c.date === TODAY);
   const lastDeposit = [safe.lastDeposit, ...movements.filter((m) => m.nature === 'Dépôt en banque').map((m) => m.date)].sort().at(-1);
-  const alert = depositAlert(cash, lastDeposit, TODAY, safe);
+  const alert = depositAlert(cash, lastDeposit, TODAY, { maxAmount: safe.maxAmount, maxDays: 99 });
+  const depositDates = [safe.lastDeposit, ...movements.filter((m) => m.nature === 'Dépôt en banque').map((m) => m.date)];
+  const reminder = depositReminder(TODAY, depositDates, safe.depositDays);
+  const slot = (iso) => safe.depositSlots[new Date(`${iso}T12:00:00Z`).getUTCDay()];
   const pending = receipts.filter((r) => r.status === 'ANNULATION_DEMANDEE');
   const valid = receipts.filter((r) => r.status !== 'ANNULE');
 
@@ -136,8 +139,16 @@ export default function CashControl({ role, actor, receipts, setReceipts, audit,
         <Stat label="Caisse du jour" value={todayClosing ? 'Clôturée' : 'Ouverte'} hint={todayClosing ? `par ${todayClosing.by}` : 'clôture en fin de journée'} />
       </div>
 
+      {reminder.missed && (
+        <p className="rounded-2xl bg-red-50 p-3 text-sm text-red-800"><strong>Versement oublié :</strong> aucun versement depuis le {reminder.missedDay} {reminder.missed.split('-').reverse().join('/')}. La Direction est prévenue.</p>
+      )}
+      {reminder.dueToday ? (
+        <p className="rounded-2xl bg-amber-50 p-3 text-sm text-amber-900"><strong>Jour de versement :</strong> aujourd'hui {slot(TODAY)}, verser les espèces ({formatAr(cash)}) et saisir le bordereau.</p>
+      ) : (
+        <p className="rounded-2xl bg-navy-50 p-3 text-sm text-navy-900">Prochain versement en banque : <strong>{reminder.nextDay} {reminder.next.split('-').reverse().join('/')} {slot(reminder.next)}</strong>. Un rappel est envoyé au bureau ce jour-là, et à la Direction si le versement n'est pas saisi.</p>
+      )}
       {alert.alert && (
-        <p className="rounded-2xl bg-red-50 p-3 text-sm text-red-800"><strong>À verser en banque :</strong> {alert.reasons.join(' et ')}. Seuils fixés par la Direction : {formatAr(safe.maxAmount)} ou {safe.maxDays} jours.</p>
+        <p className="rounded-2xl bg-red-50 p-3 text-sm text-red-800"><strong>Beaucoup d'espèces au bureau :</strong> {alert.reasons.join(' et ')} (seuil fixé par la Direction : {formatAr(safe.maxAmount)}). Verser sans attendre le prochain jour prévu.</p>
       )}
 
       {isDirection && pending.length > 0 && (
@@ -233,7 +244,7 @@ export default function CashControl({ role, actor, receipts, setReceipts, audit,
           </ul>
         </Card>
 
-        <Card title="Versement en banque" subtitle={`Espèces conservées au bureau avant dépôt sur le compte de l'école · dernier versement le ${lastDeposit.split('-').reverse().join('/')}`}>
+        <Card title="Versement en banque" subtitle={`Le mercredi après-midi et le vendredi après les cours · dernier versement le ${lastDeposit.split('-').reverse().join('/')}`}>
           <div className="space-y-2 text-sm">
             <label className="block text-xs text-slate-600">Montant versé (espèces en caisse : {formatAr(cash)})
               <input inputMode="numeric" value={deposit.amount === null ? '' : deposit.amount} onChange={(e) => { const d = e.target.value.replace(/\D/g, ''); setDeposit({ ...deposit, amount: d === '' ? null : Number(d) }); }} className={`mt-1 w-full ${inputCls}`} />

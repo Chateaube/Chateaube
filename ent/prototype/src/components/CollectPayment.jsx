@@ -8,6 +8,26 @@ import { printOnly } from '../print.js';
 import { loadImport } from '../importStore.js';
 import { seniority } from '../rules/documents.js';
 import { CLASSES } from '../data/schoollife.js';
+import { DEMO_SPECIALTIES } from '../data/manuals.js';
+import { kitFor, kitTotals } from '../rules/manuals.js';
+import { loadManuals } from '../manualsStore.js';
+
+/**
+ * Tarifs d'un élève : grille de sa classe + lot de manuels (location des titres à rendre,
+ * cahiers gardés), selon ses spécialités. Les prix des manuels se fixent dans « Manuels scolaires ».
+ */
+export function feesFor(account, manuals = loadManuals().manuals) {
+  const row = CLASS_FEES.find((f) => f.cls === account.cls);
+  if (!row) return null;
+  const items = kitFor(account.cls, account.specialties ?? [], manuals);
+  if (!items.length) return row;
+  const t = kitTotals(items);
+  return {
+    ...row, location: t.rental, cahiers: t.sold,
+    locationLabel: `Location des manuels (${t.rentalCount} × ${new Intl.NumberFormat('fr-FR').format(t.rentalCount ? t.rental / t.rentalCount : 0).replace(/ | /g, ' ')})`,
+    cahiersLabel: `Cahiers d'activités (${t.soldCount})`,
+  };
+}
 
 // Comptes de la caisse : comptes détaillés de la démo + les autres élèves des classes
 // (réinscription, fascicule, location et septembre déjà réglés)
@@ -19,7 +39,7 @@ const importedAccounts = () => {
   return list.filter((s) => CLASS_FEES.some((f) => f.cls === s.cls)).map((s) => ({
     // nouvel élève : frais d'inscription et compte ouvert au mois d'arrivée ; ancien : réinscription
     id: s.id, name: `${s.lastName} ${s.firstName}`, cls: s.cls, family: `Famille ${s.lastName}`,
-    isNew: seniority(s.enteredOn)?.isNew ?? false, enrolledOn: seniority(s.enteredOn)?.isNew && s.enteredOn > '2026-09-01' ? s.enteredOn : '2026-09-01', paid: [],
+    isNew: seniority(s.enteredOn)?.isNew ?? false, specialties: s.specialties ?? [], enrolledOn: seniority(s.enteredOn)?.isNew && s.enteredOn > '2026-09-01' ? s.enteredOn : '2026-09-01', paid: [],
   }));
 };
 const DEMO_ACCOUNTS = [
@@ -27,12 +47,15 @@ const DEMO_ACCOUNTS = [
   ...Object.entries(CLASSES).flatMap(([cls, names]) => names
     .filter((n) => !STUDENT_ACCOUNTS.some((a) => a.name === n))
     .map((n, i) => ({
-      id: `g-${cls}-${i}`, name: n, cls, family: `Famille ${n.split(' ')[0]}`, isNew: false, enrolledOn: '2026-09-01',
-      paid: ['REINSCRIPTION', 'FASCICULE', 'LOCATION', 'ECO-09', ...(i % 2 ? ['ECO-10'] : [])],
+      id: `g-${cls}-${i}`, name: n, cls, family: `Famille ${n.split(' ')[0]}`, isNew: false, enrolledOn: '2026-09-01', specialties: DEMO_SPECIALTIES[n] ?? [],
+      paid: ['REINSCRIPTION', 'FASCICULE', 'LOCATION', 'CAHIERS', 'ECO-09', ...(i % 2 ? ['ECO-10'] : [])],
     }))),
 ];
 export const CASH_ACCOUNTS = importedAccounts() ?? DEMO_ACCOUNTS;
 const CASH_CLASSES = CLASS_FEES.map((f) => f.cls).filter((c) => CASH_ACCOUNTS.some((a) => a.cls === c));
+
+/** « −25 % scolarité, −50 % inscription » */
+export const reductionText = (rates) => [rates.ECOLAGE && (rates.ECOLAGE === 100 ? 'frais de scolarité offerts' : `−${rates.ECOLAGE} % frais de scolarité`), rates.INSCRIPTION && `−${rates.INSCRIPTION} % inscription`].filter(Boolean).join(', ') + ' ; autres frais à 100 %';
 
 // Qui apporte le paiement au bureau (imprimé sur le ticket)
 export const BEARERS = [
@@ -54,18 +77,19 @@ const STATUS_UI = {
   PAYE: { cls: 'border-emerald-200 bg-emerald-50 text-emerald-800', label: 'Payé' },
   ECHU: { cls: 'border-red-200 bg-white text-slate-800', label: 'Échu' },
   A_ECHOIR: { cls: 'border-slate-200 bg-white text-slate-700', label: 'À échoir' },
+  EXONERE: { cls: 'border-sage-100 bg-sage-50 text-sage-700', label: 'Exonéré' },
 };
 
 function DueTile({ item, checked, onToggle }) {
   const ui = STATUS_UI[item.status];
-  const paid = item.status === 'PAYE';
+  const paid = item.status === 'PAYE' || item.status === 'EXONERE';
   return (
     <label className={`flex cursor-pointer items-start gap-2 rounded-lg border p-2.5 text-sm transition
       ${paid ? `${ui.cls} cursor-default` : checked ? 'border-navy-500 bg-navy-50 ring-1 ring-navy-500' : ui.cls}`}>
       <input type="checkbox" className="mt-0.5" checked={paid || checked} disabled={paid} onChange={onToggle} />
       <span className="min-w-0 flex-1">
         <span className="block font-medium">{item.short ?? item.label}</span>
-        <span className="block text-xs text-slate-500">{item.discount ? <><s className="text-slate-400">{formatAr(item.base)}</s> </> : ''}{formatAr(item.amount)} · {paid ? 'payé' : `${ui.label.toLowerCase()} le ${fmtDate(item.due)}`}</span>
+        <span className="block text-xs text-slate-500">{item.discount ? <><s className="text-slate-400">{formatAr(item.base)}</s> </> : ''}{formatAr(item.amount)} · {item.status === 'EXONERE' ? 'exonéré' : paid ? 'payé' : `${ui.label.toLowerCase()} le ${fmtDate(item.due)}`}</span>
       </span>
       {item.status === 'ECHU' && !checked && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500" title="Échu, non sélectionné" />}
     </label>
@@ -91,9 +115,10 @@ export default function CollectPayment({ settings, articles = [], accounts: shar
   // Réduction accordée par la Direction : type (taux) + motif, appliquée aux frais de scolarité
   const reductionOf = (a) => {
     const t = a.reduction && reductionTypes.find((x) => x.id === a.reduction.typeId);
-    return t ? { label: t.label, kind: t.kind, value: t.value } : null;
+    return t && (t.rates.ECOLAGE || t.rates.INSCRIPTION) ? { label: t.label, rates: t.rates } : null;
   };
-  const fees = CLASS_FEES.find((r) => r.cls === student.cls);
+  const manuals = useMemo(() => loadManuals().manuals, []);
+  const fees = feesFor(student, manuals);
   // Articles et services vendus à l'élève : prix fixé au catalogue, réglés comme les autres échéances
   const items = useMemo(() => [
     ...studentDues({ ...student, reduction: reductionOf(student) }, fees, settings, TODAY),
@@ -109,7 +134,7 @@ export default function CollectPayment({ settings, articles = [], accounts: shar
     setSale({ articleId: '', qty: 1 });
   };
   const keys = selected ?? defaultSelection(items);
-  const chosen = items.filter((i) => keys.includes(i.key) && i.status !== 'PAYE');
+  const chosen = items.filter((i) => keys.includes(i.key) && !['PAYE', 'EXONERE'].includes(i.status));
   const total = chosen.reduce((s, i) => s + i.amount, 0);
   const errors = validateInstrument(instrument);
   const overdue = items.filter((i) => i.status === 'ECHU');
@@ -119,7 +144,7 @@ export default function CollectPayment({ settings, articles = [], accounts: shar
   const months = items.filter((i) => i.journal === 'ECOLAGE');
   const others = items.filter((i) => i.journal !== 'ECOLAGE' && !i.key.startsWith('ART-'));
   const extras = items.filter((i) => i.key.startsWith('ART-'));
-  const unpaidMonths = months.filter((m) => m.status !== 'PAYE');
+  const unpaidMonths = months.filter((m) => !['PAYE', 'EXONERE'].includes(m.status));
 
   const collect = () => {
     const next = { ...counter };
@@ -169,12 +194,12 @@ export default function CollectPayment({ settings, articles = [], accounts: shar
         action={overdue.length > 0 ? <Badge tone="red">{overdue.length} échéance{overdue.length > 1 ? 's' : ''} échue{overdue.length > 1 ? 's' : ''}</Badge> : <Badge tone="green">À jour</Badge>}
       >
         {reductionOf(student) && (
-          <p className="mb-3 rounded-lg bg-sage-50 px-3 py-2 text-xs text-sage-700">Réduction accordée par la Direction : <strong>{reductionOf(student).label}</strong> ({reductionOf(student).kind === 'PERCENT' ? `−${reductionOf(student).value} %` : `−${formatAr(reductionOf(student).value)}`} sur les frais de scolarité) · {student.reduction.motif}</p>
+          <p className="mb-3 rounded-lg bg-sage-50 px-3 py-2 text-xs text-sage-700">Réduction accordée par la Direction : <strong>{reductionOf(student).label}</strong> ({reductionText(reductionOf(student).rates)}) · {student.reduction.motif}</p>
         )}
         <div className="mb-3 flex flex-wrap gap-2">
           <Button variant="secondary" className="!py-1 text-xs" onClick={() => setSelected(defaultSelection(items))}>Proposition : tout l'échu</Button>
-          <Button variant="secondary" className="!py-1 text-xs" onClick={() => setSelected(items.filter((i) => i.status !== 'PAYE' && (i.journal !== 'ECOLAGE' || i.due <= '2026-12-31')).map((i) => i.key))}>Jusqu'à décembre (1er trimestre)</Button>
-          <Button variant="secondary" className="!py-1 text-xs" onClick={() => setSelected(items.filter((i) => i.status !== 'PAYE').map((i) => i.key))}>Toute l'année</Button>
+          <Button variant="secondary" className="!py-1 text-xs" onClick={() => setSelected(items.filter((i) => !['PAYE', 'EXONERE'].includes(i.status) && (i.journal !== 'ECOLAGE' || i.due <= '2026-12-31')).map((i) => i.key))}>Jusqu'à décembre (1er trimestre)</Button>
+          <Button variant="secondary" className="!py-1 text-xs" onClick={() => setSelected(items.filter((i) => !['PAYE', 'EXONERE'].includes(i.status)).map((i) => i.key))}>Toute l'année</Button>
           <Button variant="ghost" className="!py-1 text-xs" onClick={() => setSelected([])}>Tout décocher</Button>
         </div>
 

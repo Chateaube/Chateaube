@@ -282,9 +282,16 @@ recoder.
 - **`cash_closing`** : clôture quotidienne des espèces par site (comptage par billet). Un écart doit être expliqué ; après
   la clôture, aucun encaissement n'est accepté ce jour-là (T37).
 - **`bank_deposit`** : versements des espèces sur le compte de l'école, bordereau obligatoire et unique (T37).
-- **`reduction_type`**, **`enrollment_reduction`** : réductions (fratrie, proche, enfant du personnel, redoublant en
-  Terminale) fixées et accordées par la Direction seule, avec un motif ; appliquées aux frais de scolarité (T35).
-- **`textbook`**, **`textbook_stock`**, **`textbook_loan`** : manuels (original ou photocopie, dos carré ou reliure),
-  stock par état (neuf, bon, usé, déchiré), prêts avec état à la sortie et au retour, pertes à régler (T36).
+- **`reduction_type`**, **`enrollment_reduction`** : réductions fixées et accordées par la Direction seule, avec un
+  motif. Deux taux : frais de scolarité et inscription / réinscription ; tout le reste à 100 %. Redoublant en Terminale :
+  −25 % et −50 % ; famille et proches de l'établissement : frais de scolarité offerts. Pas de fratrie. Une réduction
+  dont les taux ne sont pas définis ne peut pas être accordée (T35).
+- **`deposit_schedule`** et **`v_deposit_missed`** : jours de versement (mercredi après-midi, vendredi après les cours),
+  rappel au bureau et alerte à la Direction si un versement prévu manque (T37).
+- **`textbook`**, **`textbook_stock`**, **`textbook_loan`** : manuels et cahiers d'activités (original ou photocopie,
+  dos carré ou reliure). À rendre : location (25 000 Ar par manuel de base) et prix propre en cas de perte ; gardés par
+  l'élève : prix de vente. Lot identique pour la classe, manuels de spécialité aux seuls élèves concernés. Stock par
+  état, prêts avec état à la sortie et au retour, pertes à régler (T36). La location et les cahiers sont facturés avec
+  les frais annuels.
 - **`bulletin_handover`** et **`v_bulletin_blocked`** : les bulletins sont remis en main propre, jamais publiés. Frais
   échus impayés ou manuel dû bloquent la remise ; seule la Direction lève le blocage, avec un motif (T36).

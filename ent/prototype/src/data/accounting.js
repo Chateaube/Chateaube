@@ -25,7 +25,8 @@ export const FEE_COLUMNS = [
   { key: 'reinscription', label: 'Réinscription', hint: 'Élève déjà inscrit, une fois par an' },
   { key: 'ecolage', label: 'Frais de scolarité / mois', hint: 'Mensuel, journal Frais de scolarité' },
   { key: 'fascicule', label: 'Fascicule', hint: 'Une fois par an' },
-  { key: 'location', label: 'Location manuels', hint: 'Une fois par an' },
+  { key: 'location', label: 'Location manuels', hint: 'Calculée : 25 000 Ar par manuel à rendre du lot de la classe', computed: true },
+  { key: 'cahiers', label: 'Cahiers d\'activités', hint: 'Calculé : cahiers gardés par l\'élève, au prix fixé dans Manuels scolaires', computed: true },
 ];
 
 // Catalogue « Articles & services » (facturés à la demande)
@@ -110,18 +111,20 @@ export const CASH_AUDIT = [
 ];
 
 // Espèces en caisse (coffre du bureau) à l'ouverture du 13 octobre, et clôtures précédentes
-export const CASH_SAFE = { morning: 2_950_000, lastDeposit: '2026-10-09', maxAmount: 2_500_000, maxDays: 3 };
+// Versements : mercredi après-midi (pas de cours) et vendredi après les cours ; rappel au bureau
+export const CASH_SAFE = { morning: 2_950_000, lastDeposit: '2026-10-09', depositDays: [3, 5], depositSlots: { 3: 'après-midi', 5: 'après les cours' }, maxAmount: 2_500_000 };
 export const CASH_CLOSINGS = [
   { date: '2026-10-12', expected: 2_950_000, counted: 2_950_000, diff: 0, status: 'JUSTE', explanation: '', by: 'Mme Soa (bureau)', at: '12/10/2026 17:05' },
   { date: '2026-10-09', expected: 980_000, counted: 975_000, diff: -5_000, status: 'MANQUANT', explanation: 'Monnaie rendue en trop à un parent (erreur de rendu), signalé à la Direction', by: 'Mme Soa (bureau)', at: '09/10/2026 17:12' },
 ];
 
-// Réductions accordées par la Direction (taux FICTIFS, à remplacer) : sur les frais de scolarité mensuels
+// Réductions accordées par la Direction : un taux sur les frais de scolarité mensuels et un sur
+// l'inscription / réinscription ; tous les autres frais (fascicule, manuels, articles, examens) à 100 %.
+// Pas de réduction pour la fratrie. null = taux à définir par la Direction.
 export const REDUCTION_TYPES = [
-  { id: 'FRATRIE', label: 'Fratrie (à partir du 2e enfant)', kind: 'PERCENT', value: 10 },
-  { id: 'PROCHE', label: 'Proche de l\'établissement', kind: 'PERCENT', value: 15 },
-  { id: 'PERSONNEL', label: 'Enfant du personnel', kind: 'PERCENT', value: 50 },
-  { id: 'REDOUBLANT_TLE', label: 'Redoublant en Terminale', kind: 'PERCENT', value: 20 },
+  { id: 'REDOUBLANT_TLE', label: 'Redoublant en Terminale', rates: { ECOLAGE: 25, INSCRIPTION: 50 } },
+  { id: 'PROCHE', label: 'Exonération famille et proches de l\'établissement', rates: { ECOLAGE: 100, INSCRIPTION: 0 } },
+  { id: 'PERSONNEL', label: 'Enfant du personnel', rates: { ECOLAGE: null, INSCRIPTION: null } },
 ];
 
 // Historique de caisse depuis la rentrée (démonstration) : encaissements des familles chaque jour
@@ -163,15 +166,16 @@ export const BANKS = ['BNI Madagascar', 'BOA Madagascar', 'BFV-SG', 'BMOI', 'Soc
 
 export const STUDENT_ACCOUNTS = [
   { id: 'e1', name: 'RAKOTOARISOA Aina', cls: '1re STMG', family: 'Famille RAKOTOARISOA', isNew: false, enrolledOn: '2026-09-01',
-    paid: ['REINSCRIPTION', 'FASCICULE', 'LOCATION', 'ECO-09', 'EXAMEN'],
+    paid: ['REINSCRIPTION', 'FASCICULE', 'LOCATION', 'CAHIERS', 'ECO-09', 'EXAMEN'],
     exam: { label: 'Droits Pré-Bac (EAF)', amount: 450_000, due: '2026-10-31' } },
   { id: 'e2', name: 'RAKOTOARISOA Toky', cls: '5e', family: 'Famille RAKOTOARISOA', isNew: false, enrolledOn: '2026-09-01',
-    paid: ['REINSCRIPTION', 'FASCICULE', 'LOCATION', 'ECO-09'],
-    reduction: { typeId: 'FRATRIE', motif: 'Frère d\'Aina RAKOTOARISOA (1re STMG)', by: 'Mme Sheena Lo (Direction)', at: '01/09/2026' } },
+    paid: ['REINSCRIPTION', 'FASCICULE', 'LOCATION', 'CAHIERS', 'ECO-09'] },
   { id: 'e3', name: 'RANDRIA Mamy', cls: 'Terminale Générale', family: 'Famille RANDRIA', isNew: false, enrolledOn: '2026-09-01',
-    paid: ['REINSCRIPTION', 'EXAMEN'], exam: { label: 'Droits Bac', amount: 600_000, due: '2026-10-31' } },
-  { id: 'e4', name: 'RASOAMANANA Fy', cls: '4e', family: 'Famille RASOAMANANA', isNew: true, enrolledOn: '2026-10-12', paid: [] },
+    paid: ['REINSCRIPTION', 'EXAMEN'], specialties: ['MATHS', 'PC'],
+    reduction: { typeId: 'REDOUBLANT_TLE', motif: 'Redouble la Terminale (échec au Bac 2026)', by: 'Mme Sheena Lo (Direction)', at: '25/08/2026' }, exam: { label: 'Droits Bac', amount: 600_000, due: '2026-10-31' } },
+  { id: 'e4', name: 'RASOAMANANA Fy', cls: '4e', family: 'Famille RASOAMANANA', isNew: true, enrolledOn: '2026-10-12', paid: [],
+    reduction: { typeId: 'PROCHE', motif: 'Fille d\'un ami de l\'établissement', by: 'Mme Sheena Lo (Direction)', at: '12/10/2026' } },
   { id: 'e5', name: 'RAZAFY Kanto', cls: '1re STMG', family: 'Famille RAZAFY', isNew: false, enrolledOn: '2026-09-01',
-    paid: ['REINSCRIPTION', 'FASCICULE', 'LOCATION', 'ECO-09', 'ECO-10'],
+    paid: ['REINSCRIPTION', 'FASCICULE', 'LOCATION', 'CAHIERS', 'ECO-09', 'ECO-10'],
     exam: { label: 'Droits Pré-Bac (EAF)', amount: 450_000, due: '2026-10-31' } },
 ];

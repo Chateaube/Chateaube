@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Badge, Button, Card } from './ui.jsx';
-import { CASH_ACCOUNTS } from './CollectPayment.jsx';
-import { CLASS_FEES } from '../data/accounting.js';
+import { CASH_ACCOUNTS, feesFor } from './CollectPayment.jsx';
+import { REDUCTION_TYPES } from '../data/accounting.js';
 import { studentDues } from '../rules/billing.js';
 import { manualBlocks } from '../rules/manuals.js';
 import { formatAr } from '../rules/finance.js';
@@ -20,9 +20,11 @@ const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) ?? {}; }
 export function handoverBlocks(student, settings, manualsData) {
   const reasons = [];
   const acc = CASH_ACCOUNTS.find((a) => a.name === student);
-  const fees = acc && CLASS_FEES.find((f) => f.cls === acc.cls);
+  const fees = acc && feesFor(acc, manualsData.manuals);
   if (acc && fees) {
-    const overdue = studentDues(acc, fees, settings, TODAY).filter((i) => i.status === 'ECHU');
+    const type = acc.reduction && REDUCTION_TYPES.find((t) => t.id === acc.reduction.typeId);
+    const reduction = type ? { label: type.label, rates: type.rates } : null;
+    const overdue = studentDues({ ...acc, reduction }, fees, settings, TODAY).filter((i) => i.status === 'ECHU');
     if (overdue.length) reasons.push(`Frais impayés : ${overdue.map((i) => i.short ?? i.label).join(', ')} (${formatAr(overdue.reduce((s, i) => s + i.amount, 0))})`);
   }
   return [...reasons, ...manualBlocks(student, manualsData.loans, manualsData.manuals, TODAY)];
