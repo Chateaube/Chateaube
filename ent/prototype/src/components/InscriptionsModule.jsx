@@ -5,6 +5,8 @@ import {
   PREREG_STEPS, PREREG_OTHER, nextPreregStep, nextClass, validateProfile, accountsFor, missingDocuments, REQUIRED_DOCUMENTS,
 } from '../rules/enrollment.js';
 import { loadImport, saveImport } from '../importStore.js';
+import { seniority } from '../rules/documents.js';
+import { CertificateButton } from './Certificate.jsx';
 
 // Inscriptions (Bureau et Direction) : pré-inscriptions, inscription ou réinscription avec
 // création de la fiche élève, puis création des comptes de l'ENT.
@@ -142,7 +144,8 @@ function ProfileForm({ initial, kind, onSave, onCancel }) {
           </Field>
           <Field label="LV1"><select value={p.lv1} onChange={(e) => set({ lv1: e.target.value })} className={`w-full ${inputCls}`}>{LANGUAGES.lv1.map((l) => <option key={l}>{l}</option>)}</select></Field>
           <Field label="LV2"><select value={p.lv2} onChange={(e) => set({ lv2: e.target.value })} className={`w-full ${inputCls}`}>{LANGUAGES.lv2.map((l) => <option key={l}>{l}</option>)}</select></Field>
-          <Field label="Date d'entrée">{input('enteredOn', { type: 'date' })}</Field>
+          <Field label="Entrée dans l'établissement">{input('enteredOn', { type: 'date' })}
+            <span className="mt-1 block text-[11px] text-slate-500">{seniority(p.enteredOn)?.label ?? 'Nouveau ou ancien : indiquer la date d\'entrée'}</span></Field>
           <Field label="Établissement d'origine">{input('previousSchool')}</Field>
         </div>
 
@@ -213,6 +216,7 @@ function ProfileCard({ p, onReenrol, onComplete, created }) {
     <Card title={`${p.lastName} ${p.firstName}`} subtitle={`${p.cls} · né.e le ${fmt(p.birthDate)} à ${p.birthPlace || '—'} · ${p.nationalities.join(', ')}`}
       action={(
         <span className="flex flex-wrap gap-2">
+          <CertificateButton profile={p} />
           <Button variant="secondary" className="!py-1 text-xs" onClick={() => onComplete(p)}>Compléter la fiche</Button>
           {nextClass(p.cls) && <Button variant="secondary" className="!py-1 text-xs" onClick={() => onReenrol(p)}>Réinscrire en {nextClass(p.cls)}</Button>}
         </span>
@@ -222,7 +226,8 @@ function ProfileCard({ p, onReenrol, onComplete, created }) {
         <div className="space-y-1 text-sm">
           {p.number && <p><span className="text-slate-500">N° :</span> {p.number}{p.exam ? ` · ${p.exam}` : ''}</p>}
           {(p.email || p.phones?.length > 0) && <p><span className="text-slate-500">Contact de l'élève :</span> {[p.email, ...(p.phones ?? [])].filter(Boolean).join(' · ')}</p>}
-          <p><span className="text-slate-500">Entrée :</span> {fmt(p.enteredOn)} · {p.previousSchool || '—'}</p>
+          <p><span className="text-slate-500">Entrée :</span> {fmt(p.enteredOn)} · {p.previousSchool || '—'}{' '}
+            {seniority(p.enteredOn) ? <Badge tone={seniority(p.enteredOn).isNew ? 'green' : 'navy'}>{seniority(p.enteredOn).label}</Badge> : <Badge tone="amber">ancienneté à renseigner</Badge>}</p>
           <p><span className="text-slate-500">Langues :</span> {[p.lv1, p.lv2].filter(Boolean).join(', ') || '—'}</p>
           <p><span className="text-slate-500">Santé :</span> {p.health.allergies || '—'}</p>
           <p><span className="text-slate-500">Urgence :</span> {p.health.emergency || '—'}</p>
@@ -263,7 +268,7 @@ const TABS = [['prereg', 'Pré-inscriptions'], ['new', 'Inscrire'], ['profiles',
 // Élèves importés (année en cours) → fiches élèves, à compléter (responsables, santé, pièces…)
 const fromImport = (s) => ({
   id: s.id, number: s.number, lastName: s.lastName, firstName: s.firstName, sex: '', birthDate: s.birthDate, birthPlace: s.birthPlace,
-  nationalities: s.nationalities, cls: s.cls, lv1: '', lv2: '', enteredOn: '', previousSchool: '', exam: s.exam, email: s.email, phones: s.phones,
+  nationalities: s.nationalities, cls: s.cls, lv1: '', lv2: '', enteredOn: s.enteredOn ?? '', previousSchool: '', exam: s.exam, email: s.email, phones: s.phones,
   guardians: [], health: { allergies: '', emergency: '' }, authorizations: { image: false, exit: '' }, documents: [],
 });
 const initialProfiles = () => {
@@ -333,7 +338,7 @@ export default function InscriptionsModule() {
                 <li key={p.id}>
                   <button onClick={() => { setSelected(p.id); setCreated(null); }} className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm ${p.id === selected ? 'bg-navy-50 font-medium text-navy-900' : 'hover:bg-slate-50'}`}>
                     <Avatar name={`${p.firstName} ${p.lastName}`} className="h-7 w-7 text-[10px]" />
-                    <span>{p.lastName} {p.firstName}<span className="block text-xs font-normal text-slate-500">{p.cls}</span></span>
+                    <span>{p.lastName} {p.firstName}<span className="block text-xs font-normal text-slate-500">{p.cls}{seniority(p.enteredOn) ? ` · ${seniority(p.enteredOn).isNew ? 'nouveau' : `ancien, ${seniority(p.enteredOn).years} an${seniority(p.enteredOn).years > 1 ? 's' : ''}`}` : ''}</span></span>
                   </button>
                 </li>
               ))}

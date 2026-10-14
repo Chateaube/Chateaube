@@ -6,6 +6,7 @@ import { formatAr } from '../rules/finance.js';
 import ReceiptTicket from './ReceiptTicket.jsx';
 import { printOnly } from '../print.js';
 import { loadImport } from '../importStore.js';
+import { seniority } from '../rules/documents.js';
 import { CLASSES } from '../data/schoollife.js';
 
 // Comptes de la caisse : comptes détaillés de la démo + les autres élèves des classes
@@ -16,7 +17,9 @@ const importedAccounts = () => {
   const list = imp?.profiles ?? imp?.students;
   if (!list?.length) return null;
   return list.filter((s) => CLASS_FEES.some((f) => f.cls === s.cls)).map((s) => ({
-    id: s.id, name: `${s.lastName} ${s.firstName}`, cls: s.cls, family: `Famille ${s.lastName}`, isNew: false, enrolledOn: '2026-09-01', paid: [],
+    // nouvel élève : frais d'inscription et compte ouvert au mois d'arrivée ; ancien : réinscription
+    id: s.id, name: `${s.lastName} ${s.firstName}`, cls: s.cls, family: `Famille ${s.lastName}`,
+    isNew: seniority(s.enteredOn)?.isNew ?? false, enrolledOn: seniority(s.enteredOn)?.isNew && s.enteredOn > '2026-09-01' ? s.enteredOn : '2026-09-01', paid: [],
   }));
 };
 const DEMO_ACCOUNTS = [

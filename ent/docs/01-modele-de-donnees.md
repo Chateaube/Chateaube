@@ -81,6 +81,13 @@ erDiagram
   autorisé à récupérer l'élève) et l'**inscription** de l'année (`enrollment`). Les comptes de l'ENT (`app_user`) sont créés
   depuis la fiche : élève, et chaque responsable avec son adresse Google (ou un code d'activation remis au bureau).
 
+- **Ancienneté** : nouvel élève ou ancien élève « depuis n ans », calculée à partir de la première inscription dans
+  l'établissement (`min(enrollment.enrolled_on)` ; date d'entrée saisie à l'import pour l'historique antérieur à l'ENT).
+  Elle détermine les frais d'inscription (nouvel élève) ou de réinscription (ancien élève).
+- **Documents officiels** générés depuis la fiche : certificat de scolarité numéroté (`CS-2026-0042`) et bulletins
+  trimestriels selon le modèle de l'établissement (matières et professeurs, compétences, moyennes élève et classe,
+  appréciations, appréciation générale et décision du conseil), une page A4 par élève.
+
 ### Comptes, rôles, SSO
 - **`app_user`** : `google_sub` stocke l'identifiant OIDC Google. **`sso_allowlist`** : les comptes Gmail personnels ne
   permettent pas de filtrer par domaine, on n'autorise donc que les adresses invitées.

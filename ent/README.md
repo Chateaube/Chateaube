@@ -35,6 +35,9 @@ pied à valider), comptabilité, conseils de classe, **vie scolaire** (absences,
 enseignements ; contrôle ligne par ligne (classes, dates, nationalités, téléphones, numéros sautés, doublons) puis import.
 Les données importées restent dans le navigateur de la personne qui importe : elles ne sont ni publiées ni partagées.
 
+**Documents** : certificat de scolarité depuis la fiche élève (ancienneté : nouvel élève ou ancien depuis n ans) ;
+bulletins du trimestre depuis le conseil de classe (aperçu, un bulletin ou toute la classe, une page A4 par élève).
+
 **Bureau (administration / économat)** : accueil ; **Inscriptions** (pré-inscriptions, fiche élève à chaque inscription ou
 réinscription, comptes de l'ENT créés depuis la fiche) ; **Encaisser** (choisir l'élève, ex. *RASOAMANANA Fy* arrivé le 12/10,
 cocher les mois, chèque ou virement avec n° et banque, un reçu par journal) ; **conseils de classe** (exporter vers Excel,

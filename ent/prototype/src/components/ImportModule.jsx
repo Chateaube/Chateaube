@@ -35,6 +35,7 @@ export default function ImportModule() {
   const [staffText, setStaffText] = useState('');
   const [filter, setFilter] = useState('issues');
   const [done, setDone] = useState(null);
+  const [renumber, setRenumber] = useState(true);
 
   const analysis = useMemo(() => (studentsText.trim() ? analyzeStudents(parseTable(studentsText).rows) : null), [studentsText]);
   const assignments = useMemo(() => (staffText.trim() ? parseAssignments(parseTable(staffText).rows) : null), [staffText]);
@@ -49,7 +50,7 @@ export default function ImportModule() {
 
   const doImport = () => {
     const data = {
-      students: analysis ? analysis.students.map((s) => s.student) : current?.students ?? [],
+      students: analysis ? analysis.students.map((s) => (renumber && s.student.suggestedNumber ? { ...s.student, number: s.student.suggestedNumber } : s.student)) : current?.students ?? [],
       assignments: assignments ?? current?.assignments ?? [],
     };
     saveImport(data);
@@ -108,6 +109,7 @@ export default function ImportModule() {
           </div>
           <Card title="Contrôle avant import" subtitle="Rien n'est bloquant sauf les erreurs ; les manques se complètent ensuite dans les fiches élèves"
             action={<Button variant="secondary" className="!py-1 text-xs" onClick={exportToComplete}>Exporter la liste à compléter (Excel)</Button>}>
+            {!analysis.students.some((s) => s.student.enteredOn) && <p className="mb-3 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-900">Ancienneté : ajoutez une colonne « Entrée » (année d'entrée, ex. 2024) ou « Ancienneté » (ex. 2 ans, nouveau) pour distinguer nouveaux et anciens élèves (inscription ou réinscription). Elle peut aussi se saisir ensuite dans chaque fiche.</p>}
             {analysis.nationalityIsExtra && <p className="mb-3 rounded-lg bg-navy-50 p-2.5 text-xs text-navy-900">Colonne « Nationalité (en +) » : chaque élève est malgache, la colonne indique une nationalité en plus (ex. malgache et française). Une case vide = malgache seulement.</p>}
             <div className="flex flex-wrap gap-2">
               {ORDER.filter((c) => analysis.byClass[c]).map((c) => <Badge key={c} tone="navy">{c} : {analysis.byClass[c]}</Badge>)}
@@ -156,6 +158,10 @@ export default function ImportModule() {
           <Button onClick={doImport}>
             Importer {analysis ? `${analysis.students.length} élèves` : ''}{analysis && assignments ? ' et ' : ''}{assignments ? `${assignments.length} professeurs` : ''}
           </Button>
+          {analysis?.students.some((x) => x.student.suggestedNumber) && (
+            <label className="flex items-center gap-1.5 text-xs text-slate-700"><input type="checkbox" checked={renumber} onChange={(e) => setRenumber(e.target.checked)} />
+              Attribuer les n° proposés aux doublons ({analysis.students.filter((x) => x.student.suggestedNumber).map((x) => `${x.student.lastName} → ${x.student.suggestedNumber}`).join(', ')})</label>
+          )}
           {count('error') > 0 && <p className="text-xs text-red-700">{count('error')} ligne(s) avec erreur seront importées telles quelles : corrigez-les ensuite dans les fiches élèves.</p>}
         </div>
       )}

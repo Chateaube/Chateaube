@@ -545,9 +545,13 @@ test('import Excel : classes, téléphones, nationalités, contrôles', () => {
     '3E-003\t3e\tRABE\tLova\t01/02/2012\tAllemande\t\tDNB\t\t',
     '3E-004\t3e\t\t\t\t\t\t\t\t',
     '4E-001\t4e\tRASOA\t\t\t\t\t\t\t',
+    '3E-003\t3e\tRAVO\tNoro\t\t\t\t\t\t',
   ].join('\n');
   const a = analyzeStudents(parseTable(text).rows);
-  assert.equal(a.students.length, 3);
+  assert.equal(a.students.length, 4);
+  const dup = a.students.find((s) => s.student.lastName === 'RAVO');
+  assert.equal(dup.student.suggestedNumber, '3E-004');         // doublon : n° libre proposé
+  assert.notEqual(dup.student.id, '3E-003');                   // identifiant unique malgré le doublon
   assert.deepEqual(a.ignored.map((i) => i.number), ['3E-004']);
   assert.deepEqual(a.gaps, ['3E-002']);
   const lova = a.students.find((s) => s.student.firstName === 'Lova');
@@ -560,4 +564,24 @@ test('import Excel : classes, téléphones, nationalités, contrôles', () => {
   const p = parseAssignments(parseTable('NOM\tMatière\tClasse\nMme Rabe\tSES, Eco-Droit, Spé Mathématiques\t2nde - 1e STMG - Tle STMG').rows);
   // Économie et Droit : deux matières distinctes
   assert.deepEqual(p[0], { name: 'Mme Rabe', subjects: ['SES', 'Économie', 'Droit', 'Spécialité Mathématiques'], classes: ['2de', '1re STMG', 'Terminale STMG'] });
+});
+
+import { seniority, parseEntry, accord, certificateNumber, demoAppreciation, schoolYearLabel } from '../src/rules/documents.js';
+test('ancienneté, certificat, appréciations de démonstration', () => {
+  assert.deepEqual(seniority('2026-09-01'), { isNew: true, years: 0, label: 'Nouvel élève' });
+  assert.equal(seniority('2024-09-02').years, 2);
+  assert.equal(seniority('2024-09-02').label, 'Ancien élève · 2 ans dans l\'établissement');
+  assert.equal(seniority('2026-03-10').years, 1);              // entré en mars 2026 : année 2025-2026
+  assert.equal(seniority(''), null);
+  assert.equal(parseEntry('2024'), '2024-09-01');
+  assert.equal(parseEntry('2 ans'), '2024-09-01');
+  assert.equal(parseEntry('Nouveau'), '2026-09-01');
+  assert.equal(parseEntry('03/09/2022'), '2022-09-03');
+  assert.equal(parseEntry('2023-2024'), '2023-09-01');
+  assert.equal(parseEntry('???'), null);
+  assert.equal(accord('F', 'né', 'née'), 'née');
+  assert.equal(accord('', 'inscrit', 'inscrite'), 'inscrit(e)');
+  assert.equal(certificateNumber(42), 'CS-2026-0042');
+  assert.equal(schoolYearLabel('2026-10-13'), '2026-2027');
+  for (const a of [18, 15, 13, 11, 7, null]) assert.ok(checkAppreciation(demoAppreciation(a)).ok, `appréciation conforme (${a})`);
 });

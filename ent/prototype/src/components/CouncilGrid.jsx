@@ -2,7 +2,10 @@ import React, { useMemo, useState } from 'react';
 import { saveFile } from '../download.js';
 import { Badge, Button, Card, Icon, Stat, StudentSelect } from './ui.jsx';
 import { RulePanel } from './gradeUi.jsx';
-import { TERM, EVALUATIONS, GRADES, CLASS_SUBJECTS, OTHER_AVERAGES, OTHER_FLAGS, COUNCIL_FLAGS, ABSENCES } from '../data/grades.js';
+import { TERM, EVALUATIONS, GRADES, CLASS_SUBJECTS, OTHER_AVERAGES, OTHER_FLAGS, COUNCIL_FLAGS, ABSENCES, TEACHER_COMPETENCIES } from '../data/grades.js';
+import { BulletinSheet } from './Bulletin.jsx';
+import { demoAppreciation } from '../rules/documents.js';
+import { printOnly } from '../print.js';
 import { CLASS_LIST } from '../data/people.js';
 import { studentAverage, generalAverage, classStats, councilProposal, COUNCIL_DECISIONS, fmtAvg, councilCsv } from '../rules/grading.js';
 import { decisionText, checkAppreciation, autoFix } from '../rules/appreciation.js';
@@ -14,6 +17,15 @@ const DECISION = Object.fromEntries(COUNCIL_DECISIONS.map((d) => [d.id, d]));
 const SHORT = { FR: 'Fra', MATHS: 'Math', HG: 'H-G', LVA: 'Ang', LVB: 'Esp', EPS: 'EPS', EMC: 'EMC', MGT: 'Mgt', SGN: 'SGN', DROIT: 'Droit', ECO: 'Éco', AP: 'Arts', MUS: 'Mus', VDC: 'VdC' };
 // Avancement des saisies par matière (démo)
 const ENTRY_STATUS = { LVB: 'En cours (3 / 4 notes)', MUS: 'En cours (2 / 4 notes)' };
+// Matière du conseil → clé de la base de compétences
+const COMP_KEY = { EMC: 'Enseignement moral et civique', 'Histoire-Géographie': 'Histoire-géographie', 'Sc. de gestion et numérique': 'Sciences de gestion et numérique', Musique: 'Éducation musicale' };
+// Bulletin sur une page : 2 compétences au plus, 170 caractères au total
+const shorten = (list) => {
+  const out = [];
+  let n = 0;
+  for (const c of list) { if (n + c.length > 170 && out.length) break; out.push(c.length > 170 ? `${c.slice(0, 167)}…` : c); n += c.length; }
+  return out;
+};
 const tone = (v) => (v === null ? 'text-slate-400' : v < 10 ? 'text-red-700' : v >= 14 ? 'text-emerald-700' : 'text-slate-800');
 
 export default function CouncilGrid({ settings, role }) {
@@ -52,6 +64,20 @@ export default function CouncilGrid({ settings, role }) {
   const written = CLASS_LIST.filter((n) => checkAppreciation(appreciations[n] ?? '').ok).length;
   const flagText = (r) => r.flags.map((f) => `${f.subject} : ${FLAG[f.flag].label}`).join(' / ');
 
+  // Bulletins : une page par élève (modèle de l'établissement)
+  const [bulletinOf, setBulletinOf] = useState(CLASS_LIST[0]);
+  const subjectClassAvg = CLASS_SUBJECTS.map((_, i) => classStats(rows.map((r) => r.subjects[i].avg)).avg);
+  const bulletin = (r) => ({
+    term: TERM.label, year: '2026-2027', student: r.name, cls: '1re STMG', size: rows.length, birth: '', head: 'Mme Ranaivo',
+    rows: r.subjects.filter((s) => s.id !== 'VDC').map((s) => ({
+      label: s.label, teacher: s.teacher, inAverage: s.inAverage, avg: s.avg, classAvg: subjectClassAvg[CLASS_SUBJECTS.findIndex((c) => c.id === s.id)],
+      competencies: shorten((s.service ? TEACHER_COMPETENCIES[s.service] : settings.competencies?.[`${COMP_KEY[s.label] ?? s.label}|1re STMG`] ?? []).slice(0, 2)),
+      appreciation: demoAppreciation(s.avg),
+    })),
+    general: r.general, classGeneral: generalStats.avg, abs: r.abs?.abs ?? 0, late: r.abs?.late ?? 0,
+    generalAppreciation: appreciations[r.name] ?? '', decision: DECISION[decisions[r.name] ?? r.proposal]?.label?.replace('—', '') || '',
+  });
+
   const exportCsv = () => {
     const csv = councilCsv({
       className: '1re STMG', term: TERM.label,
@@ -77,6 +103,7 @@ export default function CouncilGrid({ settings, role }) {
           <label className="flex items-center gap-1.5 text-sm text-slate-600"><input type="checkbox" checked={showRank} onChange={(e) => setShowRank(e.target.checked)} />Afficher le rang</label>
           <Button variant="secondary" onClick={exportCsv}>Exporter (Excel)</Button>
           <Button variant="secondary" onClick={() => window.print()}>Imprimer / afficher</Button>
+          <Button variant="secondary" onClick={() => document.getElementById('bulletins')?.scrollIntoView({ behavior: 'smooth' })}>Bulletins</Button>
         </div>
       </div>
 
@@ -226,6 +253,18 @@ export default function CouncilGrid({ settings, role }) {
           </p>
         ))}
       </section>
+      <Card className="print:hidden" title="Bulletins du trimestre" subtitle="Modèle de l'établissement : matières et professeurs, compétences, moyennes élève et classe, appréciations"
+        action={(
+          <span className="flex flex-wrap gap-2" id="bulletins">
+            <Button variant="secondary" onClick={() => printOnly('.bulletin-one', 'size: A4 portrait; margin: 8mm;')}>Imprimer ce bulletin</Button>
+            <Button onClick={() => printOnly('.bulletins-all', 'size: A4 portrait; margin: 8mm;')}>Imprimer toute la classe ({rows.length})</Button>
+          </span>
+        )}>
+        <StudentSelect students={CLASS_LIST} value={bulletinOf} onChange={setBulletinOf} />
+        <p className="mt-2 text-xs text-slate-500">Appréciations des matières : celles validées par les enseignants (ici, appréciations de démonstration). L'appréciation générale et la décision viennent du conseil ci-dessus.</p>
+        <div className="mt-4 overflow-x-auto rounded-xl bg-slate-100 p-4"><div className="bulletin-one min-w-[760px]"><BulletinSheet b={bulletin(rows.find((r) => r.name === bulletinOf))} /></div></div>
+        <div className="bulletins-all hidden">{rows.map((r) => <BulletinSheet key={r.name} b={bulletin(r)} />)}</div>
+      </Card>
     </div>
   );
 }

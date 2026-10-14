@@ -1,3 +1,5 @@
+import { parseEntry } from './documents.js';
+
 // Import des données existantes (copier-coller depuis Excel, ou fichier CSV) :
 // élèves de l'année en cours et enseignements des professeurs.
 // Les lignes sont normalisées (classes, téléphones, nationalités) et chaque problème est signalé
@@ -93,12 +95,16 @@ export function normalizeStudentRow(row, { nationalityIsExtra = false } = {}) {
   phones.filter((p) => !p.ok).forEach((p) => issues.push({ level: 'warning', text: `Téléphone non reconnu : « ${p.raw} ».` }));
   const exam = EXAMS[strip(col(row, 'Examen'))] ?? (col(row, 'Examen') || null);
   if (/^(3e|Terminale)/.test(cls) && !exam) issues.push({ level: 'warning', text: 'Examen non renseigné.' });
+  // Ancienneté (optionnelle) : « 2024 », « 2 ans », « nouveau », date d'entrée
+  const entryRaw = col(row, 'Entrée', 'Entree', 'Date d\'entrée', 'Année d\'entrée', 'Ancienneté', 'Anciennete');
+  const enteredOn = parseEntry(entryRaw);
+  if (entryRaw && !enteredOn) issues.push({ level: 'warning', text: `Ancienneté illisible : « ${entryRaw} » (ex. 2024, 2 ans, nouveau).` });
   issues.push({ level: 'warning', text: 'Aucun responsable légal (parent ou tuteur) : à compléter.' });
   return {
     student: {
       id: number || `${cls}-${lastName}-${firstName}`, number, cls, lastName: lastName.toUpperCase(), firstName,
       birthDate: dm ? `${dm[3]}-${dm[2]}-${dm[1]}` : '', birthPlace, nationalities: codes.map((c) => c.code).filter(Boolean),
-      exam, email: email.toLowerCase(), phones: phones.filter((p) => p.ok).map((p) => p.value), guardians: [],
+      exam, email: email.toLowerCase(), phones: phones.filter((p) => p.ok).map((p) => p.value), guardians: [], enteredOn: enteredOn ?? '',
     },
     issues,
   };
@@ -113,8 +119,11 @@ export function analyzeStudents(rows, headers = Object.keys(rows[0] ?? {})) {
   for (const row of rows) {
     const r = normalizeStudentRow(row, { nationalityIsExtra });
     if (!r) { ignored.push({ line: row.line, number: col(row, 'N°', 'No') }); continue; }
-    if (r.student.number && byNumber[r.student.number]) r.issues.unshift({ level: 'error', text: `N° ${r.student.number} en double (ligne ${byNumber[r.student.number]}).` });
-    byNumber[r.student.number] = row.line;
+    if (r.student.number && byNumber[r.student.number]) {
+      r.issues.unshift({ level: 'error', text: `N° ${r.student.number} en double (ligne ${byNumber[r.student.number]}).` });
+      r.student.id = `${r.student.number}#${row.line}`; // identifiant unique malgré le doublon
+      r.duplicate = true;
+    } else byNumber[r.student.number] = row.line;
     students.push({ ...r, line: row.line });
   }
   // numéros sautés dans chaque classe (ex. 6E-015 absent entre 6E-014 et 6E-016) : départs ou inscrits jamais venus
@@ -128,6 +137,16 @@ export function analyzeStudents(rows, headers = Object.keys(rows[0] ?? {})) {
     const max = Math.max(...nums);
     const width = (students.find((s) => s.student.number.startsWith(prefix))?.student.number.match(/(\d+)$/)?.[1].length) ?? 3;
     for (let n = 1; n < max; n++) if (!nums.includes(n)) gaps.push(`${prefix}-${String(n).padStart(width, '0')}`);
+  }
+  // Doublons : numéro libre proposé dans la même série (après le plus grand numéro utilisé)
+  for (const s of students.filter((x) => x.duplicate)) {
+    const m = s.student.number.match(/^(.*?)-?(\d+)$/);
+    if (!m) continue;
+    const used = groups[m[1]] ?? [];
+    const next = Math.max(...used) + 1;
+    used.push(next);
+    s.student.suggestedNumber = `${m[1]}-${String(next).padStart(m[2].length, '0')}`;
+    s.issues[0].text += ` N° proposé : ${s.student.suggestedNumber}.`;
   }
   const byClass = students.reduce((acc, { student }) => ({ ...acc, [student.cls]: (acc[student.cls] ?? 0) + 1 }), {});
   return { students, ignored, gaps, byClass, nationalityIsExtra };

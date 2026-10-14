@@ -100,19 +100,19 @@ export const COUNCIL_FLAGS = [
 // --- Conseil de classe : 1re STMG -----------------------------------------------
 // inAverage : faux pour Arts plastiques, Musique et Vie de classe (hors moyenne générale)
 export const CLASS_SUBJECTS = [
-  { id: 'FR', label: 'Français', teacher: 'M. Rabe', inAverage: true, coef: 1 },
-  { id: 'MATHS', label: 'Mathématiques', teacher: 'M. Tojo', inAverage: true, coef: 1 },
-  { id: 'HG', label: 'Histoire-Géographie', teacher: 'M. Rasolo', inAverage: true, coef: 1 },
-  { id: 'LVA', label: 'Anglais', teacher: 'Mme Hery', inAverage: true, coef: 1 },
-  { id: 'LVB', label: 'Espagnol', teacher: 'Mme Lova', inAverage: true, coef: 1 },
-  { id: 'EPS', label: 'EPS', teacher: 'M. Rado', inAverage: true, coef: 1 },
+  { id: 'FR', label: 'Français', teacher: 'Mme Nathalie', inAverage: true, coef: 1 },
+  { id: 'MATHS', label: 'Mathématiques', teacher: 'M. Steven', inAverage: true, coef: 1 },
+  { id: 'HG', label: 'Histoire-Géographie', teacher: 'Mme Felana', inAverage: true, coef: 1 },
+  { id: 'LVA', label: 'Anglais', teacher: 'Mme Pasimiry', inAverage: true, coef: 1 },
+  { id: 'LVB', label: 'Espagnol', teacher: 'Mme Henriette', inAverage: true, coef: 1 },
+  { id: 'EPS', label: 'EPS', teacher: 'Mme Elise', inAverage: true, coef: 1 },
   { id: 'EMC', label: 'EMC', teacher: 'Mme Ranaivo', inAverage: true, coef: 1, service: 's3' },
   { id: 'MGT', label: 'Management', teacher: 'Mme Ranaivo', inAverage: true, coef: 1, service: 's1' },
-  { id: 'SGN', label: 'Sc. de gestion et numérique', teacher: 'M. Andry', inAverage: true, coef: 1 },
-  { id: 'DROIT', label: 'Droit', teacher: 'Mme Holy', inAverage: true, coef: 1 },
+  { id: 'SGN', label: 'Sc. de gestion et numérique', teacher: 'M. Fortuna', inAverage: true, coef: 1 },
+  { id: 'DROIT', label: 'Droit', teacher: 'Mme Karele', inAverage: true, coef: 1 },
   { id: 'ECO', label: 'Économie', teacher: 'Mme Karele', inAverage: true, coef: 1 },
-  { id: 'AP', label: 'Arts plastiques', teacher: 'Mme Haja', inAverage: false, coef: 1 },
-  { id: 'MUS', label: 'Musique', teacher: 'M. Faly', inAverage: false, coef: 1 },
+  { id: 'AP', label: 'Arts plastiques', teacher: 'à désigner', inAverage: false, coef: 1 },
+  { id: 'MUS', label: 'Musique', teacher: 'à désigner', inAverage: false, coef: 1 },
   { id: 'VDC', label: 'Vie de classe', teacher: 'Mme Ranaivo', inAverage: false, coef: 1 },
 ];
 
