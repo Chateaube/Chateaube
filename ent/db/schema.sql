@@ -48,7 +48,7 @@ CREATE TYPE booking_status    AS ENUM ('CONFIRMEE', 'ANNULEE');
 
 CREATE TYPE audience_role     AS ENUM ('TOUS', 'PROFESSEUR', 'PARENT', 'ELEVE', 'PERSONNEL');
 -- Pas de SMS (aucun budget prévu) : e-mail et notification de l'application
-CREATE TYPE notif_channel     AS ENUM ('EMAIL', 'PUSH');
+CREATE TYPE notif_channel     AS ENUM ('EMAIL', 'PUSH', 'WHATSAPP'); -- pas de SMS (budget)
 CREATE TYPE notif_reason      AS ENUM ('RETARD', 'ABSENCE', 'DISCIPLINE', 'DOCUMENT_MANQUANT', 'IMPAYE', 'AUTRE');
 CREATE TYPE delivery_status   AS ENUM ('EN_ATTENTE', 'ENVOYE', 'DELIVRE', 'ECHEC');
 

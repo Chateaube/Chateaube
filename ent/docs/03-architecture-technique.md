@@ -97,6 +97,13 @@ Le contrôleur est la vraie garantie : il s'applique aussi aux textes écrits en
 - **Relance des accusés de lecture** : si la case « Je suis informé.e » n'est pas cochée au bout de 48 h
   (`school_life_policy.ack_reminder_hours`), une relance part par e-mail et dans l'application (`v_pending_parent_ack`).
 - Les annonces ciblées sont calculées à l'envoi à partir de `announcement_audience` (OU entre lignes, ET dans une ligne).
+- **WhatsApp** (canal `WHATSAPP`, optionnel, par responsable coché « WhatsApp » sur la fiche élève) : deux possibilités.
+  1. *Automatique* : API WhatsApp Business (Meta, directement ou via un prestataire). Payant à chaque message, avec des
+     modèles de messages validés à l'avance (relance, absence, accusé). Le tarif dépend du pays et du type de message.
+  2. *Manuel, gratuit* : un bouton « Envoyer sur WhatsApp » ouvre WhatsApp sur le téléphone du bureau avec le message
+     prérempli (lien `wa.me`). Aucun coût, mais une personne doit appuyer sur « Envoyer ».
+- **Messagerie** : tous les profils (Direction, Bureau, Vie scolaire, enseignants, parents, élèves) écrivent et joignent des
+  photos (4 au plus, compressées à l'envoi, stockées chiffrées) ; un parent n'écrit qu'aux personnels de l'établissement.
 
 ## 3.7 Sécurité & conformité
 
@@ -104,6 +111,19 @@ Le contrôleur est la vraie garantie : il s'applique aussi aux textes écrits en
 - Journal d'audit sur les actions sensibles ; conservation des données limitée et documentée (données de mineurs).
 - Les données personnelles envoyées au fournisseur d'IA sont réduites au strict minimum, sans conservation chez le fournisseur.
 - Sauvegardes quotidiennes avec test de restauration trimestriel.
+- **Ordinateur et téléphone** : chaque compte (Direction, Bureau, Vie scolaire, enseignant, parent, élève) se connecte avec
+  le même compte Google sur n'importe quel appareil ; l'interface s'adapte à la taille de l'écran et s'installe comme une
+  application (PWA) sur le téléphone.
+- **Captures d'écran** (tous les profils sauf Direction et Bureau) : un site web ne peut pas les interdire. Le prototype
+  applique ce qui est possible dans un navigateur :
+  - écran noir dès que la page perd le focus (outil de capture, changement d'application) et à l'appui sur « Impr. écran » ;
+  - impression noircie ;
+  - filigrane discret au nom de la personne connectée, pour qu'une capture qui circule soit identifiable.
+
+  Le blocage complet passe par l'**application mobile** (la PWA empaquetée avec Capacitor) :
+  - *Android* : option `FLAG_SECURE`. Capture et enregistrement donnent un écran noir, et l'aperçu des applications aussi.
+  - *iPhone* : une capture ne peut pas être empêchée. L'écran est masqué pendant un enregistrement ou une recopie
+    (`UIScreen.isCaptured`), et une capture peut être détectée puis signalée.
 
 ## 3.8 Feuille de route proposée
 

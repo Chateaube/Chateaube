@@ -22,8 +22,9 @@ entre frais de scolarité et droits d'examen.
 Ouvrir `prototype/dist/index.html` dans un navigateur : un seul fichier, sans serveur ni connexion. Les données sont fictives
 et la date de référence est fixée au 13 octobre 2026 (relances de frais de scolarité suspendues, campagne des candidats libres en cours).
 
-Le sélecteur **« Voir l'ENT en tant que »** (en haut du menu) bascule entre les six portails. La charte visuelle
-(bleu de l'établissement, couleurs d'état franches, titres Fraunces, cartes arrondies) est décrite dans
+Le bandeau noir du prototype, tout en haut, permet de **voir l'ENT en tant que** l'un des six profils, de choisir
+l'**ambiance** (Océan, Aurore, Classique, Élégant) et d'activer la **protection d'écran**. Le menu est dans la barre du haut.
+La charte visuelle (bleu de l'établissement, polices Poppins, Quicksand et Alice) est décrite dans
 [`docs/02-architecture-ux.md`](docs/02-architecture-ux.md#21-principes-de-conception).
 
 **Direction (administrateur)** : tableau de bord (changer la *date de référence* au 10/11/2026 pour voir des mises à

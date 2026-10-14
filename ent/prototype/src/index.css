@@ -1,28 +1,19 @@
 @import "tailwindcss";
 
 /*
- * Thème : couleurs franches de l'établissement, formes et typographie douces.
- *  - bleu institutionnel #003366 / #005baa (menu, actions), couleurs d'état vives
- *    (vert = conforme, ambre = à surveiller, rouge = bloquant, violet = examens / IA) ;
- *  - cartes arrondies à ombre légère, boutons en pilule, une touche corail pour l'élément actif ;
- *  - titres en Fraunces (serif douce), texte en Plus Jakarta Sans (ronde, très lisible).
+ * Thèmes : couleurs de l'établissement (#003366 / #005baa), quatre ambiances au choix
+ * (Classique, Océan, Aurore, Élégant), menu dans la barre du haut.
+ * Polices (uniquement) : Poppins (titres, comme le logo), Quicksand (texte), Alice (titres élégants).
+ * « Now » sera ajoutée dès que le fichier de police sera fourni.
  * Les polices sont incluses dans le fichier (latin uniquement) : le prototype reste hors ligne.
  */
 
-@font-face {
-  font-family: 'Plus Jakarta Sans';
-  font-style: normal;
-  font-display: swap;
-  font-weight: 200 800;
-  src: url(../node_modules/@fontsource-variable/plus-jakarta-sans/files/plus-jakarta-sans-latin-wght-normal.woff2) format('woff2-variations');
-}
-@font-face {
-  font-family: 'Fraunces';
-  font-style: normal;
-  font-display: swap;
-  font-weight: 100 900;
-  src: url(../node_modules/@fontsource-variable/fraunces/files/fraunces-latin-wght-normal.woff2) format('woff2-variations');
-}
+@font-face { font-family: 'Poppins'; font-style: normal; font-weight: 400; font-display: swap; src: url(../node_modules/@fontsource/poppins/files/poppins-latin-400-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Poppins'; font-style: normal; font-weight: 500; font-display: swap; src: url(../node_modules/@fontsource/poppins/files/poppins-latin-500-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Poppins'; font-style: normal; font-weight: 600; font-display: swap; src: url(../node_modules/@fontsource/poppins/files/poppins-latin-600-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Poppins'; font-style: normal; font-weight: 700; font-display: swap; src: url(../node_modules/@fontsource/poppins/files/poppins-latin-700-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Quicksand'; font-style: normal; font-weight: 300 700; font-display: swap; src: url(../node_modules/@fontsource-variable/quicksand/files/quicksand-latin-wght-normal.woff2) format('woff2-variations'); }
+@font-face { font-family: 'Alice'; font-style: normal; font-weight: 400; font-display: swap; src: url(../node_modules/@fontsource/alice/files/alice-latin-400-normal.woff2) format('woff2'); }
 
 @theme {
   /* Couleurs institutionnelles reprises du site vitrine (#003366 / #005baa) */
@@ -45,23 +36,71 @@
 
   --color-paper: #f4f7fb;
 
-  --font-sans: "Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
-  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-sans: var(--theme-sans, "Quicksand", "Segoe UI", system-ui, sans-serif);
+  --font-display: var(--theme-display, "Poppins", "Segoe UI", system-ui, sans-serif);
 
   --shadow-soft: 0 1px 2px rgb(0 51 102 / 0.05), 0 10px 30px -14px rgb(0 51 102 / 0.18);
 }
 
-body {
-  @apply bg-paper text-slate-800 antialiased;
-  font-feature-settings: "ss01", "cv11";
+/* ---- Ambiances ---- */
+:root {
+  --theme-sans: "Quicksand", "Segoe UI", system-ui, sans-serif;
+  --theme-display: "Now", "Poppins", "Segoe UI", system-ui, sans-serif;
+  --topbar: #003366;
+  --topbar-fg: #ffffff;
+  --topbar-muted: #a9c6e8;
+  --page: #f4f7fb;
+  --h1: #003366;
+  --hero: linear-gradient(135deg, #003366, #005baa);
+}
+:root[data-theme="ocean"] {
+  --topbar: linear-gradient(100deg, #002a55 0%, #005baa 55%, #1aa3c8 100%);
+  --page: radial-gradient(1100px 520px at 0% -10%, #dbeafe 0%, transparent 60%),
+          radial-gradient(900px 420px at 100% 0%, #cffafe 0%, transparent 55%), #f5f9fc;
+  --h1: linear-gradient(90deg, #003366, #0b84c6 60%, #12a5b8);
+  --hero: linear-gradient(120deg, #003366, #005baa 55%, #1aa3c8);
+}
+:root[data-theme="aurore"] {
+  --theme-display: "Alice", Georgia, serif;
+  --topbar: linear-gradient(100deg, #1e1b4b 0%, #3730a3 40%, #a21caf 78%, #fb7185 100%);
+  --topbar-muted: #e9d5ff;
+  --page: radial-gradient(1000px 500px at 0% -10%, #ede9fe 0%, transparent 60%),
+          radial-gradient(900px 460px at 100% 0%, #ffe4e6 0%, transparent 55%), #fbf9fd;
+  --h1: linear-gradient(90deg, #312e81, #a21caf 65%, #e11d48);
+  --hero: linear-gradient(120deg, #312e81, #a21caf 60%, #fb7185);
+}
+:root[data-theme="elegant"] {
+  --theme-sans: "Poppins", "Segoe UI", system-ui, sans-serif;
+  --theme-display: "Alice", Georgia, serif;
+  --topbar: #ffffff;
+  --topbar-fg: #003366;
+  --topbar-muted: #64748b;
+  --page: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  --h1: #003366;
+  --hero: linear-gradient(120deg, #003366, #00427f 60%, #b08d2e);
 }
 
-/* Titres de page : serif douce, moins « tableau de bord » */
+body {
+  @apply text-slate-800 antialiased;
+  background: var(--page);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+/* Titres de page : police de titre du thème, dégradé dans les ambiances colorées */
 h1 {
   font-family: var(--font-display);
   font-weight: 600;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.01em;
 }
+main h1 { color: #003366; }
+:root[data-theme="ocean"] main h1, :root[data-theme="aurore"] main h1 {
+  background-image: var(--h1);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+:root[data-theme="elegant"] main h1 { font-weight: 400; letter-spacing: 0; }
 
 /*
  * Champs de formulaire : coins arrondis, bordure chaude, focus visible et doux.
@@ -90,6 +129,17 @@ main thead th { font-weight: 600; color: var(--color-slate-500); }
 /* Consultation (Direction, Bureau) : lecture seule, seules la navigation et les onglets restent actifs */
 .consultation input:not(.nav-control), .consultation textarea { pointer-events: none; background-color: var(--color-slate-50); }
 .consultation button:not(.nav-control):not([role=tab]) { display: none; }
+
+/* Protection d'écran : filigrane nominatif et impression noircie (hors Direction et Bureau) */
+.screen-watermark {
+  position: fixed; inset: -50%; z-index: 90; pointer-events: none; user-select: none;
+  transform: rotate(-24deg); font-size: 13px; line-height: 64px; word-spacing: 6px;
+  color: rgb(0 51 102 / 0.045); overflow: hidden; white-space: normal;
+}
+@media print {
+  .screen-guard > * { visibility: hidden !important; }
+  .screen-guard { background: #000 !important; min-height: 100vh; }
+}
 
 ::selection { background: var(--color-navy-100); }
 

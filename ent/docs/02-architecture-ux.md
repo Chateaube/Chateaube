@@ -16,9 +16,11 @@
 
 | Élément | Choix |
 |---|---|
-| Couleurs d'identité | bleu institutionnel `#003366` (menu latéral, en-têtes) et `#005baa` (actions), repris du site vitrine ; fond bleu très clair `#f4f7fb` |
+| Couleurs d'identité | bleu institutionnel `#003366` et `#005baa` (actions), repris du site vitrine et du logo (pilier, 1994) |
+| Ambiances (au choix de chaque utilisateur) | **Océan** (dégradé bleu → turquoise), **Aurore** (dégradé indigo → violet → corail), **Classique** (bleu uni), **Élégant** (barre claire, titres Alice) |
+| Menu | uniquement dans la **barre du haut** : rubriques déroulantes ; sur téléphone, un bouton menu |
 | Sémantique constante | vert = conforme/payé, ambre = à surveiller, rouge = bloquant, violet = droits d'examen ou IA ; une barre de couleur sur chaque indicateur |
-| Typographie | titres en **Fraunces** (serif douce), texte en **Plus Jakarta Sans** (ronde, très lisible), incluses hors ligne |
+| Typographie | **Poppins** (titres, comme le logo), **Quicksand** (texte), **Alice** (titres des ambiances Aurore et Élégant) ; « Now » sera ajoutée dès réception du fichier de police |
 | Formes | cartes arrondies (16 px) à ombre légère, boutons et étiquettes en pilule, champs arrondis |
 | Repères humains | salutation personnalisée (« Bonjour Mme Ranaivo »), pastilles d'initiales colorées, une couleur stable par matière |
 | Ton | phrases en minuscules plutôt que des libellés en capitales, vocabulaire de l'établissement |

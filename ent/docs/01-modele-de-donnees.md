@@ -122,7 +122,7 @@ Règles validées par la Direction pour **Tamatave** (Tana sera paramétré plus
 | Jours comptés | lundi → vendredi, hors jours fériés, vacances et fermetures | `counted_weekdays`, `calendar_day_off` |
 | Mois de relance | tous, sauf **octobre** (gelé : droits d'examen) | `dunning_month` |
 | Plan de frais de scolarité | 6e → 2de : septembre → juin (10 mois) ; **1re et Tle : septembre → mai (9 mois)** | `tuition_cutoff_rule` |
-| Canaux | e-mail + notification de l'application (**pas de SMS**, faute de budget) | `channels` |
+| Canaux | e-mail + notification de l'application, WhatsApp en option (**pas de SMS**, faute de budget) | `channels` |
 
 - **`calendar_day_off`** : jours fériés de Madagascar (tous sites) et vacances/fermetures (par site). L'écran *Paramètres*
   peut générer automatiquement les fériés, y compris les fêtes mobiles (Pâques, Ascension, Pentecôte).
