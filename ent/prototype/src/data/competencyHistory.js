@@ -1343,11 +1343,11 @@ export const COMPETENCY_HISTORY = {
     ] },
   ],
   "Mathématiques|1re G": [
-    { teacher: "M. ASSANALY", items: [
+    { teacher: "M. HASSANALY", items: [
       "Fonctions polynomiales du second degré",
       "Probabilités conditionnelles et utilisation des arbres pondérés",
     ] },
-    { teacher: "M. ASSANALY", items: [
+    { teacher: "M. HASSANALY", items: [
       "Connaître et utiliser les formules permettant de calculer la somme de termes consécutifs d'une suite arithmétique et d'une suite géométrique",
       "Maîtriser et exploiter les règles de dérivation des fonctions usuelles",
       "Mobiliser et appliquer les différentes méthodes de calcul du produit scalaire",
@@ -1399,7 +1399,7 @@ export const COMPETENCY_HISTORY = {
     ] },
   ],
   "Spécialité Mathématiques|1re G": [
-    { teacher: "M. ASSANALY", items: [
+    { teacher: "M. HASSANALY", items: [
       "Choisir, manipuler et exploiter des outils graphiques, géométriques ou numériques (tableaux de variations, courbes représentatives)",
       "Développer les capacités d'analyse globale et d'interprétation graphique des fonctions et des données numériques",
     ] },
@@ -1751,7 +1751,7 @@ export const COMPETENCY_HISTORY = {
       "Étudier les suites, limites et récurrence",
       "Géométrie dans l'espace : position relative des objets, produit scalaire",
     ] },
-    { teacher: "M. ASSANALY", items: [
+    { teacher: "M. HASSANALY", items: [
       "Analyser la fonction logarithme, ses propriétés et son utilisation dans les primitives et l'intégration",
       "Résoudre des problèmes de probabilité, en utilisant la variable aléatoire et la loi binomiale",
     ] },

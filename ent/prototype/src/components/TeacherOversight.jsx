@@ -2,17 +2,22 @@ import React, { useState } from 'react';
 import { Avatar, Card } from './ui.jsx';
 import GradebookModule from './GradebookModule.jsx';
 import HomeworkModule from './HomeworkModule.jsx';
-import { COMPETENCY_HISTORY } from '../data/competencyHistory.js';
+import { ASSIGNMENTS } from '../data/staffAssignments.js';
+import { loadImport } from '../importStore.js';
 import { TEACHER } from '../data/people.js';
 
 // Direction et Bureau : consultation des notes, appréciations et du cahier de textes de chaque
 // enseignant.e. Lecture seule ; la Direction peut passer en modification (administratrice).
-const fromHistory = [...new Set(Object.values(COMPETENCY_HISTORY).flatMap((sets) => sets.map((s) => s.teacher)))]
-  .map((t) => (t === 'M. ASSANALY' ? 'M. HASSANALY' : t));
-export const TEACHERS = [TEACHER.name, ...[...new Set(fromHistory)].sort()];
-const subjectsOf = (t) => [...new Set(Object.entries(COMPETENCY_HISTORY)
-  .filter(([, sets]) => sets.some((s) => s.teacher === t || (t === 'M. HASSANALY' && s.teacher === 'M. ASSANALY')))
-  .map(([k]) => k.split('|')[0]))].join(', ');
+// Enseignements de l'année : liste importée par l'établissement, sinon la liste de référence
+const assignments = () => {
+  const imp = loadImport();
+  return imp?.assignments?.length ? imp.assignments : ASSIGNMENTS;
+};
+export const TEACHERS = [TEACHER.name, ...assignments().map((a) => a.name)];
+const subjectsOf = (t) => {
+  const a = assignments().find((x) => x.name === t);
+  return a ? `${a.subjects.join(', ')} · ${a.classes.join(', ')}` : '';
+};
 
 export default function TeacherOversight({ view, role, ...props }) {
   const [teacher, setTeacher] = useState(TEACHERS[0]);

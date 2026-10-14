@@ -16,6 +16,7 @@ import FamilyPortal from './components/FamilyPortal.jsx';
 import InscriptionsModule from './components/InscriptionsModule.jsx';
 import TeacherOversight from './components/TeacherOversight.jsx';
 import Messenger from './components/Messenger.jsx';
+import ImportModule from './components/ImportModule.jsx';
 import pillar from './assets/pilier.png';
 import { useScreenGuard } from './screenGuard.js';
 
@@ -41,6 +42,7 @@ const MESSAGES = { id: 'messages', label: 'Messages', icon: 'bell', screen: () =
     <Messenger audience="STAFF" />
   </div>
 ) };
+const IMPORT = { id: 'import', label: 'Importer des données (Excel)', icon: 'swap', screen: ImportModule };
 const FOLLOW_UP = { id: 'followup', label: 'Documents, stages & orientation', icon: 'pen', screen: FollowUpModule };
 
 const PROFILES = {
@@ -70,6 +72,7 @@ const PROFILES = {
       ] },
       { group: 'Administration', items: [
         { id: 'staff', label: 'Gestion des agents', icon: 'users', screen: StaffModule },
+        IMPORT,
         { id: 'settings', label: 'Paramètres', icon: 'settings', screen: SettingsModule },
       ] },
     ],
@@ -83,6 +86,7 @@ const PROFILES = {
         { id: 'bureau', label: 'Accueil', icon: 'home', screen: BureauHome },
         { id: 'accounting', label: 'Encaissements & comptabilité', icon: 'wallet', screen: AccountingModule },
         INSCRIPTIONS,
+        IMPORT,
         COUNCIL,
         ...OVERSIGHT,
       ] },

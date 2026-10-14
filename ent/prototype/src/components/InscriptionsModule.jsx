@@ -4,7 +4,7 @@ import { PREREGISTRATIONS, STUDENT_PROFILES, ENROLL_CLASSES, LANGUAGES, RELATION
 import {
   PREREG_STEPS, PREREG_OTHER, nextPreregStep, nextClass, validateProfile, accountsFor, missingDocuments, REQUIRED_DOCUMENTS,
 } from '../rules/enrollment.js';
-import { formatDateFr } from '../rules/calendar.js';
+import { loadImport, saveImport } from '../importStore.js';
 
 // Inscriptions (Bureau et Direction) : pré-inscriptions, inscription ou réinscription avec
 // création de la fiche élève, puis création des comptes de l'ENT.
@@ -104,15 +104,15 @@ function Field({ label, children, className = '' }) {
 function ProfileForm({ initial, kind, onSave, onCancel }) {
   const [p, setP] = useState(initial);
   const [tried, setTried] = useState(false);
-  const errors = validateProfile(p, { kind });
+  const errors = validateProfile(p, { kind: kind === 'INSCRIPTION' ? 'INSCRIPTION' : 'REINSCRIPTION' });
   const set = (patch) => setP({ ...p, ...patch });
   const setG = (i, patch) => set({ guardians: p.guardians.map((g, k) => (k === i ? { ...g, ...patch } : patch.payer ? { ...g, payer: false } : g)) });
   const toggleDoc = (id) => set({ documents: p.documents.includes(id) ? p.documents.filter((d) => d !== id) : [...p.documents, id] });
   const input = (k, extra = {}) => <input value={p[k]} onChange={(e) => set({ [k]: e.target.value })} className={`w-full ${inputCls}`} {...extra} />;
   return (
     <div className="space-y-5">
-      <Card title={kind === 'REINSCRIPTION' ? `Réinscription 2027-2028 — ${p.firstName} ${p.lastName}` : 'Inscription — nouvelle fiche élève'}
-        subtitle={kind === 'REINSCRIPTION' ? 'La fiche existante est reprise : vérifier et mettre à jour avec la famille' : 'Toutes les informations de l\'élève, réutilisées partout dans l\'ENT'}>
+      <Card title={kind === 'REINSCRIPTION' ? `Réinscription 2027-2028 — ${p.firstName} ${p.lastName}` : kind === 'COMPLETER' ? `Compléter la fiche — ${p.firstName} ${p.lastName}` : 'Inscription — nouvelle fiche élève'}
+        subtitle={kind === 'INSCRIPTION' ? 'Toutes les informations de l\'élève, réutilisées partout dans l\'ENT' : 'La fiche existante est reprise : vérifier et compléter avec la famille'}>
         <h4 className="mb-2 text-sm font-semibold text-slate-800">Identité</h4>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="Nom">{input('lastName')}</Field>
@@ -185,7 +185,7 @@ function ProfileForm({ initial, kind, onSave, onCancel }) {
           <div>
             <h4 className="mb-2 text-sm font-semibold text-slate-800">Pièces du dossier</h4>
             <ul className="space-y-1">
-              {REQUIRED_DOCUMENTS.filter((d) => !(d.newOnly && kind === 'REINSCRIPTION')).map((d) => (
+              {REQUIRED_DOCUMENTS.filter((d) => !(d.newOnly && kind !== 'INSCRIPTION')).map((d) => (
                 <li key={d.id}><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={p.documents.includes(d.id)} onChange={() => toggleDoc(d.id)} />{d.label}</label></li>
               ))}
             </ul>
@@ -196,7 +196,7 @@ function ProfileForm({ initial, kind, onSave, onCancel }) {
           <ul className="mt-4 space-y-0.5 rounded-xl bg-red-50 p-3 text-sm text-red-800">{errors.map((e) => <li key={e}>· {e}</li>)}</ul>
         )}
         <div className="mt-4 flex flex-wrap gap-2">
-          <Button onClick={() => { setTried(true); if (!errors.length) onSave(p); }}>{kind === 'REINSCRIPTION' ? 'Valider la réinscription' : 'Créer la fiche et inscrire'}</Button>
+          <Button onClick={() => { setTried(true); if (!errors.length) onSave(p); }}>{{ REINSCRIPTION: 'Valider la réinscription', COMPLETER: 'Enregistrer la fiche' }[kind] ?? 'Créer la fiche et inscrire'}</Button>
           <Button variant="secondary" onClick={onCancel}>Annuler</Button>
           <p className="self-center text-xs text-slate-500">Les frais d'inscription ou de réinscription s'ajoutent ensuite au compte de l'élève, dans « Encaisser ».</p>
         </div>
@@ -206,17 +206,24 @@ function ProfileForm({ initial, kind, onSave, onCancel }) {
 }
 
 /* ---------- Fiches élèves ---------- */
-function ProfileCard({ p, onReenrol, created }) {
+function ProfileCard({ p, onReenrol, onComplete, created }) {
   const missing = missingDocuments(p, 'REINSCRIPTION');
   const accounts = accountsFor(p);
   return (
     <Card title={`${p.lastName} ${p.firstName}`} subtitle={`${p.cls} · né.e le ${fmt(p.birthDate)} à ${p.birthPlace || '—'} · ${p.nationalities.join(', ')}`}
-      action={nextClass(p.cls) && <Button variant="secondary" className="!py-1 text-xs" onClick={() => onReenrol(p)}>Réinscrire en {nextClass(p.cls)}</Button>}>
+      action={(
+        <span className="flex flex-wrap gap-2">
+          <Button variant="secondary" className="!py-1 text-xs" onClick={() => onComplete(p)}>Compléter la fiche</Button>
+          {nextClass(p.cls) && <Button variant="secondary" className="!py-1 text-xs" onClick={() => onReenrol(p)}>Réinscrire en {nextClass(p.cls)}</Button>}
+        </span>
+      )}>
       {created && <p className="mb-3 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">Fiche enregistrée. Les comptes ci-dessous sont prêts : invitations envoyées par e-mail et dans l'application.</p>}
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-1 text-sm">
-          <p><span className="text-slate-500">Entrée :</span> {fmt(p.enteredOn)} · {p.previousSchool}</p>
-          <p><span className="text-slate-500">Langues :</span> {p.lv1}, {p.lv2}</p>
+          {p.number && <p><span className="text-slate-500">N° :</span> {p.number}{p.exam ? ` · ${p.exam}` : ''}</p>}
+          {(p.email || p.phones?.length > 0) && <p><span className="text-slate-500">Contact de l'élève :</span> {[p.email, ...(p.phones ?? [])].filter(Boolean).join(' · ')}</p>}
+          <p><span className="text-slate-500">Entrée :</span> {fmt(p.enteredOn)} · {p.previousSchool || '—'}</p>
+          <p><span className="text-slate-500">Langues :</span> {[p.lv1, p.lv2].filter(Boolean).join(', ') || '—'}</p>
           <p><span className="text-slate-500">Santé :</span> {p.health.allergies || '—'}</p>
           <p><span className="text-slate-500">Urgence :</span> {p.health.emergency || '—'}</p>
           <p><span className="text-slate-500">Autorisations :</span> image {p.authorizations.image ? 'oui' : 'non'} · {p.authorizations.exit}</p>
@@ -224,6 +231,7 @@ function ProfileCard({ p, onReenrol, created }) {
         </div>
         <div>
           <p className="mb-1 text-xs font-semibold text-slate-500">Responsables</p>
+          {p.guardians.length === 0 && <p className="rounded-lg bg-amber-50 p-2 text-sm text-amber-800">Aucun responsable légal : à compléter avant de créer les comptes parents.</p>}
           <ul className="space-y-1.5 text-sm">
             {p.guardians.map((g) => (
               <li key={g.name} className="flex items-start gap-2">
@@ -252,12 +260,24 @@ function ProfileCard({ p, onReenrol, created }) {
 
 const TABS = [['prereg', 'Pré-inscriptions'], ['new', 'Inscrire'], ['profiles', 'Fiches élèves']];
 
+// Élèves importés (année en cours) → fiches élèves, à compléter (responsables, santé, pièces…)
+const fromImport = (s) => ({
+  id: s.id, number: s.number, lastName: s.lastName, firstName: s.firstName, sex: '', birthDate: s.birthDate, birthPlace: s.birthPlace,
+  nationalities: s.nationalities, cls: s.cls, lv1: '', lv2: '', enteredOn: '', previousSchool: '', exam: s.exam, email: s.email, phones: s.phones,
+  guardians: [], health: { allergies: '', emergency: '' }, authorizations: { image: false, exit: '' }, documents: [],
+});
+const initialProfiles = () => {
+  const imp = loadImport();
+  if (imp?.profiles?.length) return imp.profiles;
+  return imp?.students?.length ? imp.students.map(fromImport) : STUDENT_PROFILES;
+};
+
 export default function InscriptionsModule() {
   const [tab, setTab] = useState('prereg');
   const [prereg, setPrereg] = useState(PREREGISTRATIONS);
-  const [profiles, setProfiles] = useState(STUDENT_PROFILES);
+  const [profiles, setProfiles] = useState(initialProfiles);
   const [form, setForm] = useState(null); // { initial, kind, preregId? }
-  const [selected, setSelected] = useState(STUDENT_PROFILES[0].id);
+  const [selected, setSelected] = useState(() => initialProfiles()[0]?.id);
   const [created, setCreated] = useState(null);
   const [query, setQuery] = useState('');
 
@@ -271,10 +291,14 @@ export default function InscriptionsModule() {
     setForm({ initial: base, kind: 'INSCRIPTION', preregId: from?.id });
     setTab('new');
   };
+  const complete = (p) => { setForm({ initial: { ...p, guardians: p.guardians.length ? p.guardians : [{ ...emptyGuardian(), payer: true }] }, kind: 'COMPLETER' }); setTab('new'); };
   const reenrol = (p) => { setForm({ initial: { ...p, cls: nextClass(p.cls) }, kind: 'REINSCRIPTION' }); setTab('new'); };
   const save = (p) => {
     const id = p.id ?? `f${Date.now()}`;
-    setProfiles(p.id ? profiles.map((x) => (x.id === p.id ? p : x)) : [...profiles, { ...p, id }]);
+    const next = p.id ? profiles.map((x) => (x.id === p.id ? p : x)) : [...profiles, { ...p, id }];
+    setProfiles(next);
+    const imp = loadImport();
+    if (imp) saveImport({ ...imp, profiles: next }); // données importées : les fiches complétées restent dans ce navigateur
     if (form.preregId) setPrereg(prereg.map((x) => (x.id === form.preregId ? { ...x, status: 'INSCRITE' } : x)));
     setSelected(id); setCreated(id); setForm(null); setTab('profiles');
   };
@@ -315,7 +339,7 @@ export default function InscriptionsModule() {
               ))}
             </ul>
           </Card>
-          {current && <ProfileCard p={current} onReenrol={reenrol} created={created === current.id} />}
+          {current && <ProfileCard p={current} onReenrol={reenrol} onComplete={complete} created={created === current.id} />}
         </div>
       )}
     </div>

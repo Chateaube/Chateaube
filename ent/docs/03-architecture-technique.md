@@ -107,6 +107,12 @@ Le contrôleur est la vraie garantie : il s'applique aussi aux textes écrits en
 
 ## 3.7 Sécurité & conformité
 
+- **Reprise des données existantes** : import des élèves (N°, classe, nom, prénom, date et lieu de naissance, nationalité,
+  examen, e-mail, téléphone) et des enseignements (professeur, matières, classes) depuis Excel ou CSV. Mêmes règles de
+  normalisation que le prototype (`rules/importer.js`) : classes (« 1e STMG » → « 1re STMG »), téléphones au format
+  +261, nationalités en codes ISO, contrôle des dates, doublons et numéros sautés. Un rapport « à compléter » est exporté
+  avant l'import définitif. Dans le prototype, l'import reste dans le navigateur (données personnelles de mineurs).
+
 - Chiffrement en transit (TLS) et au repos (sauvegardes, pièces d'identité des dossiers d'examen).
 - Journal d'audit sur les actions sensibles ; conservation des données limitée et documentée (données de mineurs).
 - Les données personnelles envoyées au fournisseur d'IA sont réduites au strict minimum, sans conservation chez le fournisseur.

@@ -5,11 +5,21 @@ import { studentDues, defaultSelection, validateInstrument, buildReceipts, PAYME
 import { formatAr } from '../rules/finance.js';
 import ReceiptTicket from './ReceiptTicket.jsx';
 import { printOnly } from '../print.js';
+import { loadImport } from '../importStore.js';
 import { CLASSES } from '../data/schoollife.js';
 
 // Comptes de la caisse : comptes détaillés de la démo + les autres élèves des classes
 // (réinscription, fascicule, location et septembre déjà réglés)
-const CASH_ACCOUNTS = [
+// Élèves importés : un compte par élève, sans paiement connu (les règlements ne sont pas importés)
+const importedAccounts = () => {
+  const imp = loadImport();
+  const list = imp?.profiles ?? imp?.students;
+  if (!list?.length) return null;
+  return list.filter((s) => CLASS_FEES.some((f) => f.cls === s.cls)).map((s) => ({
+    id: s.id, name: `${s.lastName} ${s.firstName}`, cls: s.cls, family: `Famille ${s.lastName}`, isNew: false, enrolledOn: '2026-09-01', paid: [],
+  }));
+};
+const DEMO_ACCOUNTS = [
   ...STUDENT_ACCOUNTS,
   ...Object.entries(CLASSES).flatMap(([cls, names]) => names
     .filter((n) => !STUDENT_ACCOUNTS.some((a) => a.name === n))
@@ -18,6 +28,7 @@ const CASH_ACCOUNTS = [
       paid: ['REINSCRIPTION', 'FASCICULE', 'LOCATION', 'ECO-09', ...(i % 2 ? ['ECO-10'] : [])],
     }))),
 ];
+const CASH_ACCOUNTS = importedAccounts() ?? DEMO_ACCOUNTS;
 const CASH_CLASSES = CLASS_FEES.map((f) => f.cls).filter((c) => CASH_ACCOUNTS.some((a) => a.cls === c));
 
 // Qui apporte le paiement au bureau (imprimé sur le ticket)
@@ -63,7 +74,7 @@ export default function CollectPayment({ settings }) {
   const [cls, setCls] = useState('');
   const [bearer, setBearer] = useState({ role: 'PARENT', name: '' });
   const [query, setQuery] = useState('');
-  const [studentId, setStudentId] = useState('e2');
+  const [studentId, setStudentId] = useState(CASH_ACCOUNTS.find((a) => a.id === 'e2')?.id ?? CASH_ACCOUNTS[0].id);
   const [selected, setSelected] = useState(null); // null = proposition par défaut
   const [instrument, setInstrument] = useState({ method: 'ESPECES', ref: '', bank: '' });
   const [receipts, setReceipts] = useState(null);

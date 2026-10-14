@@ -525,3 +525,36 @@ test('inscriptions : pré-inscription, fiche élève, comptes', () => {
   assert.equal(acc[2].login, null); // pas d'e-mail : code d'activation
   assert.equal(missingDocuments({ documents: ['ACTE', 'PHOTOS'] }, 'REINSCRIPTION').length, 2);
 });
+
+import { parseTable, normalizeClass, normalizePhones, analyzeStudents, parseAssignments, nationalityCode } from '../src/rules/importer.js';
+test('import Excel : classes, téléphones, nationalités, contrôles', () => {
+  assert.equal(normalizeClass('1e STMG'), '1re STMG');
+  assert.equal(normalizeClass('1e Générale'), '1re Générale');
+  assert.equal(normalizeClass('Tle Générale'), 'Terminale Générale');
+  assert.equal(normalizeClass('Tle STMG'), 'Terminale STMG');
+  assert.equal(normalizeClass('2nde'), '2de');
+  assert.equal(normalizeClass('6e'), '6e');
+  assert.deepEqual(normalizePhones('03 40 97 71 50').map((p) => p.value), ['+261 34 09 771 50']);
+  assert.equal(normalizePhones('0389586083 / 0347450018').length, 2);
+  assert.equal(nationalityCode('Canadienne'), 'CA');
+  assert.equal(nationalityCode('Yemenite'), 'YE');
+  // Données FICTIVES au format du fichier de l'établissement
+  const text = [
+    'N°\tClasse\tNom\tPrénom\tNée le\tLieu de naissance\tNationalité (en +)\tExamen FR\tAdresse @\tContact',
+    '3E-001\t3e\tRAKOTO\tFanja\t12/03/2012\tToamasina, Madagascar\tMalgache\tDNB\tfanja@gmail.com\t03 40 00 00 00',
+    '3E-003\t3e\tRABE\tLova\t01/02/2012\tAllemande\t\tDNB\t\t',
+    '3E-004\t3e\t\t\t\t\t\t\t\t',
+    '4E-001\t4e\tRASOA\t\t\t\t\t\t\t',
+  ].join('\n');
+  const a = analyzeStudents(parseTable(text).rows);
+  assert.equal(a.students.length, 3);
+  assert.deepEqual(a.ignored.map((i) => i.number), ['3E-004']);
+  assert.deepEqual(a.gaps, ['3E-002']);
+  const lova = a.students.find((s) => s.student.firstName === 'Lova');
+  assert.deepEqual(lova.student.nationalities, ['DE']);           // nationalité déplacée depuis « Lieu de naissance »
+  assert.ok(lova.issues.some((i) => /déplacée/.test(i.text)));
+  assert.ok(a.students.find((s) => s.student.lastName === 'RASOA').issues.some((i) => i.level === 'error' && /Prénom/.test(i.text)));
+  assert.equal(a.students[0].student.birthDate, '2012-03-12');
+  const p = parseAssignments(parseTable('NOM\tMatière\tClasse\nMme Rabe\tSES, Eco-Droit\t2nde - 1e STMG - Tle STMG').rows);
+  assert.deepEqual(p[0], { name: 'Mme Rabe', subjects: ['SES', 'Eco-Droit'], classes: ['2de', '1re STMG', 'Terminale STMG'] });
+});
