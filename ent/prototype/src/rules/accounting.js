@@ -1,6 +1,6 @@
 // Comptabilité : état de compte d'une famille et totaux par journal.
 // Règle d'étanchéité : un paiement n'éteint que des dettes de SON journal
-// (un versement d'écolage ne peut pas solder des droits d'examen).
+// (un versement de frais de scolarité ne peut pas solder des droits d'examen).
 
 import { planMonths } from './calendar.js';
 
@@ -24,7 +24,7 @@ export function accountStatement(lines) {
   return { rows, byJournal, totals };
 }
 
-/** Coût annuel d'une classe : (ré)inscription + écolage × nombre de mois du plan + fascicule + location. */
+/** Coût annuel d'une classe : (ré)inscription + frais de scolarité × nombre de mois du plan + fascicule + location. */
 export function annualCost(row, plans, { newStudent = false } = {}) {
   const months = planMonths(plans[row.plan]).length;
   return (newStudent ? row.inscription : row.reinscription) + row.ecolage * months + row.fascicule + row.location;

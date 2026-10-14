@@ -67,9 +67,9 @@ Concrètement :
 
 | Tâche | Fréquence | Règle |
 |---|---|---|
-| Génération des échéances d'écolage | mensuelle | refus au-delà du dernier mois payable (trigger `invoice_cutoff`) |
-| Relances d'écolage | quotidienne, 8h | `advance_dunning_case()` sur chaque dossier : dates calculées par `dunning_schedule()` (jours comptés selon le calendrier scolaire, octobre gelé) ; relance à J+5, avertissement à J+10 |
-| Mises à pied dues | quotidienne | J+25 atteint → le dossier passe « à valider » (`v_dunning_awaiting_validation`) ; notification envoyée seulement après validation Direction |
+| Génération des échéances de frais de scolarité | mensuelle | refus au-delà du dernier mois payable (trigger `invoice_cutoff`) |
+| Relances de frais de scolarité | quotidienne, 8h | `advance_dunning_case()` sur chaque dossier : dates calculées par `dunning_schedule()` (jours comptés selon le calendrier scolaire, octobre gelé) ; délais comptés depuis l'étape précédente (10 / 15 / 10 jours, 5 / 5 / 5 le dernier mois du plan) |
+| Mises à pied dues | quotidienne | délai de mise à pied atteint → le dossier passe « à valider » (`v_dunning_awaiting_validation`) ; notification envoyée seulement après validation Direction |
 | Fermeture des accès des agents sortis | quotidienne | `staff_access_active()` faux après la date de sortie → session révoquée |
 | Rappel des pièces manquantes (candidats libres) | hebdomadaire en octobre | notification `DOCUMENT_MANQUANT` |
 | Ouverture de la fenêtre Campus France | 1er juillet | bandeau Direction, export activé jusqu'à `closes_on` |
@@ -109,7 +109,7 @@ Le contrôleur est la vraie garantie : il s'applique aussi aux textes écrits en
 | Lot | Contenu | Échéance indicative |
 |---|---|---|
 | 1 | Socle : comptes Google, sites, élèves, inscriptions, classes | rentrée + 2 mois |
-| 2 | Finances : écolage, droits d'examen séparés, relances | avant la campagne d'octobre suivante |
+| 2 | Finances : frais de scolarité, droits d'examen séparés, relances | avant la campagne d'octobre suivante |
 | 3 | Notes, compétences, bulletins, assistant de rédaction | avant le 1er conseil de classe |
 | 4 | Réservations, emplois du temps, annonces, notifications | T2 |
 | 5 | Mobilité d'avril, examens, export Campus France | avant mars |

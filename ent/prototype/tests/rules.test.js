@@ -142,6 +142,9 @@ test('alternatives : même site uniquement, créneaux libres', () => {
 // --- Finances ----------------------------------------------------------------
 const S = DEFAULT_SETTINGS;
 const withDunning = (patch) => ({ ...S, dunning: { ...S.dunning, ...patch } });
+// Politique précédente (J+5 / J+10 / J+25 depuis l'échéance) : mêmes cas que db/tests.sql T9-T11
+const OLD = withDunning({ relanceAfter: 5, warningAfter: 10, suspensionAfter: 25, countFrom: 'ECHEANCE', lastMonth: { enabled: false } });
+const withOld = (patch) => ({ ...OLD, dunning: { ...OLD.dunning, ...patch } });
 
 test('jours comptés : week-end, férié, vacances, octobre gelé', () => {
   assert.equal(dayStatus('2026-11-12', S).counted, true);           // jeudi ordinaire
@@ -154,35 +157,35 @@ test('jours comptés : week-end, férié, vacances, octobre gelé', () => {
 
 // Mêmes cas que db/tests.sql (T9, T10) : l'interface et la base calculent les mêmes dates
 test('échéance du 5 décembre : les vacances de Noël suspendent le décompte', () => {
-  const sch = dunningSchedule('2026-12-05', S);
+  const sch = dunningSchedule('2026-12-05', OLD);
   assert.deepEqual(sch, { due: '2026-12-05', relance: '2026-12-11', warning: '2026-12-18', suspension: '2027-01-22' });
-  assert.deepEqual(pausesBetween(sch.due, sch.suspension, S).map((p) => p.kind), ['VACANCES']);
+  assert.deepEqual(pausesBetween(sch.due, sch.suspension, OLD).map((p) => p.kind), ['VACANCES']);
 });
 
 test('échéance de septembre et d\'octobre : octobre gelé', () => {
-  const sept = dunningSchedule('2026-09-05', S);
+  const sept = dunningSchedule('2026-09-05', OLD);
   assert.equal(sept.relance, '2026-09-11');
   assert.equal(sept.suspension, '2026-11-10');
-  const oct = dunningSchedule('2026-10-05', S);
+  const oct = dunningSchedule('2026-10-05', OLD);
   assert.equal(oct.relance, '2026-11-06');
   assert.equal(oct.suspension, '2026-12-04');
 });
 
 test('paramètres : décompte depuis l\'étape précédente, samedi compté', () => {
-  assert.deepEqual(dunningSchedule('2026-12-05', withDunning({ countFrom: 'ETAPE_PRECEDENTE' })),
+  assert.deepEqual(dunningSchedule('2026-12-05', withOld({ countFrom: 'ETAPE_PRECEDENTE' })),
     { due: '2026-12-05', relance: '2026-12-11', warning: '2027-01-08', suspension: '2027-02-12' });
-  assert.equal(dunningSchedule('2026-11-05', S).relance, '2026-11-12');
-  assert.equal(dunningSchedule('2026-11-05', withDunning({ countedWeekdays: [1, 2, 3, 4, 5, 6] })).relance, '2026-11-11');
+  assert.equal(dunningSchedule('2026-11-05', OLD).relance, '2026-11-12');
+  assert.equal(dunningSchedule('2026-11-05', withOld({ countedWeekdays: [1, 2, 3, 4, 5, 6] })).relance, '2026-11-11');
 });
 
 test('étape d\'un dossier à une date donnée', () => {
-  const sch = dunningSchedule('2026-12-05', S);
-  assert.equal(stageOn('2026-12-08', sch, S), 'DANS_LES_DELAIS');
-  assert.equal(stageOn('2026-12-11', sch, S), 'RELANCE');
-  assert.equal(stageOn('2027-01-05', sch, S), 'AVERTISSEMENT');
-  assert.equal(stageOn('2027-01-22', sch, S), 'A_VALIDER');
-  assert.equal(stageOn('2027-01-22', sch, withDunning({ suspensionRequiresDirection: false })), 'MISE_A_PIED');
-  assert.match(dunningStages(S)[2].delay, /25 jours comptés après l'échéance — validation Direction/);
+  const sch = dunningSchedule('2026-12-05', OLD);
+  assert.equal(stageOn('2026-12-08', sch, OLD), 'DANS_LES_DELAIS');
+  assert.equal(stageOn('2026-12-11', sch, OLD), 'RELANCE');
+  assert.equal(stageOn('2027-01-05', sch, OLD), 'AVERTISSEMENT');
+  assert.equal(stageOn('2027-01-22', sch, OLD), 'A_VALIDER');
+  assert.equal(stageOn('2027-01-22', sch, withOld({ suspensionRequiresDirection: false })), 'MISE_A_PIED');
+  assert.match(dunningStages(OLD)[2].delay, /25 jours comptés après l'échéance — validation Direction/);
 });
 
 test('jours fériés de Madagascar générés automatiquement', () => {
@@ -198,7 +201,7 @@ test('droits d\'examen : 40 000 Ar conservés', () => {
   assert.deepEqual(splitExamFee(30_000), { retained: 30_000, toRemit: 0 });
 });
 
-test('plans d\'écolage Tamatave : 9 mois pour 1re/Tle, 10 mois sinon', () => {
+test('plans de frais de scolarité Tamatave : 9 mois pour 1re/Tle, 10 mois sinon', () => {
   const [college, , premiere, terminale] = S.tuition.plans;
   assert.equal(planMonths(premiere).length, 9);
   assert.equal(planMonths(terminale).at(-1), 5);
@@ -211,16 +214,16 @@ import { FAMILIES, CLASS_FEES, CASH_MOVEMENTS, CASH_OPENING } from '../src/data/
 
 test('état de compte : soldes séparés par journal', () => {
   const { byJournal, totals, rows } = accountStatement(FAMILIES[0].lines);
-  assert.equal(byJournal.ECOLAGE.balance, 760_000);          // écolage d'octobre impayé
+  assert.equal(byJournal.ECOLAGE.balance, 760_000);          // frais de scolarité d'octobre impayé
   assert.equal(byJournal.FRAIS_ANNEXES.balance, 30_000);     // natation
   assert.equal(byJournal.DROITS_EXAMEN.balance, 0);
   assert.equal(totals.balance, 790_000);
-  assert.equal(rows.find((r) => r.label.startsWith('Écolage octobre — Toky')).journalBalance, 760_000);
+  assert.equal(rows.find((r) => r.label.startsWith('Frais de scolarité octobre — Toky')).journalBalance, 760_000);
   assert.ok(rows.every((r) => r.journalBalance >= 0), 'aucun solde de journal négatif dans la démo');
   assert.ok(rows.every((r, i) => i === 0 || rows[i - 1].date <= r.date));
 });
 
-test('coût annuel : 9 mois d\'écolage pour la Terminale, 10 pour la 6e', () => {
+test('coût annuel : 9 mois de frais de scolarité pour la Terminale, 10 pour la 6e', () => {
   const plans = DEFAULT_SETTINGS.tuition.plans;
   const tle = CLASS_FEES.find((r) => r.cls === 'Terminale STMG');
   assert.equal(annualCost(tle, plans), 180_000 + 450_000 * 9 + 90_000 + 120_000);
@@ -466,4 +469,15 @@ test('reçu : montant en toutes lettres', () => {
   assert.equal(amountInWords(200_000), 'deux cent mille ariary');
   assert.equal(amountInWords(2_070_000), 'deux millions soixante-dix mille ariary');
   assert.equal(amountInWords(91_000), 'quatre-vingt-onze mille ariary');
+});
+
+import { isLastPlanMonth } from '../src/rules/calendar.js';
+test('relances : 10 j, puis 15 j, puis 10 j après l\'étape précédente ; dernier mois 5 / 5 / 5', () => {
+  // 5 novembre : relance le 19/11, avertissement le 10/12, mise à pied le 7/01 (vacances de Noël non comptées)
+  assert.deepEqual(dunningSchedule('2026-11-05', S), { due: '2026-11-05', relance: '2026-11-19', warning: '2026-12-10', suspension: '2027-01-07' });
+  // Mai = dernier mois des 1re/Tle (plan 3) : 5 jours à chaque étape, Ascension (6 mai) non comptée
+  assert.equal(isLastPlanMonth('2027-05-05', 3, S), true);
+  assert.equal(isLastPlanMonth('2027-05-05', 0, S), false); // collège : dernier mois = juin
+  assert.deepEqual(dunningSchedule('2027-05-05', S, { lastMonth: true }), { due: '2027-05-05', relance: '2027-05-13', warning: '2027-05-21', suspension: '2027-05-28' });
+  assert.match(dunningStages(S)[0].delay, /10 jours comptés après l'étape précédente \(dernier mois : 5\)/);
 });

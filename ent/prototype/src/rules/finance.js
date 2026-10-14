@@ -15,12 +15,13 @@ export function dunningStages(settings) {
   const d = settings.dunning;
   const ref = d.countFrom === 'ECHEANCE' ? 'après l\'échéance' : 'après l\'étape précédente';
   const unit = (n) => `${n} jour${n > 1 ? 's' : ''} compté${n > 1 ? 's' : ''}`;
+  const last = (k) => (d.lastMonth?.enabled ? ` (dernier mois : ${d.lastMonth[k]})` : '');
   return [
-    { key: 'RELANCE', label: 'Relance automatique', delay: `${unit(d.relanceAfter)} ${ref}` },
-    { key: 'AVERTISSEMENT', label: 'Avertissement', delay: `${unit(d.warningAfter)} ${ref}` },
+    { key: 'RELANCE', label: 'Relance automatique', delay: `${unit(d.relanceAfter)} ${ref}${last('relanceAfter')}` },
+    { key: 'AVERTISSEMENT', label: 'Avertissement', delay: `${unit(d.warningAfter)} ${ref}${last('warningAfter')}` },
     {
       key: 'MISE_A_PIED', label: 'Notification de mise à pied',
-      delay: `${unit(d.suspensionAfter)} ${ref}${d.suspensionRequiresDirection ? ' — validation Direction' : ''}`,
+      delay: `${unit(d.suspensionAfter)} ${ref}${last('suspensionAfter')}${d.suspensionRequiresDirection ? ' — validation Direction' : ''}`,
     },
   ];
 }

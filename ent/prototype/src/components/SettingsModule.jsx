@@ -50,31 +50,42 @@ function Toggle({ checked, onChange, label }) {
 }
 
 function Simulation({ settings }) {
-  const months = planMonths(settings.tuition.plans[0]);
+  const [planIdx, setPlanIdx] = useState(0);
+  const plan = settings.tuition.plans[planIdx];
+  const months = planMonths(plan);
   const [month, setMonth] = useState(12);
   const due = dueDateOf(yearOf(month, settings), month, settings);
+  const lastMonth = month === plan.last && settings.dunning.lastMonth?.enabled;
+  const delays = lastMonth ? settings.dunning.lastMonth : settings.dunning;
   let result;
   try {
-    const sch = dunningSchedule(due, settings);
+    const sch = dunningSchedule(due, settings, { lastMonth });
     result = { sch, pauses: pausesBetween(due, sch.suspension, settings) };
   } catch (e) {
     result = { error: e.message };
   }
   const rows = result.sch && [
     ['Échéance', result.sch.due, 'slate'],
-    [`Relance (J+${settings.dunning.relanceAfter})`, result.sch.relance, 'navy'],
-    [`Avertissement (J+${settings.dunning.warningAfter}${settings.dunning.countFrom === 'ETAPE_PRECEDENTE' ? ' après relance' : ''})`, result.sch.warning, 'amber'],
-    [`Mise à pied (J+${settings.dunning.suspensionAfter}${settings.dunning.countFrom === 'ETAPE_PRECEDENTE' ? ' après avertissement' : ''})`, result.sch.suspension, 'red'],
+    [`Relance (J+${delays.relanceAfter}${settings.dunning.countFrom === 'ETAPE_PRECEDENTE' ? ' après l\'échéance' : ''})`, result.sch.relance, 'navy'],
+    [`Avertissement (J+${delays.warningAfter}${settings.dunning.countFrom === 'ETAPE_PRECEDENTE' ? ' après relance' : ''})`, result.sch.warning, 'amber'],
+    [`Mise à pied (J+${delays.suspensionAfter}${settings.dunning.countFrom === 'ETAPE_PRECEDENTE' ? ' après avertissement' : ''})`, result.sch.suspension, 'red'],
   ];
 
   return (
     <Card title="Simulation" subtitle="Dates calculées avec les paramètres en cours" className="xl:sticky xl:top-6">
+      <label className="mb-3 block">
+        <span className="text-xs font-medium text-slate-600">Niveaux</span>
+        <select value={planIdx} onChange={(e) => { setPlanIdx(Number(e.target.value)); setMonth(9); }} className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
+          {settings.tuition.plans.map((p, i) => <option key={p.levels} value={i}>{p.levels}</option>)}
+        </select>
+      </label>
       <label className="block">
         <span className="text-xs font-medium text-slate-600">Échéance impayée de</span>
         <select value={month} onChange={(e) => setMonth(Number(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
-          {months.map((m) => <option key={m} value={m}>{cap(monthName(m))} {yearOf(m, settings)}</option>)}
+          {months.map((m) => <option key={m} value={m}>{cap(monthName(m))} {yearOf(m, settings)}{m === plan.last ? ' — dernier mois' : ''}</option>)}
         </select>
       </label>
+      {lastMonth && <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">Dernier mois du plan : délais raccourcis.</p>}
       {result.error ? (
         <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{result.error}</p>
       ) : (
@@ -177,7 +188,7 @@ export default function SettingsModule({ settings, onChange, onReset }) {
         <div>
           <p className="text-sm font-semibold text-navy-500">Administration</p>
           <h1 className="text-2xl font-semibold text-navy-900">Paramètres</h1>
-          <p className="text-sm text-slate-500">Écolage, relances et calendrier scolaire : modifiables sans intervention technique.</p>
+          <p className="text-sm text-slate-500">Frais de scolarité, relances et calendrier scolaire : modifiables sans intervention technique.</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="inline-flex rounded-lg bg-slate-100 p-1">
@@ -190,8 +201,8 @@ export default function SettingsModule({ settings, onChange, onReset }) {
 
       <div className="grid gap-5 xl:grid-cols-[1fr_360px] xl:items-start">
         <div className="min-w-0 space-y-5">
-          {/* Écolage */}
-          <Card title="Échéancier d'écolage" subtitle="Année 2026-2027 · Tamatave">
+          {/* Frais de scolarité */}
+          <Card title="Échéancier de frais de scolarité" subtitle="Année 2026-2027 · Tamatave">
             <NumberField label="Jour d'échéance mensuelle" value={settings.tuition.dueDay} min={1} max={28} suffix="du mois"
               onChange={(v) => set('tuition', { dueDay: v })} />
             <div className="-mx-5 mt-4 overflow-x-auto">
@@ -232,12 +243,23 @@ export default function SettingsModule({ settings, onChange, onReset }) {
               <NumberField label="2. Avertissement" value={d.warningAfter} suffix="jours" onChange={(v) => set('dunning', { warningAfter: v })} />
               <NumberField label="3. Mise à pied" value={d.suspensionAfter} suffix="jours" onChange={(v) => set('dunning', { suspensionAfter: v })} />
             </div>
+            <div className="mt-4 rounded-xl bg-slate-50 p-3">
+              <Toggle checked={Boolean(d.lastMonth?.enabled)} onChange={(v) => set('dunning', { lastMonth: { ...d.lastMonth, enabled: v } })}
+                label="Délais différents pour le dernier mois (juin, ou mai pour les 1re et Tle)" />
+              {d.lastMonth?.enabled && (
+                <div className="mt-3 grid gap-4 sm:grid-cols-3">
+                  <NumberField label="1. Relance automatique" value={d.lastMonth.relanceAfter} suffix="jours" onChange={(v) => set('dunning', { lastMonth: { ...d.lastMonth, relanceAfter: v } })} />
+                  <NumberField label="2. Avertissement" value={d.lastMonth.warningAfter} suffix="jours" onChange={(v) => set('dunning', { lastMonth: { ...d.lastMonth, warningAfter: v } })} />
+                  <NumberField label="3. Mise à pied" value={d.lastMonth.suspensionAfter} suffix="jours" onChange={(v) => set('dunning', { lastMonth: { ...d.lastMonth, suspensionAfter: v } })} />
+                </div>
+              )}
+            </div>
             {orderError && <p className="mt-2 text-sm text-red-700">Comptés depuis l'échéance, les délais doivent être croissants (relance &lt; avertissement &lt; mise à pied).</p>}
 
             <fieldset className="mt-4">
               <legend className="text-xs font-medium text-slate-600">Délais comptés à partir de</legend>
               <div className="mt-1.5 flex flex-wrap gap-4 text-sm">
-                {[['ECHEANCE', 'la date d\'échéance (recommandé)'], ['ETAPE_PRECEDENTE', 'l\'étape précédente']].map(([v, l]) => (
+                {[['ETAPE_PRECEDENTE', 'l\'étape précédente (relance après l\'échéance)'], ['ECHEANCE', 'la date d\'échéance']].map(([v, l]) => (
                   <label key={v} className="flex items-center gap-1.5">
                     <input type="radio" name="countFrom" checked={d.countFrom === v} onChange={() => set('dunning', { countFrom: v })} />{l}
                   </label>

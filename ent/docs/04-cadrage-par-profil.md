@@ -19,7 +19,7 @@ Direction et de Comptabilité conditionnent les autres profils (tarifs, relances
 | # | Question | Réponse provisoire |
 |---|---|---|
 | A1 | Quels indicateurs voir chaque matin ? (effectifs, recouvrement, absences, dossiers d'examen…) | prototype actuel |
-| A2 | La mise à pied est-elle toujours validée par la Direction, ou automatique après J+25 ? | validation Direction |
+| A2 | La mise à pied est-elle toujours validée par la Direction, ou automatique une fois le délai atteint ? | validation Direction |
 | A3 | Qui peut accorder un délai de paiement, et pour combien de temps ? | Direction seule |
 | A4 | Les deux comptes Direction reçoivent-ils les mêmes alertes, ou faut-il répartir les rôles (finances / pédagogie) ? | mêmes alertes |
 | A5 | Le calendrier officiel des vacances de Tamatave 2026-2027 | à fournir |
@@ -30,8 +30,8 @@ Direction et de Comptabilité conditionnent les autres profils (tarifs, relances
 
 | # | Question | Réponse provisoire |
 |---|---|---|
-| B1 | Grille réelle 2026-2027 : inscription, réinscription, écolage, fascicule, location, par classe et par filière | montants fictifs |
-| B2 | Inscription, réinscription, fascicule, location, articles : journal « Frais annexes » séparé de l'écolage ? | oui |
+| B1 | Grille réelle 2026-2027 : inscription, réinscription, frais de scolarité, fascicule, location, par classe et par filière | montants fictifs |
+| B2 | Inscription, réinscription, fascicule, location, articles : journal « Frais annexes » séparé des frais de scolarité ? | oui |
 | B3 | Liste définitive des articles et services (manuels, passeport de vie scolaire, natation, tee-shirt, autres) et leurs prix | à compléter |
 | B4 | Remises : fratrie, enfant du personnel, bourse ? Comment les afficher sur l'état de compte ? | non traité |
 | B5 | Modes de paiement acceptés et format du reçu (numérotation, mentions obligatoires) | **décidé** : espèces, chèque (n° + banque), virement (n° de bordereau + banque) ; pas de mobile money |

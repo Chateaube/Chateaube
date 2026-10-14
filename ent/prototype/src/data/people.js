@@ -73,7 +73,7 @@ export const PARENT = {
     },
   ],
   alerts: [
-    { tone: 'red', title: 'Écolage d\'octobre en attente', body: '760 000 Ar à régler (échéance du 5 octobre). Les relances reprennent en novembre.' },
+    { tone: 'red', title: 'Frais de scolarité d\'octobre en attente', body: '760 000 Ar à régler (échéance du 5 octobre). Les relances reprennent en novembre.' },
     { tone: 'amber', title: 'Pièce manquante — dossier Pré-Bac d\'Aina', body: 'Photo d\'identité à déposer avant le 30 octobre.' },
   ],
   news: [

@@ -104,13 +104,15 @@ Règles validées par la Direction pour **Tamatave** (Tana sera paramétré plus
 | Paramètre | Valeur | Table |
 |---|---|---|
 | Échéance mensuelle | le **5** du mois | `dunning_policy.due_day` |
-| Relance automatique | **5** jours comptés après l'échéance | `relance_after` |
-| Avertissement | **10** jours comptés après l'échéance | `warning_after` |
-| Mise à pied | **25** jours comptés après l'échéance, **validée par la Direction** | `suspension_after`, `suspension_requires_direction` |
-| Point de départ des délais | l'échéance (ou, au choix, l'étape précédente) | `count_from` |
+| Premier mois | **septembre** | `tuition_cutoff_rule.first_payable_month` |
+| Relance automatique | **10** jours comptés après l'échéance | `relance_after` |
+| Avertissement | **15** jours comptés après la relance | `warning_after` |
+| Mise à pied | **10** jours comptés après l'avertissement, **validée par la Direction** | `suspension_after`, `suspension_requires_direction` |
+| Dernier mois du plan (juin ; mai pour 1re/Tle) | **5 / 5 / 5** jours | `last_month_*_after` |
+| Point de départ des délais | l'étape précédente (ou, au choix, l'échéance) | `count_from` |
 | Jours comptés | lundi → vendredi, hors jours fériés, vacances et fermetures | `counted_weekdays`, `calendar_day_off` |
 | Mois de relance | tous, sauf **octobre** (gelé : droits d'examen) | `dunning_month` |
-| Plan d'écolage | 6e → 2de : septembre → juin (10 mois) ; **1re et Tle : septembre → mai (9 mois)** | `tuition_cutoff_rule` |
+| Plan de frais de scolarité | 6e → 2de : septembre → juin (10 mois) ; **1re et Tle : septembre → mai (9 mois)** | `tuition_cutoff_rule` |
 | Canaux | e-mail + notification de l'application (**pas de SMS**, faute de budget) | `channels` |
 
 - **`calendar_day_off`** : jours fériés de Madagascar (tous sites) et vacances/fermetures (par site). L'écran *Paramètres*
@@ -120,7 +122,7 @@ Règles validées par la Direction pour **Tamatave** (Tana sera paramétré plus
   septembre traverse octobre gelé : mise à pied le 10/11 (T9).
 - **`dunning_case`** / **`dunning_event`** : `RELANCE → AVERTISSEMENT → MISE_A_PIED`, chaque transition est historisée. La
   mise à pied attend la validation explicite d'un compte Direction (`v_dunning_awaiting_validation`, T11).
-- Un trigger refuse toute facture d'écolage hors du plan du niveau, par exemple juin pour une Terminale de Tamatave (T3).
+- Un trigger refuse toute facture de frais de scolarité hors du plan du niveau, par exemple juin pour une Terminale de Tamatave (T3).
 
 ### Catalogue tarifaire, états de compte et caisse
 - **Trois journaux étanches** (`fee_category`) : `ECOLAGE`, `FRAIS_ANNEXES` (inscription, réinscription, fascicule,
@@ -136,8 +138,8 @@ Règles validées par la Direction pour **Tamatave** (Tana sera paramétré plus
   **n° de chèque** (6 à 10 chiffres) ou le **n° de bordereau / référence du virement** et la **banque** sont obligatoires.
   Un chèque a un statut (à déposer, déposé, encaissé, rejeté) et un `batch_id` relie les reçus émis pour un même chèque
   (un reçu par journal) (T15).
-- **Compte d'un élève arrivé en cours d'année** : la facturation de l'écolage commence au mois de son inscription. Un
-  élève arrivé le 12 octobre ne paie pas septembre ; son écolage d'octobre est dû à sa date d'arrivée (T16).
+- **Compte d'un élève arrivé en cours d'année** : la facturation des frais de scolarité commence au mois de son inscription. Un
+  élève arrivé le 12 octobre ne paie pas septembre ; ses frais de scolarité d'octobre sont dus à sa date d'arrivée (T16).
 - **`cash_movement`** : caisse du site, avec les **entrées** (encaissements, apports) et les **sorties** (dépenses,
   reversements aux centres d'examen, dépôts en banque). Chaque mouvement est attribué à l'agent qui le saisit. Une sortie ne
   peut pas dépasser le solde de son journal (T13).
@@ -229,16 +231,16 @@ Règles validées par la Direction pour **Tamatave** (Tana sera paramétré plus
 
 ## 1.4 Décisions prises et points ouverts
 
-**Décidé :** relances tous les mois sauf octobre, échéance le 5, délais 5 / 10 / 25 jours comptés selon le calendrier
-scolaire, 9 mois d'écolage pour les 1re et Tle de Tamatave, priorité au site de Tamatave, tous les réglages modifiables sans
+**Décidé :** relances tous les mois sauf octobre, échéance le 5, premier mois septembre, délais 10 / 15 / 10 jours comptés depuis l'étape
+précédente (5 / 5 / 5 le dernier mois) selon le calendrier scolaire, 9 mois de frais de scolarité pour les 1re et Tle de Tamatave, priorité au site de Tamatave, tous les réglages modifiables sans
 recoder.
 
 **À confirmer :**
 1. « Jours ouvrables » : le prototype compte du lundi au vendredi (l'établissement est fermé le samedi). Le samedi peut être
    ajouté dans *Paramètres*.
-2. Les délais se comptent depuis l'échéance (relance J+5, avertissement J+10, mise à pied J+25). L'autre lecture, « 10 jours
-   après la relance », est disponible dans *Paramètres*.
+2. Les délais se comptent depuis l'étape précédente (décidé) : relance 10 jours après l'échéance, avertissement 15 jours
+   après la relance, mise à pied 10 jours après l'avertissement ; 5 / 5 / 5 le dernier mois.
 3. Les vacances saisies sont des exemples : il faut le calendrier officiel de l'établissement.
 4. Le transfert vers Tana n'est pas bloqué par un impayé ; les soldes sont listés pour suivi.
-5. Inscription, réinscription, fascicule, location et articles sont regroupés dans un journal « Frais annexes » distinct de
-   l'écolage : à valider avec la comptabilité.
+5. Inscription, réinscription, fascicule, location et articles sont regroupés dans un journal « Frais annexes » distinct des
+   frais de scolarité : à valider avec la comptabilité.

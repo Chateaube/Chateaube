@@ -39,12 +39,13 @@ SELECT y.id, m, m <> 10, CASE WHEN m = 10 THEN 'Encaissement des droits d''exame
 FROM academic_year y, generate_series(1, 12) m;
 
 -- Politique de recouvrement — Tamatave (Tana : à paramétrer ultérieurement)
--- Échéance le 5 ; relance J+5, avertissement J+10, mise à pied J+25 (jours comptés
--- depuis l'échéance, du lundi au vendredi, hors fériés et vacances) ; mise à pied validée par la Direction.
+-- Échéance le 5 ; relance 10 jours après l'échéance, avertissement 15 jours après la relance,
+-- mise à pied 10 jours après l'avertissement ; dernier mois du plan : 5 / 5 / 5 (jours comptés du
+-- lundi au vendredi, hors fériés et vacances) ; mise à pied validée par la Direction.
 INSERT INTO dunning_policy (year_id, site_id)
 SELECT y.id, s.id FROM academic_year y, site s WHERE s.code = 'TMV';
 
--- Plan d'écolage Tamatave : 6e → 2de sept.→juin (10 mois) ; 1re et Tle sept.→mai (9 mois)
+-- Plan de frais de scolarité Tamatave : 6e → 2de sept.→juin (10 mois) ; 1re et Tle sept.→mai (9 mois)
 INSERT INTO tuition_cutoff_rule (year_id, site_id, level_code, first_payable_month, last_payable_month)
 SELECT y.id, s.id, l.code, 9, CASE WHEN l.code IN ('1RE', 'TLE') THEN 5 ELSE 6 END
 FROM academic_year y, site s, level l
@@ -77,9 +78,9 @@ WHERE s.code = 'TMV';
 
 -- Plan de comptes : deux catégories étanches
 INSERT INTO ledger_account (code, category, label, nature) VALUES
-  ('ECO-CAISSE',     'ECOLAGE',       'Trésorerie écolage',              'ACTIF'),
-  ('ECO-CLIENTS',    'ECOLAGE',       'Familles — écolage à recevoir',   'ACTIF'),
-  ('ECO-PRODUIT',    'ECOLAGE',       'Produit écolage',                 'PRODUIT'),
+  ('ECO-CAISSE',     'ECOLAGE',       'Trésorerie frais de scolarité',              'ACTIF'),
+  ('ECO-CLIENTS',    'ECOLAGE',       'Familles — frais de scolarité à recevoir',   'ACTIF'),
+  ('ECO-PRODUIT',    'ECOLAGE',       'Produit frais de scolarité',                 'PRODUIT'),
   ('EXA-CAISSE',     'DROITS_EXAMEN', 'Trésorerie droits d''examen',      'ACTIF'),
   ('EXA-A-REVERSER', 'DROITS_EXAMEN', 'Droits dus aux centres d''examen', 'PASSIF'),
   ('EXA-FRAIS-DOS',  'DROITS_EXAMEN', 'Frais de dossier conservés',      'PRODUIT'),
@@ -91,7 +92,7 @@ INSERT INTO ledger_account (code, category, label, nature) VALUES
 INSERT INTO fee_item (code, kind, category, rubric, label, unit, priced_by_level, free_amount) VALUES
   ('INSCRIPTION',     'INSCRIPTION',   'FRAIS_ANNEXES', 'Classes & tarifs',          'Inscription',                  'une fois',      true,  false),
   ('REINSCRIPTION',   'REINSCRIPTION', 'FRAIS_ANNEXES', 'Classes & tarifs',          'Réinscription',                'par an',        true,  false),
-  ('ECOLAGE',         'ECOLAGE',       'ECOLAGE',       'Classes & tarifs',          'Écolage mensuel',              'par mois',      true,  false),
+  ('ECOLAGE',         'ECOLAGE',       'ECOLAGE',       'Classes & tarifs',          'Frais de scolarité mensuel',              'par mois',      true,  false),
   ('FASCICULE',       'FASCICULE',     'FRAIS_ANNEXES', 'Classes & tarifs',          'Fascicule',                    'par an',        true,  false),
   ('LOCATION',        'LOCATION',      'FRAIS_ANNEXES', 'Classes & tarifs',          'Location des manuels',         'par an',        true,  false),
   ('MANUEL_PERTE',    'ARTICLE',       'FRAIS_ANNEXES', 'Manuel scolaire',           'Manuel perdu ou endommagé',    'par manuel',    false, false),

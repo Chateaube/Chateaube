@@ -2,7 +2,7 @@
 
 Dossier de conception d'un ENT sur mesure pour l'École Chateaubriand (Tananarive & Tamatave) : programme français,
 candidats libres rattachés à l'Académie de La Réunion, mobilité des 1re/Tle vers Tana en avril, comptabilité séparée
-entre écolage et droits d'examen.
+entre frais de scolarité et droits d'examen.
 
 ## Contenu
 
@@ -10,7 +10,7 @@ entre écolage et droits d'examen.
 |---|---|
 | 1. Modèle de données (entités, diagramme, règles, hypothèses à valider) | [`docs/01-modele-de-donnees.md`](docs/01-modele-de-donnees.md) |
 | Schéma PostgreSQL exécutable | [`db/schema.sql`](db/schema.sql) · [`db/functions.sql`](db/functions.sql) · [`db/seed.sql`](db/seed.sql) |
-| Scénarios de vérification (28 règles métier) | [`db/tests.sql`](db/tests.sql) |
+| Scénarios de vérification (29 règles métier) | [`db/tests.sql`](db/tests.sql) |
 | 2. Architecture UX/UI et arborescence par profil | [`docs/02-architecture-ux.md`](docs/02-architecture-ux.md) |
 | Architecture technique (SSO, tâches planifiées, IA, sécurité) | [`docs/03-architecture-technique.md`](docs/03-architecture-technique.md) |
 | Cadrage par profil (questions à valider avant de développer) | [`docs/04-cadrage-par-profil.md`](docs/04-cadrage-par-profil.md) |
@@ -20,7 +20,7 @@ entre écolage et droits d'examen.
 ## Voir le prototype
 
 Ouvrir `prototype/dist/index.html` dans un navigateur : un seul fichier, sans serveur ni connexion. Les données sont fictives
-et la date de référence est fixée au 13 octobre 2026 (relances d'écolage suspendues, campagne des candidats libres en cours).
+et la date de référence est fixée au 13 octobre 2026 (relances de frais de scolarité suspendues, campagne des candidats libres en cours).
 
 Le sélecteur **« Voir l'ENT en tant que »** (en haut du menu) bascule entre les six portails. La charte visuelle
 (bleu de l'établissement, couleurs d'état franches, titres Fraunces, cartes arrondies) est décrite dans

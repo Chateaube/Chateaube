@@ -2,7 +2,7 @@
 
 // Journaux comptables étanches
 export const JOURNALS = {
-  ECOLAGE: { label: 'Écolage', tone: 'navy' },
+  ECOLAGE: { label: 'Frais de scolarité', tone: 'navy' },
   FRAIS_ANNEXES: { label: 'Frais annexes', tone: 'green' },
   DROITS_EXAMEN: { label: 'Droits d\'examen', tone: 'violet' },
 };
@@ -23,7 +23,7 @@ export const CLASS_FEES = [
 export const FEE_COLUMNS = [
   { key: 'inscription', label: 'Inscription', hint: 'Nouvel élève, une fois' },
   { key: 'reinscription', label: 'Réinscription', hint: 'Élève déjà inscrit, une fois par an' },
-  { key: 'ecolage', label: 'Écolage / mois', hint: 'Mensuel, journal Écolage' },
+  { key: 'ecolage', label: 'Frais de scolarité / mois', hint: 'Mensuel, journal Frais de scolarité' },
   { key: 'fascicule', label: 'Fascicule', hint: 'Une fois par an' },
   { key: 'location', label: 'Location manuels', hint: 'Une fois par an' },
 ];
@@ -51,13 +51,13 @@ export const FAMILIES = [
       { date: '2026-08-25', label: 'Paiement chèque n° 4410275 (BNI)', journal: 'FRAIS_ANNEXES', credit: 330_000 },
       { date: '2026-09-01', label: 'Fascicule + location manuels — Aina', journal: 'FRAIS_ANNEXES', debit: 190_000 },
       { date: '2026-09-01', label: 'Fascicule + location manuels — Toky', journal: 'FRAIS_ANNEXES', debit: 140_000 },
-      { date: '2026-09-05', label: 'Écolage septembre — Aina', journal: 'ECOLAGE', debit: 420_000 },
-      { date: '2026-09-05', label: 'Écolage septembre — Toky', journal: 'ECOLAGE', debit: 340_000 },
+      { date: '2026-09-05', label: 'Frais de scolarité septembre — Aina', journal: 'ECOLAGE', debit: 420_000 },
+      { date: '2026-09-05', label: 'Frais de scolarité septembre — Toky', journal: 'ECOLAGE', debit: 340_000 },
       { date: '2026-09-05', label: 'Paiement espèces — reçu TMV-0412', journal: 'ECOLAGE', credit: 760_000 },
       { date: '2026-09-10', label: 'Virement — fascicules et manuels', journal: 'FRAIS_ANNEXES', credit: 330_000 },
       { date: '2026-10-02', label: 'Droits Pré-Bac (EAF) — Aina', journal: 'DROITS_EXAMEN', debit: 450_000 },
-      { date: '2026-10-05', label: 'Écolage octobre — Aina', journal: 'ECOLAGE', debit: 420_000 },
-      { date: '2026-10-05', label: 'Écolage octobre — Toky', journal: 'ECOLAGE', debit: 340_000 },
+      { date: '2026-10-05', label: 'Frais de scolarité octobre — Aina', journal: 'ECOLAGE', debit: 420_000 },
+      { date: '2026-10-05', label: 'Frais de scolarité octobre — Toky', journal: 'ECOLAGE', debit: 340_000 },
       { date: '2026-10-08', label: 'Paiement virement — bordereau 88213 (BOA)', journal: 'DROITS_EXAMEN', credit: 450_000 },
       { date: '2026-10-09', label: 'Séances de natation × 2 — Toky', journal: 'FRAIS_ANNEXES', debit: 30_000 },
     ],
@@ -69,9 +69,9 @@ export const FAMILIES = [
       { date: '2026-08-28', label: 'Réinscription — Mamy (Tle G)', journal: 'FRAIS_ANNEXES', debit: 180_000 },
       { date: '2026-08-28', label: 'Paiement espèces — reçu TMV-0398', journal: 'FRAIS_ANNEXES', credit: 180_000 },
       { date: '2026-09-01', label: 'Fascicule + location manuels — Mamy', journal: 'FRAIS_ANNEXES', debit: 210_000 },
-      { date: '2026-09-05', label: 'Écolage septembre — Mamy', journal: 'ECOLAGE', debit: 450_000 },
+      { date: '2026-09-05', label: 'Frais de scolarité septembre — Mamy', journal: 'ECOLAGE', debit: 450_000 },
       { date: '2026-10-02', label: 'Droits Bac — Mamy', journal: 'DROITS_EXAMEN', debit: 600_000 },
-      { date: '2026-10-05', label: 'Écolage octobre — Mamy', journal: 'ECOLAGE', debit: 450_000 },
+      { date: '2026-10-05', label: 'Frais de scolarité octobre — Mamy', journal: 'ECOLAGE', debit: 450_000 },
       { date: '2026-10-07', label: 'Paiement chèque n° 2290341 (BFV)', journal: 'DROITS_EXAMEN', credit: 600_000 },
     ],
   },
@@ -83,7 +83,7 @@ export const CASH_NATURES = {
   OUT: ['Dépense de fonctionnement', 'Reversement centre d\'examen', 'Remboursement famille', 'Dépôt en banque', 'Autre sortie'],
 };
 export const CASH_MOVEMENTS = [
-  { id: 'c1', time: '07:42', dir: 'IN', nature: 'Encaissement famille', journal: 'ECOLAGE', label: 'Écolage octobre — RAZAFY Kanto', method: 'Espèces', amount: 420_000, agent: 'Mme Soa' },
+  { id: 'c1', time: '07:42', dir: 'IN', nature: 'Encaissement famille', journal: 'ECOLAGE', label: 'Frais de scolarité octobre — RAZAFY Kanto', method: 'Espèces', amount: 420_000, agent: 'Mme Soa' },
   { id: 'c2', time: '08:15', dir: 'IN', nature: 'Encaissement famille', journal: 'DROITS_EXAMEN', label: 'Droits DNB — RAVELO Hasina', method: 'Chèque n° 3318820', amount: 350_000, agent: 'Mme Soa' },
   { id: 'c3', time: '09:05', dir: 'IN', nature: 'Encaissement famille', journal: 'FRAIS_ANNEXES', label: 'Tee-shirt × 2 — RASOA Lova', method: 'Espèces', amount: 70_000, agent: 'Mme Soa' },
   { id: 'c4', time: '10:30', dir: 'OUT', nature: 'Dépense de fonctionnement', journal: 'ECOLAGE', label: 'Ramettes de papier et encre imprimante', method: 'Espèces', amount: 85_000, agent: 'Mme Soa' },

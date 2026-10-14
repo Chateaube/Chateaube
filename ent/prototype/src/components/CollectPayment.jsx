@@ -4,6 +4,28 @@ import { JOURNALS, CLASS_FEES, STUDENT_ACCOUNTS, BANKS, FAMILIES } from '../data
 import { studentDues, defaultSelection, validateInstrument, buildReceipts, PAYMENT_METHODS } from '../rules/billing.js';
 import { formatAr } from '../rules/finance.js';
 import ReceiptTicket from './ReceiptTicket.jsx';
+import { CLASSES } from '../data/schoollife.js';
+
+// Comptes de la caisse : comptes détaillés de la démo + les autres élèves des classes
+// (réinscription, fascicule, location et septembre déjà réglés)
+const CASH_ACCOUNTS = [
+  ...STUDENT_ACCOUNTS,
+  ...Object.entries(CLASSES).flatMap(([cls, names]) => names
+    .filter((n) => !STUDENT_ACCOUNTS.some((a) => a.name === n))
+    .map((n, i) => ({
+      id: `g-${cls}-${i}`, name: n, cls, family: `Famille ${n.split(' ')[0]}`, isNew: false, enrolledOn: '2026-09-01',
+      paid: ['REINSCRIPTION', 'FASCICULE', 'LOCATION', 'ECO-09', ...(i % 2 ? ['ECO-10'] : [])],
+    }))),
+];
+const CASH_CLASSES = CLASS_FEES.map((f) => f.cls).filter((c) => CASH_ACCOUNTS.some((a) => a.cls === c));
+
+// Qui apporte le paiement au bureau (imprimé sur le ticket)
+export const BEARERS = [
+  { id: 'PARENT', label: 'Parent' },
+  { id: 'TUTEUR', label: 'Tuteur / tutrice' },
+  { id: 'ELEVE', label: 'L\'élève' },
+  { id: 'AUTRE', label: 'Autre personne (employé.e de maison, chauffeur…)' },
+];
 
 const payerOf = (student) => FAMILIES.find((f) => f.name === student.family)?.payer;
 
@@ -47,13 +69,16 @@ function DueTile({ item, checked, onToggle }) {
 }
 
 export default function CollectPayment({ settings }) {
-  const [accounts, setAccounts] = useState(STUDENT_ACCOUNTS);
+  const [accounts, setAccounts] = useState(CASH_ACCOUNTS);
+  const [cls, setCls] = useState('');
+  const [bearer, setBearer] = useState({ role: 'PARENT', name: '' });
   const [query, setQuery] = useState('');
   const [studentId, setStudentId] = useState('e2');
   const [selected, setSelected] = useState(null); // null = proposition par défaut
   const [instrument, setInstrument] = useState({ method: 'ESPECES', ref: '', bank: '' });
   const [receipts, setReceipts] = useState(null);
   const [receiptsAt, setReceiptsAt] = useState('');
+  const [receiptsBearer, setReceiptsBearer] = useState('');
   const [counter, setCounter] = useState({ ECOLAGE: 412, FRAIS_ANNEXES: 208, DROITS_EXAMEN: 57 });
 
   const student = accounts.find((a) => a.id === studentId);
@@ -65,7 +90,7 @@ export default function CollectPayment({ settings }) {
   const errors = validateInstrument(instrument);
   const overdue = items.filter((i) => i.status === 'ECHU');
 
-  const pick = (id) => { setStudentId(id); setSelected(null); setReceipts(null); setInstrument({ method: 'ESPECES', ref: '', bank: '' }); };
+  const pick = (id) => { setStudentId(id); setSelected(null); setReceipts(null); setInstrument({ method: 'ESPECES', ref: '', bank: '' }); setBearer({ role: 'PARENT', name: '' }); };
   const toggle = (key) => setSelected(keys.includes(key) ? keys.filter((k) => k !== key) : [...keys, key]);
   const months = items.filter((i) => i.journal === 'ECOLAGE');
   const others = items.filter((i) => i.journal !== 'ECOLAGE');
@@ -77,17 +102,28 @@ export default function CollectPayment({ settings }) {
     setCounter(next);
     setAccounts(accounts.map((a) => (a.id === studentId ? { ...a, paid: [...a.paid, ...chosen.map((c) => c.key)] } : a)));
     setReceipts(r);
+    setReceiptsBearer(bearerLabel);
     setReceiptsAt(`${TODAY.split('-').reverse().join('/')} ${new Date().toTimeString().slice(0, 5)}`);
     setSelected([]);
   };
 
-  const matches = accounts.filter((a) => `${a.name} ${a.cls} ${a.family}`.toLowerCase().includes(query.toLowerCase()));
+  const matches = accounts.filter((a) => (!cls || a.cls === cls) && `${a.name} ${a.family}`.toLowerCase().includes(query.toLowerCase()));
+  const defaultPayer = payerOf(student) ?? '';
+  const bearerName = bearer.role === 'ELEVE' ? student.name : (bearer.name || (bearer.role === 'PARENT' ? defaultPayer : '')).trim();
+  const bearerLabel = bearerName ? `${bearerName} (${BEARERS.find((b) => b.id === bearer.role).label.split(' (')[0].toLowerCase()})` : '';
 
   return (
     <div className="grid gap-5 xl:grid-cols-[260px_1fr_340px] xl:items-start">
       <Card title="Élève">
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Rechercher un nom, une classe…" className={`w-full ${inputCls}`} />
-        <ul className="-mx-2 mt-2 space-y-0.5">
+        <label className="block text-xs font-medium text-slate-600">Classe
+          <select value={cls} onChange={(e) => setCls(e.target.value)} className={`mt-1 w-full ${inputCls}`}>
+            <option value="">Toutes les classes</option>
+            {CASH_CLASSES.map((c) => <option key={c} value={c}>{c} ({accounts.filter((a) => a.cls === c).length})</option>)}
+          </select>
+        </label>
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nom de l'élève ou de la famille…" className={`mt-2 w-full ${inputCls}`} />
+        <p className="mt-2 text-[11px] text-slate-500">{matches.length} élève{matches.length > 1 ? 's' : ''}</p>
+        <ul className="-mx-2 mt-1 max-h-[420px] space-y-0.5 overflow-y-auto">
           {matches.map((a) => (
             <li key={a.id}>
               <button onClick={() => pick(a.id)} className={`w-full rounded-md px-2 py-1.5 text-left text-sm ${a.id === studentId ? 'bg-navy-50 font-medium text-navy-900' : 'hover:bg-slate-50'}`}>
@@ -111,7 +147,7 @@ export default function CollectPayment({ settings }) {
           <Button variant="ghost" className="!py-1 text-xs" onClick={() => setSelected([])}>Tout décocher</Button>
         </div>
 
-        <p className="mb-1.5 text-xs font-semibold text-slate-500">Écolage — {months.length} mois ({unpaidMonths.length} restant{unpaidMonths.length > 1 ? 's' : ''})</p>
+        <p className="mb-1.5 text-xs font-semibold text-slate-500">Frais de scolarité — {months.length} mois ({unpaidMonths.length} restant{unpaidMonths.length > 1 ? 's' : ''})</p>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {months.map((m) => <DueTile key={m.key} item={m} checked={keys.includes(m.key)} onToggle={() => toggle(m.key)} />)}
         </div>
@@ -166,17 +202,28 @@ export default function CollectPayment({ settings }) {
               {instrument.ref && errors.map((e) => <p key={e} className="text-xs text-red-700">{e}</p>)}
             </div>
           )}
-          <Button className="mt-4 w-full" disabled={!chosen.length || errors.length > 0} onClick={collect}>
+          <fieldset className="mt-4 space-y-2">
+            <legend className="text-xs font-medium text-slate-600">Paiement remis par</legend>
+            <select value={bearer.role} onChange={(e) => setBearer({ role: e.target.value, name: '' })} className={`w-full ${inputCls}`}>
+              {BEARERS.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
+            </select>
+            {bearer.role !== 'ELEVE' && (
+              <input value={bearer.name} onChange={(e) => setBearer({ ...bearer, name: e.target.value })}
+                placeholder={bearer.role === 'PARENT' && defaultPayer ? defaultPayer : 'Nom et prénom'} className={`w-full ${inputCls}`} />
+            )}
+            {!bearerName && <p className="text-xs text-red-700">Indiquer le nom de la personne qui remet le paiement.</p>}
+          </fieldset>
+          <Button className="mt-4 w-full" disabled={!chosen.length || errors.length > 0 || !bearerName} onClick={collect}>
             Encaisser {total > 0 && formatAr(total)}
           </Button>
-          <p className="mt-2 text-[11px] text-slate-500">Un reçu est édité par journal (écolage, frais annexes, droits d'examen).</p>
+          <p className="mt-2 text-[11px] text-slate-500">Un reçu est édité par journal (frais de scolarité, frais annexes, droits d'examen).</p>
         </Card>
 
         {receipts && (
           <Card title={`Reçu${receipts.length > 1 ? 's' : ''} — format ticket de caisse`} subtitle="Imprimante thermique 80 mm · un ticket par journal"
             action={<Button variant="secondary" onClick={printTickets}>Imprimer</Button>}>
             <div className="ticket-print flex flex-col items-center gap-4 rounded-xl bg-slate-100 py-4">
-              {receipts.map((r) => <ReceiptTicket key={r.number} receipt={r} student={student} payer={payerOf(student)} cashier="Mme Hanta (bureau)" at={receiptsAt} />)}
+              {receipts.map((r) => <ReceiptTicket key={r.number} receipt={r} student={student} payer={receiptsBearer} cashier="Mme Hanta (bureau)" at={receiptsAt} />)}
             </div>
             <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500"><Icon name="bell" />Reçu envoyé au parent payeur par e-mail et dans l'application.</p>
           </Card>

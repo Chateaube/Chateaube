@@ -1,6 +1,6 @@
 -- =============================================================================
 --  ENT Chateaubriand — Schéma PostgreSQL (>= 14)
---  Multi-sites (Tana / Tamatave), comptabilité séparée Écolage / Droits d'examen,
+--  Multi-sites (Tana / Tamatave), comptabilité séparée Frais de scolarité / Droits d'examen,
 --  mobilité inter-sites des élèves, réservation de matériel, notes & bulletins.
 --
 --  Conventions :
@@ -241,7 +241,7 @@ FROM enrollment e
 JOIN site_assignment sa ON sa.enrollment_id = e.id AND sa.valid_during @> current_date;
 
 -- -----------------------------------------------------------------------------
--- 4. FINANCES — comptabilité séparée (Écolage ≠ Droits d'examen)
+-- 4. FINANCES — comptabilité séparée (Frais de scolarité ≠ Droits d'examen)
 -- -----------------------------------------------------------------------------
 -- Plan de comptes simplifié. Chaque compte appartient à UNE catégorie : aucun
 -- flux ne peut traverser les catégories (contrôlé par trigger sur ledger_line).
@@ -252,9 +252,9 @@ CREATE TABLE ledger_account (
   nature      text NOT NULL CHECK (nature IN ('ACTIF', 'PASSIF', 'PRODUIT'))
 );
 -- Exemple (cf. seed.sql) :
---   ECO-CAISSE     ECOLAGE        Trésorerie écolage               ACTIF
---   ECO-CLIENTS    ECOLAGE        Familles — écolage               ACTIF
---   ECO-PRODUIT    ECOLAGE        Produit écolage                  PRODUIT
+--   ECO-CAISSE     ECOLAGE        Trésorerie frais de scolarité               ACTIF
+--   ECO-CLIENTS    ECOLAGE        Familles — frais de scolarité               ACTIF
+--   ECO-PRODUIT    ECOLAGE        Produit frais de scolarité                  PRODUIT
 --   EXA-CAISSE     DROITS_EXAMEN  Trésorerie droits d'examen       ACTIF
 --   EXA-CLIENTS    DROITS_EXAMEN  Familles — droits d'examen       ACTIF
 --   EXA-A-REVERSER DROITS_EXAMEN  Dû aux centres d'examen          PASSIF
@@ -291,7 +291,7 @@ CREATE TABLE calendar_day_off (
 );
 CREATE INDEX calendar_day_off_days_idx ON calendar_day_off USING gist (days);
 
--- Mois soumis aux relances d'écolage. Pendant un mois inactif, le décompte des
+-- Mois soumis aux relances de frais de scolarité. Pendant un mois inactif, le décompte des
 -- délais est GELÉ (aucun jour ne compte). Seed : tous les mois actifs sauf octobre.
 CREATE TABLE dunning_month (
   year_id       uuid REFERENCES academic_year(id),
@@ -309,10 +309,16 @@ CREATE TABLE dunning_policy (
   year_id         uuid REFERENCES academic_year(id),
   site_id         uuid REFERENCES site(id),
   due_day         smallint NOT NULL DEFAULT 5 CHECK (due_day BETWEEN 1 AND 28), -- échéance le 5 du mois
-  relance_after   smallint NOT NULL DEFAULT 5  CHECK (relance_after > 0),
-  warning_after   smallint NOT NULL DEFAULT 10 CHECK (warning_after > 0),
-  suspension_after smallint NOT NULL DEFAULT 25 CHECK (suspension_after > 0),
-  count_from      dunning_count_from NOT NULL DEFAULT 'ECHEANCE', -- délais depuis l'échéance ou depuis l'étape précédente
+  -- Tamatave : relance 10 jours après l'échéance, avertissement 15 jours après la relance,
+  -- mise à pied 10 jours après l'avertissement (jours comptés)
+  relance_after   smallint NOT NULL DEFAULT 10 CHECK (relance_after > 0),
+  warning_after   smallint NOT NULL DEFAULT 15 CHECK (warning_after > 0),
+  suspension_after smallint NOT NULL DEFAULT 10 CHECK (suspension_after > 0),
+  count_from      dunning_count_from NOT NULL DEFAULT 'ETAPE_PRECEDENTE', -- délais depuis l'étape précédente ou depuis l'échéance
+  -- Dernier mois du plan (juin, ou mai pour 1re/Tle) : délais raccourcis ; NULL = mêmes délais
+  last_month_relance_after    smallint DEFAULT 5 CHECK (last_month_relance_after > 0),
+  last_month_warning_after    smallint DEFAULT 5 CHECK (last_month_warning_after > 0),
+  last_month_suspension_after smallint DEFAULT 5 CHECK (last_month_suspension_after > 0),
   counted_weekdays smallint[] NOT NULL DEFAULT '{1,2,3,4,5}',    -- 1 = lundi … 6 = samedi
   suspension_requires_direction boolean NOT NULL DEFAULT true,     -- mise à pied validée par la Direction
   channels        notif_channel[] NOT NULL DEFAULT '{EMAIL,PUSH}',
@@ -320,10 +326,12 @@ CREATE TABLE dunning_policy (
   updated_at      timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (year_id, site_id),
   CHECK (counted_weekdays <@ '{1,2,3,4,5,6,7}' AND cardinality(counted_weekdays) > 0),
-  CHECK (count_from = 'ETAPE_PRECEDENTE' OR (relance_after < warning_after AND warning_after < suspension_after))
+  CHECK (count_from = 'ETAPE_PRECEDENTE' OR (relance_after < warning_after AND warning_after < suspension_after)),
+  CHECK (count_from = 'ETAPE_PRECEDENTE' OR last_month_relance_after IS NULL
+         OR (last_month_relance_after < last_month_warning_after AND last_month_warning_after < last_month_suspension_after))
 );
 
--- Plan d'écolage par niveau : premier et dernier mois facturés.
+-- Plan de frais de scolarité par niveau : premier et dernier mois facturés.
 -- Seed Tamatave : 6e → 2de de septembre à juin (10 échéances) ;
 -- 1re et Tle de septembre à mai (9 échéances, départ à Tana).
 CREATE TABLE tuition_cutoff_rule (
@@ -336,7 +344,7 @@ CREATE TABLE tuition_cutoff_rule (
 );
 
 -- =====  CATALOGUE TARIFAIRE (« Classes & tarifs », « Articles & services »)  =====
--- Chaque article appartient à UN journal (catégorie) : écolage, frais annexes
+-- Chaque article appartient à UN journal (catégorie) : frais de scolarité, frais annexes
 -- (inscription, réinscription, fascicule, location, articles) ou droits d'examen.
 CREATE TABLE fee_item (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -372,7 +380,7 @@ CREATE TABLE invoice (
   enrollment_id uuid NOT NULL REFERENCES enrollment(id),
   category      fee_category NOT NULL,
   fee_schedule_id uuid REFERENCES fee_schedule(id),
-  period_month  date,                          -- 1er jour du mois facturé (écolage)
+  period_month  date,                          -- 1er jour du mois facturé (frais de scolarité)
   due_on        date NOT NULL,
   amount_mga    bigint NOT NULL CHECK (amount_mga > 0),
   paid_mga      bigint NOT NULL DEFAULT 0 CHECK (paid_mga >= 0),
@@ -1099,7 +1107,7 @@ CREATE TABLE direct_notification (
   subject       text NOT NULL,
   body          text NOT NULL,
   channels      notif_channel[] NOT NULL CHECK (cardinality(channels) > 0),
-  sent_by       uuid REFERENCES app_user(id),  -- NULL = automate (relance d'écolage)
+  sent_by       uuid REFERENCES app_user(id),  -- NULL = automate (relance de frais de scolarité)
   dunning_case_id uuid REFERENCES dunning_case(id),
   attendance_event_id uuid REFERENCES attendance_event(id),
   created_at    timestamptz NOT NULL DEFAULT now()

@@ -57,7 +57,7 @@ export const TRANSFER = {
 export const YEAR_MILESTONES = [
   { month: 'Oct.', title: 'Inscriptions candidats libres', detail: 'DNB / Bac — Académie de La Réunion', state: 'now' },
   { month: 'Avr.', title: 'Bascule 1re/Tle vers Tana', detail: 'Affectation géographique, historique conservé', state: 'next' },
-  { month: 'Mai', title: 'Dernier écolage 1re/Tle TMV', detail: 'Quitus financier avant épreuves', state: 'next' },
+  { month: 'Mai', title: 'Derniers frais de scolarité 1re/Tle TMV', detail: 'Quitus financier avant épreuves', state: 'next' },
   { month: 'Juin', title: 'DNB au LF de Tamatave', detail: 'Épreuves 1re/Tle au LF de Tana', state: 'next' },
   { month: 'Juil.–Août', title: 'Export Campus France', detail: 'Clôture début septembre', state: 'next' },
 ];

@@ -7,8 +7,8 @@ import { formatAr } from '../rules/finance.js';
 export default function BureauHome({ go }) {
   const entries = CASH_MOVEMENTS.filter((m) => m.dir === 'IN');
   const todo = [
-    { label: '12 familles avec un écolage d\'octobre échu', detail: 'Relances gelées en octobre : reprise automatique en novembre', action: 'Encaisser', to: 'accounting', tone: 'amber' },
-    { label: 'Nouvel élève : RASOAMANANA Fy (4e)', detail: 'Arrivé le 12/10 — inscription et écolage d\'octobre à encaisser', action: 'Encaisser', to: 'accounting', tone: 'navy' },
+    { label: '12 familles avec des frais de scolarité d\'octobre impayés', detail: 'Relances gelées en octobre : reprise automatique en novembre', action: 'Encaisser', to: 'accounting', tone: 'amber' },
+    { label: 'Nouvel élève : RASOAMANANA Fy (4e)', detail: 'Arrivé le 12/10 — inscription et frais de scolarité d\'octobre à encaisser', action: 'Encaisser', to: 'accounting', tone: 'navy' },
     { label: '39 dossiers candidats libres incomplets', detail: 'Dépôt à l\'Académie avant le 30 octobre', action: null, tone: 'red' },
     { label: 'Conseils de classe du 1er trimestre', detail: 'Grilles disponibles dès que les enseignants ont validé leurs notes', action: 'Voir les grilles', to: 'council', tone: 'navy' },
   ];
@@ -21,7 +21,7 @@ export default function BureauHome({ go }) {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Encaissé aujourd'hui" value={formatAr(entries.reduce((s, m) => s + m.amount, 0))} hint={`${entries.length} reçus`} tone="green" />
         <Stat label="Chèques à déposer" value="1" hint="n° 3318820 — 350 000 Ar" tone="amber" />
-        <Stat label="Écolages échus" value="12" hint="Octobre" tone="red" />
+        <Stat label="Frais de scolarité échus" value="12" hint="Octobre" tone="red" />
         <Stat label="Absences du jour" value="2" hint="Vie scolaire" />
       </div>
       <div className="grid gap-5 xl:grid-cols-[1fr_360px]">

@@ -49,7 +49,7 @@ DO $$ DECLARE y uuid := (SELECT id FROM academic_year WHERE is_current); BEGIN
   ASSERT is_dunning_month(y, '2027-01-15'),     'T2: janvier actif (relance tous les mois sauf octobre)';
 END $$;
 
--- T3. Écolage de juin non facturable pour une Tle de Tamatave (9 mois : sept.→mai)
+-- T3. Frais de scolarité de juin non facturable pour une Tle de Tamatave (9 mois : sept.→mai)
 INSERT INTO invoice (number, enrollment_id, category, period_month, due_on, amount_mga)
 VALUES ('ECO-T3-MAI', '30000000-0000-0000-0000-000000000001', 'ECOLAGE', '2027-05-01', '2027-05-05', 450000);
 DO $$ BEGIN
@@ -84,7 +84,7 @@ SET CONSTRAINTS ALL IMMEDIATE;   -- force le contrôle d'équilibre maintenant
 DO $$ BEGIN
   ASSERT (SELECT -solde_mga FROM v_balance_by_account WHERE code = 'EXA-FRAIS-DOS') = 40000,  'T4: frais de dossier';
   ASSERT (SELECT -solde_mga FROM v_balance_by_account WHERE code = 'EXA-A-REVERSER') = 560000, 'T4: à reverser';
-  ASSERT NOT EXISTS (SELECT 1 FROM v_balance_by_account WHERE category = 'ECOLAGE'),            'T4: fuite vers écolage';
+  ASSERT NOT EXISTS (SELECT 1 FROM v_balance_by_account WHERE category = 'ECOLAGE'),            'T4: fuite vers frais de scolarité';
   ASSERT (SELECT status FROM invoice WHERE number = 'EXA-T4') = 'PAYEE',                        'T4: statut facture';
 END $$;
 SET CONSTRAINTS ALL DEFERRED;
@@ -115,7 +115,7 @@ SELECT * FROM execute_transfer_campaign('70000000-0000-0000-0000-000000000001',
                                         '00000000-0000-0000-0000-000000000002');
 DO $$ BEGIN
   ASSERT (SELECT count(*) FROM t6) = 1, 'T6: un élève transféré';
-  ASSERT (SELECT outstanding_ecolage_mga FROM t6) = 450000, 'T6: solde écolage remonté';
+  ASSERT (SELECT outstanding_ecolage_mga FROM t6) = 450000, 'T6: solde frais de scolarité remonté';
   ASSERT (SELECT count(*) FROM site_assignment WHERE enrollment_id = '30000000-0000-0000-0000-000000000001') = 2,
     'T6: deux affectations historisées';
   ASSERT (SELECT s.code FROM site_assignment sa JOIN site s ON s.id = sa.site_id
@@ -166,6 +166,11 @@ DO $$ BEGIN
 END $$;
 
 -- T9. Délais de relance en jours comptés (lun→ven, hors fériés et vacances) ----
+-- (politique précédente épinglée : J+5 / J+10 / J+25 depuis l'échéance ; la politique
+--  actuelle de Tamatave est vérifiée en T29)
+UPDATE dunning_policy SET relance_after = 5, warning_after = 10, suspension_after = 25,
+       count_from = 'ECHEANCE', last_month_relance_after = NULL, last_month_warning_after = NULL,
+       last_month_suspension_after = NULL;
 DO $$ DECLARE
   y uuid := (SELECT id FROM academic_year WHERE is_current);
   s uuid := (SELECT id FROM site WHERE code = 'TMV');
@@ -214,7 +219,7 @@ END $$;
 
 -- T12. Tarifs : prix de la classe prioritaire, sinon prix unique -------------
 DO $$ BEGIN
-  ASSERT fee_price_for('ECOLAGE', '30000000-0000-0000-0000-000000000001') = 450000, 'T12: écolage Tle';
+  ASSERT fee_price_for('ECOLAGE', '30000000-0000-0000-0000-000000000001') = 450000, 'T12: frais de scolarité Tle';
   ASSERT fee_price_for('TEE_SHIRT', '30000000-0000-0000-0000-000000000001') = 35000, 'T12: tee-shirt prix unique';
 END $$;
 INSERT INTO invoice (id, number, enrollment_id, category, due_on, amount_mga)
@@ -234,7 +239,7 @@ END $$;
 
 -- T13. Caisse : une sortie ne peut pas dépasser le solde de son journal ------
 INSERT INTO cash_movement (site_id, direction, category, nature, label, amount_mga, method, agent_id)
-SELECT id, 'ENTREE', 'ECOLAGE', 'Encaissement famille', 'Écolage octobre', 420000, 'ESPECES',
+SELECT id, 'ENTREE', 'ECOLAGE', 'Encaissement famille', 'Frais de scolarité octobre', 420000, 'ESPECES',
        '00000000-0000-0000-0000-000000000001' FROM site WHERE code = 'TMV';
 INSERT INTO cash_movement (site_id, direction, category, nature, label, amount_mga, method, agent_id)
 SELECT id, 'SORTIE', 'ECOLAGE', 'Dépense de fonctionnement', 'Papeterie', 85000, 'ESPECES',
@@ -536,5 +541,25 @@ DO $$ BEGIN
   ASSERT higher_ed_steps('20000000-0000-0000-0000-000000000002') = '{PARCOURSUP}', 'T28: double nationalité → Parcoursup seul';
 END $$;
 
+-- T29. Politique de Tamatave : 10 j, puis 15 j, puis 10 j après l'étape précédente ;
+--      dernier mois du plan (mai pour la Terminale) : 5 / 5 / 5 --------------------
+UPDATE dunning_policy SET relance_after = 10, warning_after = 15, suspension_after = 10,
+       count_from = 'ETAPE_PRECEDENTE', last_month_relance_after = 5, last_month_warning_after = 5,
+       last_month_suspension_after = 5;
+DO $$ DECLARE
+  y uuid := (SELECT id FROM academic_year WHERE is_current);
+  s uuid := (SELECT id FROM site WHERE code = 'TMV');
+  r record;
+BEGIN
+  SELECT * INTO r FROM dunning_schedule(y, s, '2026-11-05');
+  ASSERT (r.relance_on, r.warning_on, r.suspension_on) = ('2026-11-19'::date, '2026-12-10'::date, '2027-01-07'::date),
+    'T29: novembre = ' || r::text;
+  ASSERT is_last_plan_month('30000000-0000-0000-0000-000000000001', '2027-05-01'), 'T29: mai = dernier mois en Terminale';
+  ASSERT NOT is_last_plan_month('30000000-0000-0000-0000-000000000001', '2027-04-01'), 'T29: avril n''est pas le dernier mois';
+  SELECT * INTO r FROM dunning_schedule(y, s, '2027-05-05', true);
+  ASSERT (r.relance_on, r.warning_on, r.suspension_on) = ('2027-05-13'::date, '2027-05-21'::date, '2027-05-28'::date),
+    'T29: dernier mois = ' || r::text;
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T28 passent'
+\echo 'OK — tous les scénarios T1 à T29 passent'

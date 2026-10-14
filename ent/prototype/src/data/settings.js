@@ -21,10 +21,14 @@ export const DEFAULT_SETTINGS = {
   },
 
   dunning: {
-    relanceAfter: 5,
-    warningAfter: 10,
-    suspensionAfter: 25,
-    countFrom: 'ECHEANCE', // ou 'ETAPE_PRECEDENTE'
+    // Délais comptés depuis l'étape précédente : relance 10 jours après l'échéance,
+    // avertissement 15 jours après la relance, mise à pied 10 jours après l'avertissement
+    relanceAfter: 10,
+    warningAfter: 15,
+    suspensionAfter: 10,
+    countFrom: 'ETAPE_PRECEDENTE', // ou 'ECHEANCE'
+    // Dernier mois du plan (juin, ou mai pour 1re/Tle) : délais raccourcis
+    lastMonth: { enabled: true, relanceAfter: 5, warningAfter: 5, suspensionAfter: 5 },
     countedWeekdays: [1, 2, 3, 4, 5], // 1 = lundi … 6 = samedi
     activeMonths: [9, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8], // octobre gelé
     suspensionRequiresDirection: true,

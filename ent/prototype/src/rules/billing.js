@@ -1,7 +1,7 @@
 // Encaissement : ce que doit un élève, mois par mois, d'après la grille tarifaire.
 // Le caissier sélectionne l'élève, coche les échéances à régler (les échéances
 // échues sont proposées d'office), choisit le mode de paiement et édite un reçu
-// PAR JOURNAL (écolage, frais annexes, droits d'examen restent séparés).
+// PAR JOURNAL (frais de scolarité, frais annexes, droits d'examen restent séparés).
 
 import { planMonths, dueDateOf, monthName } from './calendar.js';
 
@@ -35,7 +35,7 @@ export function studentDues(student, fees, settings, today) {
       .filter((m) => schoolRank(m) >= startRank)
       .map((m) => ({
         key: `ECO-${String(m).padStart(2, '0')}`,
-        label: `Écolage ${monthName(m)} ${yearOfMonth(m, settings)}`,
+        label: `Frais de scolarité ${monthName(m)} ${yearOfMonth(m, settings)}`,
         short: `${monthName(m).charAt(0).toUpperCase()}${monthName(m).slice(1)} ${yearOfMonth(m, settings)}`,
         amount: fees.ecolage,
         journal: 'ECOLAGE',

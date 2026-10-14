@@ -60,9 +60,15 @@ export function dueDateOf(year, month, settings) {
   return `${year}-${String(month).padStart(2, '0')}-${String(settings.tuition.dueDay).padStart(2, '0')}`;
 }
 
-/** Dates de relance, d'avertissement et de mise à pied pour une échéance. */
-export function dunningSchedule(due, settings) {
-  const { relanceAfter, warningAfter, suspensionAfter, countFrom } = settings.dunning;
+/**
+ * Dates de relance, d'avertissement et de mise à pied pour une échéance.
+ * `lastMonth` : échéance du dernier mois du plan (juin, ou mai pour 1re/Tle) — délais
+ * raccourcis s'ils sont paramétrés (settings.dunning.lastMonth).
+ */
+export function dunningSchedule(due, settings, { lastMonth = false } = {}) {
+  const { countFrom } = settings.dunning;
+  const delays = lastMonth && settings.dunning.lastMonth?.enabled ? settings.dunning.lastMonth : settings.dunning;
+  const { relanceAfter, warningAfter, suspensionAfter } = delays;
   const relance = addCountedDays(due, relanceAfter, settings);
   if (countFrom === 'ETAPE_PRECEDENTE') {
     const warning = addCountedDays(relance, warningAfter, settings);
@@ -75,6 +81,9 @@ export function dunningSchedule(due, settings) {
     suspension: addCountedDays(due, suspensionAfter, settings),
   };
 }
+
+/** L'échéance tombe-t-elle sur le dernier mois du plan de la classe (plans[planIndex]) ? */
+export const isLastPlanMonth = (due, planIndex, settings) => Number(due.slice(5, 7)) === settings.tuition.plans[planIndex]?.last;
 
 /** Étape du dossier à une date donnée (avant validation éventuelle de la Direction). */
 export function stageOn(date, schedule, settings) {

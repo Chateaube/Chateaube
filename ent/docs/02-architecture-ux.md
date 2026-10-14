@@ -51,15 +51,15 @@ contiennent celles de la Vie scolaire (scénario T19), et les enseignants n'ont 
 ### Direction : administrateur (Cheffe d'établissement **et** Directrice adjointe, menu et droits identiques)
 ```
 Pilotage
-├── Tableau de bord ............ alertes écolage, KPI par site, bandeau du mois, échéances examens
+├── Tableau de bord ............ alertes frais de scolarité, KPI par site, bandeau du mois, échéances examens
 ├── Élèves & mobilité
 │   ├── Annuaire / fiches élèves (historique des sites)
 │   ├── Inscriptions & réinscriptions
 │   └── Campagnes de transfert (Tamatave → Tana, avril) + quitus financier
 ├── Comptabilité
-│   ├── Classes & tarifs : inscription, réinscription, écolage/mois, fascicule, location (par classe)
+│   ├── Classes & tarifs : inscription, réinscription, frais de scolarité/mois, fascicule, location (par classe)
 │   ├── Articles & services : manuel perdu/endommagé, passeport de vie scolaire, natation, tee-shirt, autre
-│   ├── États de compte : par famille, soldes séparés écolage / frais annexes / droits d'examen
+│   ├── États de compte : par famille, soldes séparés frais de scolarité / frais annexes / droits d'examen
 │   ├── Caisse : entrées / sorties du jour, par agent
 │   ├── Droits d'examen : encaissements, frais de dossier conservés, reversements aux centres
 │   └── Recouvrement : RELANCE → AVERTISSEMENT → MISE À PIED (validation)
@@ -125,7 +125,7 @@ Encaissements & comptabilité
 │   (n° + banque) / virement (n° de bordereau + banque) → un reçu par journal
 ├── Classes & tarifs · Articles & services · États de compte · Caisse (entrées / sorties)
 ├── Droits d'examen : ventilation automatique (40 000 Ar conservés / reste à reverser), reversements
-└── Recouvrement : relances (J+5), avertissements (J+10), propositions de mise à pied (J+25) → Direction
+└── Recouvrement : relances (10 j après l'échéance), avertissements (15 j après la relance), propositions de mise à pied (10 j après l'avertissement ; 5/5/5 le dernier mois) → Direction
 Inscriptions ................... nouvel élève (compte ouvert au mois d'arrivée), réinscriptions
 Conseils de classe ............. grilles de notes, avis des enseignants, décisions
 Vie scolaire (accès partagé) ... absences, retards, incidents
@@ -180,10 +180,10 @@ chaque portail.
 ## 2.5 Parcours critiques
 
 **Bascule d'avril (Direction)** : Élèves & mobilité → Campagnes → « Préparer » (liste des 1re/Tle de Tamatave, classes
-d'accueil à Tana, soldes d'écolage) → « Exécuter » → l'élève apparaît à Tana dès la date d'effet ; ses notes et factures
+d'accueil à Tana, soldes de frais de scolarité) → « Exécuter » → l'élève apparaît à Tana dès la date d'effet ; ses notes et factures
 restent visibles, sa fiche affiche « Tamatave (sept. → avr.) · Tana (avr. → juil.) ».
 
-**Impayé (automate → Direction)** : échéance le 5 → J+5 relance par e-mail et dans l'application → J+10 avertissement → J+25 le dossier apparaît
+**Impayé (automate → Direction)** : échéance le 5 → 10 jours comptés : relance par e-mail et dans l'application → 15 jours : avertissement → 10 jours : le dossier apparaît
 en rouge « Mise à pied à valider » → la Direction valide (notification) ou accorde un délai. Les jours sont comptés selon le
 calendrier scolaire (hors fériés, vacances et octobre).
 

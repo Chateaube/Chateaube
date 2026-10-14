@@ -134,14 +134,14 @@ export default function DirectionDashboard({ account, settings }) {
           <Icon name="clock" className={`mt-0.5 h-5 w-5 shrink-0 ${frozen ? 'text-amber-700' : 'text-navy-500'}`} />
           {frozen ? (
             <div>
-              <p className="text-sm font-semibold text-amber-900">{monthName(monthOf(refDate)).replace(/^./, (c) => c.toUpperCase())} : relances d'écolage suspendues</p>
+              <p className="text-sm font-semibold text-amber-900">{monthName(monthOf(refDate)).replace(/^./, (c) => c.toUpperCase())} : relances de frais de scolarité suspendues</p>
               <p className="text-sm text-amber-800">
                 Mois d'encaissement des droits d'examen : le décompte des délais est gelé et reprend au premier jour de classe du mois suivant.
               </p>
             </div>
           ) : (
             <div>
-              <p className="text-sm font-semibold text-navy-900">Relances d'écolage actives</p>
+              <p className="text-sm font-semibold text-navy-900">Relances de frais de scolarité actives</p>
               <p className="text-sm text-navy-700">
                 Échéance le {settings.tuition.dueDay} du mois · délais en jours de classe, hors jours fériés et vacances.
               </p>
@@ -155,7 +155,7 @@ export default function DirectionDashboard({ account, settings }) {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Élèves inscrits" value={kpi.students} hint={site === 'ALL' ? 'Tana + Tamatave' : SITES.find((s) => s.id === site).name} />
         <Stat
-          label="Recouvrement écolage (cumul)"
+          label="Recouvrement des frais de scolarité (cumul)"
           value={fmtPct(pct(kpi.paid, kpi.due))}
           hint={`${formatAr(kpi.paid)} / ${formatAr(kpi.due)}`}
           tone={pct(kpi.paid, kpi.due) >= 90 ? 'green' : 'amber'}
@@ -170,10 +170,10 @@ export default function DirectionDashboard({ account, settings }) {
       </div>
 
       <div className="grid gap-5 2xl:grid-cols-3">
-        {/* Alertes d'écolage */}
+        {/* Alertes de frais de scolarité */}
         <Card
           className="2xl:col-span-2"
-          title="Alertes d'écolage"
+          title="Alertes de frais de scolarité"
           subtitle={`Échéance le ${settings.tuition.dueDay} → relance → avertissement → mise à pied${settings.dunning.suspensionRequiresDirection ? ' (validée par la Direction)' : ''}`}
           action={
             <label className="flex items-center gap-2 text-xs text-slate-500">
@@ -274,7 +274,7 @@ export default function DirectionDashboard({ account, settings }) {
                     {Object.entries(k.byCycle).map(([c, n]) => <Badge key={c}>{c} {n}</Badge>)}
                   </div>
                   <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
-                    <span>Écolage encaissé</span><span className="tabular-nums">{fmtPct(rate)}</span>
+                    <span>Frais de scolarité encaissés</span><span className="tabular-nums">{fmtPct(rate)}</span>
                   </div>
                   <Progress value={rate} tone={rate >= 90 ? 'green' : 'amber'} />
                   <p className="mt-2 text-xs text-slate-500">{k.openCases} dossiers d'impayés · {k.absencesToday} absences aujourd'hui</p>
@@ -286,7 +286,7 @@ export default function DirectionDashboard({ account, settings }) {
       </div>
 
       {/* Comptabilité séparée */}
-      <Card title="Comptabilité séparée" subtitle="Deux journaux étanches : aucun flux commun entre écolage et droits d'examen">
+      <Card title="Comptabilité séparée" subtitle="Deux journaux étanches : aucun flux commun entre frais de scolarité et droits d'examen">
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <div className="rounded-lg border border-navy-100 bg-navy-50/50 p-3">
             <Badge tone="navy">Journal ÉCOLAGE</Badge>

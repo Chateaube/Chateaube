@@ -72,7 +72,7 @@ function FeesTab({ fees, setFees, settings }) {
         </table>
       </div>
       <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
-        <span className="flex items-center gap-1.5"><JournalBadge j="ECOLAGE" /> écolage mensuel</span>
+        <span className="flex items-center gap-1.5"><JournalBadge j="ECOLAGE" /> frais de scolarité mensuels</span>
         <span className="flex items-center gap-1.5"><JournalBadge j="FRAIS_ANNEXES" /> inscription, réinscription, fascicule, location</span>
         <span>· Nombre de mois : réglé dans Paramètres (9 mois pour 1re et Terminale).</span>
       </div>
@@ -349,7 +349,7 @@ export default function AccountingModule({ settings }) {
         <div>
           <p className="text-sm font-semibold text-navy-500">Espace comptabilité · Tamatave</p>
           <h1 className="text-2xl font-semibold text-navy-900">Comptabilité</h1>
-          <p className="text-sm text-slate-500">Trois journaux étanches : écolage, frais annexes, droits d'examen.</p>
+          <p className="text-sm text-slate-500">Trois journaux étanches : frais de scolarité, frais annexes, droits d'examen.</p>
         </div>
       </div>
       <div className="flex gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1" role="tablist">

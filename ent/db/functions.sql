@@ -4,7 +4,7 @@
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- Calendrier de relance : le mois est-il actif pour le cycle d'écolage ?
+-- Calendrier de relance : le mois est-il actif pour le cycle de frais de scolarité ?
 -- Seed : tous les mois actifs sauf octobre (« Encaissement des droits d'examen »).
 -- -----------------------------------------------------------------------------
 CREATE FUNCTION is_dunning_month(p_year uuid, p_day date) RETURNS boolean AS $$
@@ -49,28 +49,35 @@ BEGIN
 END $$ LANGUAGE plpgsql STABLE;
 
 -- Dates de relance, d'avertissement et de mise à pied pour une échéance.
-CREATE FUNCTION dunning_schedule(p_year uuid, p_site uuid, p_due date)
+CREATE FUNCTION dunning_schedule(p_year uuid, p_site uuid, p_due date, p_last_month boolean DEFAULT false)
 RETURNS TABLE (relance_on date, warning_on date, suspension_on date) AS $$
 DECLARE
   p dunning_policy%ROWTYPE;
+  v_rel smallint; v_warn smallint; v_susp smallint;
 BEGIN
   SELECT * INTO p FROM dunning_policy WHERE year_id = p_year AND site_id = p_site;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Aucune politique de relance pour ce site et cette année';
   END IF;
-  relance_on := add_counted_days(p_year, p_site, p_due, p.relance_after);
-  IF p.count_from = 'ECHEANCE' THEN
-    warning_on    := add_counted_days(p_year, p_site, p_due, p.warning_after);
-    suspension_on := add_counted_days(p_year, p_site, p_due, p.suspension_after);
+  -- dernier mois du plan : délais raccourcis s'ils sont paramétrés
+  IF p_last_month AND p.last_month_relance_after IS NOT NULL THEN
+    v_rel := p.last_month_relance_after; v_warn := p.last_month_warning_after; v_susp := p.last_month_suspension_after;
   ELSE
-    warning_on    := add_counted_days(p_year, p_site, relance_on, p.warning_after);
-    suspension_on := add_counted_days(p_year, p_site, warning_on, p.suspension_after);
+    v_rel := p.relance_after; v_warn := p.warning_after; v_susp := p.suspension_after;
+  END IF;
+  relance_on := add_counted_days(p_year, p_site, p_due, v_rel);
+  IF p.count_from = 'ECHEANCE' THEN
+    warning_on    := add_counted_days(p_year, p_site, p_due, v_warn);
+    suspension_on := add_counted_days(p_year, p_site, p_due, v_susp);
+  ELSE
+    warning_on    := add_counted_days(p_year, p_site, relance_on, v_warn);
+    suspension_on := add_counted_days(p_year, p_site, warning_on, v_susp);
   END IF;
   RETURN NEXT;
 END $$ LANGUAGE plpgsql STABLE;
 
 -- -----------------------------------------------------------------------------
--- Échéancier d'écolage : seuls les mois du plan du niveau sont facturables
+-- Échéancier de frais de scolarité : seuls les mois du plan du niveau sont facturables
 -- (Tamatave 1re/Tle : septembre → mai, soit 9 échéances), à partir du mois d'inscription.
 -- -----------------------------------------------------------------------------
 CREATE FUNCTION tuition_month_allowed(p_enrollment uuid, p_month date) RETURNS boolean AS $$
@@ -93,7 +100,7 @@ $$ LANGUAGE sql STABLE;
 CREATE FUNCTION invoice_cutoff_guard() RETURNS trigger AS $$
 BEGIN
   IF NEW.category = 'ECOLAGE' AND NOT tuition_month_allowed(NEW.enrollment_id, NEW.period_month) THEN
-    RAISE EXCEPTION 'Écolage de % non facturable : au-delà du dernier mois payable pour ce niveau', to_char(NEW.period_month, 'MM/YYYY');
+    RAISE EXCEPTION 'Frais de scolarité de % non facturable : au-delà du dernier mois payable pour ce niveau', to_char(NEW.period_month, 'MM/YYYY');
   END IF;
   RETURN NEW;
 END $$ LANGUAGE plpgsql;
@@ -152,7 +159,7 @@ END $$ LANGUAGE plpgsql;
 -- Ferme l'affectation courante la veille de la bascule et ouvre la nouvelle.
 -- AUCUNE donnée n'est déplacée : notes, factures et bulletins restent rattachés
 -- à l'inscription. Retourne la liste des élèves transférés et leur solde
--- d'écolage restant (quitus financier à suivre par la comptabilité).
+-- de frais de scolarité restant (quitus financier à suivre par la comptabilité).
 -- -----------------------------------------------------------------------------
 CREATE FUNCTION execute_transfer_campaign(p_campaign uuid, p_actor uuid)
 RETURNS TABLE (enrollment_id uuid, student text, outstanding_ecolage_mga bigint) AS $$
@@ -209,6 +216,15 @@ END $$ LANGUAGE plpgsql;
 --     validation d'un compte Direction (p_actor) ; sinon le dossier attend.
 -- Les jours fériés, vacances et mois gelés (octobre) ne comptent pas.
 -- -----------------------------------------------------------------------------
+-- L'échéance est-elle celle du dernier mois du plan de l'élève (juin, ou mai pour 1re/Tle) ?
+CREATE FUNCTION is_last_plan_month(p_enrollment uuid, p_month date) RETURNS boolean AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM enrollment e
+    JOIN school_class c ON c.id = e.class_id
+    JOIN tuition_cutoff_rule r ON r.year_id = e.year_id AND r.site_id = c.site_id AND r.level_code = c.level_code
+    WHERE e.id = p_enrollment AND r.last_payable_month = extract(month FROM p_month))
+$$ LANGUAGE sql STABLE;
+
 CREATE FUNCTION advance_dunning_case(p_case uuid, p_actor uuid DEFAULT NULL, p_today date DEFAULT current_date)
 RETURNS dunning_stage AS $$
 DECLARE
@@ -226,7 +242,7 @@ BEGIN
   SELECT * INTO e FROM enrollment WHERE id = d.enrollment_id;
   SELECT c.site_id INTO v_site FROM school_class c WHERE c.id = e.class_id;
   SELECT * INTO pol FROM dunning_policy WHERE year_id = e.year_id AND site_id = v_site;
-  SELECT * INTO sch FROM dunning_schedule(e.year_id, v_site, d.due_on);
+  SELECT * INTO sch FROM dunning_schedule(e.year_id, v_site, d.due_on, is_last_plan_month(e.id, d.opened_month));
 
   v_next := CASE
     WHEN p_today >= sch.suspension_on
@@ -255,7 +271,7 @@ FROM dunning_case dc
 JOIN enrollment e   ON e.id = dc.enrollment_id
 JOIN school_class c ON c.id = e.class_id
 JOIN dunning_policy p ON p.year_id = e.year_id AND p.site_id = c.site_id
-CROSS JOIN LATERAL dunning_schedule(e.year_id, c.site_id, dc.due_on) s
+CROSS JOIN LATERAL dunning_schedule(e.year_id, c.site_id, dc.due_on, is_last_plan_month(e.id, dc.opened_month)) s
 WHERE dc.stage = 'AVERTISSEMENT' AND dc.closed_at IS NULL
   AND p.suspension_requires_direction AND current_date >= s.suspension_on;
 
