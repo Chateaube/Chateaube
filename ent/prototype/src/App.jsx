@@ -15,6 +15,7 @@ import TeacherPortal from './components/TeacherPortal.jsx';
 import FamilyPortal from './components/FamilyPortal.jsx';
 import InscriptionsModule from './components/InscriptionsModule.jsx';
 import TeacherOversight from './components/TeacherOversight.jsx';
+import Messenger from './components/Messenger.jsx';
 import { DEFAULT_SETTINGS } from './data/settings.js';
 import { DIRECTION_ACCOUNTS } from './data/demo.js';
 
@@ -30,6 +31,12 @@ const OVERSIGHT = [
   { id: 'oversight-grades', label: 'Notes & appréciations (profs)', icon: 'pen', screen: (p) => <TeacherOversight {...p} view="grades" /> },
   { id: 'oversight-homework', label: 'Cahier de textes (profs)', icon: 'calendar', screen: (p) => <TeacherOversight {...p} view="homework" /> },
 ];
+const MESSAGES = { id: 'messages', label: 'Messages', icon: 'bell', screen: () => (
+  <div className="space-y-4">
+    <div><p className="text-sm font-semibold text-navy-500">Texte et photos · application et e-mail</p><h1 className="text-2xl font-semibold text-navy-900">Messages</h1></div>
+    <Messenger audience="STAFF" />
+  </div>
+) };
 const FOLLOW_UP = { id: 'followup', label: 'Documents, stages & orientation', icon: 'pen', screen: FollowUpModule };
 
 const PROFILES = {
@@ -54,6 +61,7 @@ const PROFILES = {
       { group: 'Vie scolaire & familles', items: [
         VIE_SCOLAIRE,
         FOLLOW_UP,
+        MESSAGES,
         { id: 'news', label: 'Annonces', icon: 'megaphone' },
       ] },
       { group: 'Administration', items: [
@@ -74,14 +82,14 @@ const PROFILES = {
         COUNCIL,
         ...OVERSIGHT,
       ] },
-      { group: 'Accès partagé', items: [VIE_SCOLAIRE, FOLLOW_UP, BOOKING] },
+      { group: 'Accès partagé', items: [MESSAGES, VIE_SCOLAIRE, FOLLOW_UP, BOOKING] },
     ],
   },
   VIE_SCOLAIRE: {
     label: 'Vie scol.',
     title: 'Vie scolaire',
     home: 'vs',
-    nav: [{ group: 'Vie scolaire', items: [VIE_SCOLAIRE, FOLLOW_UP, BOOKING, { id: 'news', label: 'Annonces', icon: 'megaphone' }] }],
+    nav: [{ group: 'Vie scolaire', items: [VIE_SCOLAIRE, MESSAGES, FOLLOW_UP, BOOKING, { id: 'news', label: 'Annonces', icon: 'megaphone' }] }],
   },
   ENSEIGNANT: {
     label: 'Enseignant',
@@ -95,7 +103,7 @@ const PROFILES = {
         { id: 'discipline', label: 'Punitions & téléphones', icon: 'alert', screen: VieScolaireModule },
         BOOKING,
       ] },
-      { group: 'Communication', items: [{ id: 'notify', label: 'Message à un parent', icon: 'bell' }] },
+      { group: 'Communication', items: [MESSAGES] },
     ],
   },
   PARENT: {

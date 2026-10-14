@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Icon } from './ui.jsx';
+import Messenger, { unreadCount } from './Messenger.jsx';
 import { PARENT } from '../data/people.js';
 import { FAMILIES, JOURNALS } from '../data/accounting.js';
 import { ATTENDANCE, MEASURES_LOG, PHONES } from '../data/schoollife.js';
@@ -342,36 +343,12 @@ function Payments() {
   );
 }
 
-function Messages({ isParent }) {
-  const [sent, setSent] = useState(false);
-  const [text, setText] = useState('');
-  return (
-    <>
-      <Section title="Messages reçus">
-        <ul className="space-y-3 text-sm">
-          <li><p className="text-xs text-slate-500">05/10 · Notification · Vie scolaire</p><p className="text-slate-700">Aina est arrivée en retard (10 min) ce matin.</p></li>
-          <li><p className="text-xs text-slate-500">09/10 · E-mail · Vie scolaire</p><p className="text-slate-700">Dossier Pré-Bac d'Aina : merci de déposer une photo d'identité avant le 30 octobre.</p></li>
-        </ul>
-      </Section>
-      {isParent && (
-        <Section title="Écrire à la vie scolaire">
-          {sent ? <p className="text-sm text-emerald-700">Message envoyé. Réponse sous 48 h ouvrées.</p> : (
-            <>
-              <textarea rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder="Motif d'absence, question…" className="w-full rounded-lg border border-slate-300 p-2 text-sm" />
-              <Button className="mt-2 w-full" disabled={!text.trim()} onClick={() => setSent(true)}>Envoyer</Button>
-            </>
-          )}
-        </Section>
-      )}
-    </>
-  );
-}
-
 /* ---------- Coquille ---------- */
-const TABS = [['home', 'Accueil', 'home'], ['notes', 'Notes', 'pen'], ['homework', 'Devoirs', 'calendar'], ['life', 'Vie scol.', 'users'], ['more', 'Plus', 'settings']];
+// En bas d'écran : Vie scolaire, Notes et Messages mis en avant ; Devoirs passe dans « Plus »
+const TABS = [['home', 'Accueil', 'home'], ['life', 'Vie scol.', 'users'], ['notes', 'Notes', 'pen'], ['messages', 'Messages', 'bell'], ['more', 'Plus', 'settings']];
 const MORE = [
-  ['documents', 'Documents & autorisations', 'pen'], ['stages', 'Stages', 'cap'], ['orientation', 'Orientation', 'cap'],
-  ['payments', 'Paiements', 'wallet', 'PARENT'], ['messages', 'Messages', 'bell'],
+  ['homework', 'Devoirs & cahier de textes', 'calendar'], ['documents', 'Documents & autorisations', 'pen'], ['stages', 'Stages', 'cap'],
+  ['orientation', 'Orientation', 'cap'], ['payments', 'Paiements', 'wallet', 'PARENT'],
 ];
 
 export default function FamilyPortal({ settings, audience = 'PARENT' }) {
@@ -383,6 +360,7 @@ export default function FamilyPortal({ settings, audience = 'PARENT' }) {
   const child = PARENT.children.find((c) => c.id === (isParent ? childId : 'aina'));
   const pendingAcks = isParent ? [...ATTENDANCE, ...MEASURES_LOG].filter((x) => PARENT.children.some((c) => fullName(c) === x.student) && !x.parentAck && !acks[x.id] && (x.notified ?? true)).length : 0;
   const view = tab === 'more' ? sub : tab;
+  const unread = tab === 'messages' ? 0 : unreadCount(audience);
   const go = (t) => { setTab(t); setSub(null); };
 
   return (
@@ -410,7 +388,7 @@ export default function FamilyPortal({ settings, audience = 'PARENT' }) {
           {view === 'stages' && <Internships key={child.id} child={child} isParent={isParent} />}
           {view === 'orientation' && <Orientation key={child.id} child={child} isParent={isParent} />}
           {view === 'payments' && <Payments />}
-          {view === 'messages' && <Messages isParent={isParent} />}
+          {view === 'messages' && <div className="-m-4 h-full bg-white p-3"><Messenger audience={audience} compact /></div>}
           {tab === 'more' && !sub && (
             <div className="grid grid-cols-2 gap-2">
               {MORE.filter((m) => !m[3] || m[3] === audience).map(([id, label, icon]) => (
@@ -427,6 +405,7 @@ export default function FamilyPortal({ settings, audience = 'PARENT' }) {
               className={`relative flex flex-col items-center gap-0.5 py-2 text-[11px] ${tab === id ? 'font-semibold text-navy-900' : 'text-slate-400'}`}>
               <Icon name={icon} className="h-5 w-5" />{label}
               {id === 'life' && pendingAcks > 0 && <span className="absolute right-3 top-1 rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white">{pendingAcks}</span>}
+              {id === 'messages' && unread > 0 && <span className="absolute right-3 top-1 rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white">{unread}</span>}
             </button>
           ))}
         </nav>
