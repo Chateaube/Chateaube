@@ -6,6 +6,7 @@ import {
 } from '../rules/enrollment.js';
 import { loadImport, saveImport } from '../importStore.js';
 import { seniority } from '../rules/documents.js';
+import { SPECIALTIES, SPECIALTY_COUNT } from '../rules/bulletin.js';
 import { CertificateButton } from './Certificate.jsx';
 
 // Inscriptions (Bureau et Direction) : pré-inscriptions, inscription ou réinscription avec
@@ -148,6 +149,17 @@ function ProfileForm({ initial, kind, onSave, onCancel }) {
             <span className="mt-1 block text-[11px] text-slate-500">{seniority(p.enteredOn)?.label ?? 'Nouveau ou ancien : indiquer la date d\'entrée'}</span></Field>
           <Field label="Établissement d'origine">{input('previousSchool')}</Field>
         </div>
+        {SPECIALTY_COUNT[p.cls] && (
+          <Field label={`Spécialités (${SPECIALTY_COUNT[p.cls]} à choisir)`} className="mt-3">
+            <div className="flex flex-wrap gap-1.5">
+              {Object.entries(SPECIALTIES).map(([code, label]) => {
+                const on = (p.specialties ?? []).includes(code);
+                return <button key={code} type="button" aria-pressed={on} onClick={() => set({ specialties: on ? p.specialties.filter((x) => x !== code) : [...(p.specialties ?? []), code] })}
+                  className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${on ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-600 ring-slate-300'}`}>{label}</button>;
+              })}
+            </div>
+          </Field>
+        )}
 
         <div className="mb-2 mt-5 flex items-center justify-between">
           <h4 className="text-sm font-semibold text-slate-800">Responsables légaux</h4>
@@ -228,6 +240,7 @@ function ProfileCard({ p, onReenrol, onComplete, created }) {
           {(p.email || p.phones?.length > 0) && <p><span className="text-slate-500">Contact de l'élève :</span> {[p.email, ...(p.phones ?? [])].filter(Boolean).join(' · ')}</p>}
           <p><span className="text-slate-500">Entrée :</span> {fmt(p.enteredOn)} · {p.previousSchool || '—'}{' '}
             {seniority(p.enteredOn) ? <Badge tone={seniority(p.enteredOn).isNew ? 'green' : 'navy'}>{seniority(p.enteredOn).label}</Badge> : <Badge tone="amber">ancienneté à renseigner</Badge>}</p>
+          {SPECIALTY_COUNT[p.cls] && <p><span className="text-slate-500">Spécialités :</span> {(p.specialties ?? []).map((k) => SPECIALTIES[k]).join(', ') || <Badge tone="amber">à choisir</Badge>}</p>}
           <p><span className="text-slate-500">Langues :</span> {[p.lv1, p.lv2].filter(Boolean).join(', ') || '—'}</p>
           <p><span className="text-slate-500">Santé :</span> {p.health.allergies || '—'}</p>
           <p><span className="text-slate-500">Urgence :</span> {p.health.emergency || '—'}</p>
@@ -268,7 +281,7 @@ const TABS = [['prereg', 'Pré-inscriptions'], ['new', 'Inscrire'], ['profiles',
 // Élèves importés (année en cours) → fiches élèves, à compléter (responsables, santé, pièces…)
 const fromImport = (s) => ({
   id: s.id, number: s.number, lastName: s.lastName, firstName: s.firstName, sex: '', birthDate: s.birthDate, birthPlace: s.birthPlace,
-  nationalities: s.nationalities, cls: s.cls, lv1: '', lv2: '', enteredOn: s.enteredOn ?? '', previousSchool: '', exam: s.exam, email: s.email, phones: s.phones,
+  nationalities: s.nationalities, cls: s.cls, lv1: '', lv2: '', enteredOn: s.enteredOn ?? '', previousSchool: '', exam: s.exam, email: s.email, phones: s.phones, specialties: s.specialties ?? [],
   guardians: [], health: { allergies: '', emergency: '' }, authorizations: { image: false, exit: '' }, documents: [],
 });
 const initialProfiles = () => {

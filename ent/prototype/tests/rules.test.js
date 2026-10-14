@@ -605,3 +605,14 @@ test('bulletin de Terminale : 2 spécialités sur 3 selon l\'élève', () => {
   assert.equal(subjectClassAverage('SPE_SVT', TLE_G_STUDENTS), subjectClassAverage('SPE_SVT', svt));
   assert.equal(classLine('Terminale Générale', ['MATHS', 'PC']), 'Classe de Tle Générale - Spécialités Mathématiques et Physique-Chimie');
 });
+
+test('spécialités : lecture de la colonne d\'import et contrôle', async () => {
+  const { parseSpecialties, specialtyErrors } = await import('../src/rules/bulletin.js');
+  assert.deepEqual(parseSpecialties('Maths, PC'), ['MATHS', 'PC']);
+  assert.deepEqual(parseSpecialties('Mathématiques et Sciences de la vie et de la Terre'), ['MATHS', 'SVT']);
+  assert.deepEqual(parseSpecialties('Spé Maths / Physique-Chimie'), ['MATHS', 'PC']);
+  assert.deepEqual(specialtyErrors('Terminale Générale', parseSpecialties('Maths / SVT')), []);
+  const { normalizeStudentRow } = await import('../src/rules/importer.js');
+  const r = normalizeStudentRow({ line: 2, 'N°': 'TG-001', Nom: 'TEST', Prénom: 'Élève', Classe: 'Tle G', 'Née le': '01/01/2009', Spécialités: 'Maths, PC' });
+  assert.deepEqual(r.student.specialties, ['MATHS', 'PC']);
+});

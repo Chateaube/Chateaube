@@ -109,6 +109,7 @@ export default function ImportModule() {
           </div>
           <Card title="Contrôle avant import" subtitle="Rien n'est bloquant sauf les erreurs ; les manques se complètent ensuite dans les fiches élèves"
             action={<Button variant="secondary" className="!py-1 text-xs" onClick={exportToComplete}>Exporter la liste à compléter (Excel)</Button>}>
+            {analysis.students.some((s) => /^(1re|Terminale) Générale$/.test(s.student.cls) && !s.student.specialties?.length) && <p className="mb-3 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-900">Spécialités : ajoutez une colonne « Spécialités » (ex. Maths, PC) pour les élèves de 1re et Terminale générales, ou choisissez-les après l'import dans Pédagogie → Bulletins.</p>}
             {!analysis.students.some((s) => s.student.enteredOn) && <p className="mb-3 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-900">Ancienneté : ajoutez une colonne « Entrée » (année d'entrée, ex. 2024) ou « Ancienneté » (ex. 2 ans, nouveau) pour distinguer nouveaux et anciens élèves (inscription ou réinscription). Elle peut aussi se saisir ensuite dans chaque fiche.</p>}
             {analysis.nationalityIsExtra && <p className="mb-3 rounded-lg bg-navy-50 p-2.5 text-xs text-navy-900">Colonne « Nationalité (en +) » : chaque élève est malgache, la colonne indique une nationalité en plus (ex. malgache et française). Une case vide = malgache seulement.</p>}
             <div className="flex flex-wrap gap-2">

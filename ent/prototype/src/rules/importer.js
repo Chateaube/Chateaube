@@ -1,4 +1,5 @@
 import { parseEntry } from './documents.js';
+import { parseSpecialties, specialtyErrors, SPECIALTY_COUNT } from './bulletin.js';
 
 // Import des données existantes (copier-coller depuis Excel, ou fichier CSV) :
 // élèves de l'année en cours et enseignements des professeurs.
@@ -99,12 +100,19 @@ export function normalizeStudentRow(row, { nationalityIsExtra = false } = {}) {
   const entryRaw = col(row, 'Entrée', 'Entree', 'Date d\'entrée', 'Année d\'entrée', 'Ancienneté', 'Anciennete');
   const enteredOn = parseEntry(entryRaw);
   if (entryRaw && !enteredOn) issues.push({ level: 'warning', text: `Ancienneté illisible : « ${entryRaw} » (ex. 2024, 2 ans, nouveau).` });
+  // Spécialités (1re et Tle générales) : « Maths, PC », « Maths / SVT »…
+  const speRaw = col(row, 'Spécialités', 'Specialites', 'Spé', 'Spe');
+  const specialties = parseSpecialties(speRaw);
+  if (SPECIALTY_COUNT[cls]) {
+    if (!speRaw) issues.push({ level: 'warning', text: 'Spécialités non renseignées (à choisir dans Bulletins ou la fiche élève).' });
+    else specialtyErrors(cls, specialties).forEach((text) => issues.push({ level: 'warning', text }));
+  }
   issues.push({ level: 'warning', text: 'Aucun responsable légal (parent ou tuteur) : à compléter.' });
   return {
     student: {
       id: number || `${cls}-${lastName}-${firstName}`, number, cls, lastName: lastName.toUpperCase(), firstName,
       birthDate: dm ? `${dm[3]}-${dm[2]}-${dm[1]}` : '', birthPlace, nationalities: codes.map((c) => c.code).filter(Boolean),
-      exam, email: email.toLowerCase(), phones: phones.filter((p) => p.ok).map((p) => p.value), guardians: [], enteredOn: enteredOn ?? '',
+      exam, email: email.toLowerCase(), phones: phones.filter((p) => p.ok).map((p) => p.value), guardians: [], enteredOn: enteredOn ?? '', specialties,
     },
     issues,
   };

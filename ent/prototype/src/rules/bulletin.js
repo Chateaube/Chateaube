@@ -32,3 +32,14 @@ export function classLine(cls, specialties = []) {
   const names = specialties.map((k) => (k === 'SVT' ? 'SVT' : SPECIALTIES[k]));
   return `Classe de ${short} - Spécialités ${names.slice(0, -1).join(', ')}${names.length > 1 ? ' et ' : ''}${names[names.length - 1]}`;
 }
+
+/** Colonne « Spécialités » d'un import : « Maths, PC », « Maths / SVT », « Mathématiques et Physique-Chimie ». */
+export function parseSpecialties(raw) {
+  const t = String(raw ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const found = [];
+  for (const part of t.split(/[,;\/+]| et /).map((s) => s.trim()).filter(Boolean)) {
+    const code = /^(spe\s*)?math/.test(part) ? 'MATHS' : /^(spe\s*)?(pc|physique)/.test(part) ? 'PC' : /^(spe\s*)?(svt|sciences de la vie)/.test(part) ? 'SVT' : null;
+    if (code && !found.includes(code)) found.push(code);
+  }
+  return found;
+}
