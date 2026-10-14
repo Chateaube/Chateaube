@@ -210,7 +210,7 @@ test('plans de frais de scolarité Tamatave : 9 mois pour 1re/Tle, 10 mois sinon
 
 // --- Comptabilité -------------------------------------------------------------
 import { accountStatement, annualCost, cashBalance } from '../src/rules/accounting.js';
-import { FAMILIES, CLASS_FEES, CASH_MOVEMENTS, CASH_OPENING } from '../src/data/accounting.js';
+import { FAMILIES, CLASS_FEES, CASH_MOVEMENTS, CASH_OPENING, CASH_HISTORY, CASH_YEAR_OPENING } from '../src/data/accounting.js';
 
 test('état de compte : soldes séparés par journal', () => {
   const { byJournal, totals, rows } = accountStatement(FAMILIES[0].lines);
@@ -232,10 +232,12 @@ test('coût annuel : 9 mois de frais de scolarité pour la Terminale, 10 pour la
 });
 
 test('caisse : entrées et sorties par journal', () => {
-  const b = cashBalance(CASH_OPENING, CASH_MOVEMENTS);
+  const b = cashBalance({ ECOLAGE: 250_000, FRAIS_ANNEXES: 40_000, DROITS_EXAMEN: 0 }, CASH_MOVEMENTS);
   assert.equal(b.ECOLAGE, 250_000 + 420_000 - 85_000 - 400_000);
   assert.equal(b.DROITS_EXAMEN, 950_000);
   assert.equal(b.FRAIS_ANNEXES, 110_000);
+  // ouverture du jour = clôture de la veille, d'après l'historique depuis la rentrée
+  assert.deepEqual(CASH_OPENING, cashBalance(CASH_YEAR_OPENING, CASH_HISTORY));
 });
 
 // --- Encaissement ---------------------------------------------------------------
