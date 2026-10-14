@@ -89,20 +89,19 @@ INSERT INTO ledger_account (code, category, label, nature) VALUES
   ('ANX-PRODUIT',    'FRAIS_ANNEXES', 'Produit frais annexes',           'PRODUIT');
 
 -- Catalogue tarifaire (« Classes & tarifs » et « Articles & services »)
-INSERT INTO fee_item (code, kind, category, rubric, label, unit, priced_by_level, free_amount) VALUES
-  ('INSCRIPTION',     'INSCRIPTION',   'FRAIS_ANNEXES', 'Classes & tarifs',          'Inscription',                  'une fois',      true,  false),
-  ('REINSCRIPTION',   'REINSCRIPTION', 'FRAIS_ANNEXES', 'Classes & tarifs',          'Réinscription',                'par an',        true,  false),
-  ('ECOLAGE',         'ECOLAGE',       'ECOLAGE',       'Classes & tarifs',          'Frais de scolarité mensuel',              'par mois',      true,  false),
-  ('FASCICULE',       'FASCICULE',     'FRAIS_ANNEXES', 'Classes & tarifs',          'Fascicule',                    'par an',        true,  false),
-  ('LOCATION',        'LOCATION',      'FRAIS_ANNEXES', 'Classes & tarifs',          'Location des manuels',         'par an',        true,  false),
-  ('MANUEL_PERTE',    'ARTICLE',       'FRAIS_ANNEXES', 'Manuel scolaire',           'Manuel perdu ou endommagé',    'par manuel',    false, false),
-  ('MANUEL_AUTRE',    'ARTICLE',       'FRAIS_ANNEXES', 'Manuel scolaire',           'Autre (manuel complémentaire)','par manuel',    false, false),
-  ('PASSEPORT',       'ARTICLE',       'FRAIS_ANNEXES', 'Passeport de Vie Scolaire', 'Passeport de Vie Scolaire',    'par élève',     false, false),
-  ('PASSEPORT_PERTE', 'ARTICLE',       'FRAIS_ANNEXES', 'Passeport de Vie Scolaire', 'Passeport perdu ou endommagé', 'remplacement',  false, false),
-  ('NATATION_SEANCE', 'SERVICE',       'FRAIS_ANNEXES', 'Séances de natation',       'Séance de natation',           'par séance',    false, false),
-  ('NATATION_FORFAIT','SERVICE',       'FRAIS_ANNEXES', 'Séances de natation',       'Forfait natation trimestriel', 'par trimestre', false, false),
-  ('TEE_SHIRT',       'ARTICLE',       'FRAIS_ANNEXES', 'Tee-shirt scolaire',        'Tee-shirt scolaire',           'par unité',     false, false),
-  ('AUTRE',           'ARTICLE',       'FRAIS_ANNEXES', 'Autre',                     'Autre (montant libre)',        'montant saisi', false, true);
+INSERT INTO fee_item (code, kind, category, rubric, label, unit, priced_by_level) VALUES
+  ('INSCRIPTION',     'INSCRIPTION',   'FRAIS_ANNEXES', 'Classes & tarifs',          'Inscription',                  'une fois', true),
+  ('REINSCRIPTION',   'REINSCRIPTION', 'FRAIS_ANNEXES', 'Classes & tarifs',          'Réinscription',                'par an', true),
+  ('ECOLAGE',         'ECOLAGE',       'ECOLAGE',       'Classes & tarifs',          'Frais de scolarité mensuel',              'par mois', true),
+  ('FASCICULE',       'FASCICULE',     'FRAIS_ANNEXES', 'Classes & tarifs',          'Fascicule',                    'par an', true),
+  ('LOCATION',        'LOCATION',      'FRAIS_ANNEXES', 'Classes & tarifs',          'Location des manuels',         'par an', true),
+  ('MANUEL_PERTE',    'ARTICLE',       'FRAIS_ANNEXES', 'Manuel scolaire',           'Manuel perdu ou endommagé',    'par manuel', false),
+  ('MANUEL_AUTRE',    'ARTICLE',       'FRAIS_ANNEXES', 'Manuel scolaire',           'Autre (manuel complémentaire)','par manuel', false),
+  ('PASSEPORT',       'ARTICLE',       'FRAIS_ANNEXES', 'Passeport de Vie Scolaire', 'Passeport de Vie Scolaire',    'par élève', false),
+  ('PASSEPORT_PERTE', 'ARTICLE',       'FRAIS_ANNEXES', 'Passeport de Vie Scolaire', 'Passeport perdu ou endommagé', 'remplacement', false),
+  ('NATATION_SEANCE', 'SERVICE',       'FRAIS_ANNEXES', 'Séances de natation',       'Séance de natation',           'par séance', false),
+  ('NATATION_FORFAIT','SERVICE',       'FRAIS_ANNEXES', 'Séances de natation',       'Forfait natation trimestriel', 'par trimestre', false),
+  ('TEE_SHIRT',       'ARTICLE',       'FRAIS_ANNEXES', 'Tee-shirt scolaire',        'Tee-shirt scolaire',           'par unité', false);
 
 -- Prix Tamatave 2026-2027 (montants FICTIFS, à remplacer) — articles à prix unique
 INSERT INTO fee_price (year_id, site_id, item_id, amount_mga)
@@ -157,7 +156,7 @@ INSERT INTO exam_document_type (code, label, required_for) VALUES
 -- Permissions — le rôle DIRECTION reçoit TOUT : les deux comptes Direction sont identiques.
 INSERT INTO permission (code, description) VALUES
   ('admin.users',        'Gérer les comptes, rôles et la liste blanche SSO'),
-  ('admin.settings',     'Paramétrer années, calendriers, grilles tarifaires'),
+  ('admin.settings',     'Paramétrer années, calendriers, grilles tarifaires, articles et services'),
   ('sites.transfer',     'Exécuter une campagne de transfert inter-sites'),
   ('finance.read',       'Consulter la comptabilité'),
   ('finance.write',      'Encaisser, facturer, reverser'),

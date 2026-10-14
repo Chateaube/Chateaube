@@ -163,8 +163,13 @@ paiements, pas de signature ni de « Je suis informé.e » (l'élève voit si se
 Le sélecteur **« Voir l'ENT en tant que »** (Direction, Bureau, Vie scolaire, Enseignant, Parent) permet de parcourir
 chaque portail.
 
-- **Comptabilité** : Classes & tarifs (grille éditable, coût annuel calculé), Articles & services, États de compte
-  (facturer un article, encaisser un paiement), Caisse : entrées / sorties.
+- **Comptabilité** : Encaisser (échéances, articles et services à prix fixe, toujours réglés en entier, ticket imprimé),
+  Classes & tarifs et Articles & services (modifiables par la Direction seule, consultation pour le Bureau), États de
+  compte (relevé de la famille en lecture seule, imprimable), Caisse : entrées / sorties.
+- **Fiche signalétique** : le parent la remplit et la signe dans son compte (Plus → Fiche signalétique) ; le bureau la
+  consulte, la valide et compare la signature de référence avec un document papier photographié.
+- **Bulletins** : date de naissance, absences en demi-journées justifiées / non justifiées, retards ; 1 page (recto) ou
+  2 pages (recto-verso), jamais plus, avec page blanche automatique pour l'impression recto-verso.
 - **Gestion des agents** : registre du personnel, entrée et sortie, accès ENT automatique.
 - **Paramètres** : échéancier, relances, calendrier scolaire, avec une simulation des dates.
 - **Portail enseignant** : cours du jour, appel (parents prévenus par e-mail et dans l'application), tâches, annonces.
@@ -174,7 +179,8 @@ chaque portail.
 1. **Tableau de bord Direction** : bandeau du mois (octobre suspendu) avec le calendrier des relances, KPI filtrables par
    site, pipeline des impayés en 3 étapes avec validation de la mise à pied, cartes des deux campus, comptabilité séparée
    (deux journaux visuellement distincts), panneau de mobilité inter-sites et frise des examens.
-2. **Réservation de matériel** : sélection du site, filtres par type, frise horaire 7h–17h avec la récréation et la
+2. **Réservation de matériel** : liée à une séance de l'emploi du temps (date, heures, classe reprises) ou à une date et
+   une heure au choix ; sélection du site, filtres par type, frise horaire 7h–17h avec la récréation et la
    fermeture du mercredi après-midi, formulaire vérifié en direct (conflit, horaires) avec **alternatives cliquables** (autre
    appareil libre au même horaire ou autre créneau pour le même appareil).
 3. **Appréciations** : liste d'élèves avec statut (à rédiger / erreurs / conforme / validée), éditeur avec aperçu annoté

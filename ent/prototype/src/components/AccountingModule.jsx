@@ -8,8 +8,6 @@ import { accountStatement, annualCost, cashBalance, monthlyCashReport, cashMonth
 import { printOnly } from '../print.js';
 import { planMonths } from '../rules/calendar.js';
 import { formatAr } from '../rules/finance.js';
-import { PAYMENT_METHODS, validateInstrument } from '../rules/billing.js';
-import { BANKS } from '../data/accounting.js';
 import CollectPayment from './CollectPayment.jsx';
 
 const TODAY = '2026-10-13';
@@ -32,14 +30,14 @@ function AmountInput({ value, onChange, className = '' }) {
 }
 
 /* ---------- Classes & tarifs ---------- */
-function FeesTab({ fees, setFees, settings }) {
+function FeesTab({ fees, setFees, settings, canEdit }) {
   const [newStudent, setNewStudent] = useState(false);
   const plans = settings.tuition.plans;
   const update = (i, key, v) => setFees(fees.map((r, k) => (k === i ? { ...r, [key]: v ?? 0 } : r)));
   return (
     <Card
       title="Classes & tarifs — Tamatave 2026-2027"
-      subtitle="Montants modifiables directement ; ils alimentent la facturation et les états de compte"
+      subtitle={canEdit ? 'Montants modifiables par la Direction uniquement ; ils alimentent l\'encaissement et les états de compte' : 'Consultation : seule la Direction peut modifier les classes et les tarifs'}
       action={
         <label className="flex items-center gap-2 text-sm text-slate-600">
           <input type="checkbox" checked={newStudent} onChange={(e) => setNewStudent(e.target.checked)} />
@@ -63,7 +61,7 @@ function FeesTab({ fees, setFees, settings }) {
                 <td className="px-4 py-2 font-medium text-slate-800">{r.cls}</td>
                 {FEE_COLUMNS.map((c) => (
                   <td key={c.key} className="px-2 py-1.5 text-right">
-                    <AmountInput value={r[c.key]} onChange={(v) => update(i, c.key, v)} />
+                    {canEdit ? <AmountInput value={r[c.key]} onChange={(v) => update(i, c.key, v)} /> : <span className="tabular-nums">{formatAr(r[c.key])}</span>}
                   </td>
                 ))}
                 <td className="px-2 text-right tabular-nums text-slate-600">{planMonths(plans[r.plan]).length}</td>
@@ -83,12 +81,12 @@ function FeesTab({ fees, setFees, settings }) {
 }
 
 /* ---------- Articles & services ---------- */
-function ArticlesTab({ articles, setArticles }) {
+function ArticlesTab({ articles, setArticles, canEdit }) {
   const [draft, setDraft] = useState({ group: '', label: '', unit: 'par unité', price: null });
   const update = (id, patch) => setArticles(articles.map((a) => (a.id === id ? { ...a, ...patch } : a)));
   const groups = [...new Set(articles.map((a) => a.group))];
   return (
-    <Card title="Articles & services" subtitle="Catalogue facturé à la demande, ajouté à l'état de compte de la famille">
+    <Card title="Articles & services" subtitle={`Tarifs fixes, vendus depuis « Encaisser » avec un ticket${canEdit ? ' · modifiables par la Direction uniquement' : ' · consultation : seule la Direction peut les modifier'}`}>
       <div className="space-y-4">
         {groups.map((g) => (
           <div key={g}>
@@ -98,22 +96,21 @@ function ArticlesTab({ articles, setArticles }) {
                 <li key={a.id} className={`flex flex-wrap items-center gap-3 px-3 py-2 text-sm ${a.active ? '' : 'opacity-50'}`}>
                   <span className="min-w-0 flex-1 font-medium text-slate-800">{a.label}</span>
                   <span className="text-xs text-slate-500">{a.unit}</span>
-                  {a.price === null
-                    ? <span className="w-28 text-right text-xs text-slate-500">saisi à la vente</span>
-                    : <AmountInput value={a.price} onChange={(v) => update(a.id, { price: v ?? 0 })} />}
+                  {canEdit ? <AmountInput value={a.price} onChange={(v) => update(a.id, { price: v ?? 0 })} /> : <span className="w-28 text-right tabular-nums">{formatAr(a.price)}</span>}
                   <JournalBadge j={a.journal} />
-                  <label className="flex items-center gap-1 text-xs text-slate-600">
+                  {canEdit && <><label className="flex items-center gap-1 text-xs text-slate-600">
                     <input type="checkbox" checked={a.active} onChange={(e) => update(a.id, { active: e.target.checked })} />actif
                   </label>
                   <button type="button" aria-label={`Supprimer ${a.label}`} title="Supprimer l'article (les ventes déjà facturées restent sur les états de compte)"
                     onClick={() => window.confirm(`Supprimer « ${a.label} » du catalogue ?\nLes ventes déjà facturées restent sur les états de compte.`) && setArticles(articles.filter((x) => x.id !== a.id))}
-                    className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600"><Icon name="x" /></button>
+                    className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600"><Icon name="x" /></button></>}
                 </li>
               ))}
             </ul>
           </div>
         ))}
       </div>
+      {canEdit && (
       <div className="mt-4 grid gap-2 rounded-lg bg-slate-50 p-3 sm:grid-cols-[1fr_1fr_130px_auto_auto] sm:items-end">
         <label className="text-xs text-slate-600">Rubrique
           <input value={draft.group} onChange={(e) => setDraft({ ...draft, group: e.target.value })} placeholder="ex. Sortie pédagogique" className={`mt-1 w-full bg-white ${inputCls}`} />
@@ -127,31 +124,24 @@ function ArticlesTab({ articles, setArticles }) {
         <label className="text-xs text-slate-600">Prix (Ar)
           <div className="mt-1"><AmountInput value={draft.price} onChange={(v) => setDraft({ ...draft, price: v })} className="bg-white py-1.5" /></div>
         </label>
-        <Button disabled={!draft.group.trim() || !draft.label.trim()}
+        <Button disabled={!draft.group.trim() || !draft.label.trim() || !(draft.price > 0)}
           onClick={() => { setArticles([...articles, { ...draft, id: `a${Date.now()}`, journal: 'FRAIS_ANNEXES', active: true }]); setDraft({ group: '', label: '', unit: 'par unité', price: null }); }}>
           Ajouter
         </Button>
       </div>
+      )}
     </Card>
   );
 }
 
 /* ---------- États de compte ---------- */
-function StatementTab({ families, setFamilies, articles }) {
+function StatementTab({ families }) {
   const [famId, setFamId] = useState(families[0].id);
-  const [sale, setSale] = useState({ articleId: '', qty: 1, child: '', amount: null });
-  const [pay, setPay] = useState({ journal: 'ECOLAGE', amount: null, method: 'ESPECES', ref: '', bank: '' });
-  const payErrors = validateInstrument(pay);
   const fam = families.find((f) => f.id === famId);
   const { rows, byJournal, totals } = useMemo(() => accountStatement(fam.lines), [fam]);
-  const addLine = (line) => setFamilies(families.map((f) => (f.id === famId ? { ...f, lines: [...f.lines, { date: TODAY, ...line }] } : f)));
-
-  const article = articles.find((a) => a.id === sale.articleId);
-  const unitPrice = article?.price ?? sale.amount;
-  const canSell = article && unitPrice > 0 && sale.qty > 0 && sale.child;
-
   return (
     <div className="grid gap-5 xl:grid-cols-[1fr_340px] xl:items-start">
+      <div className="statement-print">
       <Card
         title={fam.name}
         subtitle={`Payeur : ${fam.payer} · ${fam.children.map((c) => `${c.name} (${c.cls})`).join(', ')}`}
@@ -160,7 +150,7 @@ function StatementTab({ families, setFamilies, articles }) {
             <select value={famId} onChange={(e) => setFamId(e.target.value)} className={inputCls}>
               {families.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
             </select>
-            <Button variant="secondary" onClick={() => window.print()}>Imprimer</Button>
+            <Button variant="secondary" onClick={() => printOnly('.statement-print', 'size: A4 portrait; margin: 12mm;')}>Imprimer</Button>
           </div>
         }
       >
@@ -213,56 +203,16 @@ function StatementTab({ families, setFamilies, articles }) {
           </table>
         </div>
       </Card>
-
-      <div className="space-y-5">
-        <Card title="Facturer un article">
-          <div className="space-y-2 text-sm">
-            <select value={sale.child} onChange={(e) => setSale({ ...sale, child: e.target.value })} className={`w-full ${inputCls}`}>
-              <option value="">Élève…</option>
-              {fam.children.map((c) => <option key={c.name} value={c.name}>{c.name} ({c.cls})</option>)}
-            </select>
-            <select value={sale.articleId} onChange={(e) => setSale({ ...sale, articleId: e.target.value, amount: null })} className={`w-full ${inputCls}`}>
-              <option value="">Article…</option>
-              {articles.filter((a) => a.active).map((a) => <option key={a.id} value={a.id}>{a.group} — {a.label}</option>)}
-            </select>
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-slate-600">Qté <input type="number" min={1} value={sale.qty} onChange={(e) => setSale({ ...sale, qty: Math.max(1, Number(e.target.value)) })} className={`ml-1 w-16 ${inputCls}`} /></label>
-              {article && article.price === null && <AmountInput value={sale.amount} onChange={(v) => setSale({ ...sale, amount: v })} />}
-              {canSell && <span className="ml-auto font-semibold tabular-nums">{formatAr(unitPrice * sale.qty)}</span>}
-            </div>
-            <Button className="w-full" disabled={!canSell} onClick={() => {
-              addLine({ label: `${article.label}${sale.qty > 1 ? ` × ${sale.qty}` : ''} — ${sale.child}`, journal: article.journal, debit: unitPrice * sale.qty });
-              setSale({ articleId: '', qty: 1, child: '', amount: null });
-            }}>Ajouter à l'état de compte</Button>
-          </div>
-        </Card>
-        <Card title="Enregistrer un paiement" subtitle="Le paiement n'éteint que les dettes du journal choisi">
-          <div className="space-y-2 text-sm">
-            <select value={pay.journal} onChange={(e) => setPay({ ...pay, journal: e.target.value })} className={`w-full ${inputCls}`}>
-              {Object.entries(JOURNALS).map(([k, j]) => <option key={k} value={k}>{j.label} — reste {formatAr(Math.max(0, byJournal[k]?.balance ?? 0))}</option>)}
-            </select>
-            <div className="flex gap-2">
-              <AmountInput value={pay.amount} onChange={(v) => setPay({ ...pay, amount: v })} className="flex-1 py-1.5" />
-              <select value={pay.method} onChange={(e) => setPay({ ...pay, method: e.target.value, ref: '', bank: '' })} className={`flex-1 ${inputCls}`}>
-                {Object.entries(PAYMENT_METHODS).map(([k, m]) => <option key={k} value={k}>{m.label}</option>)}
-              </select>
-            </div>
-            {PAYMENT_METHODS[pay.method].needsRef && (
-              <div className="flex gap-2">
-                <input value={pay.ref} onChange={(e) => setPay({ ...pay, ref: e.target.value })} placeholder={PAYMENT_METHODS[pay.method].refLabel} className={`min-w-0 flex-1 ${inputCls}`} />
-                <select value={pay.bank} onChange={(e) => setPay({ ...pay, bank: e.target.value })} className={`min-w-0 flex-1 ${inputCls}`}>
-                  <option value="">Banque…</option>{BANKS.map((b) => <option key={b}>{b}</option>)}
-                </select>
-              </div>
-            )}
-            <Button className="w-full" disabled={!(pay.amount > 0) || payErrors.length > 0} onClick={() => {
-              const m = PAYMENT_METHODS[pay.method];
-              addLine({ label: `Paiement ${m.label.toLowerCase()}${m.needsRef ? ` n° ${pay.ref} (${pay.bank})` : ''}`, journal: pay.journal, credit: pay.amount });
-              setPay({ ...pay, amount: null, ref: '', bank: '' });
-            }}>Encaisser et éditer le reçu</Button>
-          </div>
-        </Card>
       </div>
+      <Card title="À quoi sert l'état de compte ?">
+        <ul className="list-disc space-y-1.5 pl-4 text-sm text-slate-600">
+          <li>C'est le <strong>relevé de la famille</strong>, tous enfants confondus : ce qui a été facturé, ce qui a été payé et ce qui reste dû, journal par journal.</li>
+          <li>Il répond aux questions des parents (« qu'avons-nous déjà payé ? ») : on l'imprime ou on l'envoie, la famille le voit aussi dans son compte.</li>
+          <li>Il sert de preuve en cas de désaccord, avant une relance, un avertissement ou une mise à pied.</li>
+          <li>En fin d'année, il permet de solder les comptes : familles à jour, impayés à reporter.</li>
+        </ul>
+        <p className="mt-3 rounded-lg bg-slate-50 p-2.5 text-xs text-slate-600">On n'y saisit rien : les paiements se font dans « Encaisser », en entier et avec un ticket. Les lignes de l'état de compte en découlent automatiquement.</p>
+      </Card>
     </div>
   );
 }
@@ -424,11 +374,12 @@ function CashTab({ movements, setMovements }) {
 
 const TABS = [['collect', 'Encaisser'], ['fees', 'Classes & tarifs'], ['articles', 'Articles & services'], ['statements', 'États de compte'], ['cash', 'Caisse : entrées / sorties']];
 
-export default function AccountingModule({ settings }) {
+export default function AccountingModule({ settings, role }) {
+  const canEdit = role === 'DIRECTION'; // classes, tarifs, articles et services : Direction uniquement
   const [tab, setTab] = useState('collect');
   const [fees, setFees] = useState(CLASS_FEES);
   const [articles, setArticles] = useState(ARTICLES);
-  const [families, setFamilies] = useState(FAMILIES);
+  const [families] = useState(FAMILIES);
   const [movements, setMovements] = useState(CASH_MOVEMENTS);
   return (
     <div className="space-y-5">
@@ -447,10 +398,10 @@ export default function AccountingModule({ settings }) {
           </button>
         ))}
       </div>
-      {tab === 'collect' && <CollectPayment settings={settings} />}
-      {tab === 'fees' && <FeesTab fees={fees} setFees={setFees} settings={settings} />}
-      {tab === 'articles' && <ArticlesTab articles={articles} setArticles={setArticles} />}
-      {tab === 'statements' && <StatementTab families={families} setFamilies={setFamilies} articles={articles} />}
+      {tab === 'collect' && <CollectPayment settings={settings} articles={articles} />}
+      {tab === 'fees' && <FeesTab fees={fees} setFees={setFees} settings={settings} canEdit={canEdit} />}
+      {tab === 'articles' && <ArticlesTab articles={articles} setArticles={setArticles} canEdit={canEdit} />}
+      {tab === 'statements' && <StatementTab families={families} />}
       {tab === 'cash' && <CashTab movements={movements} setMovements={setMovements} />}
     </div>
   );

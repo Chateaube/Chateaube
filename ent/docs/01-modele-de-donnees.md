@@ -146,7 +146,8 @@ Règles validées par la Direction pour **Tamatave** (Tana sera paramétré plus
 - **Trois journaux étanches** (`fee_category`) : `ECOLAGE`, `FRAIS_ANNEXES` (inscription, réinscription, fascicule,
   location des manuels, articles et services) et `DROITS_EXAMEN`.
 - **`fee_item`** : catalogue (« Classes & tarifs » et « Articles & services »). Exemples : manuel perdu ou endommagé,
-  Passeport de Vie Scolaire et son remplacement, séance ou forfait de natation, tee-shirt scolaire, « Autre » à montant libre.
+  Passeport de Vie Scolaire et son remplacement, séance ou forfait de natation, tee-shirt scolaire. **Aucun montant libre** : chaque article ou service a un prix fixé,
+  modifiable par la Direction seule (permission `admin.settings`).
 - **`fee_price`** : prix par année × site, **par classe** (grille) ou unique (`level_code` NULL). `fee_price_for()` choisit
   le prix de la classe s'il existe (T12).
 - **`invoice_line`** : détail des factures (quantité × prix unitaire).
@@ -156,6 +157,8 @@ Règles validées par la Direction pour **Tamatave** (Tana sera paramétré plus
   **n° de chèque** (6 à 10 chiffres) ou le **n° de bordereau / référence du virement** et la **banque** sont obligatoires.
   Un chèque a un statut (à déposer, déposé, encaissé, rejeté) et un `batch_id` relie les reçus émis pour un même chèque
   (un reçu par journal) (T15).
+- **Pas de paiement partiel** : `payment_allocation` refuse tout montant différent du reste dû de la facture. Chaque
+  échéance, article ou service est réglé en entier, avec un reçu (ticket) (T32).
 - **Compte d'un élève arrivé en cours d'année** : la facturation des frais de scolarité commence au mois de son inscription. Un
   élève arrivé le 12 octobre ne paie pas septembre ; ses frais de scolarité d'octobre sont dus à sa date d'arrivée (T16).
 - **`cash_movement`** : caisse du site, avec les **entrées** (encaissements, apports) et les **sorties** (dépenses,
@@ -262,3 +265,13 @@ recoder.
 4. Le transfert vers Tana n'est pas bloqué par un impayé ; les soldes sont listés pour suivi.
 5. Inscription, réinscription, fascicule, location et articles sont regroupés dans un journal « Frais annexes » distinct des
    frais de scolarité : à valider avec la comptabilité.
+
+### Fiche signalétique en ligne et signatures
+- **`guardian_signature`** : signature de référence de chaque compte parent, déposée au doigt dans l'application. Une
+  seule active par responsable ; un changement se fait au bureau après contrôle d'identité.
+- **`student_record_form`** : fiche signalétique annuelle (élève, fratrie, responsables, santé, autorisations), remplie et
+  signée en ligne ; l'acceptation du règlement et des dispositions financières est obligatoire. Le bureau la valide.
+- **`student_record_signature`** : 1 ou 2 responsables signent, chacun depuis son compte et avec sa signature de
+  référence ; un adulte qui n'est pas responsable de l'élève ne peut pas signer (T33).
+- **Réservations** : `booking.timetable_slot_id` lie une réservation à une séance de l'emploi du temps (NULL : date et
+  heure au choix).

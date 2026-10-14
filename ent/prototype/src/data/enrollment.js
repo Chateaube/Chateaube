@@ -23,7 +23,7 @@ export const STUDENT_PROFILES = [
   },
   {
     id: 'f2', lastName: 'RAKOTOARISOA', firstName: 'Toky', sex: 'M', birthDate: '2014-06-03', birthPlace: 'Toamasina', nationalities: ['MG'],
-    cls: '5e', lv1: 'Anglais', lv2: 'Mandarin', enteredOn: '2023-09-04', previousSchool: 'École primaire Les Hibiscus',
+    cls: '5e', lv1: 'Anglais', lv2: 'Espagnol', enteredOn: '2023-09-04', previousSchool: 'École primaire Les Hibiscus',
     guardians: [
       { name: 'Mme Rakotoarisoa Hanta', relation: 'Mère', phone: '+261 34 11 223 12', email: 'hanta.rakotoarisoa@gmail.com', whatsapp: true, payer: true, pickup: true },
     ],
@@ -44,6 +44,7 @@ export const STUDENT_PROFILES = [
 ];
 
 export const ENROLL_CLASSES = ['6e', '5e', '4e', '3e', '2de', '1re Générale', '1re STMG', 'Terminale Générale', 'Terminale STMG'];
-export const LANGUAGES = { lv1: ['Anglais'], lv2: ['Espagnol', 'Mandarin'] };
+// LV1 Anglais et LV2 Espagnol pour tous les élèves
+export const LANGUAGES = { lv1: ['Anglais'], lv2: ['Espagnol'] };
 export const RELATIONS = ['Mère', 'Père', 'Tuteur / tutrice', 'Grand-parent', 'Autre'];
 export const NATIONALITIES = [['MG', 'Malgache'], ['FR', 'Française'], ['KM', 'Comorienne'], ['MU', 'Mauricienne'], ['CN', 'Chinoise'], ['IN', 'Indienne'], ['XX', 'Autre']];

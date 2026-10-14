@@ -72,7 +72,7 @@ function DueTile({ item, checked, onToggle }) {
   );
 }
 
-export default function CollectPayment({ settings }) {
+export default function CollectPayment({ settings, articles = [] }) {
   const [accounts, setAccounts] = useState(CASH_ACCOUNTS);
   const [cls, setCls] = useState('');
   const [bearer, setBearer] = useState({ role: 'PARENT', name: '' });
@@ -87,7 +87,20 @@ export default function CollectPayment({ settings }) {
 
   const student = accounts.find((a) => a.id === studentId);
   const fees = CLASS_FEES.find((r) => r.cls === student.cls);
-  const items = useMemo(() => studentDues(student, fees, settings, TODAY), [student, fees, settings]);
+  // Articles et services vendus à l'élève : prix fixé au catalogue, réglés comme les autres échéances
+  const items = useMemo(() => [
+    ...studentDues(student, fees, settings, TODAY),
+    ...(student.extras ?? []).map((x) => ({ ...x, status: student.paid.includes(x.key) ? 'PAYE' : 'ECHU' })),
+  ], [student, fees, settings]);
+  const [sale, setSale] = useState({ articleId: '', qty: 1 });
+  const article = articles.find((a) => a.id === sale.articleId);
+  const addArticle = () => {
+    const key = `ART-${Date.now()}`;
+    const extra = { key, label: `${article.label}${sale.qty > 1 ? ` × ${sale.qty}` : ''}`, amount: article.price * sale.qty, journal: article.journal, due: TODAY };
+    setAccounts(accounts.map((a) => (a.id === studentId ? { ...a, extras: [...(a.extras ?? []), extra] } : a)));
+    setSelected([...keys, key]);
+    setSale({ articleId: '', qty: 1 });
+  };
   const keys = selected ?? defaultSelection(items);
   const chosen = items.filter((i) => keys.includes(i.key) && i.status !== 'PAYE');
   const total = chosen.reduce((s, i) => s + i.amount, 0);
@@ -97,7 +110,8 @@ export default function CollectPayment({ settings }) {
   const pick = (id) => { setStudentId(id); setSelected(null); setReceipts(null); setInstrument({ method: 'ESPECES', ref: '', bank: '' }); setBearer({ role: 'PARENT', name: '' }); };
   const toggle = (key) => setSelected(keys.includes(key) ? keys.filter((k) => k !== key) : [...keys, key]);
   const months = items.filter((i) => i.journal === 'ECOLAGE');
-  const others = items.filter((i) => i.journal !== 'ECOLAGE');
+  const others = items.filter((i) => i.journal !== 'ECOLAGE' && !i.key.startsWith('ART-'));
+  const extras = items.filter((i) => i.key.startsWith('ART-'));
   const unpaidMonths = months.filter((m) => m.status !== 'PAYE');
 
   const collect = () => {
@@ -159,7 +173,22 @@ export default function CollectPayment({ settings }) {
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {others.map((m) => <DueTile key={m.key} item={m} checked={keys.includes(m.key)} onToggle={() => toggle(m.key)} />)}
         </div>
-        <p className="mt-3 text-xs text-slate-500">Les articles (tee-shirt, natation, manuel perdu…) se facturent depuis l'onglet États de compte puis apparaissent ici.</p>
+        {extras.length > 0 && (
+          <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {extras.map((m) => <DueTile key={m.key} item={m} checked={keys.includes(m.key)} onToggle={() => toggle(m.key)} />)}
+          </div>
+        )}
+        <p className="mb-1.5 mt-4 text-xs font-semibold text-slate-500">Articles et services (tarifs fixés par la Direction)</p>
+        <div className="flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 p-2">
+          <select value={sale.articleId} onChange={(e) => setSale({ ...sale, articleId: e.target.value })} aria-label="Article ou service" className={`min-w-0 flex-1 ${inputCls}`}>
+            <option value="">Article ou service…</option>
+            {articles.filter((a) => a.active && a.price > 0).map((a) => <option key={a.id} value={a.id}>{a.group} — {a.label} ({formatAr(a.price)} {a.unit})</option>)}
+          </select>
+          <label className="text-xs text-slate-600">Qté <input type="number" min={1} max={20} value={sale.qty} onChange={(e) => setSale({ ...sale, qty: Math.min(20, Math.max(1, Number(e.target.value) || 1)) })} className={`ml-1 w-16 ${inputCls}`} /></label>
+          {article && <span className="text-sm font-semibold tabular-nums">{formatAr(article.price * sale.qty)}</span>}
+          <Button variant="secondary" className="!py-1 text-xs" disabled={!article} onClick={addArticle}>Ajouter à l'encaissement</Button>
+        </div>
+        <p className="mt-2 text-xs text-slate-500">Chaque échéance, article ou service se règle en entier : pas de paiement partiel. Un ticket est toujours imprimé.</p>
       </Card>
 
       <div className="space-y-5">

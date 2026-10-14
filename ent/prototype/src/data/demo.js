@@ -100,3 +100,14 @@ export const INITIAL_BOOKINGS = [
   { id: 'b9', resourceId: 'tana-sp1', date: '2026-10-15', start: '15:00', end: '17:00', who: 'Vie scolaire', cls: '—', purpose: 'Répétition spectacle' },
   { id: 'b10', resourceId: 'tmv-vp1', date: '2026-10-14', start: '08:00', end: '10:00', who: 'M. Rasolo', cls: '4e', purpose: 'Géographie' },
 ];
+
+// Séances de l'enseignant connecté (emploi du temps, semaine du 12 octobre) : une réservation
+// peut être liée à une séance (date, heures et classe repris automatiquement).
+export const MY_SESSIONS = [
+  { id: 'se1', date: '2026-10-12', start: '07:00', end: '09:00', cls: '1re STMG', subject: 'Management' },
+  { id: 'se2', date: '2026-10-13', start: '09:45', end: '11:45', cls: 'Terminale STMG', subject: 'Management' },
+  { id: 'se3', date: '2026-10-14', start: '08:00', end: '09:30', cls: '2de', subject: 'SES' },
+  { id: 'se4', date: '2026-10-15', start: '10:30', end: '11:30', cls: '1re STMG', subject: 'Management' },
+  { id: 'se5', date: '2026-10-15', start: '13:30', end: '15:30', cls: 'Terminale STMG', subject: 'Droit' },
+  { id: 'se6', date: '2026-10-16', start: '07:00', end: '08:00', cls: '1re STMG', subject: 'Économie' },
+];

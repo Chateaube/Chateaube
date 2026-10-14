@@ -632,3 +632,41 @@ SELECT e.id AS enrollment_id, specialty_count_for(e.id) AS expected,
 FROM enrollment e
 WHERE specialty_count_for(e.id) > 0
   AND (SELECT count(*) FROM enrollment_specialty es WHERE es.enrollment_id = e.id) < specialty_count_for(e.id);
+
+-- -----------------------------------------------------------------------------
+-- Pas de paiement partiel : chaque facture (mois de frais de scolarité, article,
+-- service, droits d'examen) est réglée en entier, et chaque règlement donne un reçu.
+-- -----------------------------------------------------------------------------
+CREATE FUNCTION allocation_full_guard() RETURNS trigger AS $$
+DECLARE v_rest bigint;
+BEGIN
+  SELECT amount_mga - paid_mga INTO v_rest FROM invoice WHERE id = NEW.invoice_id;
+  IF NEW.amount_mga <> v_rest THEN
+    RAISE EXCEPTION 'Paiement partiel refusé : la facture doit être réglée en entier (% Ar)', v_rest;
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER allocation_full BEFORE INSERT ON payment_allocation
+  FOR EACH ROW EXECUTE FUNCTION allocation_full_guard();
+
+-- -----------------------------------------------------------------------------
+-- Fiche signalétique : seul un responsable de l'élève signe, avec SA signature de référence.
+-- -----------------------------------------------------------------------------
+CREATE FUNCTION record_signature_guard() RETURNS trigger AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM guardian_signature s
+                  WHERE s.id = NEW.signature_id AND s.guardian_id = NEW.guardian_id AND s.replaced_at IS NULL) THEN
+    RAISE EXCEPTION 'Signature refusée : ce n''est pas la signature de référence de ce responsable';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM student_record_form f
+                   JOIN enrollment e ON e.id = f.enrollment_id
+                   JOIN student_guardian sg ON sg.student_id = e.student_id AND sg.guardian_id = NEW.guardian_id
+                  WHERE f.id = NEW.form_id) THEN
+    RAISE EXCEPTION 'Signature refusée : ce compte n''est pas responsable de l''élève';
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER record_signature_check BEFORE INSERT ON student_record_signature
+  FOR EACH ROW EXECUTE FUNCTION record_signature_guard();

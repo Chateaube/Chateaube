@@ -10,8 +10,9 @@ import { fmtAvg } from '../rules/grading.js';
 const two = (v) => (v === null || v === undefined ? '' : Number(v).toFixed(2));
 
 export function BulletinSheet({ b }) {
+  // compact : bulletin trop long pour tenir en recto-verso → police réduite (jamais plus de 2 pages)
   return (
-    <div className="bulletin mx-auto w-full max-w-[1000px] break-after-page bg-white p-8 text-[10.5px] leading-snug text-black shadow-soft print:text-[9px] print:leading-tight"
+    <div className={`bulletin mx-auto w-full max-w-[1000px] break-after-page bg-white p-8 text-[10.5px] leading-snug text-black shadow-soft print:leading-tight ${b.compact ? 'bulletin-compact print:text-[8px]' : 'print:text-[9px]'}`}
       style={{ fontFamily: 'Poppins, sans-serif' }}>
       <div className="flex items-start justify-between gap-6">
         <img src={logo} alt="École Collège Lycée Chateaubriand Tamatave — 27 Rue Nationale, 501 Toamasina" className="w-[230px]" />
@@ -54,7 +55,7 @@ export function BulletinSheet({ b }) {
         </tbody>
       </table>
       <div className="mt-3 flex items-start justify-between">
-        <p>Absences (1/2 j.) : {b.abs} &nbsp;|&nbsp; Retards : {b.late}</p>
+        <p>Absences (demi-journées) : justifiées {b.justified ?? 0} · non justifiées {b.unjustified ?? 0} &nbsp;|&nbsp; Retards : {b.late}</p>
         <p className="w-[30%] text-center font-bold">La Cheffe d'Établissement</p>
       </div>
       <div className="mt-3 w-[62%] border border-black p-2 font-bold">

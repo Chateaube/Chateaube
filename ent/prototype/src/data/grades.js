@@ -133,8 +133,11 @@ export const OTHER_FLAGS = {
   'RAVELOJAONA Sitraka': [{ subject: 'EPS', flag: 'ENCOURAGEMENTS' }],
 };
 
+// Absences en demi-journées (justifiées / non justifiées) et retards ; abs = total
 export const ABSENCES = {
-  'RAJAONARIVELO Tsiry': { abs: 6, late: 4 }, 'RAMAROSON Fitia': { abs: 3, late: 0 }, 'RANDRIAMAMPIANINA Hery': { abs: 2, late: 5 },
+  'RAJAONARIVELO Tsiry': { abs: 6, justified: 2, unjustified: 4, late: 4 },
+  'RAMAROSON Fitia': { abs: 3, justified: 3, unjustified: 0, late: 0 },
+  'RANDRIAMAMPIANINA Hery': { abs: 2, justified: 1, unjustified: 1, late: 5 },
 };
 
 // Parcours d'ouverture : évalué uniquement par une appréciation (pas de note)

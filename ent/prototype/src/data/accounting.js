@@ -37,7 +37,6 @@ export const ARTICLES = [
   { id: 'a5', group: 'Séances de natation', label: 'Séance de natation', unit: 'par séance', price: 15_000, journal: 'FRAIS_ANNEXES', active: true },
   { id: 'a6', group: 'Séances de natation', label: 'Forfait natation trimestriel', unit: 'par trimestre', price: 120_000, journal: 'FRAIS_ANNEXES', active: true },
   { id: 'a7', group: 'Tee-shirt scolaire', label: 'Tee-shirt scolaire', unit: 'par unité', price: 35_000, journal: 'FRAIS_ANNEXES', active: true },
-  { id: 'a8', group: 'Autre', label: 'Autre (montant libre)', unit: 'montant saisi', price: null, journal: 'FRAIS_ANNEXES', active: true },
 ];
 
 // Familles et état de compte (débit = facturé, crédit = payé)

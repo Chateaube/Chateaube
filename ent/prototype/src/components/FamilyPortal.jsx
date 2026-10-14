@@ -13,6 +13,10 @@ import { formatAr } from '../rules/finance.js';
 import { studentNoteList, fmt2, isPublished, parentPublishOn } from '../rules/grading.js';
 import { MEASURES, PHONE_DURATIONS, phoneReturnAt } from '../rules/discipline.js';
 import { formatDateFr } from '../rules/calendar.js';
+import { STUDENT_PROFILES } from '../data/enrollment.js';
+import { FicheForm, FICHE_YEAR } from './FicheSignaletique.jsx';
+import SignaturePad from './SignaturePad.jsx';
+import { ficheOf, referenceOf, setReference } from '../ficheStore.js';
 
 // Portail famille : PARENT (toutes les actions) ou ELEVE (presque la même chose, en lecture,
 // sans paiements, sans accusés de lecture ni signatures).
@@ -27,6 +31,9 @@ const SUBJECT_COLORS = ['#f97316', '#10b981', '#005baa', '#f59e0b', '#8b5cf6', '
 const subjectColor = (name) => SUBJECT_COLORS[[...name].reduce((a, c) => a + c.charCodeAt(0), 0) % SUBJECT_COLORS.length];
 const MEASURE = Object.fromEntries(MEASURES.map((m) => [m.id, m]));
 const fullName = (child) => `RAKOTOARISOA ${child.name}`;
+// Compte parent connecté (démonstration) : sa signature de référence y est rattachée
+const ACCOUNT = { id: 'hanta.rakotoarisoa@gmail.com', name: 'Mme Rakotoarisoa Hanta' };
+const profileOf = (child) => STUDENT_PROFILES.find((p) => p.lastName === 'RAKOTOARISOA' && p.firstName === child.name);
 
 function Section({ title, children, action }) {
   return (
@@ -38,7 +45,7 @@ function Section({ title, children, action }) {
 }
 
 /* ---------- Accueil ---------- */
-function Home({ child, isParent }) {
+function Home({ child, isParent, openFiche }) {
   const due = HOMEWORK.filter((h) => h.cls === child.cls && h.due && h.due > TODAY).sort((a, b) => a.due.localeCompare(b.due)).slice(0, 2);
   return (
     <>
@@ -48,6 +55,13 @@ function Home({ child, isParent }) {
           <p className={`text-sm ${a.tone === 'red' ? 'text-red-800' : 'text-amber-800'}`}>{a.body}</p>
         </div>
       ))}
+      {isParent && !ficheOf(fullName(child))?.signedAt && (
+        <div className="rounded-2xl bg-navy-50 p-4">
+          <p className="text-sm font-semibold text-navy-900">Fiche signalétique {FICHE_YEAR} — {child.name}</p>
+          <p className="text-sm text-navy-800">À vérifier, compléter et signer en ligne. Elle est déjà pré-remplie.</p>
+          <Button className="mt-2 !py-1 text-xs" onClick={openFiche}>Remplir et signer</Button>
+        </div>
+      )}
       <Section title={`Aujourd'hui — ${child.name}`}>
         <ul className="space-y-1.5">
           {child.timetable.map(([t, s]) => <li key={t} className="flex gap-3 text-sm"><span className="w-12 font-medium tabular-nums text-navy-900">{t.replace(':', 'h')}</span><span className="text-slate-700">{s}</span></li>)}
@@ -343,12 +357,35 @@ function Payments() {
   );
 }
 
+/* ---------- Ma signature (signature de référence du compte) ---------- */
+function MySignature() {
+  const [ref, setRef] = useState(() => referenceOf(ACCOUNT.id));
+  const [draft, setDraft] = useState(null);
+  return (
+    <Section title="Ma signature">
+      <p className="mb-2 text-sm text-slate-600">Votre signature de référence. Elle signe vos documents dans l'ENT, et le bureau la compare en cas de doute avec un mot ou une autorisation papier.</p>
+      {ref ? (
+        <>
+          <img src={ref.dataUrl} alt="Ma signature de référence" className="h-24 w-full rounded-xl border border-slate-200 bg-white object-contain" />
+          <p className="mt-1 text-xs text-slate-500">Déposée le {ref.at.slice(0, 10).split('-').reverse().join('/')}. Pour la changer, adressez-vous au bureau (contrôle d'identité).</p>
+        </>
+      ) : (
+        <>
+          <SignaturePad onChange={setDraft} label="Signez ici avec le doigt" />
+          <Button className="mt-2 w-full" disabled={!draft} onClick={() => { setReference(ACCOUNT.id, draft); setRef(referenceOf(ACCOUNT.id)); }}>Enregistrer ma signature</Button>
+        </>
+      )}
+    </Section>
+  );
+}
+
 /* ---------- Coquille ---------- */
 // En bas d'écran : Vie scolaire, Notes et Messages mis en avant ; Devoirs passe dans « Plus »
 const TABS = [['home', 'Accueil', 'home'], ['life', 'Vie scol.', 'users'], ['notes', 'Notes', 'pen'], ['messages', 'Messages', 'bell'], ['more', 'Plus', 'settings']];
 const MORE = [
   ['homework', 'Devoirs & cahier de textes', 'calendar'], ['documents', 'Documents & autorisations', 'pen'], ['stages', 'Stages', 'cap'],
   ['orientation', 'Orientation', 'cap'], ['payments', 'Paiements', 'wallet', 'PARENT'],
+  ['fiche', 'Fiche signalétique', 'pen', 'PARENT'], ['signature', 'Ma signature', 'pen', 'PARENT'],
 ];
 
 export default function FamilyPortal({ settings, audience = 'PARENT' }) {
@@ -380,7 +417,9 @@ export default function FamilyPortal({ settings, audience = 'PARENT' }) {
         </header>
         <div role="region" aria-label="Contenu du portail" className="flex-1 space-y-3 overflow-y-auto p-4">
           {tab === 'more' && sub && <button onClick={() => setSub(null)} className="text-sm font-medium text-navy-500">‹ Plus</button>}
-          {view === 'home' && <Home child={child} isParent={isParent} />}
+          {view === 'home' && <Home child={child} isParent={isParent} openFiche={() => { setTab('more'); setSub('fiche'); }} />}
+          {view === 'fiche' && <FicheForm key={child.id} studentKey={fullName(child)} profile={profileOf(child)} account={ACCOUNT.id} accountName={ACCOUNT.name} />}
+          {view === 'signature' && <MySignature />}
           {view === 'notes' && <Notes child={child} audience={audience} settings={settings} />}
           {view === 'homework' && <Homework child={child} isParent={isParent} />}
           {view === 'life' && <SchoolLife child={child} isParent={isParent} acks={acks} setAcks={setAcks} settings={settings} />}

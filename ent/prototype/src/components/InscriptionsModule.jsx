@@ -8,6 +8,8 @@ import { loadImport, saveImport } from '../importStore.js';
 import { seniority } from '../rules/documents.js';
 import { SPECIALTIES, SPECIALTY_COUNT } from '../rules/bulletin.js';
 import { CertificateButton } from './Certificate.jsx';
+import { FicheView, SignatureCompare, FICHE_YEAR } from './FicheSignaletique.jsx';
+import { ficheOf, saveFiche } from '../ficheStore.js';
 
 // Inscriptions (Bureau et Direction) : pré-inscriptions, inscription ou réinscription avec
 // création de la fiche élève, puis création des comptes de l'ENT.
@@ -220,6 +222,37 @@ function ProfileForm({ initial, kind, onSave, onCancel }) {
   );
 }
 
+/* ---------- Fiche signalétique en ligne et signatures ---------- */
+function FicheSection({ p }) {
+  const key = `${p.lastName} ${p.firstName}`;
+  const [fiche, setFiche] = useState(() => ficheOf(key));
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-4 rounded-xl border border-slate-200 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm"><span className="font-semibold text-slate-800">Fiche signalétique {FICHE_YEAR}</span>{' '}
+          {fiche?.signedAt ? <Badge tone="green">signée en ligne le {fmt(fiche.signedAt.slice(0, 10))}</Badge> : <Badge tone="amber">en attente du parent</Badge>}
+          {fiche?.validatedAt && <> <Badge tone="navy">validée</Badge></>}</p>
+        <Button variant="secondary" className="!py-1 text-xs" onClick={() => setOpen(!open)}>{open ? 'Fermer' : fiche?.signedAt ? 'Voir la fiche et les signatures' : 'Comparer une signature'}</Button>
+      </div>
+      {!fiche?.signedAt && !open && <p className="mt-1 text-xs text-slate-500">Le parent la remplit et la signe depuis son compte (Plus → Fiche signalétique). Plus de saisie à la main.</p>}
+      {open && (
+        <div className="mt-3 space-y-4">
+          {fiche?.signedAt && <FicheView fiche={fiche} />}
+          {fiche?.signedAt && !fiche.validatedAt && (
+            <Button className="!py-1 text-xs" onClick={() => { const v = { ...fiche, validatedAt: new Date().toISOString() }; saveFiche(key, v); setFiche(v); }}>Valider la fiche</Button>
+          )}
+          <div>
+            <p className="mb-1 text-xs font-semibold text-slate-500">Comparer une signature en cas de doute</p>
+            {p.guardians.filter((g) => g.email || g.name).map((g) => <div key={g.name} className="mb-3"><SignatureCompare account={g.email || g.name} name={g.name} /></div>)}
+            {p.guardians.length === 0 && <p className="text-xs text-slate-500">Aucun responsable enregistré.</p>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ---------- Fiches élèves ---------- */
 function ProfileCard({ p, onReenrol, onComplete, created }) {
   const missing = missingDocuments(p, 'REINSCRIPTION');
@@ -263,6 +296,7 @@ function ProfileCard({ p, onReenrol, onComplete, created }) {
           </ul>
         </div>
       </div>
+      <FicheSection p={p} />
       <p className="mb-1 mt-4 text-xs font-semibold text-slate-500">Comptes de l'ENT</p>
       <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200 text-sm">
         {accounts.map((a) => (
@@ -281,7 +315,7 @@ const TABS = [['prereg', 'Pré-inscriptions'], ['new', 'Inscrire'], ['profiles',
 // Élèves importés (année en cours) → fiches élèves, à compléter (responsables, santé, pièces…)
 const fromImport = (s) => ({
   id: s.id, number: s.number, lastName: s.lastName, firstName: s.firstName, sex: '', birthDate: s.birthDate, birthPlace: s.birthPlace,
-  nationalities: s.nationalities, cls: s.cls, lv1: '', lv2: '', enteredOn: s.enteredOn ?? '', previousSchool: '', exam: s.exam, email: s.email, phones: s.phones, specialties: s.specialties ?? [],
+  nationalities: s.nationalities, cls: s.cls, lv1: 'Anglais', lv2: 'Espagnol', enteredOn: s.enteredOn ?? '', previousSchool: '', exam: s.exam, email: s.email, phones: s.phones, specialties: s.specialties ?? [],
   guardians: [], health: { allergies: '', emergency: '' }, authorizations: { image: false, exit: '' }, documents: [],
 });
 const initialProfiles = () => {

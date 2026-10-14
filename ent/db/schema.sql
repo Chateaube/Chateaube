@@ -27,7 +27,7 @@ CREATE TYPE fee_category      AS ENUM ('ECOLAGE', 'FRAIS_ANNEXES', 'DROITS_EXAME
 CREATE TYPE fee_item_kind     AS ENUM ('INSCRIPTION', 'REINSCRIPTION', 'ECOLAGE', 'FASCICULE', 'LOCATION', 'ARTICLE', 'SERVICE');
 CREATE TYPE cash_direction    AS ENUM ('ENTREE', 'SORTIE');
 CREATE TYPE contract_type     AS ENUM ('CDI', 'CDD', 'VACATAIRE', 'STAGIAIRE');
-CREATE TYPE invoice_status    AS ENUM ('BROUILLON', 'EMISE', 'PARTIELLE', 'PAYEE', 'ANNULEE');
+CREATE TYPE invoice_status    AS ENUM ('BROUILLON', 'EMISE', 'PARTIELLE', 'PAYEE', 'ANNULEE'); -- PARTIELLE : historique seulement (paiement partiel refusé)
 -- Modes acceptés : espèces, chèque, virement (pas de mobile money)
 CREATE TYPE payment_method    AS ENUM ('ESPECES', 'CHEQUE', 'VIREMENT');
 CREATE TYPE dunning_stage     AS ENUM ('RELANCE', 'AVERTISSEMENT', 'MISE_A_PIED', 'REGULARISE', 'SUSPENDU');
@@ -382,6 +382,7 @@ CREATE TABLE tuition_cutoff_rule (
 );
 
 -- =====  CATALOGUE TARIFAIRE (« Classes & tarifs », « Articles & services »)  =====
+-- Tarifs toujours fixés (pas de montant libre) ; modifiables par la Direction seule (admin.settings).
 -- Chaque article appartient à UN journal (catégorie) : frais de scolarité, frais annexes
 -- (inscription, réinscription, fascicule, location, articles) ou droits d'examen.
 CREATE TABLE fee_item (
@@ -393,7 +394,6 @@ CREATE TABLE fee_item (
   label         text NOT NULL,                 -- 'Manuel perdu ou endommagé'
   unit          text NOT NULL DEFAULT 'par unité',
   priced_by_level boolean NOT NULL DEFAULT false, -- vrai : prix par classe (grille), faux : prix unique
-  free_amount   boolean NOT NULL DEFAULT false,   -- « Autre » : montant saisi à la vente
   is_active     boolean NOT NULL DEFAULT true,
   CHECK (kind <> 'ECOLAGE' OR category = 'ECOLAGE'),
   CHECK (category <> 'DROITS_EXAMEN')             -- les droits d'examen passent par fee_schedule
@@ -687,6 +687,8 @@ CREATE TABLE booking (
   resource_id   uuid NOT NULL REFERENCES resource(id),
   booked_by     uuid NOT NULL REFERENCES app_user(id),
   class_id      uuid REFERENCES school_class(id),
+  -- réservation liée à une séance de l'emploi du temps (NULL : date et heure au choix)
+  timetable_slot_id uuid REFERENCES timetable_slot(id),
   period        tstzrange NOT NULL,
   purpose       text,
   status        booking_status NOT NULL DEFAULT 'CONFIRMEE',
@@ -1177,3 +1179,43 @@ CREATE TABLE audit_log (
   ip            inet
 );
 CREATE INDEX audit_entity_idx ON audit_log (entity, entity_id);
+
+-- =====  FICHE SIGNALÉTIQUE EN LIGNE ET SIGNATURES DES PARENTS  =====
+-- Chaque compte parent dépose UNE signature de référence (au doigt, dans l'application).
+-- Elle signe ses documents dans l'ENT et sert au bureau de point de comparaison
+-- avec un mot ou une autorisation papier en cas de doute.
+CREATE TABLE guardian_signature (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  guardian_id   uuid NOT NULL REFERENCES guardian(id),
+  image_key     text NOT NULL,                 -- fichier PNG dans le stockage chiffré
+  deposited_at  timestamptz NOT NULL DEFAULT now(),
+  replaced_at   timestamptz,                   -- changement : au bureau, après contrôle d'identité
+  replaced_by   uuid REFERENCES app_user(id),
+  CHECK ((replaced_at IS NULL) = (replaced_by IS NULL))
+);
+CREATE UNIQUE INDEX guardian_signature_reference ON guardian_signature (guardian_id) WHERE replaced_at IS NULL;
+
+-- Fiche signalétique annuelle : remplie et signée par le parent, validée par le bureau.
+CREATE TABLE student_record_form (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  enrollment_id uuid NOT NULL REFERENCES enrollment(id),
+  data          jsonb NOT NULL,                -- champs de la fiche (élève, fratrie, responsables, santé…)
+  auth_image    boolean NOT NULL,
+  auth_hospital boolean NOT NULL,
+  accepted_terms boolean NOT NULL CHECK (accepted_terms), -- règlement et dispositions financières
+  signed_place  text NOT NULL,
+  signed_at     timestamptz NOT NULL DEFAULT now(),
+  validated_by  uuid REFERENCES app_user(id),
+  validated_at  timestamptz,
+  UNIQUE (enrollment_id),
+  CHECK ((validated_by IS NULL) = (validated_at IS NULL))
+);
+
+-- Signatures portées par une fiche : 1 ou 2 responsables, chacun depuis son propre compte.
+CREATE TABLE student_record_signature (
+  form_id       uuid REFERENCES student_record_form(id) ON DELETE CASCADE,
+  guardian_id   uuid REFERENCES guardian(id),
+  signature_id  uuid NOT NULL REFERENCES guardian_signature(id),
+  signed_at     timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (form_id, guardian_id)
+);

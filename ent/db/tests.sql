@@ -606,5 +606,49 @@ DO $$ DECLARE e uuid := (SELECT id FROM enrollment WHERE class_id = '10000000-00
   END;
 END $$;
 
+-- T32. Pas de paiement partiel : une facture se règle en entier -------------------
+DO $$ DECLARE i uuid; p uuid; BEGIN
+  INSERT INTO invoice (number, enrollment_id, category, due_on, amount_mga)
+  VALUES ('ANX-T32', '30000000-0000-0000-0000-000000000001', 'FRAIS_ANNEXES', '2026-10-13', 35000) RETURNING id INTO i;
+  INSERT INTO payment (receipt_no, category, site_id, amount_mga, method, received_by)
+  SELECT 'R-T32', 'FRAIS_ANNEXES', id, 20000, 'ESPECES', '00000000-0000-0000-0000-000000000001' FROM site WHERE code = 'TMV' RETURNING id INTO p;
+  BEGIN
+    INSERT INTO payment_allocation VALUES (p, i, 20000);
+    RAISE EXCEPTION 'T32: paiement partiel accepté';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T32:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO payment_allocation VALUES (p, i, 35000); -- règlement complet accepté
+  ASSERT NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'fee_item' AND column_name = 'free_amount'), 'T32: plus de montant libre';
+END $$;
+
+-- T33. Fiche signalétique signée en ligne avec la signature de référence du parent ---
+DO $$ DECLARE g uuid := 'e0000000-0000-0000-0000-000000000001'; other uuid; sig uuid; sig2 uuid; f uuid; BEGIN
+  INSERT INTO student_guardian (student_id, guardian_id, relationship)
+  SELECT student_id, g, 'Mère' FROM enrollment WHERE id = '30000000-0000-0000-0000-000000000001' ON CONFLICT DO NOTHING;
+  INSERT INTO guardian_signature (guardian_id, image_key) VALUES (g, 'sig/hanta.png') RETURNING id INTO sig;
+  BEGIN
+    INSERT INTO guardian_signature (guardian_id, image_key) VALUES (g, 'sig/hanta-2.png');
+    RAISE EXCEPTION 'T33: deux signatures de référence actives';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  INSERT INTO student_record_form (enrollment_id, data, auth_image, auth_hospital, accepted_terms, signed_place)
+  VALUES ('30000000-0000-0000-0000-000000000001', '{"allergies": "Aucune"}', true, true, true, 'Tamatave') RETURNING id INTO f;
+  INSERT INTO student_record_signature (form_id, guardian_id, signature_id) VALUES (f, g, sig);
+  -- un autre adulte, non responsable de l'élève, ne peut pas signer
+  INSERT INTO guardian (first_name, last_name) VALUES ('Inconnu', 'TEST') RETURNING id INTO other;
+  INSERT INTO guardian_signature (guardian_id, image_key) VALUES (other, 'sig/x.png') RETURNING id INTO sig2;
+  BEGIN
+    INSERT INTO student_record_signature (form_id, guardian_id, signature_id) VALUES (f, other, sig2);
+    RAISE EXCEPTION 'T33: signature d''un non-responsable acceptée';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T33:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    INSERT INTO student_record_form (enrollment_id, data, auth_image, auth_hospital, accepted_terms, signed_place)
+    VALUES ('30000000-0000-0000-0000-0000000000a1', '{}', false, false, false, 'Tamatave');
+    RAISE EXCEPTION 'T33: fiche sans acceptation du règlement';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T31 passent'
+\echo 'OK — tous les scénarios T1 à T33 passent'

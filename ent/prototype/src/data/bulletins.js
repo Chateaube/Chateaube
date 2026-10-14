@@ -26,6 +26,7 @@ let seed = 11;
 const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
 export const TLE_G_STUDENTS = base.map(([lastName, firstName, sex, birthDate, specialties, level, abs, late]) => ({
   name: `${lastName} ${firstName}`, lastName, firstName, sex, birthDate, specialties, abs, late,
+  justified: Math.ceil(abs / 2), unjustified: abs - Math.ceil(abs / 2),
   avgs: Object.fromEntries(TLE_G_SUBJECTS.filter((s) => !s.specialty || specialties.includes(s.specialty))
     .map((s) => [s.id, Math.round(Math.min(19.5, Math.max(5, level + rnd() * 5 - 2.5)) * 100) / 100])),
 }));

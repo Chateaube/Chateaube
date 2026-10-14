@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, Icon } from './ui.jsx';
-import { RESOURCES, RESOURCE_TYPES, INITIAL_BOOKINGS, SITES } from '../data/demo.js';
+import { RESOURCES, RESOURCE_TYPES, INITIAL_BOOKINGS, SITES, MY_SESSIONS } from '../data/demo.js';
 import {
   SCHOOL_HOURS, RECESS, toMin, weekdayOf, validateSlot, findConflicts, suggestAlternatives,
 } from '../rules/booking.js';
@@ -90,6 +90,13 @@ export default function BookingModule() {
   const [bookings, setBookings] = useState(INITIAL_BOOKINGS);
   const [form, setForm] = useState({ resourceId: 'tmv-vp1', start: '10:30', end: '11:30', cls: '1re STMG', purpose: 'Management — présentation orale' });
   const [confirmation, setConfirmation] = useState(null);
+  const [link, setLink] = useState({ mode: 'SEANCE', sessionId: 'se4' }); // séance de cours ou date / heure particulière
+  const linkSession = (id) => {
+    const se = MY_SESSIONS.find((x) => x.id === id);
+    setLink({ mode: 'SEANCE', sessionId: id });
+    setDate(se.date);
+    set({ start: se.start, end: se.end, cls: se.cls, purpose: se.subject });
+  };
 
   const siteResources = RESOURCES.filter((r) => r.siteId === siteId);
   const visible = siteResources.filter((r) => type === 'ALL' || r.type === type);
@@ -111,12 +118,13 @@ export default function BookingModule() {
     const start = `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
     const endMin = minute + 60;
     set({ resourceId, start, end: `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}` });
+    setLink({ mode: 'LIBRE', sessionId: null });
   };
 
   const book = () => {
     const resource = RESOURCES.find((r) => r.id === form.resourceId);
-    setBookings((bs) => [...bs, { id: `n${bs.length + 1}`, ...req, who: 'Moi', mine: true }]);
-    setConfirmation(`${resource.label} réservé le ${DAYS.find((d) => d.date === date)?.label ?? date} de ${h(form.start)} à ${h(form.end)}.`);
+    setBookings((bs) => [...bs, { id: `n${bs.length + 1}`, ...req, who: 'Moi', mine: true, sessionId: link.mode === 'SEANCE' ? link.sessionId : null }]);
+    setConfirmation(`${resource.label} réservé le ${DAYS.find((d) => d.date === date)?.label ?? date.split('-').reverse().join('/')} de ${h(form.start)} à ${h(form.end)}${link.mode === 'SEANCE' ? ' (lié à votre séance)' : ''}.`);
   };
 
   return (
@@ -178,12 +186,29 @@ export default function BookingModule() {
                 })}
               </select>
             </label>
+            <fieldset>
+              <legend className="text-xs font-medium text-slate-600">Quand ?</legend>
+              <div className="mt-1 grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1">
+                {[['SEANCE', 'Une de mes séances'], ['LIBRE', 'Date et heure au choix']].map(([m, l]) => (
+                  <button key={m} type="button" aria-pressed={link.mode === m} onClick={() => (m === 'SEANCE' ? linkSession(link.sessionId ?? MY_SESSIONS[0].id) : setLink({ mode: 'LIBRE', sessionId: null }))}
+                    className={`rounded-md py-1 text-xs font-medium ${link.mode === m ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>{l}</button>
+                ))}
+              </div>
+            </fieldset>
+            {link.mode === 'SEANCE' && (
+              <label className="block">
+                <span className="text-xs font-medium text-slate-600">Séance (emploi du temps)</span>
+                <select className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5" value={link.sessionId} onChange={(e) => linkSession(e.target.value)}>
+                  {MY_SESSIONS.map((se) => <option key={se.id} value={se.id}>{DAYS.find((d) => d.date === se.date)?.label} · {h(se.start)}–{h(se.end)} · {se.cls} · {se.subject}</option>)}
+                </select>
+                <span className="mt-1 block text-[11px] text-slate-500">Date, heures et classe sont reprises de la séance. Si la séance est déplacée, la réservation est signalée pour être ajustée.</span>
+              </label>
+            )}
+            {link.mode === 'LIBRE' && (
             <div className="grid grid-cols-3 gap-2">
               <label className="col-span-3 block sm:col-span-1 xl:col-span-3">
                 <span className="text-xs font-medium text-slate-600">Date</span>
-                <select className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5" value={date} onChange={(e) => { setDate(e.target.value); setConfirmation(null); }}>
-                  {DAYS.map((d) => <option key={d.date} value={d.date}>{d.label} octobre</option>)}
-                </select>
+                <input type="date" min="2026-10-13" className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5" value={date} onChange={(e) => { if (e.target.value) { setDate(e.target.value); setConfirmation(null); } }} />
               </label>
               <label className="block xl:col-span-1">
                 <span className="text-xs font-medium text-slate-600">Début</span>
@@ -194,6 +219,7 @@ export default function BookingModule() {
                 <input type="time" step="900" className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5" value={form.end} onChange={(e) => set({ end: e.target.value })} />
               </label>
             </div>
+            )}
             <label className="block">
               <span className="text-xs font-medium text-slate-600">Classe</span>
               <input className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5" value={form.cls} onChange={(e) => set({ cls: e.target.value })} />

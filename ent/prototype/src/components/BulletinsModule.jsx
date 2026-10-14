@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Badge, Button, Card, StudentSelect } from './ui.jsx';
 import { BulletinSheet } from './Bulletin.jsx';
 import { TERM, EVALUATIONS, GRADES, CLASS_SUBJECTS, OTHER_AVERAGES, ABSENCES, TEACHER_COMPETENCIES } from '../data/grades.js';
@@ -20,6 +20,13 @@ const COMP_KEY = { EMC: 'Enseignement moral et civique', 'Histoire-Géographie':
 // Compétences du trimestre : celles de l'enseignant (ici, le dernier trimestre de la base), 4 lignes au plus
 const compsFor = (key, level) => (COMPETENCY_HISTORY[`${key}|${level}`]?.[0]?.items ?? []).slice(0, 4);
 
+// Dates de naissance fictives (démonstration 1re STMG)
+const demoBirth = (i) => `2009-${String((i % 12) + 1).padStart(2, '0')}-${String(((i * 7) % 27) + 1).padStart(2, '0')}`;
+
+// Hauteur d'une page A4 imprimée (281 mm utiles) pour une largeur utile de 194 mm, en pixels CSS
+const PAGE_W = 733;
+const PAGE_H = 1062;
+
 function buildPremiereSTMG(settings) {
   const excluded = settings.grading.excludedSubjects;
   const students = CLASS_LIST.map((name) => ({
@@ -28,13 +35,13 @@ function buildPremiereSTMG(settings) {
   }));
   const generals = students.map((st) => generalAverage(CLASS_SUBJECTS.map((s) => ({ ...s, inAverage: !excluded.includes(s.id), avg: st.avgs[s.id] }))));
   return students.map((st, i) => ({
-    term: '1er Trimestre', year: '2026/2027', student: st.name, birthLine: '', classLine: classLine('1re STMG'),
+    term: '1er Trimestre', year: '2026/2027', student: st.name, birthLine: `Né(e) le ${longDate(demoBirth(i))}`, classLine: classLine('1re STMG'),
     rows: CLASS_SUBJECTS.filter((s) => s.id !== 'VDC').map((s) => ({
       label: s.label, teacher: s.teacher, avg: st.avgs[s.id], classAvg: subjectClassAverage(s.id, students),
       competencies: s.service ? (TEACHER_COMPETENCIES[s.service] ?? []).slice(0, 4) : compsFor(COMP_KEY[s.label] ?? s.label, '1re STMG'),
       appreciation: demoAppreciation(st.avgs[s.id]),
     })),
-    general: generals[i], classGeneral: classStats(generals).avg, abs: ABSENCES[st.name]?.abs ?? 0, late: ABSENCES[st.name]?.late ?? 0,
+    general: generals[i], classGeneral: classStats(generals).avg, justified: ABSENCES[st.name]?.justified ?? 0, unjustified: ABSENCES[st.name]?.unjustified ?? 0, late: ABSENCES[st.name]?.late ?? 0,
   }));
 }
 
@@ -48,7 +55,7 @@ function buildTerminaleG() {
       label: s.label, teacher: s.teacher, avg: st.avgs[s.id], classAvg: subjectClassAverage(s.id, TLE_G_STUDENTS),
       competencies: compsFor(s.comp, 'Tle G'), appreciation: demoAppreciation(st.avgs[s.id]),
     })),
-    general: generals[i], classGeneral: classStats(generals).avg, abs: st.abs, late: st.late,
+    general: generals[i], classGeneral: classStats(generals).avg, justified: st.justified, unjustified: st.unjustified, late: st.late,
   }));
 }
 
@@ -65,7 +72,7 @@ function buildImported() {
     birthLine: st.birthDate ? `${accord(st.sex, 'Né', 'Née')} le ${longDate(st.birthDate)}` : '',
     classLine: classLine('Terminale Générale', st.specialties ?? []),
     rows: subjectsOf(st, TLE_G_SUBJECTS).map((s) => ({ label: s.label, teacher: s.teacher, avg: null, classAvg: null, competencies: compsFor(s.comp, 'Tle G'), appreciation: '' })),
-    general: null, classGeneral: null, abs: 0, late: 0,
+    general: null, classGeneral: null, justified: 0, unjustified: 0, late: 0,
   }));
 }
 
@@ -123,7 +130,25 @@ export default function BulletinsModule({ settings }) {
   const bulletins = useMemo(() => CLASSES.find(([c]) => c === cls)[1](settings), [cls, settings, version]);
   const [student, setStudent] = useState(bulletins[0].student);
   const current = bulletins.find((x) => x.student === student) ?? bulletins[0];
-  const enrich = (x) => ({ ...x, showGeneral, generalAppreciation: general[`${cls}:${x.student}`] ?? '' });
+  const [duplex, setDuplex] = useState(true);
+  const [pages, setPages] = useState({}); // élève → nombre de pages imprimées (mesuré)
+  const measureRef = useRef(null);
+  const enrich = (x) => ({ ...x, showGeneral, compact: pages[x.student]?.useCompact ?? false, generalAppreciation: general[`${cls}:${x.student}`] ?? '' });
+  // Mesure de chaque bulletin à la taille d'impression : 1 page (recto) ou 2 (recto-verso), jamais plus
+  useLayoutEffect(() => {
+    const el = measureRef.current;
+    if (!el) return;
+    const out = {};
+    el.querySelectorAll('[data-student]').forEach((n) => {
+      const [normal, compact] = [...n.querySelectorAll('.bulletin')].map((b) => Math.ceil(b.offsetHeight / PAGE_H));
+      // police réduite si elle évite une page (déborde de peu) ou si le bulletin dépasse 2 pages
+      const useCompact = (normal > 1 && compact === 1) || normal > 2;
+      out[n.dataset.student] = { normal, useCompact, printed: useCompact ? compact : normal };
+    });
+    setPages(out);
+  }, [bulletins, showGeneral, general]);
+  const pagesOf = (name) => pages[name]?.printed ?? 1;
+  const tooLong = bulletins.filter((x) => pagesOf(x.student) > 2);
 
   return (
     <div className="space-y-5">
@@ -153,11 +178,30 @@ export default function BulletinsModule({ settings }) {
             className="mt-1 w-full rounded-xl border border-slate-200 p-2 text-sm" placeholder="Ex. Très bonne progression globale sur l'année. Investissement sérieux et résultats solides." />
         </label>
         {cls === IMPORTED && <p className="mt-2 text-xs text-slate-500">Élèves importés : moyennes et appréciations vides tant que les enseignants n'ont pas saisi leurs notes. La mise en page et les spécialités sont celles du vrai bulletin.</p>}
+        <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-600">
+          <span>Ce bulletin : <strong>{pagesOf(current.student) === 1 ? '1 page (recto)' : `${pagesOf(current.student)} pages (recto-verso)`}</strong>{pages[current.student]?.useCompact ? ' · police légèrement réduite pour gagner une page' : ''}</span>
+          <label className="flex items-center gap-1.5"><input type="checkbox" checked={duplex} onChange={(e) => setDuplex(e.target.checked)} />Imprimante en recto-verso (une page blanche après les bulletins d'une page, pour que chaque élève commence sur une nouvelle feuille)</label>
+          {tooLong.length > 0 && <Badge tone="red">{tooLong.length} bulletin{tooLong.length > 1 ? 's' : ''} encore trop long{tooLong.length > 1 ? 's' : ''} : raccourcir compétences ou appréciations</Badge>}
+        </div>
         <p className="mt-2 text-xs text-slate-500">Appréciations des matières : celles validées par chaque enseignant (ici, textes de démonstration). Moyenne de classe d'une spécialité : calculée sur les seuls élèves qui la suivent.</p>
       </Card>
       {cls === IMPORTED && <SpecialtiesPanel onChange={() => setVersion((v) => v + 1)} />}
       <div className="overflow-x-auto rounded-2xl bg-slate-100 p-4"><div className="bulletin-one min-w-[760px]"><BulletinSheet b={enrich(current)} /></div></div>
-      <div className="bulletins-all hidden">{bulletins.map((x) => <BulletinSheet key={x.student} b={enrich(x)} />)}</div>
+      <div className="bulletins-all hidden">{bulletins.map((x) => (
+        <React.Fragment key={x.student}>
+          <BulletinSheet b={enrich(x)} />
+          {duplex && pagesOf(x.student) === 1 && <div className="blank-page" aria-hidden="true" />}
+        </React.Fragment>
+      ))}</div>
+      {/* mesure hors écran, à la largeur et à la police d'impression */}
+      <div ref={measureRef} className="bulletin-measure pointer-events-none fixed -left-[5000px] top-0" style={{ width: PAGE_W }} aria-hidden="true">
+        {bulletins.map((x) => (
+          <div key={x.student} data-student={x.student}>
+            <BulletinSheet b={{ ...enrich(x), compact: false }} />
+            <BulletinSheet b={{ ...enrich(x), compact: true }} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
