@@ -456,3 +456,14 @@ test('compétences : base proposée + compétences écrites par l\'enseignant', 
   assert.deepEqual(competencyProposals(base, []), base);
   assert.deepEqual(competencyProposals(base, ['modéliser ', 'Analyser un document']), ['Chercher', 'Raisonner']);
 });
+
+import { amountInWords } from '../src/rules/finance.js';
+test('reçu : montant en toutes lettres', () => {
+  assert.equal(amountInWords(360_000), 'trois cent soixante mille ariary');
+  assert.equal(amountInWords(1_440_000), 'un million quatre cent quarante mille ariary');
+  assert.equal(amountInWords(80_000), 'quatre-vingts mille ariary');
+  assert.equal(amountInWords(71_500), 'soixante et onze mille cinq cents ariary');
+  assert.equal(amountInWords(200_000), 'deux cent mille ariary');
+  assert.equal(amountInWords(2_070_000), 'deux millions soixante-dix mille ariary');
+  assert.equal(amountInWords(91_000), 'quatre-vingt-onze mille ariary');
+});

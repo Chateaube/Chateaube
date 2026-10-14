@@ -1,8 +1,25 @@
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, Icon } from './ui.jsx';
-import { JOURNALS, CLASS_FEES, STUDENT_ACCOUNTS, BANKS } from '../data/accounting.js';
+import { JOURNALS, CLASS_FEES, STUDENT_ACCOUNTS, BANKS, FAMILIES } from '../data/accounting.js';
 import { studentDues, defaultSelection, validateInstrument, buildReceipts, PAYMENT_METHODS } from '../rules/billing.js';
 import { formatAr } from '../rules/finance.js';
+import ReceiptTicket from './ReceiptTicket.jsx';
+
+const payerOf = (student) => FAMILIES.find((f) => f.name === student.family)?.payer;
+
+// Impression des seuls tickets, sur rouleau de 80 mm : les tickets sont copiés à la racine de la
+// page et le reste de l'écran est masqué le temps de l'impression.
+function printTickets() {
+  const copy = document.createElement('div');
+  copy.id = 'ticket-print-root';
+  copy.innerHTML = document.querySelector('.ticket-print').innerHTML;
+  const style = document.createElement('style');
+  style.textContent = '@media print { @page { size: 80mm 200mm; margin: 2mm; } #root { display: none; } }';
+  document.body.append(copy, style);
+  const done = () => { copy.remove(); style.remove(); window.removeEventListener('afterprint', done); };
+  window.addEventListener('afterprint', done);
+  window.print();
+}
 
 const TODAY = '2026-10-13';
 const fmtDate = (iso) => iso.split('-').reverse().join('/');
@@ -36,6 +53,7 @@ export default function CollectPayment({ settings }) {
   const [selected, setSelected] = useState(null); // null = proposition par défaut
   const [instrument, setInstrument] = useState({ method: 'ESPECES', ref: '', bank: '' });
   const [receipts, setReceipts] = useState(null);
+  const [receiptsAt, setReceiptsAt] = useState('');
   const [counter, setCounter] = useState({ ECOLAGE: 412, FRAIS_ANNEXES: 208, DROITS_EXAMEN: 57 });
 
   const student = accounts.find((a) => a.id === studentId);
@@ -59,6 +77,7 @@ export default function CollectPayment({ settings }) {
     setCounter(next);
     setAccounts(accounts.map((a) => (a.id === studentId ? { ...a, paid: [...a.paid, ...chosen.map((c) => c.key)] } : a)));
     setReceipts(r);
+    setReceiptsAt(`${TODAY.split('-').reverse().join('/')} ${new Date().toTimeString().slice(0, 5)}`);
     setSelected([]);
   };
 
@@ -154,16 +173,11 @@ export default function CollectPayment({ settings }) {
         </Card>
 
         {receipts && (
-          <Card title="Reçus édités" action={<Button variant="secondary" onClick={() => window.print()}>Imprimer</Button>}>
-            <ul className="space-y-2">
-              {receipts.map((r) => (
-                <li key={r.number} className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm">
-                  <div className="flex items-center justify-between"><span className="font-semibold text-emerald-900">{r.number}</span><span className="font-semibold tabular-nums">{formatAr(r.total)}</span></div>
-                  <p className="text-xs text-emerald-800">{JOURNALS[r.journal].label} · {PAYMENT_METHODS[r.method].label}{r.ref ? ` n° ${r.ref} · ${r.bank}` : ''}</p>
-                  <p className="mt-1 text-xs text-slate-600">{r.lines.map((l) => l.label).join(' · ')}</p>
-                </li>
-              ))}
-            </ul>
+          <Card title={`Reçu${receipts.length > 1 ? 's' : ''} — format ticket de caisse`} subtitle="Imprimante thermique 80 mm · un ticket par journal"
+            action={<Button variant="secondary" onClick={printTickets}>Imprimer</Button>}>
+            <div className="ticket-print flex flex-col items-center gap-4 rounded-xl bg-slate-100 py-4">
+              {receipts.map((r) => <ReceiptTicket key={r.number} receipt={r} student={student} payer={payerOf(student)} cashier="Mme Hanta (bureau)" at={receiptsAt} />)}
+            </div>
             <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500"><Icon name="bell" />Reçu envoyé au parent payeur par e-mail et dans l'application.</p>
           </Card>
         )}

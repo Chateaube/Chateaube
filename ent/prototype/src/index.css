@@ -92,7 +92,12 @@ main thead th { font-weight: 600; color: var(--color-slate-500); }
 @media print {
   @page { size: A4 landscape; margin: 10mm; }
   body { background: white; }
+  /* Reçus : seuls les tickets sont imprimés (voir printTickets) */
+  #ticket-print-root .ticket { box-shadow: none; width: 74mm; padding: 0; break-after: page; }
 }
+
+#ticket-print-root { display: none; }
+@media print { #ticket-print-root { display: block; } }
 
 .hatched {
   background-image: repeating-linear-gradient(135deg, var(--color-slate-200) 0 6px, var(--color-slate-100) 6px 12px);

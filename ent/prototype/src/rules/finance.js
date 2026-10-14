@@ -26,3 +26,37 @@ export function dunningStages(settings) {
 }
 
 export const formatAr = (n) => `${new Intl.NumberFormat('fr-FR').format(n).replace(/\u202f|\u00a0/g, ' ')} Ar`;
+
+// Montant en toutes lettres (reçus) : « trois cent soixante mille ariary »
+const UNITS = ['zéro', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix', 'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize'];
+const TENS = { 2: 'vingt', 3: 'trente', 4: 'quarante', 5: 'cinquante', 6: 'soixante' };
+function below100(n) {
+  if (n <= 16) return UNITS[n];
+  if (n < 20) return `dix-${UNITS[n - 10]}`;
+  const t = Math.floor(n / 10);
+  const u = n % 10;
+  if (t === 7 || t === 9) {
+    const base = t === 7 ? 'soixante' : 'quatre-vingt';
+    return `${base}${t === 7 && u === 1 ? ' et ' : '-'}${below100(10 + u)}`;
+  }
+  if (t === 8) return u ? `quatre-vingt-${UNITS[u]}` : 'quatre-vingts';
+  return u === 0 ? TENS[t] : u === 1 ? `${TENS[t]} et un` : `${TENS[t]}-${UNITS[u]}`;
+}
+function below1000(n) {
+  const h = Math.floor(n / 100);
+  const r = n % 100;
+  const head = h === 0 ? '' : h === 1 ? 'cent' : `${UNITS[h]} cent${r === 0 ? 's' : ''}`;
+  return [head, r ? below100(r) : ''].filter(Boolean).join(' ');
+}
+export function amountInWords(n) {
+  n = Math.round(n);
+  if (n === 0) return 'zéro ariary';
+  const parts = [];
+  const millions = Math.floor(n / 1_000_000);
+  const thousands = Math.floor((n % 1_000_000) / 1000);
+  const rest = n % 1000;
+  if (millions) parts.push(`${millions === 1 ? 'un' : below1000(millions)} million${millions > 1 ? 's' : ''}`);
+  if (thousands) parts.push(thousands === 1 ? 'mille' : `${below1000(thousands).replace(/cents$/, 'cent')} mille`);
+  if (rest) parts.push(below1000(rest));
+  return `${parts.join(' ')} ariary`;
+}
