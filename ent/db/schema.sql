@@ -170,7 +170,35 @@ CREATE TABLE student (
   birth_date    date NOT NULL,
   birth_place   text,
   nationalities text[] NOT NULL DEFAULT '{}',  -- codes ISO (ex. {MG,FR}) : détermine Parcoursup ou Campus France
+  sex           char(1) CHECK (sex IN ('F', 'M')),
+  previous_school text,                        -- établissement d'origine (première inscription)
+  health_notes  text,                          -- allergies, traitement (visible Direction, Vie scolaire, Bureau)
+  emergency_contact text,
   created_at    timestamptz NOT NULL DEFAULT now()
+);
+
+-- Pré-inscriptions : premier contact d'une famille, avant la fiche élève.
+-- Une demande acceptée est convertie en inscription : la fiche élève est alors créée.
+CREATE TYPE pre_registration_status AS ENUM ('DEMANDE', 'DOSSIER', 'ENTRETIEN', 'ACCEPTEE', 'INSCRITE', 'ATTENTE', 'REFUSEE');
+CREATE TABLE pre_registration (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id       uuid NOT NULL REFERENCES site(id),
+  child_name    text NOT NULL,
+  birth_date    date,
+  requested_level text NOT NULL,               -- classe demandée (ex. 6e, 1re STMG)
+  previous_school text,
+  contact_name  text NOT NULL,
+  contact_phone text,
+  contact_email citext,
+  source        text,                          -- comment la famille a connu l'établissement
+  status        pre_registration_status NOT NULL DEFAULT 'DEMANDE',
+  interview_at  timestamptz,
+  note          text,
+  student_id    uuid REFERENCES student(id),   -- renseigné à la conversion en inscription
+  received_on   date NOT NULL DEFAULT current_date,
+  updated_by    uuid,
+  CHECK (contact_phone IS NOT NULL OR contact_email IS NOT NULL),
+  CHECK ((status = 'INSCRITE') = (student_id IS NOT NULL))
 );
 
 CREATE TABLE guardian (
@@ -189,6 +217,7 @@ CREATE TABLE student_guardian (
   relationship  text NOT NULL,                 -- 'Mère', 'Père', 'Tuteur.rice'
   is_payer      boolean NOT NULL DEFAULT false,-- destinataire des factures/relances
   is_primary    boolean NOT NULL DEFAULT false,
+  can_pickup    boolean NOT NULL DEFAULT true, -- autorisé.e à récupérer l'élève (téléphone confisqué 5 jours, sorties)
   PRIMARY KEY (student_id, guardian_id)
 );
 

@@ -72,6 +72,15 @@ erDiagram
 - **`academic_year`**, **`period`** (trimestres), **`level`** (PS → Tle, avec l'examen officiel associé : 3e → DNB, Tle → Bac).
 - **`school_class`** : rattachée à un site, un niveau et une filière (`GENERALE` / `STMG`, à partir de la 1re).
 
+### Inscriptions et fiches élèves
+- **`pre_registration`** : premier contact d'une famille (enfant, classe demandée, responsable, source), suivi par statut
+  `DEMANDE → DOSSIER → ENTRETIEN → ACCEPTEE → INSCRITE` (ou `ATTENTE`, `REFUSEE`). Une demande n'est `INSCRITE` qu'avec sa
+  fiche élève (`student_id`), contrainte vérifiée en T30.
+- Chaque inscription ou réinscription crée ou met à jour la **fiche élève** (`student` : identité, nationalités, sexe,
+  établissement d'origine, santé, contact d'urgence), ses **responsables** (`guardian`, `student_guardian` : lien, payeur,
+  autorisé à récupérer l'élève) et l'**inscription** de l'année (`enrollment`). Les comptes de l'ENT (`app_user`) sont créés
+  depuis la fiche : élève, et chaque responsable avec son adresse Google (ou un code d'activation remis au bureau).
+
 ### Comptes, rôles, SSO
 - **`app_user`** : `google_sub` stocke l'identifiant OIDC Google. **`sso_allowlist`** : les comptes Gmail personnels ne
   permettent pas de filtrer par domaine, on n'autorise donc que les adresses invitées.

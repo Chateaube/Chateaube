@@ -504,3 +504,24 @@ test('caisse : export mensuel (soldes d\'ouverture et de clôture, modes, journa
   assert.match(csv, /Frais de scolarité;450000;300000;100000;650000/);
   assert.match(csv, /02\/10\/2026;09:00;Entrée;Encaissement famille;Oct;Frais de scolarité;Chèque n° 1234567;A;300000;/);
 });
+
+import { nextPreregStep, nextClass, validateProfile, accountsFor, missingDocuments } from '../src/rules/enrollment.js';
+test('inscriptions : pré-inscription, fiche élève, comptes', () => {
+  assert.equal(nextPreregStep('DEMANDE'), 'DOSSIER');
+  assert.equal(nextPreregStep('ENTRETIEN'), 'ACCEPTEE');
+  assert.equal(nextPreregStep('ACCEPTEE'), null); // se convertit en inscription
+  assert.equal(nextClass('3e'), '2de');
+  assert.equal(nextClass('1re STMG'), 'Terminale STMG');
+  assert.equal(nextClass('Terminale Générale'), null);
+  const p = { lastName: 'RAKOTO', firstName: 'Éléa', birthDate: '2013-04-02', nationalities: ['MG'], cls: '6e', previousSchool: 'EPP Tamatave',
+    guardians: [{ name: 'Mme Rakoto Voahangy', relation: 'Mère', phone: '+261 34 12 345 67', email: 'voahangy@gmail.com', payer: true }, { name: 'M. Rakoto', relation: 'Père', phone: '+261 32 11 222 33' }] };
+  assert.deepEqual(validateProfile(p), []);
+  assert.ok(validateProfile({ ...p, guardians: [{ ...p.guardians[0], payer: false }] }).includes('Indiquer le responsable qui règle les frais.'));
+  assert.ok(validateProfile({ ...p, previousSchool: '' }).length === 1);
+  assert.deepEqual(validateProfile({ ...p, previousSchool: '' }, { kind: 'REINSCRIPTION' }), []);
+  const acc = accountsFor(p);
+  assert.equal(acc[0].login, 'elea.rakoto@chateaubriand-tamatave.mg');
+  assert.equal(acc[1].login, 'voahangy@gmail.com');
+  assert.equal(acc[2].login, null); // pas d'e-mail : code d'activation
+  assert.equal(missingDocuments({ documents: ['ACTE', 'PHOTOS'] }, 'REINSCRIPTION').length, 2);
+});

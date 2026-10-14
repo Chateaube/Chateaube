@@ -561,5 +561,25 @@ BEGIN
     'T29: dernier mois = ' || r::text;
 END $$;
 
+-- T30. Pré-inscription : une demande n'est « inscrite » qu'avec sa fiche élève --------
+INSERT INTO pre_registration (id, site_id, child_name, requested_level, contact_name, contact_phone)
+VALUES ('e0000000-0000-0000-0000-000000000001', (SELECT id FROM site WHERE code = 'TMV'),
+        'RASOLOFO Nirina', '5e', 'M. Rasolofo Fidy', '+261 33 12 650 41');
+DO $$ BEGIN
+  BEGIN
+    UPDATE pre_registration SET status = 'INSCRITE' WHERE id = 'e0000000-0000-0000-0000-000000000001';
+    RAISE EXCEPTION 'T30: inscrite sans fiche élève';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE pre_registration SET status = 'INSCRITE', student_id = '20000000-0000-0000-0000-000000000001'
+   WHERE id = 'e0000000-0000-0000-0000-000000000001';
+  BEGIN
+    INSERT INTO pre_registration (site_id, child_name, requested_level, contact_name)
+    VALUES ((SELECT id FROM site WHERE code = 'TMV'), 'X', '6e', 'Sans contact');
+    RAISE EXCEPTION 'T30: demande sans téléphone ni e-mail acceptée';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T29 passent'
+\echo 'OK — tous les scénarios T1 à T30 passent'

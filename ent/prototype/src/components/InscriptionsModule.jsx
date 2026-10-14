@@ -1,0 +1,323 @@
+import React, { useMemo, useState } from 'react';
+import { Avatar, Badge, Button, Card, Icon, Stat } from './ui.jsx';
+import { PREREGISTRATIONS, STUDENT_PROFILES, ENROLL_CLASSES, LANGUAGES, RELATIONS, NATIONALITIES } from '../data/enrollment.js';
+import {
+  PREREG_STEPS, PREREG_OTHER, nextPreregStep, nextClass, validateProfile, accountsFor, missingDocuments, REQUIRED_DOCUMENTS,
+} from '../rules/enrollment.js';
+import { formatDateFr } from '../rules/calendar.js';
+
+// Inscriptions (Bureau et Direction) : pré-inscriptions, inscription ou réinscription avec
+// création de la fiche élève, puis création des comptes de l'ENT.
+
+const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
+const fmt = (iso) => (iso ? iso.split('-').reverse().join('/') : '—');
+const ALL_STEPS = [...PREREG_STEPS, ...PREREG_OTHER];
+const stepLabel = (id) => ALL_STEPS.find((s) => s.id === id)?.label ?? id;
+const TONE = { DEMANDE: 'slate', DOSSIER: 'navy', ENTRETIEN: 'violet', ACCEPTEE: 'green', INSCRITE: 'green', ATTENTE: 'amber', REFUSEE: 'red' };
+
+const emptyGuardian = () => ({ name: '', relation: 'Mère', phone: '', email: '', whatsapp: true, payer: false, pickup: true });
+const emptyProfile = () => ({
+  lastName: '', firstName: '', sex: 'F', birthDate: '', birthPlace: '', nationalities: ['MG'], cls: '6e', lv1: 'Anglais', lv2: 'Espagnol',
+  enteredOn: '2026-10-13', previousSchool: '', guardians: [{ ...emptyGuardian(), payer: true }], health: { allergies: '', emergency: '' },
+  authorizations: { image: true, exit: 'Fin de journée uniquement' }, documents: [],
+});
+
+/* ---------- Pré-inscriptions ---------- */
+function PreregTab({ items, setItems, onConvert }) {
+  const [draft, setDraft] = useState(null);
+  const set = (id, patch) => setItems(items.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  const columns = [...PREREG_STEPS.filter((s) => s.id !== 'INSCRITE'), ...PREREG_OTHER];
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat label="Demandes en cours" value={items.filter((p) => !['INSCRITE', 'REFUSEE'].includes(p.status)).length} />
+        <Stat label="Entretiens à faire" value={items.filter((p) => p.status === 'ENTRETIEN').length} tone="amber" />
+        <Stat label="Acceptées, à inscrire" value={items.filter((p) => p.status === 'ACCEPTEE').length} tone="green" />
+        <Stat label="Liste d'attente" value={items.filter((p) => p.status === 'ATTENTE').length} tone="red" />
+      </div>
+      <div className="flex justify-end">
+        <Button onClick={() => setDraft({ child: '', birthDate: '', cls: '6e', previousSchool: '', contact: '', phone: '', email: '', source: 'Bouche-à-oreille' })}>＋ Nouvelle pré-inscription</Button>
+      </div>
+      {draft && (
+        <Card title="Nouvelle pré-inscription" subtitle="Premier contact d'une famille : une fiche légère, complétée à l'inscription">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {[['child', 'Nom et prénom de l\'enfant'], ['birthDate', 'Date de naissance', 'date'], ['previousSchool', 'Établissement actuel'], ['contact', 'Responsable'],
+              ['phone', 'Téléphone / WhatsApp'], ['email', 'E-mail'], ['source', 'Connu par']].map(([k, l, type]) => (
+              <label key={k} className="text-xs text-slate-600">{l}
+                <input type={type ?? 'text'} value={draft[k]} onChange={(e) => setDraft({ ...draft, [k]: e.target.value })} className={`mt-1 w-full ${inputCls}`} />
+              </label>
+            ))}
+            <label className="text-xs text-slate-600">Classe demandée
+              <select value={draft.cls} onChange={(e) => setDraft({ ...draft, cls: e.target.value })} className={`mt-1 w-full ${inputCls}`}>
+                {ENROLL_CLASSES.map((c) => <option key={c}>{c}</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="mt-3 flex gap-2">
+            <Button disabled={!draft.child.trim() || !(draft.phone.trim() || draft.email.trim())}
+              onClick={() => { setItems([{ ...draft, id: `p${Date.now()}`, receivedOn: '2026-10-13', status: 'DEMANDE' }, ...items]); setDraft(null); }}>Enregistrer</Button>
+            <Button variant="secondary" onClick={() => setDraft(null)}>Annuler</Button>
+          </div>
+        </Card>
+      )}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+        {columns.map((col) => {
+          const list = items.filter((p) => p.status === col.id);
+          return (
+            <section key={col.id} className="min-w-0 rounded-2xl bg-slate-100/70 p-3">
+              <p className="mb-2 flex items-center justify-between text-sm font-semibold text-slate-700">{col.label}<Badge tone={TONE[col.id]}>{list.length}</Badge></p>
+              <ul className="space-y-2">
+                {list.map((p) => {
+                  const next = nextPreregStep(p.status);
+                  return (
+                    <li key={p.id} className="rounded-xl bg-white p-3 text-sm shadow-soft">
+                      <p className="font-semibold text-slate-900">{p.child}</p>
+                      <p className="text-xs text-slate-500">{p.cls} · né.e le {fmt(p.birthDate)} · reçue le {fmt(p.receivedOn)}</p>
+                      <p className="mt-1 text-xs text-slate-600">{p.contact} · {p.phone || p.email}</p>
+                      {p.interview && <p className="mt-1 text-xs text-violet-700">{p.interview}</p>}
+                      {p.note && <p className="mt-1 text-xs text-amber-700">{p.note}</p>}
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {next && <Button variant="secondary" className="!px-2.5 !py-0.5 text-xs" onClick={() => set(p.id, { status: next })}>→ {stepLabel(next)}</Button>}
+                        {p.status === 'ACCEPTEE' && <Button className="!px-2.5 !py-0.5 text-xs" onClick={() => onConvert(p)}>Inscrire</Button>}
+                        {!['ATTENTE', 'REFUSEE'].includes(p.status) && <Button variant="ghost" className="!px-2 !py-0.5 text-xs" onClick={() => set(p.id, { status: 'ATTENTE' })}>Attente</Button>}
+                        {p.status !== 'REFUSEE' && <Button variant="ghost" className="!px-2 !py-0.5 text-xs text-red-700" onClick={() => set(p.id, { status: 'REFUSEE' })}>Refuser</Button>}
+                        {['ATTENTE', 'REFUSEE'].includes(p.status) && <Button variant="ghost" className="!px-2 !py-0.5 text-xs" onClick={() => set(p.id, { status: 'DOSSIER' })}>Rouvrir</Button>}
+                      </div>
+                    </li>
+                  );
+                })}
+                {list.length === 0 && <li className="px-1 text-xs text-slate-400">Aucune</li>}
+              </ul>
+            </section>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Formulaire : fiche élève ---------- */
+function Field({ label, children, className = '' }) {
+  return <label className={`block text-xs text-slate-600 ${className}`}>{label}<div className="mt-1">{children}</div></label>;
+}
+
+function ProfileForm({ initial, kind, onSave, onCancel }) {
+  const [p, setP] = useState(initial);
+  const [tried, setTried] = useState(false);
+  const errors = validateProfile(p, { kind });
+  const set = (patch) => setP({ ...p, ...patch });
+  const setG = (i, patch) => set({ guardians: p.guardians.map((g, k) => (k === i ? { ...g, ...patch } : patch.payer ? { ...g, payer: false } : g)) });
+  const toggleDoc = (id) => set({ documents: p.documents.includes(id) ? p.documents.filter((d) => d !== id) : [...p.documents, id] });
+  const input = (k, extra = {}) => <input value={p[k]} onChange={(e) => set({ [k]: e.target.value })} className={`w-full ${inputCls}`} {...extra} />;
+  return (
+    <div className="space-y-5">
+      <Card title={kind === 'REINSCRIPTION' ? `Réinscription 2027-2028 — ${p.firstName} ${p.lastName}` : 'Inscription — nouvelle fiche élève'}
+        subtitle={kind === 'REINSCRIPTION' ? 'La fiche existante est reprise : vérifier et mettre à jour avec la famille' : 'Toutes les informations de l\'élève, réutilisées partout dans l\'ENT'}>
+        <h4 className="mb-2 text-sm font-semibold text-slate-800">Identité</h4>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Field label="Nom">{input('lastName')}</Field>
+          <Field label="Prénom(s)">{input('firstName')}</Field>
+          <Field label="Sexe">
+            <select value={p.sex} onChange={(e) => set({ sex: e.target.value })} className={`w-full ${inputCls}`}><option value="F">Fille</option><option value="M">Garçon</option></select>
+          </Field>
+          <Field label="Date de naissance">{input('birthDate', { type: 'date' })}</Field>
+          <Field label="Lieu de naissance">{input('birthPlace')}</Field>
+          <Field label="Nationalité(s)" className="lg:col-span-3">
+            <div className="flex flex-wrap gap-1.5">
+              {NATIONALITIES.map(([code, l]) => {
+                const on = p.nationalities.includes(code);
+                return (
+                  <button key={code} type="button" aria-pressed={on} onClick={() => set({ nationalities: on ? p.nationalities.filter((n) => n !== code) : [...p.nationalities, code] })}
+                    className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset ${on ? 'bg-navy-500 text-white ring-navy-500' : 'text-slate-600 ring-slate-300'}`}>{l}</button>
+                );
+              })}
+            </div>
+          </Field>
+        </div>
+
+        <h4 className="mb-2 mt-5 text-sm font-semibold text-slate-800">Scolarité</h4>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <Field label={kind === 'REINSCRIPTION' ? 'Classe à la rentrée' : 'Classe'}>
+            <select value={p.cls} onChange={(e) => set({ cls: e.target.value })} className={`w-full ${inputCls}`}>{ENROLL_CLASSES.map((c) => <option key={c}>{c}</option>)}</select>
+          </Field>
+          <Field label="LV1"><select value={p.lv1} onChange={(e) => set({ lv1: e.target.value })} className={`w-full ${inputCls}`}>{LANGUAGES.lv1.map((l) => <option key={l}>{l}</option>)}</select></Field>
+          <Field label="LV2"><select value={p.lv2} onChange={(e) => set({ lv2: e.target.value })} className={`w-full ${inputCls}`}>{LANGUAGES.lv2.map((l) => <option key={l}>{l}</option>)}</select></Field>
+          <Field label="Date d'entrée">{input('enteredOn', { type: 'date' })}</Field>
+          <Field label="Établissement d'origine">{input('previousSchool')}</Field>
+        </div>
+
+        <div className="mb-2 mt-5 flex items-center justify-between">
+          <h4 className="text-sm font-semibold text-slate-800">Responsables légaux</h4>
+          <Button variant="ghost" className="!py-0.5 text-xs" onClick={() => set({ guardians: [...p.guardians, emptyGuardian()] })}>＋ Ajouter un responsable</Button>
+        </div>
+        <div className="space-y-3">
+          {p.guardians.map((g, i) => (
+            <div key={i} className="grid gap-3 rounded-xl bg-slate-50 p-3 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.3fr_auto]">
+              <Field label={`Responsable ${i + 1} — nom`}><input value={g.name} onChange={(e) => setG(i, { name: e.target.value })} className={`w-full ${inputCls}`} /></Field>
+              <Field label="Lien"><select value={g.relation} onChange={(e) => setG(i, { relation: e.target.value })} className={`w-full ${inputCls}`}>{RELATIONS.map((r) => <option key={r}>{r}</option>)}</select></Field>
+              <Field label="Téléphone"><input value={g.phone} onChange={(e) => setG(i, { phone: e.target.value })} placeholder="+261 34 …" className={`w-full ${inputCls}`} /></Field>
+              <Field label="E-mail (compte Google)"><input value={g.email} onChange={(e) => setG(i, { email: e.target.value })} className={`w-full ${inputCls}`} /></Field>
+              <div className="flex flex-wrap items-end gap-3 pb-1.5 text-xs text-slate-600">
+                <label className="flex items-center gap-1"><input type="radio" name="payer" checked={g.payer} onChange={() => setG(i, { payer: true })} />Règle les frais</label>
+                <label className="flex items-center gap-1"><input type="checkbox" checked={g.whatsapp} onChange={(e) => setG(i, { whatsapp: e.target.checked })} />WhatsApp</label>
+                <label className="flex items-center gap-1"><input type="checkbox" checked={g.pickup} onChange={(e) => setG(i, { pickup: e.target.checked })} />Peut récupérer l'élève</label>
+                {p.guardians.length > 1 && <button type="button" aria-label="Retirer ce responsable" onClick={() => set({ guardians: p.guardians.filter((_, k) => k !== i) })} className="rounded p-1 text-slate-400 hover:text-red-600"><Icon name="x" /></button>}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-5 grid gap-5 lg:grid-cols-3">
+          <div>
+            <h4 className="mb-2 text-sm font-semibold text-slate-800">Santé</h4>
+            <Field label="Allergies, traitement"><input value={p.health.allergies} onChange={(e) => set({ health: { ...p.health, allergies: e.target.value } })} className={`w-full ${inputCls}`} /></Field>
+            <Field label="Contact d'urgence" className="mt-2"><input value={p.health.emergency} onChange={(e) => set({ health: { ...p.health, emergency: e.target.value } })} className={`w-full ${inputCls}`} /></Field>
+          </div>
+          <div>
+            <h4 className="mb-2 text-sm font-semibold text-slate-800">Autorisations</h4>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={p.authorizations.image} onChange={(e) => set({ authorizations: { ...p.authorizations, image: e.target.checked } })} />Droit à l'image</label>
+            <Field label="Sortie de l'établissement" className="mt-2">
+              <select value={p.authorizations.exit} onChange={(e) => set({ authorizations: { ...p.authorizations, exit: e.target.value } })} className={`w-full ${inputCls}`}>
+                {['Sortie libre aux heures sans cours', 'Fin de journée uniquement', 'Aucune sortie sans un responsable'].map((o) => <option key={o}>{o}</option>)}
+              </select>
+            </Field>
+          </div>
+          <div>
+            <h4 className="mb-2 text-sm font-semibold text-slate-800">Pièces du dossier</h4>
+            <ul className="space-y-1">
+              {REQUIRED_DOCUMENTS.filter((d) => !(d.newOnly && kind === 'REINSCRIPTION')).map((d) => (
+                <li key={d.id}><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={p.documents.includes(d.id)} onChange={() => toggleDoc(d.id)} />{d.label}</label></li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {tried && errors.length > 0 && (
+          <ul className="mt-4 space-y-0.5 rounded-xl bg-red-50 p-3 text-sm text-red-800">{errors.map((e) => <li key={e}>· {e}</li>)}</ul>
+        )}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button onClick={() => { setTried(true); if (!errors.length) onSave(p); }}>{kind === 'REINSCRIPTION' ? 'Valider la réinscription' : 'Créer la fiche et inscrire'}</Button>
+          <Button variant="secondary" onClick={onCancel}>Annuler</Button>
+          <p className="self-center text-xs text-slate-500">Les frais d'inscription ou de réinscription s'ajoutent ensuite au compte de l'élève, dans « Encaisser ».</p>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+/* ---------- Fiches élèves ---------- */
+function ProfileCard({ p, onReenrol, created }) {
+  const missing = missingDocuments(p, 'REINSCRIPTION');
+  const accounts = accountsFor(p);
+  return (
+    <Card title={`${p.lastName} ${p.firstName}`} subtitle={`${p.cls} · né.e le ${fmt(p.birthDate)} à ${p.birthPlace || '—'} · ${p.nationalities.join(', ')}`}
+      action={nextClass(p.cls) && <Button variant="secondary" className="!py-1 text-xs" onClick={() => onReenrol(p)}>Réinscrire en {nextClass(p.cls)}</Button>}>
+      {created && <p className="mb-3 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">Fiche enregistrée. Les comptes ci-dessous sont prêts : invitations envoyées par e-mail et dans l'application.</p>}
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-1 text-sm">
+          <p><span className="text-slate-500">Entrée :</span> {fmt(p.enteredOn)} · {p.previousSchool}</p>
+          <p><span className="text-slate-500">Langues :</span> {p.lv1}, {p.lv2}</p>
+          <p><span className="text-slate-500">Santé :</span> {p.health.allergies || '—'}</p>
+          <p><span className="text-slate-500">Urgence :</span> {p.health.emergency || '—'}</p>
+          <p><span className="text-slate-500">Autorisations :</span> image {p.authorizations.image ? 'oui' : 'non'} · {p.authorizations.exit}</p>
+          {missing.length > 0 ? <p className="text-amber-700">Pièces manquantes : {missing.map((d) => d.label).join(', ')}</p> : <p className="text-emerald-700">Dossier complet</p>}
+        </div>
+        <div>
+          <p className="mb-1 text-xs font-semibold text-slate-500">Responsables</p>
+          <ul className="space-y-1.5 text-sm">
+            {p.guardians.map((g) => (
+              <li key={g.name} className="flex items-start gap-2">
+                <Avatar name={g.name} className="h-7 w-7 text-[10px]" />
+                <span className="min-w-0">{g.name} <span className="text-slate-500">({g.relation})</span>
+                  <span className="block text-xs text-slate-500">{g.phone}{g.whatsapp ? ' · WhatsApp' : ''}{g.email ? ` · ${g.email}` : ''}</span>
+                  <span className="flex flex-wrap gap-1">{g.payer && <Badge tone="navy">règle les frais</Badge>}{g.pickup && <Badge>peut récupérer l'élève</Badge>}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+      <p className="mb-1 mt-4 text-xs font-semibold text-slate-500">Comptes de l'ENT</p>
+      <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200 text-sm">
+        {accounts.map((a) => (
+          <li key={a.name + a.role} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+            <span>{a.name} <Badge tone={a.role === 'ELEVE' ? 'violet' : 'navy'}>{a.role === 'ELEVE' ? 'Élève' : 'Parent'}</Badge></span>
+            <span className="text-xs text-slate-500">{a.login ?? 'pas d\'e-mail'} · {a.method}</span>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+const TABS = [['prereg', 'Pré-inscriptions'], ['new', 'Inscrire'], ['profiles', 'Fiches élèves']];
+
+export default function InscriptionsModule() {
+  const [tab, setTab] = useState('prereg');
+  const [prereg, setPrereg] = useState(PREREGISTRATIONS);
+  const [profiles, setProfiles] = useState(STUDENT_PROFILES);
+  const [form, setForm] = useState(null); // { initial, kind, preregId? }
+  const [selected, setSelected] = useState(STUDENT_PROFILES[0].id);
+  const [created, setCreated] = useState(null);
+  const [query, setQuery] = useState('');
+
+  const startNew = (from) => {
+    const base = emptyProfile();
+    if (from) {
+      const [last, ...first] = from.child.split(' ');
+      base.lastName = last; base.firstName = first.join(' '); base.birthDate = from.birthDate; base.cls = from.cls; base.previousSchool = from.previousSchool;
+      base.guardians = [{ ...emptyGuardian(), name: from.contact, relation: /^M\.? /.test(from.contact) ? 'Père' : 'Mère', phone: from.phone, email: from.email, payer: true }];
+    }
+    setForm({ initial: base, kind: 'INSCRIPTION', preregId: from?.id });
+    setTab('new');
+  };
+  const reenrol = (p) => { setForm({ initial: { ...p, cls: nextClass(p.cls) }, kind: 'REINSCRIPTION' }); setTab('new'); };
+  const save = (p) => {
+    const id = p.id ?? `f${Date.now()}`;
+    setProfiles(p.id ? profiles.map((x) => (x.id === p.id ? p : x)) : [...profiles, { ...p, id }]);
+    if (form.preregId) setPrereg(prereg.map((x) => (x.id === form.preregId ? { ...x, status: 'INSCRITE' } : x)));
+    setSelected(id); setCreated(id); setForm(null); setTab('profiles');
+  };
+  const list = useMemo(() => profiles.filter((p) => `${p.lastName} ${p.firstName} ${p.cls}`.toLowerCase().includes(query.toLowerCase())), [profiles, query]);
+  const current = profiles.find((p) => p.id === selected);
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-navy-500">Année 2026-2027 · réinscriptions 2027-2028 · Tamatave</p>
+          <h1 className="text-2xl font-semibold text-navy-900">Inscriptions</h1>
+          <p className="text-sm text-slate-500">Chaque inscription ou réinscription crée la fiche élève, d'où sont créés les comptes de l'élève et des parents.</p>
+        </div>
+        <Button onClick={() => startNew(null)}>＋ Inscrire un élève</Button>
+      </div>
+      <div className="flex gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1" role="tablist">
+        {TABS.map(([id, label]) => (
+          <button key={id} role="tab" aria-selected={tab === id} onClick={() => { setTab(id); if (id === 'new' && !form) startNew(null); }}
+            className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium ${tab === id ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>{label}</button>
+        ))}
+      </div>
+
+      {tab === 'prereg' && <PreregTab items={prereg} setItems={setPrereg} onConvert={startNew} />}
+      {tab === 'new' && form && <ProfileForm key={form.initial.id ?? form.preregId ?? 'new'} initial={form.initial} kind={form.kind} onSave={save} onCancel={() => { setForm(null); setTab('profiles'); }} />}
+      {tab === 'profiles' && (
+        <div className="grid gap-5 xl:grid-cols-[280px_1fr] xl:items-start">
+          <Card title={`Fiches élèves (${profiles.length})`}>
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Rechercher…" className={`w-full ${inputCls}`} />
+            <ul className="-mx-2 mt-2 space-y-0.5">
+              {list.map((p) => (
+                <li key={p.id}>
+                  <button onClick={() => { setSelected(p.id); setCreated(null); }} className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm ${p.id === selected ? 'bg-navy-50 font-medium text-navy-900' : 'hover:bg-slate-50'}`}>
+                    <Avatar name={`${p.firstName} ${p.lastName}`} className="h-7 w-7 text-[10px]" />
+                    <span>{p.lastName} {p.firstName}<span className="block text-xs font-normal text-slate-500">{p.cls}</span></span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </Card>
+          {current && <ProfileCard p={current} onReenrol={reenrol} created={created === current.id} />}
+        </div>
+      )}
+    </div>
+  );
+}

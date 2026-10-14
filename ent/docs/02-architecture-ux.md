@@ -52,10 +52,12 @@ contiennent celles de la Vie scolaire (scénario T19), et les enseignants n'ont 
 ```
 Pilotage
 ├── Tableau de bord ............ alertes frais de scolarité, KPI par site, bandeau du mois, échéances examens
-├── Élèves & mobilité
-│   ├── Annuaire / fiches élèves (historique des sites)
-│   ├── Inscriptions & réinscriptions
-│   └── Campagnes de transfert (Tamatave → Tana, avril) + quitus financier
+├── Inscriptions & fiches élèves
+│   ├── Pré-inscriptions : demande reçue → dossier complet → entretien / test → acceptée → inscrite (+ liste d'attente, refus)
+│   ├── Inscrire / réinscrire : fiche élève complète (identité, nationalités, scolarité, responsables, santé,
+│   │   autorisations, pièces) → comptes de l'ENT créés (élève + responsables, connexion Google ou code d'activation)
+│   └── Fiches élèves (historique des sites)
+├── Mobilité Tamatave → Tana : campagnes de transfert (avril) + quitus financier
 ├── Comptabilité
 │   ├── Classes & tarifs : inscription, réinscription, frais de scolarité/mois, fascicule, location (par classe)
 │   ├── Articles & services : manuel perdu/endommagé, passeport de vie scolaire, natation, tee-shirt, autre
@@ -126,7 +128,7 @@ Encaissements & comptabilité
 ├── Classes & tarifs · Articles & services · États de compte · Caisse (entrées / sorties)
 ├── Droits d'examen : ventilation automatique (40 000 Ar conservés / reste à reverser), reversements
 └── Recouvrement : relances (10 j après l'échéance), avertissements (15 j après la relance), propositions de mise à pied (10 j après l'avertissement ; 5/5/5 le dernier mois) → Direction
-Inscriptions ................... nouvel élève (compte ouvert au mois d'arrivée), réinscriptions
+Inscriptions & fiches élèves ... pré-inscriptions, inscription (fiche élève → comptes ENT), réinscriptions
 Conseils de classe ............. grilles de notes, avis des enseignants, décisions
 Vie scolaire (accès partagé) ... absences, retards, incidents
 ```

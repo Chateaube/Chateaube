@@ -13,6 +13,7 @@ import AccountingModule from './components/AccountingModule.jsx';
 import StaffModule from './components/StaffModule.jsx';
 import TeacherPortal from './components/TeacherPortal.jsx';
 import FamilyPortal from './components/FamilyPortal.jsx';
+import InscriptionsModule from './components/InscriptionsModule.jsx';
 import { DEFAULT_SETTINGS } from './data/settings.js';
 import { DIRECTION_ACCOUNTS } from './data/demo.js';
 
@@ -23,6 +24,7 @@ import { DIRECTION_ACCOUNTS } from './data/demo.js';
 const VIE_SCOLAIRE = { id: 'vs', label: 'Vie scolaire', icon: 'users', screen: VieScolaireModule };
 const COUNCIL = { id: 'council', label: 'Conseils de classe', icon: 'cap', screen: CouncilGrid };
 const BOOKING = { id: 'booking', label: 'Réservations', icon: 'calendar', screen: BookingModule };
+const INSCRIPTIONS = { id: 'enrol', label: 'Inscriptions & fiches élèves', icon: 'users', screen: InscriptionsModule };
 const FOLLOW_UP = { id: 'followup', label: 'Documents, stages & orientation', icon: 'pen', screen: FollowUpModule };
 
 const PROFILES = {
@@ -33,7 +35,8 @@ const PROFILES = {
     nav: [
       { group: 'Pilotage', items: [
         { id: 'dashboard', label: 'Tableau de bord', icon: 'home', screen: DirectionDashboard },
-        { id: 'students', label: 'Élèves & mobilité', icon: 'users' },
+        INSCRIPTIONS,
+        { id: 'students', label: 'Mobilité Tamatave → Tana', icon: 'swap' },
         { id: 'accounting', label: 'Comptabilité', icon: 'wallet', screen: AccountingModule },
       ] },
       { group: 'Pédagogie', items: [
@@ -61,7 +64,7 @@ const PROFILES = {
       { group: 'Bureau', items: [
         { id: 'bureau', label: 'Accueil', icon: 'home', screen: BureauHome },
         { id: 'accounting', label: 'Encaissements & comptabilité', icon: 'wallet', screen: AccountingModule },
-        { id: 'enrol', label: 'Inscriptions', icon: 'users' },
+        INSCRIPTIONS,
         COUNCIL,
       ] },
       { group: 'Accès partagé', items: [VIE_SCOLAIRE, FOLLOW_UP, BOOKING] },
