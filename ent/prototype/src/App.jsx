@@ -23,6 +23,7 @@ import ImportModule from './components/ImportModule.jsx';
 import BulletinsModule from './components/BulletinsModule.jsx';
 import pillar from './assets/pilier.png';
 import { useScreenGuard } from './screenGuard.js';
+import { useOnline } from './online.js';
 
 const THEMES = [['ocean', 'Océan (dégradé bleu)'], ['aurore', 'Aurore (dégradé violet-corail)'], ['classique', 'Classique (bleu uni)'], ['elegant', 'Élégant (clair)']];
 import { DEFAULT_SETTINGS } from './data/settings.js';
@@ -188,6 +189,7 @@ export default function App() {
   const [protection, setProtection] = useState(true);
   const protectedProfile = protection && !['DIRECTION', 'BUREAU'].includes(profile);
   const hidden = useScreenGuard(protectedProfile);
+  const online = useOnline();
 
   const [openGroup, setOpenGroup] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -308,6 +310,11 @@ export default function App() {
         )}
       </header>
 
+      {!online && (
+        <p role="status" className="bg-amber-100 px-4 py-1.5 text-center text-xs font-medium text-amber-900">
+          Hors connexion : consultation et saisies courantes possibles, envoyées au retour du réseau. La caisse attend la connexion.
+        </p>
+      )}
       <main className="mx-auto w-full max-w-[1400px] px-4 py-6 lg:px-8">
         <Current key={`${profile}-${screen}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={setScreen} role={profile} />
       </main>

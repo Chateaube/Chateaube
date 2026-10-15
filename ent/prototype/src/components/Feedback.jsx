@@ -23,8 +23,8 @@ export function FeedbackButton({ profile, who, screen }) {
   return (
     <>
       <button type="button" onClick={() => { setOpen(true); setSent(false); }} aria-label="Donner mon avis"
-        className="nav-control fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full bg-coral-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:bg-coral-700 print:hidden">
-        <Icon name="bell" className="h-4 w-4" />Donner mon avis
+        className="nav-control fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full bg-coral-500 p-3 sm:px-4 sm:py-2.5 text-sm font-semibold text-white shadow-lg hover:bg-coral-700 print:hidden">
+        <Icon name="bell" className="h-4 w-4" /><span className="hidden sm:inline">Donner mon avis</span>
       </button>
       {open && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-4 sm:items-center" role="dialog" aria-label="Donner mon avis" onClick={() => setOpen(false)}>

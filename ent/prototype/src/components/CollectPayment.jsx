@@ -11,6 +11,7 @@ import { CLASSES } from '../data/schoollife.js';
 import { DEMO_SPECIALTIES } from '../data/manuals.js';
 import { kitFor, kitTotals } from '../rules/manuals.js';
 import { loadManuals } from '../manualsStore.js';
+import { useOnline } from '../online.js';
 
 /**
  * Tarifs d'un élève : grille de sa classe + lot de manuels (location des titres à rendre,
@@ -99,6 +100,7 @@ function DueTile({ item, checked, onToggle }) {
 export default function CollectPayment({ settings, articles = [], accounts: sharedAccounts, setAccounts: setSharedAccounts, reductionTypes = [], onCollected, cashier = 'Mme Hanta (bureau)', closed = false }) {
   const [localAccounts, setLocalAccounts] = useState(CASH_ACCOUNTS);
   const accounts = sharedAccounts ?? localAccounts;
+  const online = useOnline();
   const setAccounts = setSharedAccounts ?? setLocalAccounts;
   const [cls, setCls] = useState('');
   const [bearer, setBearer] = useState({ role: 'PARENT', name: '' });
@@ -285,7 +287,8 @@ export default function CollectPayment({ settings, articles = [], accounts: shar
             {!bearerName && <p className="text-xs text-red-700">Indiquer le nom de la personne qui remet le paiement.</p>}
           </fieldset>
           {closed && <p className="mt-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">La caisse du jour est clôturée : les encaissements reprennent demain.</p>}
-          <Button className="mt-4 w-full" disabled={closed || !chosen.length || errors.length > 0 || !bearerName} onClick={collect}>
+          {!online && <p className="mt-3 rounded-lg bg-red-50 p-2 text-xs text-red-800">Hors connexion : l'encaissement est désactivé pour éviter les doublons de reçus. Reconnectez-vous (clé 4G ou partage de connexion).</p>}
+          <Button className="mt-4 w-full" disabled={!online || closed || !chosen.length || errors.length > 0 || !bearerName} onClick={collect}>
             Encaisser {total > 0 && formatAr(total)}
           </Button>
           <p className="mt-2 text-[11px] text-slate-500">Un reçu est édité par journal (frais de scolarité, frais annexes, droits d'examen).</p>
