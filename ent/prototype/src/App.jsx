@@ -16,6 +16,7 @@ import FamilyPortal from './components/FamilyPortal.jsx';
 import InscriptionsModule from './components/InscriptionsModule.jsx';
 import ManualsModule from './components/ManualsModule.jsx';
 import LibraryModule from './components/LibraryModule.jsx';
+import FeedbackModule, { FeedbackButton } from './components/Feedback.jsx';
 import TeacherOversight from './components/TeacherOversight.jsx';
 import Messenger from './components/Messenger.jsx';
 import ImportModule from './components/ImportModule.jsx';
@@ -47,6 +48,7 @@ const MESSAGES = { id: 'messages', label: 'Messages', icon: 'bell', screen: () =
   </div>
 ) };
 const MANUALS = { id: 'manuals', label: 'Manuels scolaires', icon: 'cap', screen: ManualsModule };
+const FEEDBACK = { id: 'feedback', label: 'Avis du pilote', icon: 'bell', screen: FeedbackModule };
 const LIBRARY = { id: 'library', label: 'Bibliothèque (CDI)', icon: 'pen', screen: LibraryModule };
 const IMPORT = { id: 'import', label: 'Importer des données (Excel)', icon: 'swap', screen: ImportModule };
 const FOLLOW_UP = { id: 'followup', label: 'Documents, stages & orientation', icon: 'pen', screen: FollowUpModule };
@@ -59,6 +61,7 @@ const PROFILES = {
     nav: [
       { group: 'Pilotage', items: [
         { id: 'dashboard', label: 'Tableau de bord', icon: 'home', screen: DirectionDashboard },
+        FEEDBACK,
         INSCRIPTIONS,
         { id: 'students', label: 'Mobilité Tamatave → Tana', icon: 'swap' },
         { id: 'accounting', label: 'Comptabilité', icon: 'wallet', screen: AccountingModule },
@@ -309,6 +312,7 @@ export default function App() {
         <Current key={`${profile}-${screen}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={setScreen} role={profile} />
       </main>
 
+      <FeedbackButton profile={profile} who={persona.detail ?? persona.name} screen={NAV.flatMap((g) => g.items).find((i) => i.id === screen)?.label ?? screen} />
       {protectedProfile && <div aria-hidden="true" className="screen-watermark">{`${persona.name} · ${persona.detail} · `.repeat(60)}</div>}
       {hidden && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black text-center text-sm text-slate-400" role="alert">

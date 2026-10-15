@@ -1363,8 +1363,13 @@ CREATE TABLE payroll_line (
   site_id       uuid,
   month         date,
   staff_id      uuid REFERENCES staff_member(id),
-  net_mga       bigint NOT NULL CHECK (net_mga > 0),
-  method        payment_method NOT NULL CHECK (method IN ('ESPECES', 'VIREMENT')),
+  -- professeurs : heures de cours effectuées face aux élèves × taux horaire ; autres : salaire mensuel
+  hours_done    numeric CHECK (hours_done >= 0),
+  hours_planned numeric CHECK (hours_planned >= 0), -- d'après l'emploi du temps
+  hourly_mga    bigint CHECK (hourly_mga > 0),
+  monthly_mga   bigint CHECK (monthly_mga > 0),
+  net_mga       bigint GENERATED ALWAYS AS (coalesce(round(hours_done * hourly_mga)::bigint, monthly_mga)) STORED,
+  method        payment_method NOT NULL DEFAULT 'ESPECES' CHECK (method IN ('ESPECES', 'VIREMENT')),
   paid_at       timestamptz,
   paid_by       uuid REFERENCES app_user(id),
   signature_key text,                          -- émargement (espèces)
@@ -1372,13 +1377,17 @@ CREATE TABLE payroll_line (
   cash_movement_id uuid REFERENCES cash_movement(id),
   PRIMARY KEY (site_id, month, staff_id),
   FOREIGN KEY (site_id, month) REFERENCES payroll_month(site_id, month),
+  CHECK ((hourly_mga IS NULL) = (hours_done IS NULL) AND (hourly_mga IS NULL) <> (monthly_mga IS NULL)),
   CHECK ((paid_at IS NULL) = (paid_by IS NULL)),
   CHECK (paid_at IS NULL OR method <> 'ESPECES' OR signature_key IS NOT NULL),
   CHECK (paid_at IS NULL OR method <> 'VIREMENT' OR transfer_ref IS NOT NULL)
 );
 
 -- =====  ENGAGEMENTS DE L'ÉLÈVE (bulletin, livret, Parcoursup)  =====
-CREATE TYPE engagement_code AS ENUM ('DELEGUE', 'SUPPLEANT', 'ECO_DELEGUE', 'CVL', 'CVC', 'TUTEUR', 'SPORT', 'PSC1');
+-- Élèves candidats libres, sans livret scolaire : le bulletin porte les engagements et les
+-- attestations de l'établissement (internes, non officielles : ASSR 1 et 2, compétences numériques).
+CREATE TYPE engagement_code AS ENUM ('DELEGUE', 'SUPPLEANT', 'ECO_DELEGUE', 'CVL', 'CVC', 'TUTEUR', 'SPORT', 'PSC1',
+  'ASSR1', 'ASSR2', 'NUMERIQUE');
 CREATE TABLE student_engagement (
   enrollment_id uuid REFERENCES enrollment(id),
   code          engagement_code,
@@ -1417,3 +1426,17 @@ CREATE TABLE library_loan (
   CHECK (enrollment_id IS NULL OR due_on IS NOT NULL)
 );
 CREATE UNIQUE INDEX library_loan_open ON library_loan (copy_code) WHERE returned_on IS NULL;
+
+-- =====  AVIS DU PILOTE (« Donner mon avis »)  =====
+CREATE TABLE feedback (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       uuid NOT NULL REFERENCES app_user(id),
+  role          role_code NOT NULL,
+  screen        text NOT NULL,                 -- écran d'où l'avis est envoyé
+  kind          text NOT NULL CHECK (kind IN ('PROBLEME', 'IDEE', 'QUESTION')),
+  message       text NOT NULL CHECK (length(trim(message)) >= 5),
+  photo_key     text,
+  status        text NOT NULL DEFAULT 'NOUVEAU' CHECK (status IN ('NOUVEAU', 'EN_COURS', 'TRAITE')),
+  follow_up     text,
+  created_at    timestamptz NOT NULL DEFAULT now()
+);

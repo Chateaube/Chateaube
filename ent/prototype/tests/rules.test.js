@@ -738,3 +738,9 @@ test('engagements sur le bulletin : accord et nombre de délégués', async () =
   assert.deepEqual(e.engagementLabels(['DELEGUE']), ['Délégué(e) de classe']);
   assert.equal(e.engagementErrors({ a: ['DELEGUE'], b: ['DELEGUE'], c: ['DELEGUE'] }).length, 1);
 });
+
+test('attestations de l\'établissement : imprimées à part des engagements', async () => {
+  const e = await import('../src/rules/engagements.js');
+  assert.deepEqual(e.engagementLabels(['DELEGUE', 'ASSR1'], 'M'), ['Délégué de classe']);
+  assert.deepEqual(e.attestationLabels(['DELEGUE', 'ASSR1', 'NUMERIQUE']), ['Sécurité routière niveau 1 (programme ASSR 1)', 'Compétences numériques (référentiel Pix / B2i)']);
+});

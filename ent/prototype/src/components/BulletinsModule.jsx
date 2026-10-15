@@ -12,12 +12,12 @@ import { demoAppreciation, accord } from '../rules/documents.js';
 import { formatDateFr } from '../rules/calendar.js';
 import { printOnly } from '../print.js';
 import BulletinHandover from './BulletinHandover.jsx';
-import { ENGAGEMENTS, engagementLabels, engagementErrors } from '../rules/engagements.js';
+import { ENGAGEMENTS, ATTESTATIONS, engagementLabels, attestationLabels, engagementErrors } from '../rules/engagements.js';
 
 // Engagements de démonstration (délégués, suppléants…)
 const DEMO_ENGAGEMENTS = {
   'RAKOTOARISOA Aina': ['DELEGUE'], 'RAZAFY Kanto': ['SUPPLEANT'], 'RAMAROSON Fitia': ['ECO_DELEGUE'],
-  'RANDRIA Mamy': ['DELEGUE', 'CVL'], 'RAZAFINDRATSIMA Volana': ['SUPPLEANT'], 'RABEMANANTSOA Fitia': ['PSC1'],
+  'RANDRIA Mamy': ['DELEGUE', 'CVL', 'NUMERIQUE'], 'RAZAFINDRATSIMA Volana': ['SUPPLEANT'], 'RABEMANANTSOA Fitia': ['PSC1'],
 };
 
 // Bulletins du trimestre (Direction, Bureau) : une page A4 par élève, selon la matrice de l'établissement.
@@ -143,7 +143,7 @@ export default function BulletinsModule({ settings, role }) {
   const [pages, setPages] = useState({}); // élève → nombre de pages imprimées (mesuré)
   const measureRef = useRef(null);
   const [engagements, setEngagements] = useState(DEMO_ENGAGEMENTS);
-  const enrich = (x) => ({ ...x, showGeneral, compact: pages[x.student]?.useCompact ?? false, generalAppreciation: general[`${cls}:${x.student}`] ?? '', engagements: engagementLabels(engagements[x.student], x.sex) });
+  const enrich = (x) => ({ ...x, showGeneral, compact: pages[x.student]?.useCompact ?? false, generalAppreciation: general[`${cls}:${x.student}`] ?? '', engagements: engagementLabels(engagements[x.student], x.sex), attestations: attestationLabels(engagements[x.student]) });
   const classEngagements = Object.fromEntries(bulletins.map((x) => [x.student, engagements[x.student] ?? []]));
   const toggleEngagement = (id) => {
     const cur = engagements[current.student] ?? [];
@@ -211,14 +211,19 @@ export default function BulletinsModule({ settings, role }) {
         </label>
         {cls === IMPORTED && <p className="mt-2 text-xs text-slate-500">Élèves importés : moyennes et appréciations vides tant que les enseignants n'ont pas saisi leurs notes. La mise en page et les spécialités sont celles du vrai bulletin.</p>}
         <div className="mt-3">
-          <p className="text-xs font-medium text-slate-600">Engagements de {current.student} (imprimés à droite des absences)</p>
-          <div className="mt-1 flex flex-wrap gap-1.5">
-            {ENGAGEMENTS.map((e) => {
-              const on = (engagements[current.student] ?? []).includes(e.id);
-              return <button key={e.id} type="button" aria-pressed={on} onClick={() => toggleEngagement(e.id)}
-                className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${on ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-600 ring-slate-300'}`}>{e.neutral}</button>;
-            })}
-          </div>
+          {[['Engagements', ENGAGEMENTS], ['Attestations de l\'établissement (internes, non officielles)', ATTESTATIONS]].map(([title, list]) => (
+            <div key={title} className="mb-2">
+              <p className="text-xs font-medium text-slate-600">{title} — {current.student}</p>
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {list.map((e) => {
+                  const on = (engagements[current.student] ?? []).includes(e.id);
+                  return <button key={e.id} type="button" aria-pressed={on} onClick={() => toggleEngagement(e.id)}
+                    className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${on ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-600 ring-slate-300'}`}>{e.neutral}</button>;
+                })}
+              </div>
+            </div>
+          ))}
+          <p className="text-[11px] text-slate-500">Imprimés à droite des absences. Éco-délégué : élève chargé des gestes écologiques de la classe (tri, économies d'eau et d'énergie, projets environnement).</p>
           {engagementErrors(classEngagements).map((e) => <p key={e} className="mt-1 text-xs text-red-700">{e}</p>)}
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-600">

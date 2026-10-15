@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { Badge, Button, Card, Stat } from './ui.jsx';
 import SignaturePad from './SignaturePad.jsx';
 import { STAFF } from '../data/people.js';
-import { BANKS } from '../data/accounting.js';
+import { BANKS, payOf } from '../data/accounting.js';
 import { formatAr } from '../rules/finance.js';
 import { expectedCash, salaryWindow } from '../rules/cashControl.js';
 import { staffStatus } from './StaffModule.jsx';
 
-// Salaires du personnel : rubrique de sortie à part. La Direction prépare et valide l'état de paie
+// Salaires du personnel : rubrique de sortie à part. Les professeurs sont payés à l'heure de cours
+// effectuée face aux élèves (heures proposées d'après les appels, corrigées par la Direction). La Direction prépare et valide l'état de paie
 // du mois ; le Bureau paie. En espèces, le salarié émarge (signe) au moment du paiement et la sortie
 // de caisse est créée ; par virement, on note la référence. Tout est tracé dans l'historique.
 
@@ -25,7 +26,9 @@ export default function Salaries({ role, actor, settings, payroll, setPayroll, p
   const [signature, setSignature] = useState(null);
   const [ref, setRef] = useState({ ref: '', bank: 'BOA Madagascar' });
   const staffOf = (id) => STAFF.find((s) => s.id === id);
-  const rows = payroll.filter((p) => staffStatus(staffOf(p.staffId), TODAY).active);
+  const rows = payroll.filter((p) => staffStatus(staffOf(p.staffId), TODAY).active).map((p) => ({ ...p, amount: payOf(p) }));
+  const edit = (id, patch) => setPayroll(payroll.map((x) => (x.staffId === id ? { ...x, ...patch } : x)));
+  const num = (v) => Number(String(v).replace(/\D/g, '')) || 0;
   const paidOf = (id) => payments.find((x) => x.staffId === id && x.month === MONTH);
   const total = rows.reduce((s, p) => s + p.amount, 0);
   const cashRows = rows.filter((p) => p.method === 'ESPECES');
@@ -65,7 +68,7 @@ export default function Salaries({ role, actor, settings, payroll, setPayroll, p
           <table className="w-full min-w-[760px] text-sm">
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
-                <th className="px-4 py-2 font-medium">Salarié</th><th className="px-2 font-medium">Poste</th><th className="px-2 text-right font-medium">Net</th>
+                <th className="px-4 py-2 font-medium">Salarié</th><th className="px-2 font-medium">Poste</th><th className="px-2 text-right font-medium">Heures face aux élèves × taux / net</th>
                 <th className="px-2 font-medium">Mode</th><th className="px-4 font-medium">Paiement</th>
               </tr>
             </thead>
@@ -78,13 +81,24 @@ export default function Salaries({ role, actor, settings, payroll, setPayroll, p
                     <td className="px-4 py-2 font-medium text-slate-800">{s.name}{p.note && <span className="block text-xs font-normal text-slate-500">{p.note}</span>}</td>
                     <td className="px-2 py-2 text-slate-600">{s.poste}<span className="block text-xs text-slate-500">{s.contrat}</span></td>
                     <td className="px-2 py-2 text-right">
-                      {isDirection && !validated
-                        ? <input inputMode="numeric" value={p.amount} aria-label={`Net — ${s.name}`} onChange={(e) => setPayroll(payroll.map((x) => (x.staffId === p.staffId ? { ...x, amount: Number(e.target.value.replace(/\D/g, '')) || 0 } : x)))} className="w-28 rounded-md border border-slate-300 px-2 py-1 text-right tabular-nums" />
-                        : <span className="tabular-nums">{formatAr(p.amount)}</span>}
+                      {p.hourly ? (
+                        <div className="text-xs text-slate-600">
+                          {isDirection && !validated ? (
+                            <span className="inline-flex items-center gap-1">
+                              <input inputMode="numeric" value={p.hours} aria-label={`Heures — ${s.name}`} onChange={(e) => edit(p.staffId, { hours: num(e.target.value) })} className="w-14 rounded-md border border-slate-300 px-1.5 py-1 text-right tabular-nums" /> h ×
+                              <input inputMode="numeric" value={p.hourly} aria-label={`Taux horaire — ${s.name}`} onChange={(e) => edit(p.staffId, { hourly: num(e.target.value) })} className="w-20 rounded-md border border-slate-300 px-1.5 py-1 text-right tabular-nums" />
+                            </span>
+                          ) : <span className="tabular-nums">{p.hours} h × {formatAr(p.hourly)}</span>}
+                          <span className={`block ${p.hours < p.plannedHours ? 'text-amber-700' : ''}`}>prévues à l'emploi du temps : {p.plannedHours} h{p.hours < p.plannedHours ? ` (${p.plannedHours - p.hours} h non faites)` : ''}</span>
+                        </div>
+                      ) : isDirection && !validated ? (
+                        <input inputMode="numeric" value={p.monthly} aria-label={`Salaire mensuel — ${s.name}`} onChange={(e) => edit(p.staffId, { monthly: num(e.target.value) })} className="w-28 rounded-md border border-slate-300 px-2 py-1 text-right tabular-nums" />
+                      ) : <span className="text-xs text-slate-500">mensuel</span>}
+                      <span className="block font-semibold tabular-nums">{formatAr(p.amount)}</span>
                     </td>
                     <td className="px-2 py-2">
                       {isDirection && !validated
-                        ? <select value={p.method} aria-label={`Mode — ${s.name}`} onChange={(e) => setPayroll(payroll.map((x) => (x.staffId === p.staffId ? { ...x, method: e.target.value } : x)))} className="rounded-md border border-slate-300 px-1.5 py-1 text-xs"><option value="ESPECES">Espèces</option><option value="VIREMENT">Virement</option></select>
+                        ? <select value={p.method} aria-label={`Mode — ${s.name}`} onChange={(e) => edit(p.staffId, { method: e.target.value })} className="rounded-md border border-slate-300 px-1.5 py-1 text-xs"><option value="ESPECES">Espèces</option><option value="VIREMENT">Virement</option></select>
                         : <Badge tone={p.method === 'ESPECES' ? 'amber' : 'navy'}>{p.method === 'ESPECES' ? 'Espèces' : 'Virement'}</Badge>}
                     </td>
                     <td className="px-4 py-2">
@@ -117,7 +131,7 @@ export default function Salaries({ role, actor, settings, payroll, setPayroll, p
             </tbody>
           </table>
         </div>
-        <p className="mt-3 text-xs text-slate-500">Chaque salaire payé en espèces crée une sortie « Salaires » dans la caisse, avec l'émargement du salarié. Conseil : le virement réduit les espèces à garder au bureau.</p>
+        <p className="mt-3 text-xs text-slate-500">Chaque salaire payé en espèces crée une sortie « Salaires » dans la caisse, avec l'émargement du salarié. Les heures des professeurs sont proposées d'après les appels faits (cours effectivement assurés) et corrigées par la Direction avant validation.</p>
       </Card>
     </div>
   );

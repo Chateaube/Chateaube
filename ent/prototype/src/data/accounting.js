@@ -181,17 +181,21 @@ export const STUDENT_ACCOUNTS = [
     exam: { label: 'Droits Pré-Bac (EAF)', amount: 450_000, due: '2026-10-31' } },
 ];
 
-// État de paie mensuel (montants nets FICTIFS) : préparé et validé par la Direction, payé par le Bureau.
-// Espèces : émargement (signature) du salarié au moment du paiement.
+// État de paie mensuel (montants FICTIFS) : préparé et validé par la Direction, payé par le Bureau.
+// Professeurs : payés à l'heure de cours effectuée face aux élèves (heures × taux horaire) ;
+// heures proposées d'après les appels faits, corrigées par la Direction. Autres salariés : au mois.
+// Espèces (le plus courant) : émargement du salarié au bureau.
 export const PAYROLL = [
-  { staffId: 'p1', amount: 1_650_000, method: 'ESPECES' },
-  { staffId: 'p2', amount: 1_600_000, method: 'VIREMENT' },
-  { staffId: 'p3', amount: 1_350_000, method: 'ESPECES' },
-  { staffId: 'p4', amount: 1_500_000, method: 'ESPECES' },
-  { staffId: 'p5', amount: 1_550_000, method: 'VIREMENT' },
-  { staffId: 'p6', amount: 320_000, method: 'ESPECES', note: 'Vacations : 16 h' },
-  { staffId: 'p7', amount: 950_000, method: 'ESPECES' },
-  { staffId: 'p8', amount: 750_000, method: 'ESPECES' },
-  { staffId: 'p9', amount: 480_000, method: 'ESPECES' },
-  { staffId: 'p10', amount: 450_000, method: 'ESPECES' },
+  { staffId: 'p1', hourly: 22_000, hours: 74, plannedHours: 76, method: 'ESPECES' },
+  { staffId: 'p2', hourly: 20_000, hours: 80, plannedHours: 80, method: 'VIREMENT' },
+  { staffId: 'p3', hourly: 20_000, hours: 66, plannedHours: 68, method: 'ESPECES' },
+  { staffId: 'p4', hourly: 20_000, hours: 72, plannedHours: 72, method: 'ESPECES' },
+  { staffId: 'p5', hourly: 22_000, hours: 70, plannedHours: 72, method: 'ESPECES' },
+  { staffId: 'p6', hourly: 20_000, hours: 16, plannedHours: 16, method: 'ESPECES' },
+  { staffId: 'p7', monthly: 950_000, method: 'ESPECES' },
+  { staffId: 'p8', monthly: 750_000, method: 'ESPECES' },
+  { staffId: 'p9', monthly: 480_000, method: 'ESPECES' },
+  { staffId: 'p10', monthly: 450_000, method: 'ESPECES' },
 ];
+/** Net du mois : heures effectuées × taux horaire, ou salaire mensuel. */
+export const payOf = (line) => (line.hourly ? line.hourly * (line.hours ?? 0) : line.monthly ?? 0);

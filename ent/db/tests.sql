@@ -771,7 +771,10 @@ END $$;
 -- T38. Salaires : état de paie validé par la Direction, émargement pour les espèces -------
 DO $$ DECLARE s uuid := (SELECT id FROM site WHERE code = 'TMV'); st uuid := (SELECT id FROM staff_member LIMIT 1); BEGIN
   INSERT INTO payroll_month (site_id, month) VALUES (s, '2026-10-01');
-  INSERT INTO payroll_line (site_id, month, staff_id, net_mga, method) VALUES (s, '2026-10-01', st, 1650000, 'ESPECES');
+  INSERT INTO payroll_line (site_id, month, staff_id, hours_done, hours_planned, hourly_mga) VALUES (s, '2026-10-01', st, 74, 76, 22000);
+  ASSERT (SELECT net_mga FROM payroll_line WHERE staff_id = st) = 1628000, 'T38: 74 h × 22 000 Ar';
+  ASSERT (SELECT method FROM payroll_line WHERE staff_id = st) = 'ESPECES', 'T38: espèces par défaut';
+  ASSERT (SELECT contract FROM staff_member WHERE id = st) = 'CDI', 'T38: professeur en CDI automatiquement';
   BEGIN
     UPDATE payroll_line SET paid_at = now(), paid_by = '00000000-0000-0000-0000-000000000003', signature_key = 'sig/x.png' WHERE staff_id = st;
     RAISE EXCEPTION 'T38: salaire payé avant validation';
@@ -802,7 +805,7 @@ DO $$ DECLARE e2 uuid; e3 uuid; BEGIN
     RAISE EXCEPTION 'T39: troisième délégué accepté';
   EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T39:%' THEN RAISE; END IF;
   END;
-  INSERT INTO student_engagement VALUES (e3, 'SUPPLEANT');
+  INSERT INTO student_engagement VALUES (e3, 'SUPPLEANT'), (e3, 'ASSR1'), (e3, 'NUMERIQUE');
 END $$;
 
 -- T40. CDI : un mois pour l'élève, prolongation avec le livre, professeur sans date limite ---
@@ -836,5 +839,15 @@ DO $$ DECLARE b uuid; l uuid; BEGIN
   INSERT INTO library_loan (copy_code, staff_id, out_on) VALUES ('ROM-0002', (SELECT id FROM staff_member LIMIT 1), current_date);
 END $$;
 
+-- T41. Avis du pilote : message obligatoire ----------------------------------------------
+DO $$ BEGIN
+  INSERT INTO feedback (user_id, role, screen, kind, message) VALUES ('00000000-0000-0000-0000-000000000003', 'PROFESSEUR', 'Notes & appréciations', 'QUESTION', 'Peut-on corriger une note après validation ?');
+  BEGIN
+    INSERT INTO feedback (user_id, role, screen, kind, message) VALUES ('00000000-0000-0000-0000-000000000003', 'PROFESSEUR', 'Notes', 'IDEE', 'ok');
+    RAISE EXCEPTION 'T41: avis vide accepté';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T40 passent'
+\echo 'OK — tous les scénarios T1 à T41 passent'

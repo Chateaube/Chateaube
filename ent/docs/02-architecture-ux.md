@@ -178,7 +178,10 @@ chaque portail.
   (virement) ; espèces en caisse comparées aux salaires à payer.
 - **Bibliothèque (CDI)** : prêt et retour par cote ou recherche (titre, auteur, ISBN), prolongation avec le livre,
   retards et rappels, catalogue, étiquettes imprimables ; « Livres du CDI » dans le portail des familles.
-- **Bulletins** : rubrique « Engagements » (délégué, suppléant…) imprimée à droite des absences.
+- **Bulletins** : rubriques « Engagements » (délégué, suppléant…) et « Attestations de l'établissement » (ASSR 1 et 2,
+  compétences numériques) imprimées à droite des absences.
+- **Donner mon avis** : bouton présent sur tous les écrans pendant le pilote (Terminales) ; « Avis du pilote » pour la
+  Direction (statut, suite donnée).
 - **Remise des bulletins** : en main propre, tamponnés ; bloquée en cas d'impayé ou de manuel dû (levée par la Direction).
 - **Fiche signalétique** : le parent la remplit et la signe dans son compte (Plus → Fiche signalétique) ; le bureau la
   consulte, la valide et compare la signature de référence avec un document papier photographié.

@@ -298,11 +298,17 @@ recoder.
 
 ### Salaires, engagements et bibliothèque
 - **`payroll_month`**, **`payroll_line`** : état de paie mensuel, validé par la Direction seule ; payé par le Bureau.
+  Professeurs (automatiquement en CDI) payés à l'heure de cours effectuée face aux élèves (heures × taux horaire,
+  heures prévues à l'emploi du temps en regard) ; autres salariés au mois. Espèces par défaut (le plus courant).
   En espèces, émargement obligatoire du salarié et sortie de caisse « Salaires » ; par virement, référence obligatoire
   (T38). Pendant la « semaine des salaires » (dernière semaine de cours du mois, jusqu'au paiement), pas de rappel de
   versement en banque.
 - **`student_engagement`** : engagements imprimés sur le bulletin (délégué, suppléant, éco-délégué, élu CVL/CVC, tuteur,
-  équipe sportive, PSC1) ; au plus 2 délégués et 2 suppléants par classe (T39).
+  équipe sportive, PSC1) et attestations internes de l'établissement (sécurité routière niveaux 1 et 2 sur le modèle
+  ASSR, compétences numériques sur le modèle Pix / B2i). Les élèves étant candidats libres, sans livret scolaire, le
+  bulletin est le seul document qui les montre. Au plus 2 délégués et 2 suppléants par classe (T39).
+- **`feedback`** : avis du pilote envoyés depuis « Donner mon avis » (écran, profil, problème / idée / question), suivis
+  par la Direction (T41).
 - **`library_book`**, **`library_copy`**, **`library_loan`** : CDI. Désignation titre — auteur — éditeur (collection,
   année), ISBN ; une cote par exemplaire (ROM-0012…). Élèves : un mois, prolongé d'un mois si le livre est présenté ;
   professeurs : sans date limite. Un livre en retard bloque la remise du bulletin (T40).

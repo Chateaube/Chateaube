@@ -829,3 +829,11 @@ SELECT enrollment_id, 'LIVRE_CDI', count(*)::int
 FROM library_loan
 WHERE enrollment_id IS NOT NULL AND returned_on IS NULL AND due_on < current_date
 GROUP BY enrollment_id;
+
+-- Les professeurs sont automatiquement en CDI.
+CREATE FUNCTION teacher_contract_default() RETURNS trigger AS $$
+BEGIN
+  IF NEW.job_title = 'Enseignant.e' THEN NEW.contract := 'CDI'; END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER teacher_contract BEFORE INSERT OR UPDATE ON staff_member FOR EACH ROW EXECUTE FUNCTION teacher_contract_default();
