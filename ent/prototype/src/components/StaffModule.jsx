@@ -118,7 +118,7 @@ export default function StaffModule() {
           <label className="text-xs text-slate-600">Matière / fonction<input value={draft.detail} onChange={(e) => setDraft({ ...draft, detail: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>
           <label className="text-xs text-slate-600">Contrat
             {draft.poste === 'Enseignant.e'
-              ? <span className="mt-1 block rounded-md bg-slate-50 px-2 py-1.5 text-sm text-slate-700">CDI (automatique pour les professeurs)</span>
+              ? <span className="mt-1 block rounded-md bg-slate-50 px-2 py-1.5 text-sm text-slate-700">Vacataire, payé à l'heure (automatique pour les professeurs)</span>
               : <select value={draft.contrat} onChange={(e) => setDraft({ ...draft, contrat: e.target.value })} className={`mt-1 w-full ${inputCls}`}>{CONTRATS.map((c) => <option key={c}>{c}</option>)}</select>}
           </label>
           <label className="text-xs text-slate-600">Date d'entrée<input type="date" value={draft.entry} onChange={(e) => setDraft({ ...draft, entry: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>

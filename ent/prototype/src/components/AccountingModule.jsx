@@ -3,7 +3,7 @@ import { saveFile } from '../download.js';
 import { Badge, Button, Card, Icon, Stat } from './ui.jsx';
 import {
   JOURNALS, CLASS_FEES, FEE_COLUMNS, ARTICLES, FAMILIES, CASH_MOVEMENTS, CASH_NATURES, CASH_OPENING, CASH_HISTORY, CASH_YEAR_OPENING,
-  RECEIPTS_TODAY, CASH_AUDIT, CASH_SAFE, CASH_CLOSINGS, REDUCTION_TYPES, PAYROLL,
+  RECEIPTS_TODAY, CASH_AUDIT, CASH_SAFE, CASH_CLOSINGS, REDUCTION_TYPES, PAYROLL, HOURLY_RATES,
 } from '../data/accounting.js';
 import CashControl, { methodText } from './CashControl.jsx';
 import Reductions from './Reductions.jsx';
@@ -401,6 +401,7 @@ export default function AccountingModule({ settings, role }) {
   const [closings, setClosings] = useState(CASH_CLOSINGS);
   const [reductionTypes, setReductionTypes] = useState(REDUCTION_TYPES);
   const [payroll, setPayroll] = useState(PAYROLL);
+  const [rates, setRates] = useState(HOURLY_RATES);
   const [salaryPayments, setSalaryPayments] = useState([]);
   const [payrollValidated, setPayrollValidated] = useState(null);
   const actor = canEdit ? 'Mme Sheena Lo (Direction)' : 'Mme Hanta (bureau)';
@@ -433,7 +434,7 @@ export default function AccountingModule({ settings, role }) {
       </div>
       {tab === 'collect' && <CollectPayment settings={settings} articles={articles} accounts={accounts} setAccounts={setAccounts} reductionTypes={reductionTypes} onCollected={onCollected} cashier={actor} closed={closed} />}
       {tab === 'receipts' && <CashControl role={role} actor={actor} receipts={receipts} setReceipts={setReceipts} audit={audit} setAudit={setAudit} movements={movements} setMovements={setMovements} accounts={accounts} setAccounts={setAccounts} closings={closings} setClosings={setClosings} safe={CASH_SAFE} settings={settings} salariesPaid={cashSalariesPaid(payroll, salaryPayments)} />}
-      {tab === 'salaries' && <Salaries role={role} actor={actor} settings={settings} payroll={payroll} setPayroll={setPayroll} payments={salaryPayments} setPayments={setSalaryPayments} validated={payrollValidated} setValidated={setPayrollValidated} movements={movements} setMovements={setMovements} setAudit={setAudit} safe={CASH_SAFE} />}
+      {tab === 'salaries' && <Salaries role={role} actor={actor} settings={settings} payroll={payroll} setPayroll={setPayroll} rates={rates} setRates={setRates} payments={salaryPayments} setPayments={setSalaryPayments} validated={payrollValidated} setValidated={setPayrollValidated} movements={movements} setMovements={setMovements} setAudit={setAudit} safe={CASH_SAFE} />}
       {tab === 'reductions' && <Reductions canEdit={canEdit} actor={actor} types={reductionTypes} setTypes={setReductionTypes} accounts={accounts} setAccounts={setAccounts} />}
       {tab === 'fees' && <FeesTab fees={fees} setFees={setFees} settings={settings} canEdit={canEdit} />}
       {tab === 'articles' && <ArticlesTab articles={articles} setArticles={setArticles} canEdit={canEdit} />}

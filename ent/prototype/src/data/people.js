@@ -4,23 +4,24 @@ export const POSTES = [
   'Enseignant.e', 'Intervenant.e', 'Surveillant.e', 'Secrétaire-comptable', 'Agent d\'entretien', 'Gardien.ne', 'Chauffeur', 'Autre',
 ];
 export const CONTRATS = ['CDI', 'CDD', 'Vacataire', 'Stagiaire'];
-// Les professeurs sont automatiquement en CDI
-export const contractFor = (poste, contrat) => (poste === 'Enseignant.e' ? 'CDI' : contrat);
+// Les professeurs sont automatiquement vacataires : payés à l'heure de cours effectuée,
+// rien pendant les vacances scolaires
+export const contractFor = (poste, contrat) => (poste === 'Enseignant.e' ? 'Vacataire' : contrat);
 
 // Registre du personnel de Tamatave : entrées et sorties
 export const STAFF = [
-  { id: 'p1', name: 'RANAIVO Fara', poste: 'Enseignant.e', detail: 'Management, SGN', contrat: 'CDI', entry: '2021-09-01', exit: null, email: 'f.ranaivo@exemple.mg', access: 'PROFESSEUR' },
-  { id: 'p2', name: 'RASOLO Jean', poste: 'Enseignant.e', detail: 'Histoire-Géographie', contrat: 'CDI', entry: '2021-09-01', exit: null, email: 'j.rasolo@exemple.mg', access: 'PROFESSEUR' },
-  { id: 'p3', name: 'VOAHANGY Lalao', poste: 'Enseignant.e', detail: 'Physique-Chimie, SVT', contrat: 'CDI', entry: '2024-09-02', exit: null, email: 'l.voahangy@exemple.mg', access: 'PROFESSEUR' },
-  { id: 'p4', name: 'HERY Nomena', poste: 'Enseignant.e', detail: 'Anglais', contrat: 'CDI', entry: '2022-09-01', exit: null, email: 'n.hery@exemple.mg', access: 'PROFESSEUR' },
-  { id: 'p5', name: 'TOJO Andry', poste: 'Enseignant.e', detail: 'Mathématiques, Parcours Numérique', contrat: 'CDI', entry: '2023-09-01', exit: null, email: 'a.tojo@exemple.mg', access: 'PROFESSEUR' },
+  { id: 'p1', name: 'RANAIVO Fara', poste: 'Enseignant.e', detail: 'Management, SGN', contrat: 'Vacataire', entry: '2021-09-01', exit: null, email: 'f.ranaivo@exemple.mg', access: 'PROFESSEUR' },
+  { id: 'p2', name: 'RASOLO Jean', poste: 'Enseignant.e', detail: 'Histoire-Géographie', contrat: 'Vacataire', entry: '2021-09-01', exit: null, email: 'j.rasolo@exemple.mg', access: 'PROFESSEUR' },
+  { id: 'p3', name: 'VOAHANGY Lalao', poste: 'Enseignant.e', detail: 'Physique-Chimie, SVT', contrat: 'Vacataire', entry: '2024-09-02', exit: null, email: 'l.voahangy@exemple.mg', access: 'PROFESSEUR' },
+  { id: 'p4', name: 'HERY Nomena', poste: 'Enseignant.e', detail: 'Anglais', contrat: 'Vacataire', entry: '2022-09-01', exit: null, email: 'n.hery@exemple.mg', access: 'PROFESSEUR' },
+  { id: 'p5', name: 'TOJO Andry', poste: 'Enseignant.e', detail: 'Mathématiques, Parcours Numérique', contrat: 'Vacataire', entry: '2023-09-01', exit: null, email: 'a.tojo@exemple.mg', access: 'PROFESSEUR' },
   { id: 'p6', name: 'FALY Rado', poste: 'Intervenant.e', detail: 'Parcours Art (musique)', contrat: 'Vacataire', entry: '2025-10-01', exit: null, email: 'r.faly@exemple.mg', access: 'PROFESSEUR' },
   { id: 'p7', name: 'SOA Miora', poste: 'Secrétaire-comptable', detail: 'Caisse et accueil', contrat: 'CDI', entry: '2021-08-16', exit: null, email: 'm.soa@exemple.mg', access: 'BUREAU' },
   { id: 'p8', name: 'BE Tahina', poste: 'Surveillant.e', detail: 'Vie scolaire', contrat: 'CDI', entry: '2022-01-10', exit: null, email: 't.be@exemple.mg', access: 'VIE_SCOLAIRE' },
   { id: 'p9', name: 'NAINA Paul', poste: 'Agent d\'entretien', detail: 'Bâtiments et salles', contrat: 'CDI', entry: '2023-03-01', exit: null, email: null, access: null },
   { id: 'p10', name: 'KOTO Jean-Marie', poste: 'Gardien.ne', detail: 'Nuit', contrat: 'CDI', entry: '2021-08-01', exit: null, email: null, access: null },
   { id: 'p11', name: 'LANTO Haja', poste: 'Surveillant.e', detail: 'Vie scolaire', contrat: 'CDD', entry: '2024-09-02', exit: '2026-07-31', exitReason: 'Fin de contrat', email: 'h.lanto@exemple.mg', access: 'VIE_SCOLAIRE' },
-  { id: 'p12', name: 'RAZAKA Mialy', poste: 'Enseignant.e', detail: 'Philosophie', contrat: 'CDI', entry: '2026-11-02', exit: null, email: 'm.razaka@exemple.mg', access: 'PROFESSEUR' },
+  { id: 'p12', name: 'RAZAKA Mialy', poste: 'Enseignant.e', detail: 'Philosophie', contrat: 'Vacataire', entry: '2026-11-02', exit: null, email: 'm.razaka@exemple.mg', access: 'PROFESSEUR' },
 ];
 
 // Portail enseignant : Mme Ranaivo, mardi 13 octobre 2026

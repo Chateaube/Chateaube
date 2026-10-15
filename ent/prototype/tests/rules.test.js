@@ -744,3 +744,14 @@ test('attestations de l\'établissement : imprimées à part des engagements', a
   assert.deepEqual(e.engagementLabels(['DELEGUE', 'ASSR1'], 'M'), ['Délégué de classe']);
   assert.deepEqual(e.attestationLabels(['DELEGUE', 'ASSR1', 'NUMERIQUE']), ['Sécurité routière niveau 1 (programme ASSR 1)', 'Compétences numériques (référentiel Pix / B2i)']);
 });
+
+test('paie : taux horaire en vigueur selon la date d\'effet, historique des augmentations', async () => {
+  const p = await import('../src/rules/payroll.js');
+  const rates = [{ staffId: 'x', rate: 18_000, from: '2024-09-01' }, { staffId: 'x', rate: 20_000, from: '2025-09-01' }, { staffId: 'x', rate: 22_000, from: '2026-09-01' }];
+  assert.equal(p.rateOn(rates, 'x', '2026-10-01'), 22_000);
+  assert.equal(p.rateOn(rates, 'x', '2026-06-01'), 20_000);
+  assert.equal(p.rateOn(rates, 'x', '2024-01-01'), null);
+  assert.deepEqual(p.rateHistory(rates, 'x').map((r) => r.increase), [10, 11.1, null]);
+  assert.equal(p.payOf({ byHour: true, hours: 74 }, 22_000), 1_628_000);
+  assert.equal(p.payOf({ monthly: 950_000 }), 950_000);
+});

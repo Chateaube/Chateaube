@@ -1351,6 +1351,16 @@ CREATE TABLE bulletin_handover (
 -- =====  SALAIRES DU PERSONNEL  =====
 -- Rubrique de sortie à part : état de paie mensuel validé par la Direction, payé par le Bureau.
 -- En espèces : émargement (signature) du salarié et sortie de caisse « Salaires ».
+-- Taux horaires des professeurs vacataires, avec leur date d'effet (historique des augmentations).
+-- Fixés par la Direction ; confidentiels.
+CREATE TABLE hourly_rate (
+  staff_id      uuid REFERENCES staff_member(id),
+  effective_from date,
+  rate_mga      bigint NOT NULL CHECK (rate_mga > 0),
+  set_by        uuid REFERENCES app_user(id),
+  PRIMARY KEY (staff_id, effective_from)
+);
+
 CREATE TABLE payroll_month (
   site_id       uuid REFERENCES site(id),
   month         date CHECK (extract(day FROM month) = 1),

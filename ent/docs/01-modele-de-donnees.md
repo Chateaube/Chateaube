@@ -298,8 +298,10 @@ recoder.
 
 ### Salaires, engagements et bibliothèque
 - **`payroll_month`**, **`payroll_line`** : état de paie mensuel, validé par la Direction seule ; payé par le Bureau.
-  Professeurs (automatiquement en CDI) payés à l'heure de cours effectuée face aux élèves (heures × taux horaire,
-  heures prévues à l'emploi du temps en regard) ; autres salariés au mois. Espèces par défaut (le plus courant).
+  Professeurs automatiquement vacataires : payés à l'heure de cours effectuée face aux élèves, rien pendant les
+  vacances (heures × taux en vigueur au mois payé, heures prévues à l'emploi du temps en regard) ; autres salariés au
+  mois. Espèces par défaut (le plus courant). **`hourly_rate`** : taux horaires avec date d'effet (historique des
+  augmentations), `rate_on()` donne le taux d'un mois (T38).
   En espèces, émargement obligatoire du salarié et sortie de caisse « Salaires » ; par virement, référence obligatoire
   (T38). Pendant la « semaine des salaires » (dernière semaine de cours du mois, jusqu'au paiement), pas de rappel de
   versement en banque.

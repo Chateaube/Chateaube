@@ -830,10 +830,27 @@ FROM library_loan
 WHERE enrollment_id IS NOT NULL AND returned_on IS NULL AND due_on < current_date
 GROUP BY enrollment_id;
 
--- Les professeurs sont automatiquement en CDI.
+-- Les professeurs sont automatiquement vacataires : payés à l'heure de cours effectuée,
+-- rien pendant les vacances scolaires.
 CREATE FUNCTION teacher_contract_default() RETURNS trigger AS $$
 BEGIN
-  IF NEW.job_title = 'Enseignant.e' THEN NEW.contract := 'CDI'; END IF;
+  IF NEW.job_title = 'Enseignant.e' THEN NEW.contract := 'VACATAIRE'; END IF;
   RETURN NEW;
 END $$ LANGUAGE plpgsql;
 CREATE TRIGGER teacher_contract BEFORE INSERT OR UPDATE ON staff_member FOR EACH ROW EXECUTE FUNCTION teacher_contract_default();
+
+-- Taux horaire en vigueur à une date (dernière date d'effet passée).
+CREATE FUNCTION rate_on(p_staff uuid, p_day date) RETURNS bigint AS $$
+  SELECT rate_mga FROM hourly_rate WHERE staff_id = p_staff AND effective_from <= p_day ORDER BY effective_from DESC LIMIT 1
+$$ LANGUAGE sql STABLE;
+
+-- Ligne de paie d'un vacataire : le taux est celui en vigueur au mois payé.
+CREATE FUNCTION payroll_rate_default() RETURNS trigger AS $$
+BEGIN
+  IF NEW.hours_done IS NOT NULL AND NEW.hourly_mga IS NULL THEN
+    NEW.hourly_mga := rate_on(NEW.staff_id, NEW.month);
+    IF NEW.hourly_mga IS NULL THEN RAISE EXCEPTION 'Aucun taux horaire en vigueur pour ce professeur au %', to_char(NEW.month, 'MM/YYYY'); END IF;
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER payroll_rate BEFORE INSERT ON payroll_line FOR EACH ROW EXECUTE FUNCTION payroll_rate_default();

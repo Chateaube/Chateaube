@@ -771,10 +771,13 @@ END $$;
 -- T38. Salaires : état de paie validé par la Direction, émargement pour les espèces -------
 DO $$ DECLARE s uuid := (SELECT id FROM site WHERE code = 'TMV'); st uuid := (SELECT id FROM staff_member LIMIT 1); BEGIN
   INSERT INTO payroll_month (site_id, month) VALUES (s, '2026-10-01');
-  INSERT INTO payroll_line (site_id, month, staff_id, hours_done, hours_planned, hourly_mga) VALUES (s, '2026-10-01', st, 74, 76, 22000);
+  INSERT INTO hourly_rate (staff_id, effective_from, rate_mga) VALUES (st, '2024-09-01', 18000), (st, '2025-09-01', 20000), (st, '2026-09-01', 22000), (st, '2027-01-01', 24000);
+  ASSERT rate_on(st, '2026-06-15') = 20000, 'T38: taux en vigueur en juin 2026';
+  INSERT INTO payroll_line (site_id, month, staff_id, hours_done, hours_planned) VALUES (s, '2026-10-01', st, 74, 76);
+  ASSERT (SELECT hourly_mga FROM payroll_line WHERE staff_id = st) = 22000, 'T38: taux d''octobre 2026 appliqué';
   ASSERT (SELECT net_mga FROM payroll_line WHERE staff_id = st) = 1628000, 'T38: 74 h × 22 000 Ar';
   ASSERT (SELECT method FROM payroll_line WHERE staff_id = st) = 'ESPECES', 'T38: espèces par défaut';
-  ASSERT (SELECT contract FROM staff_member WHERE id = st) = 'CDI', 'T38: professeur en CDI automatiquement';
+  ASSERT (SELECT contract FROM staff_member WHERE id = st) = 'VACATAIRE', 'T38: professeur vacataire automatiquement';
   BEGIN
     UPDATE payroll_line SET paid_at = now(), paid_by = '00000000-0000-0000-0000-000000000003', signature_key = 'sig/x.png' WHERE staff_id = st;
     RAISE EXCEPTION 'T38: salaire payé avant validation';

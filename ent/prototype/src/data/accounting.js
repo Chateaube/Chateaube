@@ -181,21 +181,31 @@ export const STUDENT_ACCOUNTS = [
     exam: { label: 'Droits Pré-Bac (EAF)', amount: 450_000, due: '2026-10-31' } },
 ];
 
-// État de paie mensuel (montants FICTIFS) : préparé et validé par la Direction, payé par le Bureau.
-// Professeurs : payés à l'heure de cours effectuée face aux élèves (heures × taux horaire) ;
-// heures proposées d'après les appels faits, corrigées par la Direction. Autres salariés : au mois.
-// Espèces (le plus courant) : émargement du salarié au bureau.
+// Taux horaires des professeurs avec leur date d'effet (historique des augmentations ; montants FICTIFS,
+// remplacés par l'import du fichier de l'établissement). Le taux appliqué est celui en vigueur au mois payé.
+export const HOURLY_RATES = [
+  { staffId: 'p1', rate: 18_000, from: '2024-09-01' }, { staffId: 'p1', rate: 20_000, from: '2025-09-01' }, { staffId: 'p1', rate: 22_000, from: '2026-09-01' },
+  { staffId: 'p2', rate: 18_000, from: '2024-09-01' }, { staffId: 'p2', rate: 20_000, from: '2026-01-01' },
+  { staffId: 'p3', rate: 17_000, from: '2024-09-02' }, { staffId: 'p3', rate: 18_500, from: '2025-09-01' }, { staffId: 'p3', rate: 20_000, from: '2026-09-01' },
+  { staffId: 'p4', rate: 18_000, from: '2024-09-01' }, { staffId: 'p4', rate: 20_000, from: '2025-09-01' },
+  { staffId: 'p5', rate: 19_000, from: '2024-09-01' }, { staffId: 'p5', rate: 21_000, from: '2025-09-01' }, { staffId: 'p5', rate: 22_000, from: '2026-09-01' },
+  { staffId: 'p6', rate: 20_000, from: '2025-10-01' },
+  { staffId: 'p12', rate: 20_000, from: '2026-11-02' },
+];
+
+// État de paie mensuel : préparé et validé par la Direction, payé par le Bureau.
+// Professeurs vacataires : heures de cours effectuées face aux élèves × taux en vigueur ; heures
+// proposées d'après les appels, corrigées par la Direction ; rien pendant les vacances scolaires.
+// Autres salariés : au mois. Espèces (le plus courant) : émargement du salarié au bureau.
 export const PAYROLL = [
-  { staffId: 'p1', hourly: 22_000, hours: 74, plannedHours: 76, method: 'ESPECES' },
-  { staffId: 'p2', hourly: 20_000, hours: 80, plannedHours: 80, method: 'VIREMENT' },
-  { staffId: 'p3', hourly: 20_000, hours: 66, plannedHours: 68, method: 'ESPECES' },
-  { staffId: 'p4', hourly: 20_000, hours: 72, plannedHours: 72, method: 'ESPECES' },
-  { staffId: 'p5', hourly: 22_000, hours: 70, plannedHours: 72, method: 'ESPECES' },
-  { staffId: 'p6', hourly: 20_000, hours: 16, plannedHours: 16, method: 'ESPECES' },
+  { staffId: 'p1', byHour: true, hours: 74, plannedHours: 76, method: 'ESPECES' },
+  { staffId: 'p2', byHour: true, hours: 80, plannedHours: 80, method: 'VIREMENT' },
+  { staffId: 'p3', byHour: true, hours: 66, plannedHours: 68, method: 'ESPECES' },
+  { staffId: 'p4', byHour: true, hours: 72, plannedHours: 72, method: 'ESPECES' },
+  { staffId: 'p5', byHour: true, hours: 70, plannedHours: 72, method: 'ESPECES' },
+  { staffId: 'p6', byHour: true, hours: 16, plannedHours: 16, method: 'ESPECES' },
   { staffId: 'p7', monthly: 950_000, method: 'ESPECES' },
   { staffId: 'p8', monthly: 750_000, method: 'ESPECES' },
   { staffId: 'p9', monthly: 480_000, method: 'ESPECES' },
   { staffId: 'p10', monthly: 450_000, method: 'ESPECES' },
 ];
-/** Net du mois : heures effectuées × taux horaire, ou salaire mensuel. */
-export const payOf = (line) => (line.hourly ? line.hourly * (line.hours ?? 0) : line.monthly ?? 0);
