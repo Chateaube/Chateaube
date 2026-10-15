@@ -16,6 +16,7 @@ import FamilyPortal from './components/FamilyPortal.jsx';
 import InscriptionsModule from './components/InscriptionsModule.jsx';
 import ManualsModule from './components/ManualsModule.jsx';
 import LibraryModule from './components/LibraryModule.jsx';
+import AttendanceModule from './components/AttendanceModule.jsx';
 import FeedbackModule, { FeedbackButton } from './components/Feedback.jsx';
 import TeacherOversight from './components/TeacherOversight.jsx';
 import Messenger from './components/Messenger.jsx';
@@ -122,6 +123,7 @@ const PROFILES = {
     nav: [
       { group: 'Ma journée', items: [
         { id: 'teacher', label: 'Mon tableau de bord', icon: 'home', screen: TeacherPortal },
+        { id: 'appel', label: 'Appel', icon: 'check', screen: AttendanceModule },
         { id: 'grades', label: 'Notes & appréciations', icon: 'pen', screen: GradebookModule },
         { id: 'homework', label: 'Cahier de textes', icon: 'calendar', screen: HomeworkModule },
         { id: 'discipline', label: 'Punitions & téléphones', icon: 'alert', screen: VieScolaireModule },

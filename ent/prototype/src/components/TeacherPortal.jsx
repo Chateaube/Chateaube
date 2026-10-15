@@ -54,7 +54,7 @@ export default function TeacherPortal({ go }) {
       {current && !open && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
           <p className="text-sm text-red-900"><span className="font-semibold">Appel à faire :</span> {current.cls}, {h(current.start)}–{h(current.end)}, {current.room}</p>
-          <Button variant="danger" onClick={() => setOpen(current)}>Faire l'appel</Button>
+          <Button variant="danger" onClick={() => (go ? go('appel') : setOpen(current))}>Faire l'appel</Button>
         </div>
       )}
       {toast && <p role="status" className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800"><Icon name="check" />{toast}</p>}

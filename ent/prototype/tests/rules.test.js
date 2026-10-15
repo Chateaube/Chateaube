@@ -755,3 +755,17 @@ test('paie : taux horaire en vigueur selon la date d\'effet, historique des augm
   assert.equal(p.payOf({ byHour: true, hours: 74 }, 22_000), 1_628_000);
   assert.equal(p.payOf({ monthly: 950_000 }), 950_000);
 });
+
+test('appel : état des séances selon l\'heure et bilan', async () => {
+  const a = await import('../src/rules/attendance.js');
+  const now = { date: '2026-10-13', time: '10:20' };
+  const s = (date, start, end) => ({ date, start, end });
+  assert.equal(a.sessionState(s('2026-10-13', '10:00', '12:00'), now), 'EN_COURS');
+  assert.equal(a.sessionState(s('2026-10-13', '10:25', '11:00'), now), 'EN_COURS', 'ouvert 10 min avant');
+  assert.equal(a.sessionState(s('2026-10-13', '13:30', '15:30'), now), 'A_VENIR');
+  assert.equal(a.sessionState(s('2026-10-12', '15:30', '17:00'), now), 'OUBLIE');
+  assert.equal(a.sessionState(s('2026-10-12', '15:30', '17:00'), now, { at: '15:35' }), 'FAIT');
+  const t = a.tally(['A', 'B', 'C', 'D'], { B: { status: 'A' }, C: { status: 'R', minutes: 10 } });
+  assert.equal(t.present, 2);
+  assert.deepEqual([t.absent, t.late], [['B'], ['C']]);
+});

@@ -180,6 +180,10 @@ chaque portail.
   retards et rappels, catalogue, étiquettes imprimables ; « Livres du CDI » dans le portail des familles.
 - **Bulletins** : rubriques « Engagements » (délégué, suppléant…) et « Attestations de l'établissement » (ASSR 1 et 2,
   compétences numériques) imprimées à droite des absences.
+- **Appel (enseignant)** : page dédiée, pensée pour le téléphone. Toutes les séances de la semaine, toutes classes
+  confondues, par jour ou par classe ; la séance en cours est proposée d'office, les appels oubliés sont signalés.
+  Présent par défaut, gros boutons Présent / Retard (5, 10, 15, 20 min et +) / Absent, compteurs, recherche ; parents
+  prévenus ; hors connexion, l'appel est gardé sur le téléphone puis envoyé ; l'appel validé compte comme heure effectuée.
 - **Donner mon avis** : bouton présent sur tous les écrans pendant le pilote (Terminales) ; « Avis du pilote » pour la
   Direction (statut, suite donnée).
 - **Remise des bulletins** : en main propre, tamponnés ; bloquée en cas d'impayé ou de manuel dû (levée par la Direction).
