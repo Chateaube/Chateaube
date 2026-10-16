@@ -1,4 +1,4 @@
-// Bibliothèque (CDI) : romans, annales (Annabrevet, Annabac), documentaires, ouvrages de référence.
+// Bibliothèque de la salle d'étude / permanence : romans, annales (Annabrevet, Annabac), documentaires, ouvrages de référence.
 // Élèves : un mois ; pour garder le livre un mois de plus, l'élève repasse au bureau avec le livre.
 // Professeurs : pas de date limite. Chaque exemplaire porte une étiquette (cote) : ROM-0012…
 

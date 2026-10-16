@@ -783,3 +783,63 @@ test('grilles de notes : rangs, matières non suivies, export complet', async ()
   assert.equal(d.evStats[0].avg, 15);
   assert.equal(g.cellText(d.rows[1].cells[0]), 'ABS');
 });
+
+import { accessCode, guardianKey, nationalityLabels, toggleNationality, hasOtherNationality } from '../src/rules/enrollment.js';
+test('un code personnel par responsable, nationalités proposées', () => {
+  const p = { lastName: 'RAKOTO', firstName: 'Éléa', cls: '6e', guardians: [
+    { name: 'Mme Rakoto Voahangy', relation: 'Mère', phone: '+261 34 12 345 67', email: 'voahangy@gmail.com' },
+    { name: 'M. Rakoto Fidy', relation: 'Père', phone: '+261 32 11 222 33', email: '' }] };
+  const [, mere, pere] = accountsFor(p);
+  assert.match(mere.code, /^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/);
+  assert.notEqual(mere.code, pere.code); // deux parents, deux accès
+  assert.equal(pere.login, null);
+  assert.equal(accessCode(guardianKey(p.guardians[0])), mere.code); // même parent, même code pour ses autres enfants
+  assert.deepEqual(nationalityLabels(['MG', 'FR', 'KM']), ['Malgache', 'Française', 'Autre (KM)']);
+  assert.ok(hasOtherNationality(['MG', 'KM']));
+  assert.deepEqual(toggleNationality(['MG', 'KM'], 'XX'), ['MG']);
+  assert.deepEqual(toggleNationality(['MG'], 'XX'), ['MG', 'XX']);
+  assert.deepEqual(toggleNationality(['MG', 'FR'], 'FR'), ['MG']);
+});
+
+import { shortNames, usualFirstName, splitFullName } from '../src/rules/names.js';
+test('prénom d\'usage dans les grilles, initiale en cas de doublon', () => {
+  assert.deepEqual(splitFullName('RAKOTO ANDRIA Ny Aina'), { last: 'RAKOTO ANDRIA', first: 'Ny Aina' });
+  assert.equal(usualFirstName({ firstName: 'Jean Hery', usualName: 'Hery' }), 'Hery');
+  assert.equal(usualFirstName({ firstName: 'Jean Hery' }), 'Jean');
+  const m = shortNames(['RAKOTO Jean Hery', 'RABE Hery', 'RASOA Mialy', 'RANDRIA Mialy Fanja'], [{ lastName: 'RAKOTO', firstName: 'Jean Hery', usualName: 'Hery' }]);
+  assert.equal(m.get('RAKOTO Jean Hery'), 'Hery R.');
+  assert.equal(m.get('RABE Hery'), 'Hery R.');
+  assert.equal(m.get('RASOA Mialy'), 'Mialy R.');
+  const n = shortNames(['RAKOTO Jean Hery', 'RASOA Mialy'], [{ lastName: 'RAKOTO', firstName: 'Jean Hery', usualName: 'Hery' }]);
+  assert.equal(n.get('RAKOTO Jean Hery'), 'Hery');
+});
+
+import { studentsCsv, accessSlips, filterStudents } from '../src/rules/studentList.js';
+test('liste des élèves : filtre, export complet, codes d\'accès sans doublon', () => {
+  const mere = { name: 'Mme Rakoto Voahangy', relation: 'Mère', phone: '+261 34 12 345 67', email: 'voahangy@gmail.com', payer: true, whatsapp: true };
+  const list = [
+    { lastName: 'RAKOTO', firstName: 'Éléa', cls: '6e', nationalities: ['MG'], guardians: [mere], documents: [], photo: 'data:x' },
+    { lastName: 'RAKOTO', firstName: 'Toky', cls: '5e', nationalities: ['MG', 'FR'], guardians: [mere, { name: 'M. Rakoto', relation: 'Père', phone: '+261 32 11 222 33' }], documents: [] },
+  ];
+  assert.equal(filterStudents(list, { cls: '5e' }).length, 1);
+  assert.equal(filterStudents(list, { query: 'éléa' }).length, 1);
+  const out = studentsCsv(list, 'Liste');
+  assert.match(out, /Nationalité\(s\)/);
+  assert.match(out, /5e;RAKOTO;Toky;Toky;;;;Malgache, Française/);
+  assert.match(out, /Mme Rakoto Voahangy;Mère;\+261 34 12 345 67;voahangy@gmail.com;oui;oui/);
+  const slips = accessSlips(list);
+  assert.equal(slips.length, 2); // la mère a un seul accès pour ses deux enfants
+  assert.equal(slips.find((s) => s.name === mere.name).children.length, 2);
+});
+
+import { verificationCode, decisionErrors, nextActions } from '../src/rules/signatures.js';
+test('signature des documents : Direction seule, motif du refus, code de vérification', () => {
+  assert.match(verificationCode('s1'), /^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/);
+  assert.notEqual(verificationCode('s1'), verificationCode('s2'));
+  assert.deepEqual(decisionErrors({ role: 'DIRECTION', status: 'SIGNEE', signature: 'data:x' }), []);
+  assert.equal(decisionErrors({ role: 'BUREAU', status: 'SIGNEE', signature: 'data:x' }).length, 1);
+  assert.equal(decisionErrors({ role: 'DIRECTION', status: 'SIGNEE' }).length, 1);
+  assert.equal(decisionErrors({ role: 'DIRECTION', status: 'REFUSEE', note: ' ' }).length, 1);
+  assert.deepEqual(nextActions({ status: 'SIGNEE', delivery: 'EMAIL' }), ['EMAIL', 'PRINT']);
+  assert.deepEqual(nextActions({ status: 'DEMANDEE' }), []);
+});

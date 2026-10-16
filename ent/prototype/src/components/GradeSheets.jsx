@@ -4,7 +4,9 @@ import { TERM, SERVICES, EVALUATIONS, GRADES, CLASS_SUBJECTS, OTHER_AVERAGES } f
 import { CLASS_LIST } from '../data/people.js';
 import { TLE_G_SUBJECTS, TLE_G_STUDENTS } from '../data/bulletins.js';
 import { studentAverage, fmtAvg } from '../rules/grading.js';
-import { averagesSheet, detailSheet, averagesCsv, detailCsv, cellText } from '../rules/gradeSheet.js';
+import { averagesSheet, detailSheet, averagesCsv, detailCsv, cellText, isFinalTerm } from '../rules/gradeSheet.js';
+import { shortNames } from '../rules/names.js';
+import { loadProfiles } from '../profilesStore.js';
 import { saveFile } from '../download.js';
 import { printOnly } from '../print.js';
 
@@ -47,6 +49,7 @@ function SheetHeader({ title, cls }) {
 
 /** Grille des moyennes, prête à imprimer. extra : colonnes supplémentaires (absences, décision…). */
 export function AveragesSheet({ cls, subjects, sheet, showRank = true, extra = [], footer = null }) {
+  const names = useMemo(() => shortNames(sheet.rows.map((r) => r.name), loadProfiles()), [sheet]);
   return (
     <div className="grade-sheet bg-white p-4 text-[10px] text-black" style={{ fontFamily: 'Poppins, sans-serif' }}>
       <SheetHeader title="Grille des moyennes" cls={cls} />
@@ -57,22 +60,22 @@ export function AveragesSheet({ cls, subjects, sheet, showRank = true, extra = [
             {subjects.map((s) => <th key={s.id} className={`border border-black px-1 py-1 text-center ${s.inAverage ? '' : 'italic text-slate-500'}`} title={s.label}>{s.short ?? s.label}</th>)}
             <th className="border border-black bg-slate-100 px-1 py-1 text-center">Moy. gén.</th>
             {showRank && <th className="border border-black px-1 py-1 text-center">Rang</th>}
-            {extra.map((e) => <th key={e.label} className="border border-black px-1 py-1 text-center">{e.label}</th>)}
+            {extra.map((e) => <th key={e.label} className={`border border-black px-1 py-1 text-center ${e.small ? 'text-[8px]' : ''}`}>{e.label}</th>)}
           </tr>
         </thead>
         <tbody>
           {sheet.rows.map((r) => (
             <tr key={r.name} style={{ breakInside: 'avoid' }}>
-              <td className="whitespace-nowrap border border-black px-1.5 py-0.5 font-medium">{r.name}</td>
+              <td className="whitespace-nowrap border border-black px-1.5 py-0.5 font-medium">{names.get(r.name)}</td>
               {subjects.map((s) => <td key={s.id} className={`border border-black px-1 text-center tabular-nums ${tone(r.avgs[s.id])}`}>{r.avgs[s.id] === undefined ? '·' : fmtAvg(r.avgs[s.id])}</td>)}
               <td className={`border border-black bg-slate-100 px-1 text-center font-bold tabular-nums ${tone(r.general)}`}>{fmtAvg(r.general)}</td>
               {showRank && <td className="border border-black px-1 text-center tabular-nums">{r.rank ?? '—'}</td>}
-              {extra.map((e) => <td key={e.label} className="border border-black px-1 text-center">{e.value(r)}</td>)}
+              {extra.map((e) => <td key={e.label} className={`border border-black px-1 ${e.small ? 'text-left text-[7.5px] leading-tight' : 'text-center'}`}>{e.value(r)}</td>)}
             </tr>
           ))}
         </tbody>
         <tfoot>
-          {[['avg', 'Moyenne de la classe'], ['min', 'Plus basse'], ['max', 'Plus haute']].map(([k, label]) => (
+          {[['avg', 'Moyenne de la classe']].map(([k, label]) => (
             <tr key={k} className="font-semibold">
               <td className="border border-black bg-slate-50 px-1.5 py-0.5">{label}</td>
               {subjects.map((s) => <td key={s.id} className="border border-black bg-slate-50 px-1 text-center tabular-nums">{fmtAvg(sheet.stats[s.id][k])}</td>)}
@@ -83,10 +86,7 @@ export function AveragesSheet({ cls, subjects, sheet, showRank = true, extra = [
           ))}
         </tfoot>
       </table>
-      <p className="mt-1.5 text-[8.5px] leading-snug">
-        {subjects.map((s) => `${s.short ?? s.label} : ${s.label}${s.teacher ? ` (${s.teacher})` : ''}${s.inAverage ? '' : ', hors moyenne'}`).join(' · ')}
-        {sheet.rows.some((r) => Object.values(r.avgs).includes(undefined)) && ' · « · » : matière non suivie (spécialité)'}
-      </p>
+      {sheet.rows.some((r) => Object.values(r.avgs).includes(undefined)) && <p className="mt-1 text-[8.5px]">« · » : matière non suivie (spécialité)</p>}
       {footer}
     </div>
   );
@@ -94,6 +94,7 @@ export function AveragesSheet({ cls, subjects, sheet, showRank = true, extra = [
 
 /** Grille détaillée d'une matière, prête à imprimer. */
 export function DetailSheet({ cls, service, sheet }) {
+  const names = useMemo(() => shortNames(sheet.rows.map((r) => r.name), loadProfiles()), [sheet]);
   return (
     <div className="grade-sheet bg-white p-4 text-[10px] text-black" style={{ fontFamily: 'Poppins, sans-serif' }}>
       <SheetHeader title={`Grille de notes — ${service.subject}`} cls={cls} />
@@ -112,14 +113,14 @@ export function DetailSheet({ cls, service, sheet }) {
         <tbody>
           {sheet.rows.map((r) => (
             <tr key={r.name} style={{ breakInside: 'avoid' }}>
-              <td className="whitespace-nowrap border border-black px-1.5 py-0.5 font-medium">{r.name}</td>
+              <td className="whitespace-nowrap border border-black px-1.5 py-0.5 font-medium">{names.get(r.name)}</td>
               {r.cells.map((c, i) => <td key={i} className={`border border-black px-1 text-center tabular-nums ${c.status === 'A_CORRIGER' ? 'text-amber-700' : tone(c.value)}`}>{cellText(c)}</td>)}
               <td className={`border border-black bg-slate-100 px-1 text-center font-bold tabular-nums ${tone(r.avg)}`}>{fmtAvg(r.avg)}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
-          {[['avg', 'Moyenne de la classe'], ['min', 'Plus basse'], ['max', 'Plus haute']].map(([k, label]) => (
+          {[['avg', 'Moyenne de la classe']].map(([k, label]) => (
             <tr key={k} className="font-semibold">
               <td className="border border-black bg-slate-50 px-1.5 py-0.5">{label}</td>
               {sheet.evStats.map((s, i) => <td key={i} className="border border-black bg-slate-50 px-1 text-center tabular-nums">{fmtAvg(s[k])}</td>)}
@@ -145,7 +146,7 @@ export default function GradeSheets({ settings, role }) {
   const views = [...(averages ? [['AVG', 'Moyennes de toutes les matières']] : []), ...services.map((s) => [s.id, `${s.subject} — détail des évaluations`])];
   const [view, setView] = useState('AVG');
   const current = views.some(([v]) => v === view) ? view : views[0]?.[0];
-  const [showRank, setShowRank] = useState(false);
+  const showRank = isFinalTerm(TERM); // le rang n'apparaît qu'au 3e trimestre (passage)
   const service = SERVICES.find((s) => s.id === current);
   const sheetAvg = averages && current === 'AVG' ? averagesSheet(averages) : null;
   const sheetDetail = service ? detailSheet({ evaluations: EVALUATIONS[service.id], students: service.students, grades: GRADES[service.id] }) : null;
@@ -180,7 +181,6 @@ export default function GradeSheets({ settings, role }) {
               {views.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </label>
-          {sheetAvg && <label className="flex items-center gap-1.5 pb-2 text-sm text-slate-600"><input type="checkbox" checked={showRank} onChange={(e) => setShowRank(e.target.checked)} />Afficher le rang</label>}
           {!views.length && <Badge tone="amber">Pas encore de notes saisies pour cette classe</Badge>}
         </div>
       </Card>

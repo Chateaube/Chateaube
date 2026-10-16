@@ -7,7 +7,7 @@ import { CONDITIONS, conditionLabel } from '../rules/manuals.js';
 import { loadLibrary, saveLibrary } from '../libraryStore.js';
 import { printOnly } from '../print.js';
 
-// Bibliothèque (CDI) : romans, annales, documentaires, ouvrages de référence.
+// Bibliothèque de la salle d'étude / permanence (Tamatave n'a pas de CDI) : romans, annales, documentaires, ouvrages de référence.
 // Élèves : un mois, prolongeable d'un mois en repassant au bureau avec le livre.
 // Professeurs : sans date limite. Chaque exemplaire porte une cote (étiquette imprimable).
 
@@ -89,7 +89,7 @@ function DeskTab({ books, loans, setLoans }) {
         )}
         {msg && <p role="status" className="mt-3 rounded-lg bg-emerald-50 p-2 text-sm text-emerald-800">{msg}</p>}
       </Card>
-      <Card title="Règles du CDI">
+      <Card title="Règles de prêt">
         <ul className="list-disc space-y-1.5 pl-4 text-sm text-slate-600">
           <li>Élèves : {LOAN_DAYS} jours. Pour garder le livre un mois de plus, l'élève repasse au bureau <strong>avec le livre</strong>.</li>
           <li>Professeurs : pas de date limite.</li>
@@ -194,7 +194,7 @@ function LabelsTab({ books }) {
       <div className="labels-print grid grid-cols-2 gap-2 sm:grid-cols-4">
         {shown.flatMap((b) => b.copies.map((c) => (
           <div key={c.code} className="rounded border border-dashed border-slate-400 bg-white p-2 text-center text-black" style={{ breakInside: 'avoid' }}>
-            <p className="text-[9px] uppercase tracking-wide">Chateaubriand · CDI</p>
+            <p className="text-[9px] uppercase tracking-wide">Chateaubriand · Salle d'étude</p>
             <p className="font-mono text-lg font-bold">{c.code}</p>
             <p className="truncate text-[10px]">{b.title}</p>
           </div>
@@ -214,7 +214,7 @@ export default function LibraryModule() {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-semibold text-navy-500">CDI · Tamatave</p>
+        <p className="text-sm font-semibold text-navy-500">Salle d'étude · Tamatave</p>
         <h1 className="text-2xl font-semibold text-navy-900">Bibliothèque</h1>
         <p className="text-sm text-slate-500">Romans, annales, documentaires et ouvrages de référence, prêtés aux élèves (un mois) et aux professeurs.</p>
       </div>

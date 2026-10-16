@@ -12,7 +12,7 @@ export const THREADS = {
       { from: 'me', at: T('2026-10-05', '12:40'), text: 'Bonjour, le taxi-be est tombé en panne. Je joins le ticket.', photo: 'ticket' },
       { from: 'them', at: T('2026-10-13', '07:55'), text: 'Merci, le retard est justifié.' },
     ] },
-    { id: 't2', with: 'Mme Ranaivo — professeure principale (1re STMG)', about: 'Orientation', unread: 0, messages: [
+    { id: 't2', with: 'Mme Ranaivo — Management (1re STMG)', about: 'Orientation', unread: 0, messages: [
       { from: 'me', at: T('2026-10-09', '18:20'), text: 'Bonjour, pourrions-nous parler de l\'orientation d\'Aina ?' },
       { from: 'them', at: T('2026-10-10', '09:05'), text: 'Bien sûr, jeudi 15h30 au bureau des professeurs vous convient-il ?' },
     ] },
@@ -64,7 +64,7 @@ const studentsOf = (cls) => (CLASSES[cls] ?? []).map((n) => `${n} (élève, ${cl
 const parentsOf = (cls) => (CLASSES[cls] ?? []).map((n) => `Parents de ${n} (${cls})`);
 const MY_CLASSES = ['1re STMG', 'Terminale STMG'];
 const ALL_CLASSES = Object.keys(CLASSES);
-const SERVICES_STAFF = ['Direction', 'Bureau — économat', 'Vie scolaire — M. Be', 'CDI'];
+const SERVICES_STAFF = ['Direction', 'Bureau — économat', 'Vie scolaire — M. Be', 'Salle d\'étude'];
 const COLLEAGUES = ['M. Canusis (Physique-Chimie)', 'M. Hassanaly (Mathématiques)', 'Mme Pasimiry (Anglais)', 'Mme Felana (Histoire-Géographie)', 'Mme Karele (Économie, Droit)'];
 
 export const RECIPIENT_GROUPS = {
@@ -74,7 +74,7 @@ export const RECIPIENT_GROUPS = {
   ],
   ELEVE: [
     ['Mes professeurs', teachersOf('1re STMG')],
-    ['Établissement', ['Vie scolaire — M. Be', 'CDI', 'Bureau — économat']],
+    ['Établissement', ['Vie scolaire — M. Be', 'Salle d\'étude', 'Bureau — économat']],
   ],
   TEACHER: [
     ...MY_CLASSES.map((c) => [`${c} — élèves`, [`${c} — toute la classe (élèves)`, ...studentsOf(c)]]),

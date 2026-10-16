@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { saveFile } from '../download.js';
 import { printOnly } from '../print.js';
 import { AveragesSheet, classAverages } from './GradeSheets.jsx';
-import { averagesSheet, averagesCsv } from '../rules/gradeSheet.js';
+import { averagesSheet, averagesCsv, isFinalTerm } from '../rules/gradeSheet.js';
 import { Badge, Button, Card, Icon, Stat, StudentSelect } from './ui.jsx';
 import { RulePanel } from './gradeUi.jsx';
 import { TERM, EVALUATIONS, GRADES, CLASS_SUBJECTS, OTHER_AVERAGES, OTHER_FLAGS, COUNCIL_FLAGS, ABSENCES } from '../data/grades.js';
@@ -23,8 +23,9 @@ const tone = (v) => (v === null ? 'text-slate-400' : v < 10 ? 'text-red-700' : v
 export default function CouncilGrid({ settings, role, go }) {
   // l'appréciation générale est rédigée par la Directrice, après le conseil de classe
   const canWriteGeneral = role === 'DIRECTION';
-  const [showRank, setShowRank] = useState(false);
-  const [finalTerm, setFinalTerm] = useState(false);
+  // conseil du 3e trimestre (passage) : décidé par le trimestre ; la case ne sert qu'à la démonstration
+  const [finalTerm, setFinalTerm] = useState(isFinalTerm(TERM));
+  const showRank = finalTerm; // le rang n'apparaît qu'au 3e trimestre, sans rien cocher
   const [decisions, setDecisions] = useState({});
   const [passage, setPassage] = useState({});
   const [open, setOpen] = useState(null);
@@ -63,13 +64,13 @@ export default function CouncilGrid({ settings, role, go }) {
   const extra = [
     { label: 'Abs. (½ j)', value: (r) => (ABSENCES[r.name] ? `${ABSENCES[r.name].justified ?? 0} J / ${ABSENCES[r.name].unjustified ?? 0} NJ` : '0') },
     { label: 'Retards', value: (r) => ABSENCES[r.name]?.late ?? 0 },
-    { label: 'Avis des enseignants', value: (r) => flagText(rows.find((x) => x.name === r.name)) },
-    { label: 'Décision', value: (r) => DECISION[decisions[r.name] ?? rows.find((x) => x.name === r.name).proposal]?.label.replace('—', '').trim() ?? '' },
+    { label: 'Avis des enseignants', small: true, value: (r) => flagText(rows.find((x) => x.name === r.name)) },
+    { label: 'Décision', small: true, value: (r) => DECISION[decisions[r.name] ?? rows.find((x) => x.name === r.name).proposal]?.label.replace('—', '').trim() ?? '' },
   ];
   const exportCsv = () => {
     saveFile('conseil-1re-STMG-T1.csv', averagesCsv({
       title: `Conseil de classe — 1re STMG — ${TERM.label}`,
-      info: [`Conseil le ${TERM.council} · professeure principale : Mme Ranaivo`, `Moyenne générale de la classe : ${fmtAvg(sheet.general.avg)}`],
+      info: [`Conseil le ${TERM.council}`, `Moyenne générale de la classe : ${fmtAvg(sheet.general.avg)}`],
       subjects: avgData.subjects, sheet,
       extra: [...extra, { label: 'Appréciation générale', value: (r) => appreciations[r.name] ?? '' }],
     }));
@@ -81,11 +82,10 @@ export default function CouncilGrid({ settings, role, go }) {
         <div>
           <p className="text-sm font-semibold text-navy-500">Conseil de classe · Direction et Bureau uniquement</p>
           <h1 className="text-2xl font-semibold text-navy-900">1re STMG — {TERM.label}</h1>
-          <p className="text-sm text-slate-500">Tamatave · conseil le {TERM.council} · professeure principale : Mme Ranaivo</p>
+          <p className="text-sm text-slate-500">Tamatave · conseil le {TERM.council}</p>
         </div>
         <div className="flex flex-wrap gap-2 print:hidden">
-          <label className="flex items-center gap-1.5 text-sm text-slate-600"><input type="checkbox" checked={finalTerm} onChange={(e) => setFinalTerm(e.target.checked)} />Conseil du 3e trimestre (passage)</label>
-          <label className="flex items-center gap-1.5 text-sm text-slate-600"><input type="checkbox" checked={showRank} onChange={(e) => setShowRank(e.target.checked)} />Afficher le rang</label>
+          <label className="flex items-center gap-1.5 text-sm text-slate-600"><input type="checkbox" checked={finalTerm} onChange={(e) => setFinalTerm(e.target.checked)} />Démonstration : voir le conseil du 3e trimestre (passage, rang)</label>
           <Button variant="secondary" onClick={exportCsv}>Exporter (Excel)</Button>
           <Button variant="secondary" onClick={() => printOnly('.council-print', 'size: A4 landscape; margin: 8mm;')}>Imprimer la grille</Button>
           <Button variant="secondary" onClick={() => go?.('bulletins')}>Bulletins</Button>
@@ -228,15 +228,9 @@ export default function CouncilGrid({ settings, role, go }) {
         <Card title="Contrôleur de rédaction"><RulePanel result={appCheck} /></Card>
       </div>}
 
-      {/* Grille imprimée : uniquement les données (A4 paysage), décisions et appréciations générales */}
+      {/* Grille imprimée : uniquement les données (A4 paysage) : moyennes, absences, avis, décision */}
       <div className="council-print hidden">
-        <AveragesSheet cls="1re STMG" subjects={avgData.subjects} sheet={sheet} showRank={showRank} extra={extra}
-          footer={(
-            <div className="mt-3" style={{ breakBefore: 'auto' }}>
-              <p className="mb-1 text-[11px] font-bold">Appréciations générales</p>
-              {rows.map((r) => <p key={r.name} className="mb-0.5 text-[9.5px]"><b>{r.name}</b> : {appreciations[r.name] || '—'}</p>)}
-            </div>
-          )} />
+        <AveragesSheet cls="1re STMG" subjects={avgData.subjects} sheet={sheet} showRank={showRank} extra={extra} />
       </div>
     </div>
   );

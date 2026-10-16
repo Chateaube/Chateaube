@@ -14,6 +14,10 @@ import { studentNoteList, fmt2, isPublished, parentPublishOn } from '../rules/gr
 import { MEASURES, PHONE_DURATIONS, phoneReturnAt } from '../rules/discipline.js';
 import { formatDateFr } from '../rules/calendar.js';
 import { STUDENT_PROFILES } from '../data/enrollment.js';
+import { loadProfiles } from '../profilesStore.js';
+import { FamilyRequestForm, sendDocument } from './FamilyRequests.jsx';
+import { DocumentInput } from './PhotoInput.jsx';
+import { nextClass } from '../rules/enrollment.js';
 import { FicheForm, FICHE_YEAR } from './FicheSignaletique.jsx';
 import SignaturePad from './SignaturePad.jsx';
 import { ficheOf, referenceOf, setReference } from '../ficheStore.js';
@@ -35,7 +39,7 @@ const MEASURE = Object.fromEntries(MEASURES.map((m) => [m.id, m]));
 const fullName = (child) => `RAKOTOARISOA ${child.name}`;
 // Compte parent connecté (démonstration) : sa signature de référence y est rattachée
 const ACCOUNT = { id: 'hanta.rakotoarisoa@gmail.com', name: 'Mme Rakotoarisoa Hanta' };
-const profileOf = (child) => STUDENT_PROFILES.find((p) => p.lastName === 'RAKOTOARISOA' && p.firstName === child.name);
+const profileOf = (child) => [...loadProfiles(), ...STUDENT_PROFILES].find((p) => p.lastName === 'RAKOTOARISOA' && p.firstName === child.name);
 
 function Section({ title, children, action }) {
   return (
@@ -47,7 +51,7 @@ function Section({ title, children, action }) {
 }
 
 /* ---------- Accueil ---------- */
-function Home({ child, isParent, openFiche }) {
+function Home({ child, isParent, openFiche, openReenrol }) {
   const due = HOMEWORK.filter((h) => h.cls === child.cls && h.due && h.due > TODAY).sort((a, b) => a.due.localeCompare(b.due)).slice(0, 2);
   return (
     <>
@@ -62,6 +66,13 @@ function Home({ child, isParent, openFiche }) {
           <p className="text-sm font-semibold text-navy-900">Fiche signalétique {FICHE_YEAR} — {child.name}</p>
           <p className="text-sm text-navy-800">À vérifier, compléter et signer en ligne. Elle est déjà pré-remplie.</p>
           <Button className="mt-2 !py-1 text-xs" onClick={openFiche}>Remplir et signer</Button>
+        </div>
+      )}
+      {isParent && profileOf(child) && (
+        <div className="rounded-2xl bg-emerald-50 p-4">
+          <p className="text-sm font-semibold text-emerald-900">Réinscriptions 2027-2028 ouvertes</p>
+          <p className="text-sm text-emerald-800">{nextClass(profileOf(child).cls) ? `Réinscrivez ${child.name} en ${nextClass(profileOf(child).cls)} depuis votre téléphone, avec les pièces en photo.` : `Dites-nous si ${child.name} poursuit ailleurs l'an prochain.`}</p>
+          <Button className="mt-2 !py-1 text-xs" onClick={openReenrol}>Réinscrire</Button>
         </div>
       )}
       <Section title={`Aujourd'hui — ${child.name}`}>
@@ -258,7 +269,7 @@ function Documents({ child, isParent }) {
             <li key={r.id} className="flex items-start justify-between gap-2 text-sm">
               <div><p className="text-slate-800">{r.title}</p><p className="text-xs text-slate-500">avant le {longDate(r.due)}</p></div>
               {r.received ? <Badge tone="green">{r.received === 'PENDING' ? 'Transmis, à vérifier' : 'Reçu'}</Badge>
-                : isParent ? <Button variant="secondary" className="!px-2 !py-1 text-xs" onClick={() => setRequested(requested.map((x) => (x.id === r.id ? { ...x, received: 'PENDING' } : x)))}>Déposer une photo</Button>
+                : isParent ? <DocumentInput label="Déposer (photo ou PDF)" onAdd={(file) => { if (profileOf(child)) sendDocument(profileOf(child), ACCOUNT.name, r.title, file); setRequested(requested.map((x) => (x.id === r.id ? { ...x, received: 'PENDING' } : x))); }} />
                   : <Badge tone="amber">Manquant</Badge>}
             </li>
           ))}
@@ -319,7 +330,7 @@ function Orientation({ child, isParent }) {
       {o.meeting && (
         <Section title="Rendez-vous">
           <p className="text-sm text-slate-700">{o.meeting}</p>
-          {isParent && (asked ? <p className="mt-2 text-sm text-emerald-700">Demande envoyée à la professeure principale.</p>
+          {isParent && (asked ? <p className="mt-2 text-sm text-emerald-700">Demande envoyée à la Direction.</p>
             : <Button variant="secondary" className="mt-2 w-full" onClick={() => setAsked(true)}>Demander un rendez-vous</Button>)}
         </Section>
       )}
@@ -359,13 +370,13 @@ function Payments() {
   );
 }
 
-/* ---------- Livres du CDI empruntés ---------- */
+/* ---------- Livres empruntés (salle d'étude) ---------- */
 function LibraryLoans({ child }) {
   const { books, loans } = loadLibrary();
   const mine = loans.filter((l) => l.borrower === fullName(child) && !l.returnedOn);
   const bookOf = (code) => books.find((b) => b.copies.some((c) => c.code === code));
   return (
-    <Section title="Livres du CDI">
+    <Section title="Livres empruntés">
       {mine.length === 0 ? <p className="text-sm text-slate-500">Aucun livre emprunté.</p> : (
         <ul className="space-y-2">
           {mine.map((l) => (
@@ -409,7 +420,8 @@ const TABS = [['home', 'Accueil', 'home'], ['life', 'Vie scol.', 'users'], ['not
 const MORE = [
   ['homework', 'Devoirs & cahier de textes', 'calendar'], ['documents', 'Documents & autorisations', 'pen'], ['stages', 'Stages', 'cap'],
   ['orientation', 'Orientation', 'cap'], ['payments', 'Paiements', 'wallet', 'PARENT'],
-  ['library', 'Livres du CDI', 'cap'], ['fiche', 'Fiche signalétique', 'pen', 'PARENT'], ['signature', 'Ma signature', 'pen', 'PARENT'],
+  ['library', 'Livres empruntés', 'cap'], ['fiche', 'Fiche signalétique', 'pen', 'PARENT'], ['signature', 'Ma signature', 'pen', 'PARENT'],
+  ['reenrol', 'Réinscription 2027-2028', 'calendar', 'PARENT'], ['update', 'Mettre à jour nos informations', 'users', 'PARENT'],
 ];
 
 export default function FamilyPortal({ settings, audience = 'PARENT' }) {
@@ -441,7 +453,9 @@ export default function FamilyPortal({ settings, audience = 'PARENT' }) {
         </header>
         <div role="region" aria-label="Contenu du portail" className="flex-1 space-y-3 overflow-y-auto p-4">
           {tab === 'more' && sub && <button onClick={() => setSub(null)} className="text-sm font-medium text-navy-500">‹ Plus</button>}
-          {view === 'home' && <Home child={child} isParent={isParent} openFiche={() => { setTab('more'); setSub('fiche'); }} />}
+          {view === 'home' && <Home child={child} isParent={isParent} openFiche={() => { setTab('more'); setSub('fiche'); }} openReenrol={() => { setTab('more'); setSub('reenrol'); }} />}
+          {view === 'reenrol' && (profileOf(child) ? <FamilyRequestForm key={`r-${child.id}`} profile={profileOf(child)} kind="REINSCRIPTION" guardianName={ACCOUNT.name} /> : <Section><p className="text-sm text-slate-500">Fiche introuvable.</p></Section>)}
+          {view === 'update' && (profileOf(child) ? <FamilyRequestForm key={`u-${child.id}`} profile={profileOf(child)} kind="MISE_A_JOUR" guardianName={ACCOUNT.name} /> : <Section><p className="text-sm text-slate-500">Fiche introuvable.</p></Section>)}
           {view === 'fiche' && <FicheForm key={child.id} studentKey={fullName(child)} profile={profileOf(child)} account={ACCOUNT.id} accountName={ACCOUNT.name} />}
           {view === 'signature' && <MySignature />}
           {view === 'library' && <LibraryLoans child={child} />}

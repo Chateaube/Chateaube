@@ -73,7 +73,7 @@ export const ORIENTATION = {
       { when: 'Terminale', label: 'Parcoursup (obligatoire pour tous), puis Campus France et TLScontact pour la demande de visa si l\'élève n\'est pas de nationalité française', state: 'next' },
     ],
     choices: ['Gestion et finance', 'Mercatique (marketing)', 'Ressources humaines et communication', 'Systèmes d\'information de gestion'],
-    meeting: 'Rendez-vous possible avec la professeure principale (Mme Ranaivo) le jeudi de 15h30 à 17h.',
+    meeting: 'Rendez-vous possible avec la Direction le jeudi de 15h30 à 17h.',
   },
   toky: {
     stage: '5e',

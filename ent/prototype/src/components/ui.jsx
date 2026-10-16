@@ -74,7 +74,8 @@ export function Button({ variant = 'primary', className = '', ...props }) {
 
 // Pastille d'initiales, couleur stable par personne (plus humain qu'une liste de noms)
 const AVATAR_TONES = ['bg-orange-100 text-orange-700', 'bg-emerald-100 text-emerald-700', 'bg-sky-100 text-sky-700', 'bg-amber-100 text-amber-800', 'bg-violet-100 text-violet-700'];
-export function Avatar({ name, className = 'h-8 w-8 text-xs' }) {
+export function Avatar({ name, photo, className = 'h-8 w-8 text-xs' }) {
+  if (photo) return <img src={photo} alt="" className={`inline-block shrink-0 rounded-full object-cover ${className}`} />;
   const words = String(name).replace(/^(M\.|Mme|Mr)\s+/, '').split(/[\s-]+/).filter(Boolean);
   const initials = (words.length > 1 ? words[0][0] + words[words.length - 1][0] : (words[0] ?? '?').slice(0, 2)).toUpperCase();
   const tone = AVATAR_TONES[[...String(name)].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_TONES.length];

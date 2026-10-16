@@ -311,6 +311,21 @@ recoder.
   bulletin est le seul document qui les montre. Au plus 2 délégués et 2 suppléants par classe (T39).
 - **`feedback`** : avis du pilote envoyés depuis « Donner mon avis » (écran, profil, problème / idée / question), suivis
   par la Direction (T41).
-- **`library_book`**, **`library_copy`**, **`library_loan`** : CDI. Désignation titre — auteur — éditeur (collection,
+- **`library_book`**, **`library_copy`**, **`library_loan`** : bibliothèque de la salle d'étude (pas de CDI). Désignation titre — auteur — éditeur (collection,
   année), ISBN ; une cote par exemplaire (ROM-0012…). Élèves : un mois, prolongé d'un mois si le livre est présenté ;
   professeurs : sans date limite. Un livre en retard bloque la remise du bulletin (T40).
+
+
+### Familles en autonomie et documents signés
+
+- **`student.photo_key`** : photo d'identité.
+- **`guardian_access_code`** : code personnel de première connexion, un par responsable (chiffré, un seul actif).
+  `guardian.user_id` est unique : deux parents ne partagent jamais un accès. `app_user` exige un e-mail **ou** un
+  téléphone (parent sans e-mail).
+- **`pre_registration.channel`** : `BUREAU` ou `EN_LIGNE` (formulaire public).
+- **`family_request`** (`REINSCRIPTION`, `MISE_A_JOUR`, `PIECE`) et **`family_document`** : déposées par un
+  responsable de l'élève uniquement ; traitées par le Bureau ou la Direction ; refus avec motif obligatoire.
+- **`official_signature`**, **`school_stamp`**, **`signature_request`** : demande par le Bureau, la Vie scolaire ou
+  la Direction ; signature par la Direction seule, avec sa propre signature ; code de vérification attribué à la
+  signature ; impression ou envoi par e-mail seulement après signature.
+- Vue **`v_bulletin_blocked`** : le motif des livres de la salle d'étude s'appelle désormais `LIVRE`.

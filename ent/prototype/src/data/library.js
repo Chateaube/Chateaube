@@ -1,4 +1,4 @@
-// Bibliothèque (CDI) de Tamatave : démonstration. Chaque exemplaire a sa cote (étiquette).
+// Bibliothèque de la salle d'étude (Tamatave) : démonstration. Chaque exemplaire a sa cote (étiquette).
 const copies = (prefix, from, n, state = 'BON') => Array.from({ length: n }, (_, i) => ({ code: `${prefix}-${String(from + i).padStart(4, '0')}`, state }));
 
 export const BOOKS = [

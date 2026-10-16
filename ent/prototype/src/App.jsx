@@ -23,6 +23,9 @@ import TeacherOversight from './components/TeacherOversight.jsx';
 import Messenger from './components/Messenger.jsx';
 import ImportModule from './components/ImportModule.jsx';
 import BulletinsModule from './components/BulletinsModule.jsx';
+import StudentList from './components/StudentList.jsx';
+import SignaturesModule from './components/SignaturesModule.jsx';
+import { PublicPreregistration } from './components/FamilyRequests.jsx';
 import pillar from './assets/pilier.png';
 import { useScreenGuard } from './screenGuard.js';
 import { useOnline } from './online.js';
@@ -52,9 +55,11 @@ const MESSAGES = { id: 'messages', label: 'Messages', icon: 'bell', screen: ({ r
 ) };
 const MANUALS = { id: 'manuals', label: 'Manuels scolaires', icon: 'cap', screen: ManualsModule };
 const FEEDBACK = { id: 'feedback', label: 'Avis du pilote', icon: 'bell', screen: FeedbackModule };
-const LIBRARY = { id: 'library', label: 'Bibliothèque (CDI)', icon: 'pen', screen: LibraryModule };
+const LIBRARY = { id: 'library', label: 'Bibliothèque (salle d\'étude)', icon: 'pen', screen: LibraryModule };
 const IMPORT = { id: 'import', label: 'Importer des données (Excel)', icon: 'swap', screen: ImportModule };
 const GRADE_SHEETS = { id: 'grade-sheets', label: 'Grilles de notes', icon: 'pen', screen: GradeSheets };
+const STUDENT_LIST = { id: 'students-list', label: 'Liste des élèves', icon: 'users', screen: StudentList };
+const SIGNATURES = { id: 'signatures', label: 'Documents à signer', icon: 'pen', screen: SignaturesModule };
 const FOLLOW_UP = { id: 'followup', label: 'Documents, stages & orientation', icon: 'pen', screen: FollowUpModule };
 
 const PROFILES = {
@@ -66,7 +71,9 @@ const PROFILES = {
       { group: 'Pilotage', items: [
         { id: 'dashboard', label: 'Tableau de bord', icon: 'home', screen: DirectionDashboard },
         FEEDBACK,
+        SIGNATURES,
         INSCRIPTIONS,
+        STUDENT_LIST,
         { id: 'students', label: 'Mobilité Tamatave → Tana', icon: 'swap' },
         { id: 'accounting', label: 'Comptabilité', icon: 'wallet', screen: AccountingModule },
         MANUALS,
@@ -103,7 +110,7 @@ const PROFILES = {
         { id: 'bureau', label: 'Accueil du bureau', icon: 'home', screen: BureauHome },
         { id: 'accounting', label: 'Encaissements & comptabilité', icon: 'wallet', screen: AccountingModule },
       ] },
-      { group: 'Élèves', items: [INSCRIPTIONS, MANUALS, LIBRARY, IMPORT] },
+      { group: 'Élèves', items: [INSCRIPTIONS, STUDENT_LIST, SIGNATURES, MANUALS, LIBRARY, IMPORT] },
       { group: 'Notes & bulletins', items: [COUNCIL, BULLETINS, GRADE_SHEETS, ...OVERSIGHT] },
       { group: 'Vie scolaire & messages', items: [MESSAGES, VIE_SCOLAIRE, FOLLOW_UP, BOOKING] },
     ],
@@ -113,7 +120,7 @@ const PROFILES = {
     title: 'Vie scolaire',
     home: 'vs',
     nav: [
-      { group: 'Au quotidien', items: [VIE_SCOLAIRE, FOLLOW_UP] },
+      { group: 'Au quotidien', items: [VIE_SCOLAIRE, FOLLOW_UP, STUDENT_LIST, SIGNATURES] },
       { group: 'Ressources', items: [BOOKING, LIBRARY] },
       { group: 'Communication', items: [MESSAGES, { id: 'news', label: 'Annonces', icon: 'megaphone' }] },
     ],
@@ -147,15 +154,23 @@ const PROFILES = {
     home: 'eleve',
     nav: [{ group: 'Élève', items: [{ id: 'eleve', label: 'Portail élèves', icon: 'cap', screen: (p) => <FamilyPortal {...p} audience="ELEVE" /> }] }],
   },
+  // Nouvelle famille, sans compte : formulaire de pré-inscription en ligne (lien sur le site, Facebook…)
+  VISITEUR: {
+    label: 'Nouvelle famille',
+    title: 'Pré-inscription en ligne',
+    home: 'public-prereg',
+    nav: [{ group: 'Site de l\'école', items: [{ id: 'public-prereg', label: 'Pré-inscription en ligne', icon: 'users', screen: PublicPreregistration }] }],
+  },
 };
 
 // Personne connectée, par profil (démonstration)
 const PERSONAS = {
-  BUREAU: { name: 'Mme Hanta', short: 'Mme Hanta', detail: 'Économat · Tamatave' },
+  BUREAU: { name: 'Mme Hanta', short: 'Mme Hanta', detail: 'Bureau (accueil, caisse…) · Tamatave' },
   VIE_SCOLAIRE: { name: 'M. Be', short: 'M. Be', detail: 'Vie scolaire · Tamatave' },
   ENSEIGNANT: { name: 'Mme RANAIVO', short: 'Mme Ranaivo', detail: 'Management · SGN' },
   PARENT: { name: 'Mme RAKOTOARISOA', short: 'Mme Rakotoarisoa', detail: 'Maman d\'Aina et de Toky' },
   ELEVE: { name: 'Aina RAKOTOARISOA', short: 'Aina', detail: '1re STMG · Tamatave' },
+  VISITEUR: { name: 'Visiteur', short: 'Visiteur', detail: 'Sans compte' },
 };
 
 const STORAGE_KEY = 'ent-chateaubriand-settings-v3'; // v3 : base de compétences issue des trimestres précédents
@@ -324,7 +339,7 @@ export default function App() {
         <Current key={`${profile}-${screen}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={setScreen} role={profile} />
       </main>
 
-      <FeedbackButton profile={profile} who={persona.detail ?? persona.name} screen={NAV.flatMap((g) => g.items).find((i) => i.id === screen)?.label ?? screen} />
+      {profile !== 'VISITEUR' && <FeedbackButton profile={profile} who={persona.detail ?? persona.name} screen={NAV.flatMap((g) => g.items).find((i) => i.id === screen)?.label ?? screen} />}
       {protectedProfile && <div aria-hidden="true" className="screen-watermark">{`${persona.name} · ${persona.detail} · `.repeat(60)}</div>}
       {hidden && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black text-center text-sm text-slate-400" role="alert">

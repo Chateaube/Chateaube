@@ -811,7 +811,7 @@ BEGIN
   RETURN p_today + 30;
 END $$ LANGUAGE plpgsql;
 
--- Livres du CDI en retard : bloquent la remise du bulletin (comme un manuel).
+-- Livres de la salle d'étude en retard : bloquent la remise du bulletin (comme un manuel).
 CREATE OR REPLACE VIEW v_bulletin_blocked AS
 SELECT e.id AS enrollment_id, 'FRAIS_IMPAYES' AS reason, count(*)::int AS items
 FROM enrollment e JOIN invoice i ON i.enrollment_id = e.id
@@ -825,7 +825,7 @@ WHERE (l.lost_on IS NOT NULL AND l.charge_payment_id IS NULL)
    OR (l.returned_on IS NULL AND l.lost_on IS NULL AND l.due_back IS NOT NULL AND l.due_back < current_date)
 GROUP BY l.enrollment_id
 UNION ALL
-SELECT enrollment_id, 'LIVRE_CDI', count(*)::int
+SELECT enrollment_id, 'LIVRE', count(*)::int
 FROM library_loan
 WHERE enrollment_id IS NOT NULL AND returned_on IS NULL AND due_on < current_date
 GROUP BY enrollment_id;
@@ -854,3 +854,41 @@ BEGIN
   RETURN NEW;
 END $$ LANGUAGE plpgsql;
 CREATE TRIGGER payroll_rate BEFORE INSERT ON payroll_line FOR EACH ROW EXECUTE FUNCTION payroll_rate_default();
+
+-- Demandes des familles : seul un responsable de l'élève peut en déposer une,
+-- et seuls le Bureau ou la Direction la traitent.
+CREATE FUNCTION family_request_guard() RETURNS trigger AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM student_guardian WHERE student_id = NEW.student_id AND guardian_id = NEW.submitted_by) THEN
+    RAISE EXCEPTION 'Seul un responsable légal de l''élève peut faire cette demande';
+  END IF;
+  IF NEW.decided_by IS NOT NULL AND NOT EXISTS (SELECT 1 FROM user_role WHERE user_id = NEW.decided_by AND role IN ('BUREAU', 'DIRECTION')) THEN
+    RAISE EXCEPTION 'Demande traitée par le Bureau ou la Direction uniquement';
+  END IF;
+  IF NEW.decided_by IS NOT NULL AND NEW.decided_at IS NULL THEN NEW.decided_at := now(); END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER family_request_check BEFORE INSERT OR UPDATE ON family_request FOR EACH ROW EXECUTE FUNCTION family_request_guard();
+
+-- Demande de signature : demandée par le Bureau, la Vie scolaire ou la Direction ; signée par
+-- la Direction seule, avec sa propre signature ; code de vérification attribué à la signature.
+CREATE FUNCTION signature_request_guard() RETURNS trigger AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM user_role WHERE user_id = NEW.requested_by AND role IN ('BUREAU', 'VIE_SCOLAIRE', 'DIRECTION')) THEN
+    RAISE EXCEPTION 'Demande réservée au Bureau, à la Vie scolaire ou à la Direction';
+  END IF;
+  IF NEW.status <> 'DEMANDEE' THEN
+    IF NEW.signed_by IS NULL OR NOT is_direction(NEW.signed_by) THEN
+      RAISE EXCEPTION 'Seule la Direction signe ou refuse un document';
+    END IF;
+    IF NEW.status = 'SIGNEE' AND NOT EXISTS (SELECT 1 FROM official_signature WHERE id = NEW.signature_id AND user_id = NEW.signed_by AND revoked_at IS NULL) THEN
+      RAISE EXCEPTION 'La signature utilisée n''est pas celle du signataire';
+    END IF;
+    IF NEW.signed_at IS NULL THEN NEW.signed_at := now(); END IF;
+    IF NEW.status = 'SIGNEE' AND NEW.verification_code IS NULL THEN
+      NEW.verification_code := upper(substr(md5(NEW.id::text || clock_timestamp()::text), 1, 4) || '-' || substr(md5(random()::text), 1, 4));
+    END IF;
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER signature_request_check BEFORE INSERT OR UPDATE ON signature_request FOR EACH ROW EXECUTE FUNCTION signature_request_guard();

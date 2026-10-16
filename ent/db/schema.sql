@@ -1404,7 +1404,7 @@ CREATE TABLE student_engagement (
   PRIMARY KEY (enrollment_id, code)
 );
 
--- =====  BIBLIOTHÈQUE (CDI)  =====
+-- =====  BIBLIOTHÈQUE DE LA SALLE D'ÉTUDE / PERMANENCE (pas de CDI)  =====
 CREATE TABLE library_book (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   site_id       uuid NOT NULL REFERENCES site(id),
@@ -1449,4 +1449,98 @@ CREATE TABLE feedback (
   status        text NOT NULL DEFAULT 'NOUVEAU' CHECK (status IN ('NOUVEAU', 'EN_COURS', 'TRAITE')),
   follow_up     text,
   created_at    timestamptz NOT NULL DEFAULT now()
+);
+
+-- =====  FAMILLES EN AUTONOMIE : ACCÈS, PHOTO, DEMANDES EN LIGNE  =====
+-- Photo d'identité de l'élève (prise à l'inscription ou déposée par la famille)
+ALTER TABLE student ADD COLUMN photo_key text;
+
+-- Un accès par responsable légal : deux parents = deux comptes, chacun son code personnel,
+-- sa signature et ses accusés de lecture (guardian.user_id est déjà unique). Un parent sans
+-- e-mail se connecte avec son téléphone : le compte exige l'un ou l'autre.
+ALTER TABLE app_user ALTER COLUMN email DROP NOT NULL;
+ALTER TABLE app_user ADD CONSTRAINT app_user_identifier CHECK (email IS NOT NULL OR phone_e164 IS NOT NULL);
+CREATE TABLE guardian_access_code (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  guardian_id   uuid NOT NULL REFERENCES guardian(id) ON DELETE CASCADE,
+  code_hash     text NOT NULL,                 -- jamais le code en clair
+  issued_by     uuid NOT NULL REFERENCES app_user(id),
+  issued_at     timestamptz NOT NULL DEFAULT now(),
+  used_at       timestamptz,                   -- première connexion : le parent choisit son mot de passe
+  revoked_at    timestamptz                    -- code perdu : le bureau en remet un nouveau
+);
+CREATE UNIQUE INDEX guardian_access_code_active ON guardian_access_code (guardian_id) WHERE used_at IS NULL AND revoked_at IS NULL;
+
+-- Pré-inscription envoyée par une nouvelle famille depuis le formulaire public
+ALTER TABLE pre_registration ADD COLUMN channel text NOT NULL DEFAULT 'BUREAU' CHECK (channel IN ('BUREAU', 'EN_LIGNE'));
+
+-- Demandes d'une famille déjà inscrite : réinscription, mise à jour de ses informations,
+-- dépôt d'une pièce. Le bureau valide (les données passent dans la fiche) ou refuse avec un motif.
+CREATE TYPE family_request_kind AS ENUM ('REINSCRIPTION', 'MISE_A_JOUR', 'PIECE');
+CREATE TYPE family_request_status AS ENUM ('A_TRAITER', 'VALIDEE', 'REFUSEE');
+CREATE TABLE family_request (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  kind          family_request_kind NOT NULL,
+  student_id    uuid NOT NULL REFERENCES student(id),
+  submitted_by  uuid NOT NULL REFERENCES guardian(id),
+  payload       jsonb NOT NULL DEFAULT '{}',   -- données proposées (classe, téléphones, santé…)
+  submitted_at  timestamptz NOT NULL DEFAULT now(),
+  status        family_request_status NOT NULL DEFAULT 'A_TRAITER',
+  decided_by    uuid REFERENCES app_user(id),
+  decided_at    timestamptz,
+  decision_note text,
+  CHECK ((status = 'A_TRAITER') = (decided_by IS NULL)),
+  CHECK (status <> 'REFUSEE' OR decision_note IS NOT NULL),
+  CHECK (kind <> 'REINSCRIPTION' OR payload ->> 'decision' IN ('REINSCRIT', 'DEPART'))
+);
+-- Pièces déposées (photo ou PDF), rattachées à une demande ou à une pré-inscription en ligne
+CREATE TABLE family_document (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  request_id    uuid REFERENCES family_request(id) ON DELETE CASCADE,
+  pre_registration_id uuid REFERENCES pre_registration(id) ON DELETE CASCADE,
+  document_code text NOT NULL CHECK (document_code IN ('ACTE', 'PHOTOS', 'BULLETINS', 'RADIATION', 'VACCINS', 'AUTRE')),
+  file_key      text NOT NULL,
+  uploaded_at   timestamptz NOT NULL DEFAULT now(),
+  checked_by    uuid REFERENCES app_user(id),
+  CHECK ((request_id IS NULL) <> (pre_registration_id IS NULL))
+);
+
+-- =====  DOCUMENTS SIGNÉS PAR LA DIRECTION (certificat de scolarité…)  =====
+-- Signature numérique de chaque membre de la Direction et tampon de l'établissement (images).
+CREATE TABLE official_signature (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       uuid NOT NULL REFERENCES app_user(id),
+  image_key     text NOT NULL,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  revoked_at    timestamptz
+);
+CREATE UNIQUE INDEX official_signature_active ON official_signature (user_id) WHERE revoked_at IS NULL;
+CREATE TABLE school_stamp (
+  site_id       uuid PRIMARY KEY REFERENCES site(id),
+  image_key     text NOT NULL,
+  updated_at    timestamptz NOT NULL DEFAULT now()
+);
+-- Le bureau ou la vie scolaire demande ; la Direction (même absente) signe depuis son téléphone ;
+-- le document revient au bureau pour être imprimé et tamponné, ou envoyé par e-mail avec le
+-- tampon numérique. Le code de vérification imprimé permet de contrôler l'authenticité.
+CREATE TYPE signature_status AS ENUM ('DEMANDEE', 'SIGNEE', 'REFUSEE');
+CREATE TABLE signature_request (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  document_kind text NOT NULL CHECK (document_kind IN ('CERTIFICAT_SCOLARITE', 'ATTESTATION', 'AUTRE')),
+  student_id    uuid REFERENCES student(id),
+  requested_by  uuid NOT NULL REFERENCES app_user(id),
+  requested_at  timestamptz NOT NULL DEFAULT now(),
+  reason        text,
+  status        signature_status NOT NULL DEFAULT 'DEMANDEE',
+  signed_by     uuid REFERENCES app_user(id),
+  signature_id  uuid REFERENCES official_signature(id),
+  signed_at     timestamptz,
+  refusal_note  text,
+  verification_code text UNIQUE,              -- XXXX-XXXX, imprimé sur le document
+  printed_at    timestamptz,
+  sent_to       citext,                        -- envoi par e-mail du PDF signé et tamponné
+  sent_at       timestamptz,
+  CHECK ((status = 'SIGNEE') = (signature_id IS NOT NULL)),
+  CHECK (status <> 'REFUSEE' OR refusal_note IS NOT NULL),
+  CHECK ((sent_at IS NULL AND printed_at IS NULL) OR status = 'SIGNEE')
 );

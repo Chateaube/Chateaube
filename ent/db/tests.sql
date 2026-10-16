@@ -811,7 +811,7 @@ DO $$ DECLARE e2 uuid; e3 uuid; BEGIN
   INSERT INTO student_engagement VALUES (e3, 'SUPPLEANT'), (e3, 'ASSR1'), (e3, 'NUMERIQUE');
 END $$;
 
--- T40. CDI : un mois pour l'élève, prolongation avec le livre, professeur sans date limite ---
+-- T40. Salle d'étude : un mois pour l'élève, prolongation avec le livre, professeur sans date limite ---
 DO $$ DECLARE b uuid; l uuid; BEGIN
   INSERT INTO library_book (site_id, kind, title, author, editor, collection, year, isbn)
   SELECT id, 'ROMAN', 'L''Étranger', 'Albert Camus', 'Gallimard', 'Folio', 1972, '9782070360024' FROM site WHERE code = 'TMV' RETURNING id INTO b;
@@ -822,7 +822,7 @@ DO $$ DECLARE b uuid; l uuid; BEGIN
   EXCEPTION WHEN check_violation THEN NULL;
   END;
   INSERT INTO library_loan (copy_code, enrollment_id, out_on, due_on) VALUES ('ROM-0001', '30000000-0000-0000-0000-0000000000a1', current_date - 40, current_date - 10) RETURNING id INTO l;
-  ASSERT EXISTS (SELECT 1 FROM v_bulletin_blocked WHERE enrollment_id = '30000000-0000-0000-0000-0000000000a1' AND reason = 'LIVRE_CDI'), 'T40: livre en retard = bulletin bloqué';
+  ASSERT EXISTS (SELECT 1 FROM v_bulletin_blocked WHERE enrollment_id = '30000000-0000-0000-0000-0000000000a1' AND reason = 'LIVRE'), 'T40: livre en retard = bulletin bloqué';
   BEGIN
     INSERT INTO library_loan (copy_code, staff_id, out_on, due_on) VALUES ('ROM-0001', (SELECT id FROM staff_member LIMIT 1), current_date, NULL);
     RAISE EXCEPTION 'T40: exemplaire prêté deux fois';
@@ -852,5 +852,75 @@ DO $$ BEGIN
   END;
 END $$;
 
+-- T42. Un accès par parent ; demandes en ligne déposées par un responsable, traitées par le bureau ---
+DO $$ DECLARE g1 uuid; g2 uuid; g3 uuid; u1 uuid; r uuid; BEGIN
+  INSERT INTO guardian (first_name, last_name, phone_e164) VALUES ('Lalao', 'RAKOTO', '+261340000001') RETURNING id INTO g1;
+  INSERT INTO guardian (first_name, last_name, phone_e164) VALUES ('Fidy', 'RAKOTO', '+261320000002') RETURNING id INTO g2;
+  INSERT INTO guardian (first_name, last_name) VALUES ('Voisin', 'SANS LIEN') RETURNING id INTO g3;
+  INSERT INTO student_guardian (student_id, guardian_id, relationship) VALUES
+    ('20000000-0000-0000-0000-000000000001', g1, 'Mère'), ('20000000-0000-0000-0000-000000000001', g2, 'Père');
+  -- parent sans e-mail : compte au téléphone ; un compte ne sert qu'à un seul parent
+  INSERT INTO app_user (first_name, last_name, phone_e164, auth_provider) VALUES ('Lalao', 'RAKOTO', '+261340000001', 'PASSWORD') RETURNING id INTO u1;
+  UPDATE guardian SET user_id = u1 WHERE id = g1;
+  BEGIN
+    UPDATE guardian SET user_id = u1 WHERE id = g2;
+    RAISE EXCEPTION 'T42: deux parents sur un même accès';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO app_user (first_name, last_name) VALUES ('Sans', 'Identifiant');
+    RAISE EXCEPTION 'T42: compte sans e-mail ni téléphone';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO guardian_access_code (guardian_id, code_hash, issued_by) VALUES (g2, 'h1', '00000000-0000-0000-0000-000000000001');
+  BEGIN
+    INSERT INTO guardian_access_code (guardian_id, code_hash, issued_by) VALUES (g2, 'h2', '00000000-0000-0000-0000-000000000001');
+    RAISE EXCEPTION 'T42: deux codes actifs pour un parent';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  -- réinscription en ligne par la mère, avec une pièce jointe
+  INSERT INTO family_request (kind, student_id, submitted_by, payload) VALUES ('REINSCRIPTION', '20000000-0000-0000-0000-000000000001', g1, '{"decision":"REINSCRIT"}') RETURNING id INTO r;
+  INSERT INTO family_document (request_id, document_code, file_key) VALUES (r, 'BULLETINS', 'docs/b.pdf');
+  BEGIN
+    INSERT INTO family_request (kind, student_id, submitted_by, payload) VALUES ('MISE_A_JOUR', '20000000-0000-0000-0000-000000000001', g3, '{}');
+    RAISE EXCEPTION 'T42: demande d''une personne qui n''est pas responsable';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T42:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    UPDATE family_request SET status = 'VALIDEE', decided_by = '00000000-0000-0000-0000-000000000003' WHERE id = r;
+    RAISE EXCEPTION 'T42: demande validée par un professeur';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T42:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    UPDATE family_request SET status = 'REFUSEE', decided_by = '00000000-0000-0000-0000-000000000001' WHERE id = r;
+    RAISE EXCEPTION 'T42: refus sans motif';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE family_request SET status = 'VALIDEE', decided_by = '00000000-0000-0000-0000-000000000001' WHERE id = r;
+  ASSERT (SELECT decided_at IS NOT NULL FROM family_request WHERE id = r), 'T42: date de décision';
+END $$;
+
+-- T43. Signature d'un document : demandée par le bureau, signée par la Direction seule ---------
+DO $$ DECLARE r uuid; sig uuid; BEGIN
+  INSERT INTO app_user (id, email, first_name, last_name) VALUES ('00000000-0000-0000-0000-000000000009', 'bureau@exemple.mg', 'Bureau', 'TMV');
+  INSERT INTO user_role (user_id, role, site_id) SELECT '00000000-0000-0000-0000-000000000009', 'BUREAU', id FROM site WHERE code = 'TMV';
+  INSERT INTO official_signature (user_id, image_key) VALUES ('00000000-0000-0000-0000-000000000002', 'sig/adjointe.png') RETURNING id INTO sig;
+  INSERT INTO signature_request (document_kind, student_id, requested_by, reason)
+  VALUES ('CERTIFICAT_SCOLARITE', '20000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000009', 'Dossier de visa') RETURNING id INTO r;
+  BEGIN
+    UPDATE signature_request SET status = 'SIGNEE', signed_by = '00000000-0000-0000-0000-000000000009', signature_id = sig WHERE id = r;
+    RAISE EXCEPTION 'T43: signé par le bureau';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T43:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    UPDATE signature_request SET sent_to = 'famille@exemple.mg', sent_at = now() WHERE id = r;
+    RAISE EXCEPTION 'T43: envoyé avant signature';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE signature_request SET status = 'SIGNEE', signed_by = '00000000-0000-0000-0000-000000000002', signature_id = sig WHERE id = r;
+  ASSERT (SELECT length(verification_code) = 9 AND signed_at IS NOT NULL FROM signature_request WHERE id = r), 'T43: code de vérification et date';
+  UPDATE signature_request SET sent_to = 'famille@exemple.mg', sent_at = now() WHERE id = r;
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T41 passent'
+\echo 'OK — tous les scénarios T1 à T43 passent'

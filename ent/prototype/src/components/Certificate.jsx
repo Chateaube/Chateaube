@@ -3,6 +3,7 @@ import { Button } from './ui.jsx';
 import logo from '../assets/logo-chateaubriand.png';
 import { accord, schoolYearOf, classLongName, frDate } from '../rules/documents.js';
 import { printOnly } from '../print.js';
+import { addSignatureRequest } from '../signatureStore.js';
 
 // Certificat de scolarité selon la matrice de l'établissement : une demi-page A4,
 // imprimé en 1 ou 2 exemplaires selon la demande de l'élève (2 exemplaires = une page découpée).
@@ -19,7 +20,9 @@ const SITES = [
   ['CHATEAUBRIAND TANANARIVE', 'Lot II R 5 Betongolo, 101 Antananarivo', '+261 34 16 982 87', 'chateaube@yahoo.fr'],
 ];
 
-export function CertificateSheet({ profile: p, signatory = SIGNATORIES[0] }) {
+// Avec signatureUrl : document signé numériquement par la Direction ; stampUrl : tampon numérique
+// (envoi par e-mail) ; sur papier, le bureau tamponne à la main. Le code permet de vérifier le document.
+export function CertificateSheet({ profile: p, signatory = SIGNATORIES[0], signatureUrl, stampUrl, code, date = TODAY }) {
   const y = schoolYearOf(TODAY);
   return (
     <div className="certificate grid h-[148mm] w-full max-w-[210mm] grid-cols-[34%_1fr] gap-6 bg-white px-[10mm] py-[8mm] text-[11.5px] leading-snug text-black"
@@ -32,7 +35,7 @@ export function CertificateSheet({ profile: p, signatory = SIGNATORIES[0] }) {
         ))}
       </div>
       <div className="flex flex-col">
-        <p className="text-right">Tamatave, le {frDate(TODAY)}</p>
+        <p className="text-right">Tamatave, le {frDate(date)}</p>
         <h2 className="mt-12 text-center text-[15px] font-bold tracking-wide">CERTIFICAT DE SCOLARITÉ</h2>
         <p className="mt-6 text-justify">Je soussignée, {signatory.intro}, certifie que :</p>
         <p className="mt-4 text-center font-bold">{p.lastName}&nbsp;&nbsp;&nbsp;{p.firstName}</p>
@@ -42,15 +45,22 @@ export function CertificateSheet({ profile: p, signatory = SIGNATORIES[0] }) {
           l'année scolaire {y} – {y + 1} et est {accord(p.sex, 'assidu', 'assidue')} aux cours.
         </p>
         <p className="mt-3">Pour servir et faire valoir ce que de droit.</p>
-        <p className="mt-auto self-end pr-6 text-left">{signatory.title}<br /><strong>{signatory.name || ' '}</strong></p>
+        <div className="relative mt-auto self-end pr-6 text-left">
+          {stampUrl && <img src={stampUrl} alt="Tampon" className="absolute -left-[30mm] -top-[6mm] h-[30mm] w-[30mm] object-contain opacity-90" style={{ mixBlendMode: 'multiply' }} />}
+          <p>{signatory.title}</p>
+          {signatureUrl && <img src={signatureUrl} alt="Signature" className="h-[15mm] max-w-[45mm] object-contain" style={{ mixBlendMode: 'multiply' }} />}
+          <p><strong>{signatory.name || ' '}</strong></p>
+        </div>
+        {code && <p className="mt-2 text-[8px] leading-tight text-slate-600">Signé numériquement le {frDate(date)} · code de vérification {code} · authenticité vérifiable auprès de l'établissement</p>}
       </div>
     </div>
   );
 }
 
 /** Bouton « Certificat de scolarité » : signataire, 1 ou 2 exemplaires, aperçu puis impression. */
-export function CertificateButton({ profile }) {
+export function CertificateButton({ profile, role = 'BUREAU' }) {
   const [open, setOpen] = useState(false);
+  const [asked, setAsked] = useState(false);
   const [copies, setCopies] = useState(1);
   const [sig, setSig] = useState(SIGNATORIES[0].id);
   const signatory = SIGNATORIES.find((s) => s.id === sig);
@@ -72,6 +82,8 @@ export function CertificateButton({ profile }) {
               </label>
               <span className="flex gap-2">
                 <Button onClick={() => printOnly('.cert-print', 'size: A4 portrait; margin: 0;')}>Imprimer</Button>
+                {asked ? <span className="self-center text-xs text-emerald-700">Demande envoyée à la Direction (Documents à signer)</span>
+                  : <Button variant="secondary" disabled={missing.length > 0} onClick={() => { addSignatureRequest({ kind: 'CERTIFICAT_SCOLARITE', profile, signatory: sig, copies, delivery: 'PAPIER', requestedBy: role }); setAsked(true); }}>Faire signer par la Direction</Button>}
                 <Button variant="secondary" onClick={() => setOpen(false)}>Fermer</Button>
               </span>
               {missing.length > 0 && <p className="w-full text-xs text-amber-700">À compléter dans la fiche : {missing.join(', ')}.</p>}

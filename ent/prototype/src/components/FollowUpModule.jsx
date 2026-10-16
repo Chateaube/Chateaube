@@ -121,7 +121,7 @@ function StagesOrientation() {
   const stages = [
     { student: 'RAVELO Hasina', cls: '3e', title: STAGE_TYPES[0].label, company: 'Port de Toamasina — capitainerie', from: '2027-01-18', to: '2027-01-22', referent: 'M. Rasolo', signatures: { entreprise: true, etablissement: true, famille: true } },
     { student: 'ANDRIAMIHAJA Miora', cls: '3e', title: STAGE_TYPES[0].label, company: 'Clinique Saint-Joseph — accueil', from: '2027-01-18', to: '2027-01-22', referent: 'M. Rasolo', signatures: { entreprise: true, etablissement: false, famille: false } },
-    { student: 'Élèves de 2de (24)', cls: '2de', title: STAGE_TYPES[1].label, company: 'Conventions à constituer', from: '2027-06-07', to: '2027-06-18', referent: 'Professeur principal', signatures: { entreprise: false, etablissement: false, famille: false } },
+    { student: 'Élèves de 2de (24)', cls: '2de', title: STAGE_TYPES[1].label, company: 'Conventions à constituer', from: '2027-06-07', to: '2027-06-18', referent: 'Direction', signatures: { entreprise: false, etablissement: false, famille: false } },
   ];
   const signed = (s) => Object.values(s.signatures).filter(Boolean).length;
   return (

@@ -49,4 +49,4 @@ export const ENROLL_CLASSES = ['6e', '5e', '4e', '3e', '2de', '1re Générale', 
 // LV1 Anglais et LV2 Espagnol pour tous les élèves
 export const LANGUAGES = { lv1: ['Anglais'], lv2: ['Espagnol'] };
 export const RELATIONS = ['Mère', 'Père', 'Tuteur / tutrice', 'Grand-parent', 'Autre'];
-export const NATIONALITIES = [['MG', 'Malgache'], ['FR', 'Française'], ['KM', 'Comorienne'], ['MU', 'Mauricienne'], ['CN', 'Chinoise'], ['IN', 'Indienne'], ['XX', 'Autre']];
+export { NATIONALITY_CHOICES as NATIONALITIES } from '../rules/enrollment.js';

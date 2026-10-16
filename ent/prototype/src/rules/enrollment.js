@@ -66,9 +66,27 @@ export function validateProfile(p, { kind = 'INSCRIPTION' } = {}) {
 
 const slug = (t) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.|\.$/g, '');
 
+// Code personnel d'un responsable : 8 caractères sans lettres ambiguës (0/O, 1/I/L).
+// Démonstration : calculé à partir de l'identité ; en production, tiré au hasard, stocké chiffré
+// (guardian_access_code) et valable pour une seule première connexion.
+const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+export function accessCode(seed) {
+  let h = 2166136261;
+  const out = [];
+  for (let round = 0; round < 8; round += 1) {
+    for (const c of `${seed}#${round}`) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0;
+    out.push(CODE_CHARS[h % CODE_CHARS.length]);
+  }
+  return `${out.slice(0, 4).join('')}-${out.slice(4).join('')}`;
+}
+/** Identité d'un responsable : le même parent avec deux enfants garde un seul accès. */
+export const guardianKey = (g) => (g.email?.trim() || g.phone?.replace(/\s/g, '') || g.name).toLowerCase();
+
 /**
- * Comptes de l'ENT créés à partir de la fiche : un compte élève et un compte par responsable
- * ayant un e-mail (connexion Google). Les responsables sans e-mail reçoivent un code d'activation.
+ * Comptes de l'ENT créés à partir de la fiche : un compte élève et UN COMPTE PAR RESPONSABLE
+ * (deux parents = deux accès, chacun sa signature et ses accusés de lecture). Chaque responsable
+ * reçoit son code personnel pour la première connexion ; il se connecte ensuite avec son compte
+ * Google s'il a un e-mail, sinon avec son téléphone et le mot de passe qu'il a choisi.
  */
 export function accountsFor(profile, domain = 'chateaubriand-tamatave.mg') {
   const student = {
@@ -77,14 +95,28 @@ export function accountsFor(profile, domain = 'chateaubriand-tamatave.mg') {
     login: `${slug(profile.firstName)}.${slug(profile.lastName)}@${domain}`,
     method: 'Compte Google de l\'établissement',
   };
-  const guardians = (profile.guardians ?? []).map((g) => ({
+  const guardians = (profile.guardians ?? []).filter((g) => g.name?.trim()).map((g) => ({
     role: 'PARENT',
     name: g.name,
     relation: g.relation,
+    phone: g.phone ?? '',
     login: g.email?.trim() || null,
-    method: g.email?.trim() ? 'Connexion avec son compte Google' : 'Code d\'activation remis au bureau',
+    code: accessCode(guardianKey(g)),
+    method: g.email?.trim() ? 'Code personnel, puis compte Google' : 'Code personnel, puis téléphone et mot de passe',
   }));
   return [student, ...guardians];
+}
+
+// Nationalités proposées dans la fiche : les autres sont regroupées dans « Autre »
+export const NATIONALITY_CHOICES = [['MG', 'Malgache'], ['FR', 'Française'], ['CN', 'Chinoise'], ['XX', 'Autre']];
+const KNOWN = ['MG', 'FR', 'CN'];
+export const hasOtherNationality = (codes = []) => codes.some((c) => !KNOWN.includes(c));
+/** Libellés lisibles (MG → Malgache ; un code non proposé → Autre (code)). */
+export const nationalityLabels = (codes = []) => codes.map((c) => NATIONALITY_CHOICES.find(([k]) => k === c)?.[1] ?? `Autre (${c})`);
+/** Coche ou décoche une nationalité ; décocher « Autre » retire toutes les nationalités non proposées. */
+export function toggleNationality(codes = [], code) {
+  if (code === 'XX') return hasOtherNationality(codes) ? codes.filter((c) => KNOWN.includes(c)) : [...codes, 'XX'];
+  return codes.includes(code) ? codes.filter((c) => c !== code) : [...codes, code];
 }
 
 /** Pièces encore manquantes. */

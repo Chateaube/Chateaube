@@ -49,7 +49,7 @@ const csvCell = (v) => {
   const t = v === null || v === undefined ? '' : typeof v === 'number' ? fr(v) : String(v);
   return /[;"\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
 };
-const csv = (lines) => `﻿${lines.map((l) => l.map(csvCell).join(';')).join('\r\n')}\r\n`;
+export const csv = (lines) => `﻿${lines.map((l) => l.map(csvCell).join(';')).join('\r\n')}\r\n`;
 
 /** Export Excel complet de la grille des moyennes (en-tête, élèves, repères de classe, légende). */
 export function averagesCsv({ title, info = [], subjects, sheet, extra = [] }) {
@@ -79,3 +79,6 @@ export function detailCsv({ title, info = [], sheet }) {
     [], ['ABS : absent · DISP : dispensé · NN : non noté'],
   ]);
 }
+
+/** Conseil du 3e trimestre (passage) : le seul où le rang apparaît, sans rien cocher. */
+export const isFinalTerm = (term) => term?.id === 'T3';

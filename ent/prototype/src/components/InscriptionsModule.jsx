@@ -1,10 +1,15 @@
 import React, { useMemo, useState } from 'react';
 import { Avatar, Badge, Button, Card, Icon, Stat } from './ui.jsx';
-import { PREREGISTRATIONS, PREREG_SOURCES, STUDENT_PROFILES, ENROLL_CLASSES, LANGUAGES, RELATIONS, NATIONALITIES } from '../data/enrollment.js';
+import { PREREGISTRATIONS, PREREG_SOURCES, ENROLL_CLASSES, LANGUAGES, RELATIONS } from '../data/enrollment.js';
 import {
   PREREG_STEPS, PREREG_OTHER, nextPreregStep, nextClass, validateProfile, accountsFor, missingDocuments, REQUIRED_DOCUMENTS,
 } from '../rules/enrollment.js';
-import { loadImport, saveImport } from '../importStore.js';
+import { loadProfiles, saveProfiles, profileKey } from '../profilesStore.js';
+import { loadRequests, updateOnlinePrereg } from '../requestsStore.js';
+import { NATIONALITY_CHOICES, nationalityLabels, toggleNationality, hasOtherNationality } from '../rules/enrollment.js';
+import { PhotoInput, DocumentThumb } from './PhotoInput.jsx';
+import { firstNames, usualFirstName } from '../rules/names.js';
+import { RequestsTab } from './FamilyRequests.jsx';
 import { seniority } from '../rules/documents.js';
 import { SPECIALTIES, SPECIALTY_COUNT } from '../rules/bulletin.js';
 import { CertificateButton } from './Certificate.jsx';
@@ -81,9 +86,11 @@ function PreregTab({ items, setItems, onConvert }) {
                   const next = nextPreregStep(p.status);
                   return (
                     <li key={p.id} className="rounded-xl bg-white p-3 text-sm shadow-soft">
-                      <p className="font-semibold text-slate-900">{p.child}</p>
+                      <p className="font-semibold text-slate-900">{p.child} {p.online && <Badge tone="violet">en ligne</Badge>}</p>
                       <p className="text-xs text-slate-500">{p.cls} demandée · reçue le {fmt(p.receivedOn)}{p.previousSchool ? ` · vient de ${p.previousSchool}` : ''}</p>
                       <p className="mt-1 text-xs text-slate-600">{p.contact} · {p.phone || p.email}{p.source ? ` · connu par : ${p.source.toLowerCase()}` : ''}</p>
+                      {p.message && <p className="mt-1 text-xs italic text-slate-600">« {p.message} »</p>}
+                      {p.documents?.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1">{p.documents.map((d, k) => <DocumentThumb key={k} doc={d} title={d.label} />)}</div>}
                       {p.interview && <p className="mt-1 text-xs text-violet-700">{p.interview}</p>}
                       {p.note && <p className="mt-1 text-xs text-amber-700">{p.note}</p>}
                       <div className="mt-2 flex flex-wrap gap-1.5">
@@ -124,9 +131,17 @@ function ProfileForm({ initial, kind, onSave, onCancel }) {
       <Card title={kind === 'REINSCRIPTION' ? `Réinscription 2027-2028 — ${p.firstName} ${p.lastName}` : kind === 'COMPLETER' ? `Compléter la fiche — ${p.firstName} ${p.lastName}` : 'Inscription — nouvelle fiche élève'}
         subtitle={kind === 'INSCRIPTION' ? 'Toutes les informations de l\'élève, réutilisées partout dans l\'ENT' : 'La fiche existante est reprise : vérifier et compléter avec la famille'}>
         <h4 className="mb-2 text-sm font-semibold text-slate-800">Identité</h4>
+        <div className="mb-3"><PhotoInput value={p.photo} onChange={(photo) => set({ photo })} /></div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="Nom">{input('lastName')}</Field>
-          <Field label="Prénom(s)">{input('firstName')}</Field>
+          <Field label="Prénom(s)">{input('firstName')}
+            {firstNames(p.firstName).length > 1 && (
+              <span className="mt-1 flex flex-wrap items-center gap-1 text-[11px] text-slate-500">Prénom d'usage :
+                {firstNames(p.firstName).map((n) => <button key={n} type="button" aria-pressed={usualFirstName(p) === n} onClick={() => set({ usualName: n })}
+                  className={`rounded-full px-2 py-0.5 font-medium ring-1 ${usualFirstName(p) === n ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-600 ring-slate-300'}`}>{n}</button>)}
+              </span>
+            )}
+          </Field>
           <Field label="Sexe">
             <select value={p.sex} onChange={(e) => set({ sex: e.target.value })} className={`w-full ${inputCls}`}><option value="F">Fille</option><option value="M">Garçon</option></select>
           </Field>
@@ -134,10 +149,10 @@ function ProfileForm({ initial, kind, onSave, onCancel }) {
           <Field label="Lieu de naissance">{input('birthPlace')}</Field>
           <Field label="Nationalité(s)" className="lg:col-span-3">
             <div className="flex flex-wrap gap-1.5">
-              {NATIONALITIES.map(([code, l]) => {
-                const on = p.nationalities.includes(code);
+              {NATIONALITY_CHOICES.map(([code, l]) => {
+                const on = code === 'XX' ? hasOtherNationality(p.nationalities) : p.nationalities.includes(code);
                 return (
-                  <button key={code} type="button" aria-pressed={on} onClick={() => set({ nationalities: on ? p.nationalities.filter((n) => n !== code) : [...p.nationalities, code] })}
+                  <button key={code} type="button" aria-pressed={on} onClick={() => set({ nationalities: toggleNationality(p.nationalities, code) })}
                     className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset ${on ? 'bg-navy-500 text-white ring-navy-500' : 'text-slate-600 ring-slate-300'}`}>{l}</button>
                 );
               })}
@@ -263,7 +278,7 @@ function ProfileCard({ p, onReenrol, onComplete, created }) {
   const missing = missingDocuments(p, 'REINSCRIPTION');
   const accounts = accountsFor(p);
   return (
-    <Card title={`${p.lastName} ${p.firstName}`} subtitle={`${p.cls} · né.e le ${fmt(p.birthDate)} à ${p.birthPlace || '—'} · ${p.nationalities.join(', ')}`}
+    <Card title={`${p.lastName} ${p.firstName}`} subtitle={`${p.cls} · né.e le ${fmt(p.birthDate)} à ${p.birthPlace || '—'} · ${nationalityLabels(p.nationalities).join(', ') || 'nationalité à renseigner'}`}
       action={(
         <span className="flex flex-wrap gap-2">
           <CertificateButton profile={p} />
@@ -272,13 +287,17 @@ function ProfileCard({ p, onReenrol, onComplete, created }) {
         </span>
       )}>
       {created && <p className="mb-3 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">Fiche enregistrée. Les comptes ci-dessous sont prêts : invitations envoyées par e-mail et dans l'application.</p>}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-[auto_1fr_1fr]">
+        {p.photo ? <img src={p.photo} alt={`Photo de ${p.firstName}`} className="h-28 w-[84px] rounded-lg object-cover" />
+          : <button type="button" onClick={() => onComplete(p)} className="flex h-28 w-[84px] items-center justify-center rounded-lg border border-dashed border-amber-400 bg-amber-50 text-center text-[11px] text-amber-800">Pas de photo<br />d'identité</button>}
         <div className="space-y-1 text-sm">
           {p.number && <p><span className="text-slate-500">N° :</span> {p.number}{p.exam ? ` · ${p.exam}` : ''}</p>}
           {(p.email || p.phones?.length > 0) && <p><span className="text-slate-500">Contact de l'élève :</span> {[p.email, ...(p.phones ?? [])].filter(Boolean).join(' · ')}</p>}
           <p><span className="text-slate-500">Entrée :</span> {fmt(p.enteredOn)} · {p.previousSchool || '—'}{' '}
             {seniority(p.enteredOn) ? <Badge tone={seniority(p.enteredOn).isNew ? 'green' : 'navy'}>{seniority(p.enteredOn).label}</Badge> : <Badge tone="amber">ancienneté à renseigner</Badge>}</p>
           {SPECIALTY_COUNT[p.cls] && <p><span className="text-slate-500">Spécialités :</span> {(p.specialties ?? []).map((k) => SPECIALTIES[k]).join(', ') || <Badge tone="amber">à choisir</Badge>}</p>}
+          {p.nextYear && <p><span className="text-slate-500">Rentrée 2027 :</span> {p.nextYear.status === 'DEPART' ? <Badge tone="amber">ne revient pas</Badge> : <Badge tone="green">réinscrit.e en {p.nextYear.cls}</Badge>}</p>}
+          {firstNames(p.firstName).length > 1 && <p><span className="text-slate-500">Prénom d'usage :</span> {usualFirstName(p)}</p>}
           <p><span className="text-slate-500">Langues :</span> {[p.lv1, p.lv2].filter(Boolean).join(', ') || '—'}</p>
           <p><span className="text-slate-500">Santé :</span> {p.health.allergies || '—'}</p>
           <p><span className="text-slate-500">Urgence :</span> {p.health.emergency || '—'}</p>
@@ -302,12 +321,12 @@ function ProfileCard({ p, onReenrol, onComplete, created }) {
         </div>
       </div>
       <FicheSection p={p} />
-      <p className="mb-1 mt-4 text-xs font-semibold text-slate-500">Comptes de l'ENT</p>
+      <p className="mb-1 mt-4 text-xs font-semibold text-slate-500">Comptes de l'ENT · un accès par responsable (deux parents = deux accès, chacun son code)</p>
       <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200 text-sm">
         {accounts.map((a) => (
           <li key={a.name + a.role} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
             <span>{a.name} <Badge tone={a.role === 'ELEVE' ? 'violet' : 'navy'}>{a.role === 'ELEVE' ? 'Élève' : 'Parent'}</Badge></span>
-            <span className="text-xs text-slate-500">{a.login ?? 'pas d\'e-mail'} · {a.method}</span>
+            <span className="text-xs text-slate-500">{a.code && <span className="mr-1 rounded bg-slate-100 px-1.5 py-0.5 font-mono font-semibold text-slate-800">{a.code}</span>}{a.login ?? a.phone ?? ''} · {a.method}</span>
           </li>
         ))}
       </ul>
@@ -315,23 +334,16 @@ function ProfileCard({ p, onReenrol, onComplete, created }) {
   );
 }
 
-const TABS = [['prereg', 'Pré-inscriptions'], ['new', 'Inscrire'], ['profiles', 'Fiches élèves']];
+const TABS = [['prereg', 'Pré-inscriptions'], ['online', 'Demandes des familles'], ['new', 'Inscrire'], ['profiles', 'Fiches élèves']];
 
-// Élèves importés (année en cours) → fiches élèves, à compléter (responsables, santé, pièces…)
-const fromImport = (s) => ({
-  id: s.id, number: s.number, lastName: s.lastName, firstName: s.firstName, sex: '', birthDate: s.birthDate, birthPlace: s.birthPlace,
-  nationalities: s.nationalities, cls: s.cls, lv1: 'Anglais', lv2: 'Espagnol', enteredOn: s.enteredOn ?? '', previousSchool: '', exam: s.exam, email: s.email, phones: s.phones, specialties: s.specialties ?? [],
-  guardians: [], health: { allergies: '', emergency: '' }, authorizations: { image: false, exit: '' }, documents: [],
-});
-const initialProfiles = () => {
-  const imp = loadImport();
-  if (imp?.profiles?.length) return imp.profiles;
-  return imp?.students?.length ? imp.students.map(fromImport) : STUDENT_PROFILES;
-};
+const initialProfiles = loadProfiles;
 
 export default function InscriptionsModule() {
   const [tab, setTab] = useState('prereg');
-  const [prereg, setPrereg] = useState(PREREGISTRATIONS);
+  const [prereg, setPreregState] = useState(() => [...loadRequests().prereg, ...PREREGISTRATIONS]);
+  // pré-inscriptions envoyées en ligne : leur avancement est gardé avec elles
+  const setPrereg = (next) => { next.filter((x) => x.online).forEach((x) => updateOnlinePrereg(x.id, { status: x.status })); setPreregState(next); };
+  const [pendingOnline] = useState(() => loadRequests().requests.filter((r) => r.status === 'A_TRAITER').length);
   const [profiles, setProfiles] = useState(initialProfiles);
   const [form, setForm] = useState(null); // { initial, kind, preregId? }
   const [selected, setSelected] = useState(() => initialProfiles()[0]?.id);
@@ -354,8 +366,7 @@ export default function InscriptionsModule() {
     const id = p.id ?? `f${Date.now()}`;
     const next = p.id ? profiles.map((x) => (x.id === p.id ? p : x)) : [...profiles, { ...p, id }];
     setProfiles(next);
-    const imp = loadImport();
-    if (imp) saveImport({ ...imp, profiles: next }); // données importées : les fiches complétées restent dans ce navigateur
+    if (!saveProfiles(next)) window.alert('Le navigateur manque de place : la fiche est modifiée pour cette session seulement.');
     if (form.preregId) setPrereg(prereg.map((x) => (x.id === form.preregId ? { ...x, status: 'INSCRITE' } : x)));
     setSelected(id); setCreated(id); setForm(null); setTab('profiles');
   };
@@ -375,11 +386,12 @@ export default function InscriptionsModule() {
       <div className="flex gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1" role="tablist">
         {TABS.map(([id, label]) => (
           <button key={id} role="tab" aria-selected={tab === id} onClick={() => { setTab(id); if (id === 'new' && !form) startNew(null); }}
-            className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium ${tab === id ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>{label}</button>
+            className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium ${tab === id ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>{label}{id === 'online' && pendingOnline > 0 && <span className="ml-1.5 rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white">{pendingOnline}</span>}</button>
         ))}
       </div>
 
       {tab === 'prereg' && <PreregTab items={prereg} setItems={setPrereg} onConvert={startNew} />}
+      {tab === 'online' && <RequestsTab profiles={profiles} onApply={(p) => { const next = profiles.map((x) => (x.id === p.id ? p : x)); setProfiles(next); saveProfiles(next); }} />}
       {tab === 'new' && form && <ProfileForm key={form.initial.id ?? form.preregId ?? 'new'} initial={form.initial} kind={form.kind} onSave={save} onCancel={() => { setForm(null); setTab('profiles'); }} />}
       {tab === 'profiles' && (
         <div className="grid gap-5 xl:grid-cols-[280px_1fr] xl:items-start">
@@ -389,7 +401,7 @@ export default function InscriptionsModule() {
               {list.map((p) => (
                 <li key={p.id}>
                   <button onClick={() => { setSelected(p.id); setCreated(null); }} className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm ${p.id === selected ? 'bg-navy-50 font-medium text-navy-900' : 'hover:bg-slate-50'}`}>
-                    <Avatar name={`${p.firstName} ${p.lastName}`} className="h-7 w-7 text-[10px]" />
+                    <Avatar name={`${p.firstName} ${p.lastName}`} photo={p.photo} className="h-7 w-7 text-[10px]" />
                     <span>{p.lastName} {p.firstName}<span className="block text-xs font-normal text-slate-500">{p.cls}{seniority(p.enteredOn) ? ` · ${seniority(p.enteredOn).isNew ? 'nouveau' : `ancien, ${seniority(p.enteredOn).years} an${seniority(p.enteredOn).years > 1 ? 's' : ''}`}` : ''}</span></span>
                   </button>
                 </li>

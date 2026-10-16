@@ -30,11 +30,25 @@
 Cinq portails distincts. Chaque personne ne voit que le sien, et les droits sont portés par le rôle (jamais par la
 personne).
 
+**Qui tient quel rôle (effectif réduit).** Une personne peut cumuler plusieurs rôles (`user_role`), sur un site ou
+les deux :
+
+| Site | Direction | Bureau | Vie scolaire |
+|---|---|---|---|
+| Tamatave | la Cheffe d'établissement, la Directrice adjointe | le bureau « fait un peu de tout » : accueil, encaissement, inscriptions… | une personne de vie scolaire certaines années ; sinon le bureau reçoit aussi le rôle Vie scolaire |
+| Tana | la même Cheffe d'établissement | l'économe | la vie scolaire |
+
+Le Bureau a déjà accès à la vie scolaire ; ajouter ou retirer le rôle Vie scolaire à une personne ne change rien
+d'autre. Tamatave n'a pas de CDI : les livres sont dans la salle d'étude / permanence (« Bibliothèque (salle d'étude) »).
+
 | Fonction | Direction (administrateur) | Bureau (administration / économat) | Vie scolaire | Enseignant | Parent |
 |---|:-:|:-:|:-:|:-:|:-:|
 | Tableau de bord de pilotage, validation des mises à pied | ✔ | — | — | — | — |
 | Paramètres (relances, calendrier, notation), gestion des agents | ✔ | — | — | — | — |
 | Encaissements, reçus, caisse, tarifs | ✔ | ✔ | — | — | son compte |
+| Liste des élèves (export Excel, trombinoscope) | ✔ | ✔ + codes d'accès des parents | ✔ | — | — |
+| Documents à signer (certificat de scolarité) | signe ou refuse | demande, imprime et tamponne, ou envoie par e-mail | demande | — | — |
+| Démarches en ligne (réinscription, mise à jour, pièces) | lecture | valide ou refuse | — | — | envoie |
 | Inscriptions, dossiers administratifs, examens | ✔ | ✔ | dossiers d'examen | — | — |
 | Grille du conseil de classe, décisions | ✔ | ✔ | — | — | — |
 | Absences, retards, notifications aux parents | ✔ | ✔ | ✔ | appel de ses cours | ses enfants (« Je suis informé.e ») |
@@ -175,8 +189,8 @@ chaque portail.
   semaine des salaires.
 - **Salaires** : état de paie validé par la Direction, paiement par le Bureau avec émargement (espèces) ou référence
   (virement) ; espèces en caisse comparées aux salaires à payer.
-- **Bibliothèque (CDI)** : prêt et retour par cote ou recherche (titre, auteur, ISBN), prolongation avec le livre,
-  retards et rappels, catalogue, étiquettes imprimables ; « Livres du CDI » dans le portail des familles.
+- **Bibliothèque (salle d'étude / permanence)** : prêt et retour par cote ou recherche (titre, auteur, ISBN), prolongation avec le livre,
+  retards et rappels, catalogue, étiquettes imprimables ; « Livres empruntés » dans le portail des familles.
 - **Bulletins** : rubriques « Engagements » (délégué, suppléant…) et « Attestations de l'établissement » (ASSR 1 et 2,
   compétences numériques) imprimées à droite des absences.
 - **Grilles de notes** : par classe, moyennes de toutes les matières ou détail des évaluations d'une matière (les
@@ -234,3 +248,33 @@ Direction.
 **Encaissement (Bureau)** : rechercher l'élève → les échéances échues sont cochées d'office, celles déjà payées sont
 grisées → ajuster (mois suivants, frais annuels) → chèque (n° + banque) ou virement (n° de bordereau + banque) ou
 espèces → un reçu par journal, envoyé au parent.
+
+
+## Familles en autonomie, liste des élèves, documents signés
+
+- **Un accès par responsable** : deux parents = deux comptes, chacun son code personnel (8 caractères, imprimé sur
+  un coupon depuis « Liste des élèves »), sa signature et ses accusés de lecture. Le même parent avec deux enfants
+  garde un seul accès. Après le code : compte Google s'il a un e-mail, sinon téléphone et mot de passe.
+- **Pré-inscription en ligne** (nouvelle famille, sans compte) : enfant, date de naissance, établissement actuel,
+  classe demandée, responsable, téléphone / WhatsApp, e-mail facultatif, « connu par », pièces en photo. Elle arrive
+  dans Inscriptions → Pré-inscriptions, marquée « en ligne ».
+- **Réinscription et mise à jour par le parent** (Plus → Réinscription / Mettre à jour nos informations) : réinscrire
+  ou annoncer un départ, photo d'identité, nationalité(s), téléphones et e-mails, santé, pièces (photo ou PDF).
+  Le bureau voit les changements (avant → après) dans « Demandes des familles », valide (la fiche est mise à jour ; la
+  classe de la rentrée est gardée à part, l'année en cours ne change pas) ou refuse avec un motif lu par le parent.
+  La place est confirmée au paiement des frais de réinscription.
+- **Photo d'identité** à l'inscription (appareil photo ou fichier, recadrée en 3 × 4) ; trombinoscope imprimable.
+- **Nationalité(s)** : Malgache, Française, Chinoise, Autre.
+- **Prénom d'usage** : choisi dans la fiche quand l'élève a plusieurs prénoms ; les grilles de notes n'affichent que
+  ce prénom (initiale du nom en cas de doublon).
+- **Liste des élèves** : par classe, recherche, export Excel complet (identité, scolarité, deux responsables, santé,
+  autorisations, pièces manquantes), impression de la liste, trombinoscope, coupons de codes d'accès.
+- **Documents à signer** : le bureau ou la vie scolaire demande (élève, signataire, papier ou e-mail) ; la Direction,
+  même absente, est prévenue et signe depuis son téléphone avec sa signature enregistrée, ou refuse avec un motif ;
+  le document revient au bureau : imprimé puis tamponné à la main, ou PDF avec le tampon numérique envoyé par
+  e-mail. Chaque document signé porte un code de vérification. La signature est une image (signature simple) :
+  elle prouve l'origine grâce au code, ce n'est pas une signature électronique qualifiée.
+- **Grilles de notes imprimées** : uniquement les moyennes et la moyenne de la classe (plus de note la plus basse
+  ou la plus haute, ni légende des professeurs, ni appréciations générales), prénom d'usage seul, rang affiché
+  automatiquement au conseil du 3e trimestre, colonnes « Avis des enseignants » et « Décision » en petits caractères.
+  Pas de professeur principal.
