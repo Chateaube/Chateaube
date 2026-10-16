@@ -34,7 +34,7 @@ personne).
 |---|:-:|:-:|:-:|:-:|:-:|
 | Tableau de bord de pilotage, validation des mises à pied | ✔ | — | — | — | — |
 | Paramètres (relances, calendrier, notation), gestion des agents | ✔ | — | — | — | — |
-| Encaissements, états de compte, caisse, tarifs | ✔ | ✔ | — | — | son compte |
+| Encaissements, reçus, caisse, tarifs | ✔ | ✔ | — | — | son compte |
 | Inscriptions, dossiers administratifs, examens | ✔ | ✔ | dossiers d'examen | — | — |
 | Grille du conseil de classe, décisions | ✔ | ✔ | — | — | — |
 | Absences, retards, notifications aux parents | ✔ | ✔ | ✔ | appel de ses cours | ses enfants (« Je suis informé.e ») |
@@ -63,7 +63,6 @@ Pilotage
 ├── Comptabilité
 │   ├── Classes & tarifs : inscription, réinscription, frais de scolarité/mois, fascicule, location (par classe)
 │   ├── Articles & services : manuel perdu/endommagé, passeport de vie scolaire, natation, tee-shirt, autre
-│   ├── États de compte : par famille, soldes séparés frais de scolarité / frais annexes / droits d'examen
 │   ├── Caisse : entrées / sorties du jour, par agent
 │   ├── Droits d'examen : encaissements, frais de dossier conservés, reversements aux centres
 │   └── Recouvrement : RELANCE → AVERTISSEMENT → MISE À PIED (validation)
@@ -127,7 +126,7 @@ Accueil ........................ encaissements du jour, chèques à déposer, é
 Encaissements & comptabilité
 ├── Encaisser : choisir l'élève → cocher les mois (échus proposés d'office, payés grisés) → espèces / chèque
 │   (n° + banque) / virement (n° de bordereau + banque) → un reçu par journal
-├── Classes & tarifs · Articles & services · États de compte · Caisse (entrées / sorties)
+├── Classes & tarifs · Articles & services · Caisse (entrées / sorties)
 ├── Droits d'examen : ventilation automatique (40 000 Ar conservés / reste à reverser), reversements
 └── Recouvrement : relances (10 j après l'échéance), avertissements (15 j après la relance), propositions de mise à pied (10 j après l'avertissement ; 5/5/5 le dernier mois) → Direction
 Inscriptions & fiches élèves ... pré-inscriptions, inscription (fiche élève → comptes ENT), réinscriptions

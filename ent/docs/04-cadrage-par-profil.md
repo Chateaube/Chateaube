@@ -26,7 +26,7 @@ Direction et de Comptabilité conditionnent les autres profils (tarifs, relances
 | A6 | Faut-il un journal des actions (qui a validé quoi, et quand) consultable à l'écran ? | oui |
 
 ## B. Bureau : administration / économat (caisse, inscriptions)
-**Écrans à parcourir :** Comptabilité (Classes & tarifs, Articles & services, États de compte, Caisse).
+**Écrans à parcourir :** Comptabilité (Classes & tarifs, Articles & services, Caisse).
 
 | # | Question | Réponse provisoire |
 |---|---|---|

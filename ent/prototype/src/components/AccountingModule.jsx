@@ -2,13 +2,13 @@ import React, { useMemo, useState } from 'react';
 import { saveFile } from '../download.js';
 import { Badge, Button, Card, Icon, Stat } from './ui.jsx';
 import {
-  JOURNALS, CLASS_FEES, FEE_COLUMNS, ARTICLES, FAMILIES, CASH_MOVEMENTS, CASH_NATURES, CASH_OPENING, CASH_HISTORY, CASH_YEAR_OPENING,
+  JOURNALS, CLASS_FEES, FEE_COLUMNS, ARTICLES, CASH_MOVEMENTS, CASH_NATURES, CASH_OPENING, CASH_HISTORY, CASH_YEAR_OPENING,
   RECEIPTS_TODAY, CASH_AUDIT, CASH_SAFE, CASH_CLOSINGS, REDUCTION_TYPES, PAYROLL, HOURLY_RATES,
 } from '../data/accounting.js';
 import CashControl, { methodText } from './CashControl.jsx';
 import Reductions from './Reductions.jsx';
 import Salaries, { cashSalariesPaid } from './Salaries.jsx';
-import { accountStatement, annualCost, cashBalance, monthlyCashReport, cashMonthCsv } from '../rules/accounting.js';
+import { annualCost, cashBalance, monthlyCashReport, cashMonthCsv } from '../rules/accounting.js';
 import { printOnly } from '../print.js';
 import { planMonths } from '../rules/calendar.js';
 import { formatAr } from '../rules/finance.js';
@@ -44,7 +44,7 @@ function FeesTab({ fees, setFees, settings, canEdit }) {
   return (
     <Card
       title="Classes & tarifs — Tamatave 2026-2027"
-      subtitle={canEdit ? 'Montants modifiables par la Direction uniquement ; ils alimentent l\'encaissement et les états de compte' : 'Consultation : seule la Direction peut modifier les classes et les tarifs'}
+      subtitle={canEdit ? 'Montants modifiables par la Direction uniquement ; ils alimentent l\'encaissement' : 'Consultation : seule la Direction peut modifier les classes et les tarifs'}
       action={
         <label className="flex items-center gap-2 text-sm text-slate-600">
           <input type="checkbox" checked={newStudent} onChange={(e) => setNewStudent(e.target.checked)} />
@@ -115,7 +115,7 @@ function ArticlesTab({ articles, setArticles, canEdit }) {
                   {canEdit && <><label className="flex items-center gap-1 text-xs text-slate-600">
                     <input type="checkbox" checked={a.active} onChange={(e) => update(a.id, { active: e.target.checked })} />actif
                   </label>
-                  <button type="button" aria-label={`Supprimer ${a.label}`} title="Supprimer l'article (les ventes déjà facturées restent sur les états de compte)"
+                  <button type="button" aria-label={`Supprimer ${a.label}`} title="Supprimer l'article (les ventes déjà facturées restent dans le journal des reçus)"
                     onClick={() => window.confirm(`Supprimer « ${a.label} » du catalogue ?\nLes ventes déjà facturées restent sur les états de compte.`) && setArticles(articles.filter((x) => x.id !== a.id))}
                     className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600"><Icon name="x" /></button></>}
                 </li>
@@ -145,89 +145,6 @@ function ArticlesTab({ articles, setArticles, canEdit }) {
       </div>
       )}
     </Card>
-  );
-}
-
-/* ---------- États de compte ---------- */
-function StatementTab({ families }) {
-  const [famId, setFamId] = useState(families[0].id);
-  const fam = families.find((f) => f.id === famId);
-  const { rows, byJournal, totals } = useMemo(() => accountStatement(fam.lines), [fam]);
-  return (
-    <div className="grid gap-5 xl:grid-cols-[1fr_340px] xl:items-start">
-      <div className="statement-print">
-      <Card
-        title={fam.name}
-        subtitle={`Payeur : ${fam.payer} · ${fam.children.map((c) => `${c.name} (${c.cls})`).join(', ')}`}
-        action={
-          <div className="flex gap-2">
-            <select value={famId} onChange={(e) => setFamId(e.target.value)} className={inputCls}>
-              {families.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-            </select>
-            <Button variant="secondary" onClick={() => printOnly('.statement-print', 'size: A4 portrait; margin: 12mm;')}>Imprimer</Button>
-          </div>
-        }
-      >
-        <div className="mb-4 grid gap-2 sm:grid-cols-3">
-          {Object.entries(JOURNALS).map(([k, j]) => {
-            const b = byJournal[k] ?? { billed: 0, paid: 0, balance: 0 };
-            return (
-              <div key={k} className="rounded-lg border border-slate-200 p-3">
-                <JournalBadge j={k} />
-                <p className={`mt-2 text-lg font-semibold tabular-nums ${b.balance > 0 ? 'text-red-700' : 'text-emerald-700'}`}>
-                  {b.balance > 0 ? formatAr(b.balance) : 'À jour'}
-                </p>
-                <p className="text-[11px] text-slate-500">Facturé {formatAr(b.billed)} · payé {formatAr(b.paid)}</p>
-              </div>
-            );
-          })}
-        </div>
-        <div className="-mx-5 overflow-x-auto">
-          <table className="w-full min-w-[680px] text-sm">
-            <thead>
-              <tr className="border-y border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
-                <th className="px-4 py-2 font-medium">Date</th>
-                <th className="px-2 py-2 font-medium">Libellé</th>
-                <th className="px-2 py-2 font-medium">Journal</th>
-                <th className="px-2 py-2 text-right font-medium">Débit</th>
-                <th className="px-2 py-2 text-right font-medium">Crédit</th>
-                <th className="px-4 py-2 text-right font-medium">Solde du journal</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => (
-                <tr key={i} className="border-b border-slate-100 last:border-0">
-                  <td className="px-4 py-2 tabular-nums text-slate-600">{fmtDate(r.date)}</td>
-                  <td className="px-2 text-slate-800">{r.label}</td>
-                  <td className="px-2"><JournalBadge j={r.journal} /></td>
-                  <td className="whitespace-nowrap px-2 text-right tabular-nums">{r.debit ? formatAr(r.debit) : ''}</td>
-                  <td className="whitespace-nowrap px-2 text-right tabular-nums text-emerald-700">{r.credit ? formatAr(r.credit) : ''}</td>
-                  <td className="whitespace-nowrap px-4 text-right font-medium tabular-nums">{formatAr(r.journalBalance)}</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="bg-slate-50 font-semibold">
-                <td className="px-4 py-2" colSpan={3}>Total</td>
-                <td className="whitespace-nowrap px-2 text-right tabular-nums">{formatAr(totals.billed)}</td>
-                <td className="whitespace-nowrap px-2 text-right tabular-nums text-emerald-700">{formatAr(totals.paid)}</td>
-                <td className={`whitespace-nowrap px-4 text-right tabular-nums ${totals.balance > 0 ? 'text-red-700' : 'text-emerald-700'}`}>{formatAr(totals.balance)}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </Card>
-      </div>
-      <Card title="À quoi sert l'état de compte ?">
-        <ul className="list-disc space-y-1.5 pl-4 text-sm text-slate-600">
-          <li>C'est le <strong>relevé de la famille</strong>, tous enfants confondus : ce qui a été facturé, ce qui a été payé et ce qui reste dû, journal par journal.</li>
-          <li>Il répond aux questions des parents (« qu'avons-nous déjà payé ? ») : on l'imprime ou on l'envoie, la famille le voit aussi dans son compte.</li>
-          <li>Il sert de preuve en cas de désaccord, avant une relance, un avertissement ou une mise à pied.</li>
-          <li>En fin d'année, il permet de solder les comptes : familles à jour, impayés à reporter.</li>
-        </ul>
-        <p className="mt-3 rounded-lg bg-slate-50 p-2.5 text-xs text-slate-600">On n'y saisit rien : les paiements se font dans « Encaisser », en entier et avec un ticket. Les lignes de l'état de compte en découlent automatiquement.</p>
-      </Card>
-    </div>
   );
 }
 
@@ -386,14 +303,13 @@ function CashTab({ movements, setMovements }) {
   );
 }
 
-const TABS = [['collect', 'Encaisser'], ['receipts', 'Reçus & clôture'], ['fees', 'Classes & tarifs'], ['articles', 'Articles & services'], ['reductions', 'Réductions'], ['salaries', 'Salaires'], ['statements', 'États de compte'], ['cash', 'Caisse : entrées / sorties']];
+const TABS = [['collect', 'Encaisser'], ['receipts', 'Reçus & clôture'], ['fees', 'Classes & tarifs'], ['articles', 'Articles & services'], ['reductions', 'Réductions'], ['salaries', 'Salaires'], ['cash', 'Caisse : entrées / sorties']];
 
 export default function AccountingModule({ settings, role }) {
   const canEdit = role === 'DIRECTION'; // classes, tarifs, articles et services : Direction uniquement
   const [tab, setTab] = useState('collect');
   const [fees, setFees] = useState(CLASS_FEES);
   const [articles, setArticles] = useState(ARTICLES);
-  const [families] = useState(FAMILIES);
   const [movements, setMovements] = useState(CASH_MOVEMENTS);
   const [accounts, setAccounts] = useState(CASH_ACCOUNTS);
   const [receipts, setReceipts] = useState(RECEIPTS_TODAY);
@@ -438,7 +354,6 @@ export default function AccountingModule({ settings, role }) {
       {tab === 'reductions' && <Reductions canEdit={canEdit} actor={actor} types={reductionTypes} setTypes={setReductionTypes} accounts={accounts} setAccounts={setAccounts} />}
       {tab === 'fees' && <FeesTab fees={fees} setFees={setFees} settings={settings} canEdit={canEdit} />}
       {tab === 'articles' && <ArticlesTab articles={articles} setArticles={setArticles} canEdit={canEdit} />}
-      {tab === 'statements' && <StatementTab families={families} />}
       {tab === 'cash' && <CashTab movements={movements} setMovements={setMovements} />}
     </div>
   );
