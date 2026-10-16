@@ -17,7 +17,7 @@ import { ENGAGEMENTS, ATTESTATIONS, engagementLabels, attestationLabels, engagem
 // Engagements de démonstration (délégués, suppléants…)
 const DEMO_ENGAGEMENTS = {
   'RAKOTOARISOA Aina': ['DELEGUE'], 'RAZAFY Kanto': ['SUPPLEANT'], 'RAMAROSON Fitia': ['ECO_DELEGUE'],
-  'RANDRIA Mamy': ['DELEGUE', 'CVL', 'NUMERIQUE'], 'RAZAFINDRATSIMA Volana': ['SUPPLEANT'], 'RABEMANANTSOA Fitia': ['PSC1'],
+  'RANDRIA Mamy': ['DELEGUE', 'BDE_PRESIDENT', 'NUMERIQUE'], 'RAZAFINDRATSIMA Volana': ['SUPPLEANT'], 'RABEMANANTSOA Fitia': ['PSC1'],
 };
 
 // Bulletins du trimestre (Direction, Bureau) : une page A4 par élève, selon la matrice de l'établissement.

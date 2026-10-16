@@ -1396,7 +1396,7 @@ CREATE TABLE payroll_line (
 -- =====  ENGAGEMENTS DE L'ÉLÈVE (bulletin, livret, Parcoursup)  =====
 -- Élèves candidats libres, sans livret scolaire : le bulletin porte les engagements et les
 -- attestations de l'établissement (internes, non officielles : ASSR 1 et 2, compétences numériques).
-CREATE TYPE engagement_code AS ENUM ('DELEGUE', 'SUPPLEANT', 'ECO_DELEGUE', 'CVL', 'CVC', 'TUTEUR', 'SPORT', 'PSC1',
+CREATE TYPE engagement_code AS ENUM ('DELEGUE', 'SUPPLEANT', 'ECO_DELEGUE', 'BDE', 'BDE_PRESIDENT', 'TUTEUR', 'SPORT', 'PSC1',
   'ASSR1', 'ASSR2', 'NUMERIQUE');
 CREATE TABLE student_engagement (
   enrollment_id uuid REFERENCES enrollment(id),

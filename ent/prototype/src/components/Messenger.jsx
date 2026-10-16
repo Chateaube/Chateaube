@@ -1,9 +1,25 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Avatar, Button, Icon } from './ui.jsx';
-import { THREADS, RECIPIENTS } from '../data/messages.js';
+import { THREADS, RECIPIENTS, RECIPIENT_GROUPS, broadcastSize } from '../data/messages.js';
 
-// Messagerie de l'ENT, pour tous les profils : texte et photos (appareil photo du téléphone ou
-// galerie). Les messages arrivent dans l'application et par e-mail ; pas de SMS.
+// Messagerie de l'ENT, pour tous les profils et dans tous les sens : professeurs ↔ élèves,
+// professeurs ↔ parents, professeurs ↔ collègues, familles ↔ établissement ; une classe entière
+// en un envoi (réponses en privé). Texte et photos ; application et e-mail, pas de SMS.
+// Téléphone : liste des conversations puis la conversation en plein écran ; ordinateur : côte à côte.
+
+const keyOf = (audience) => (['PARENT', 'ELEVE', 'TEACHER'].includes(audience) ? audience : audience === 'ENSEIGNANT' ? 'TEACHER' : 'STAFF');
+function useNarrow() {
+  const q = '(max-width: 1023px)';
+  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.matchMedia?.(q).matches);
+  useEffect(() => {
+    const m = window.matchMedia?.(q);
+    if (!m) return undefined;
+    const on = () => setNarrow(m.matches);
+    m.addEventListener('change', on);
+    return () => m.removeEventListener('change', on);
+  }, []);
+  return narrow;
+}
 
 const DEMO_PHOTOS = { ticket: 'Photo : ticket du taxi-be', id: 'Photo : pièce d\'identité' };
 const time = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)} ${iso.slice(11, 16)}`;
@@ -16,8 +32,10 @@ function Photo({ photo }) {
   return <img src={photo} alt="Photo jointe" className="mt-1.5 max-h-48 rounded-lg object-cover" />;
 }
 
-export default function Messenger({ audience, compact = false, me = 'Moi' }) {
-  const key = audience === 'PARENT' || audience === 'ELEVE' ? audience : 'STAFF';
+export default function Messenger({ audience, compact: forceCompact = false, me = 'Moi' }) {
+  const key = keyOf(audience);
+  const narrow = useNarrow();
+  const compact = forceCompact || narrow;
   const [threads, setThreads] = useState(THREADS[key]);
   const [openId, setOpenId] = useState(compact ? null : THREADS[key][0]?.id);
   const [text, setText] = useState('');
@@ -36,7 +54,7 @@ export default function Messenger({ audience, compact = false, me = 'Moi' }) {
     if (!msgs.length) return;
     if (newTo) {
       const id = `n${Date.now()}`;
-      setThreads([{ id, with: newTo, about: 'Nouveau message', unread: 0, messages: msgs }, ...threads]);
+      setThreads([{ id, with: newTo, about: 'Nouveau message', unread: 0, broadcast: broadcastSize(newTo) || undefined, messages: msgs }, ...threads]);
       setOpenId(id); setNewTo(null);
     } else {
       setThreads(threads.map((t) => (t.id === openId ? { ...t, messages: [...t.messages, ...msgs] } : t)));
@@ -78,10 +96,11 @@ export default function Messenger({ audience, compact = false, me = 'Moi' }) {
         {newTo ? (
           <label className="flex-1 text-xs text-slate-600">À
             <select value={newTo} onChange={(e) => setNewTo(e.target.value)} className="mt-0.5 block w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm">
-              {RECIPIENTS[key].map((r) => <option key={r}>{r}</option>)}
+              {RECIPIENT_GROUPS[key].map(([g, list]) => <optgroup key={g} label={g}>{list.map((r) => <option key={r}>{r}</option>)}</optgroup>)}
             </select>
+            {broadcastSize(newTo) > 0 && <span className="mt-1 block text-[11px] text-navy-700">Envoyé à {broadcastSize(newTo)} destinataires ; les réponses arrivent en privé.</span>}
           </label>
-        ) : (<><Avatar name={open.with} className="h-8 w-8 text-[11px]" /><span className="min-w-0"><span className="block truncate text-sm font-semibold">{open.with}</span><span className="text-xs text-slate-500">{open.about}</span></span></>)}
+        ) : (<><Avatar name={open.with} className="h-8 w-8 text-[11px]" /><span className="min-w-0"><span className="block truncate text-sm font-semibold">{open.with}</span><span className="text-xs text-slate-500">{open.about}{open.broadcast ? ` · envoyé à ${open.broadcast} destinataires` : ''}</span></span></>)}
       </div>
       <ol className="flex-1 space-y-2 overflow-y-auto p-3">
         {(open?.messages ?? []).map((m, i) => (
@@ -122,4 +141,4 @@ export default function Messenger({ audience, compact = false, me = 'Moi' }) {
   return <div className="grid gap-4 lg:grid-cols-[320px_1fr]">{list}{thread || <div className="rounded-2xl bg-slate-50 p-6 text-sm text-slate-500">Choisissez une conversation.</div>}</div>;
 }
 
-export const unreadCount = (audience) => (THREADS[audience === 'PARENT' || audience === 'ELEVE' ? audience : 'STAFF'] ?? []).reduce((s, t) => s + t.unread, 0);
+export const unreadCount = (audience) => (THREADS[keyOf(audience)] ?? []).reduce((s, t) => s + t.unread, 0);

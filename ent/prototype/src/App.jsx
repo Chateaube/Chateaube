@@ -16,6 +16,7 @@ import FamilyPortal from './components/FamilyPortal.jsx';
 import InscriptionsModule from './components/InscriptionsModule.jsx';
 import ManualsModule from './components/ManualsModule.jsx';
 import LibraryModule from './components/LibraryModule.jsx';
+import GradeSheets from './components/GradeSheets.jsx';
 import AttendanceModule from './components/AttendanceModule.jsx';
 import FeedbackModule, { FeedbackButton } from './components/Feedback.jsx';
 import TeacherOversight from './components/TeacherOversight.jsx';
@@ -43,16 +44,17 @@ const OVERSIGHT = [
   { id: 'oversight-grades', label: 'Notes & appréciations (profs)', icon: 'pen', screen: (p) => <TeacherOversight {...p} view="grades" /> },
   { id: 'oversight-homework', label: 'Cahier de textes (profs)', icon: 'calendar', screen: (p) => <TeacherOversight {...p} view="homework" /> },
 ];
-const MESSAGES = { id: 'messages', label: 'Messages', icon: 'bell', screen: () => (
+const MESSAGES = { id: 'messages', label: 'Messages', icon: 'bell', screen: ({ role }) => (
   <div className="space-y-4">
-    <div><p className="text-sm font-semibold text-navy-500">Texte et photos · application et e-mail</p><h1 className="text-2xl font-semibold text-navy-900">Messages</h1></div>
-    <Messenger audience="STAFF" />
+    <div><p className="text-sm font-semibold text-navy-500">Professeurs, élèves, parents et personnel · texte et photos</p><h1 className="text-2xl font-semibold text-navy-900">Messages</h1></div>
+    <Messenger audience={role === 'ENSEIGNANT' ? 'TEACHER' : 'STAFF'} />
   </div>
 ) };
 const MANUALS = { id: 'manuals', label: 'Manuels scolaires', icon: 'cap', screen: ManualsModule };
 const FEEDBACK = { id: 'feedback', label: 'Avis du pilote', icon: 'bell', screen: FeedbackModule };
 const LIBRARY = { id: 'library', label: 'Bibliothèque (CDI)', icon: 'pen', screen: LibraryModule };
 const IMPORT = { id: 'import', label: 'Importer des données (Excel)', icon: 'swap', screen: ImportModule };
+const GRADE_SHEETS = { id: 'grade-sheets', label: 'Grilles de notes', icon: 'pen', screen: GradeSheets };
 const FOLLOW_UP = { id: 'followup', label: 'Documents, stages & orientation', icon: 'pen', screen: FollowUpModule };
 
 const PROFILES = {
@@ -73,6 +75,7 @@ const PROFILES = {
       { group: 'Pédagogie', items: [
         COUNCIL,
         BULLETINS,
+        GRADE_SHEETS,
         ...OVERSIGHT,
         { id: 'timetable', label: 'Emplois du temps', icon: 'clock' },
         BOOKING,
@@ -96,25 +99,24 @@ const PROFILES = {
     title: 'Administration / économat',
     home: 'bureau',
     nav: [
-      { group: 'Bureau', items: [
-        { id: 'bureau', label: 'Accueil', icon: 'home', screen: BureauHome },
+      { group: 'Caisse', items: [
+        { id: 'bureau', label: 'Accueil du bureau', icon: 'home', screen: BureauHome },
         { id: 'accounting', label: 'Encaissements & comptabilité', icon: 'wallet', screen: AccountingModule },
-        INSCRIPTIONS,
-        MANUALS,
-        LIBRARY,
-        IMPORT,
-        COUNCIL,
-        BULLETINS,
-        ...OVERSIGHT,
       ] },
-      { group: 'Accès partagé', items: [MESSAGES, VIE_SCOLAIRE, FOLLOW_UP, BOOKING] },
+      { group: 'Élèves', items: [INSCRIPTIONS, MANUALS, LIBRARY, IMPORT] },
+      { group: 'Notes & bulletins', items: [COUNCIL, BULLETINS, GRADE_SHEETS, ...OVERSIGHT] },
+      { group: 'Vie scolaire & messages', items: [MESSAGES, VIE_SCOLAIRE, FOLLOW_UP, BOOKING] },
     ],
   },
   VIE_SCOLAIRE: {
     label: 'Vie scol.',
     title: 'Vie scolaire',
     home: 'vs',
-    nav: [{ group: 'Vie scolaire', items: [VIE_SCOLAIRE, MESSAGES, FOLLOW_UP, BOOKING, { id: 'news', label: 'Annonces', icon: 'megaphone' }] }],
+    nav: [
+      { group: 'Au quotidien', items: [VIE_SCOLAIRE, FOLLOW_UP] },
+      { group: 'Ressources', items: [BOOKING, LIBRARY] },
+      { group: 'Communication', items: [MESSAGES, { id: 'news', label: 'Annonces', icon: 'megaphone' }] },
+    ],
   },
   ENSEIGNANT: {
     label: 'Enseignant',
@@ -126,6 +128,7 @@ const PROFILES = {
         { id: 'appel', label: 'Appel', icon: 'check', screen: AttendanceModule },
         { id: 'grades', label: 'Notes & appréciations', icon: 'pen', screen: GradebookModule },
         { id: 'homework', label: 'Cahier de textes', icon: 'calendar', screen: HomeworkModule },
+        GRADE_SHEETS,
         { id: 'discipline', label: 'Punitions & téléphones', icon: 'alert', screen: VieScolaireModule },
         BOOKING,
       ] },

@@ -305,7 +305,7 @@ recoder.
   En espèces, émargement obligatoire du salarié et sortie de caisse « Salaires » ; par virement, référence obligatoire
   (T38). Pendant la « semaine des salaires » (dernière semaine de cours du mois, jusqu'au paiement), pas de rappel de
   versement en banque.
-- **`student_engagement`** : engagements imprimés sur le bulletin (délégué, suppléant, éco-délégué, élu CVL/CVC, tuteur,
+- **`student_engagement`** : engagements imprimés sur le bulletin (délégué, suppléant, éco-délégué, membre ou président(e) du Bureau des élèves (BDE), tuteur,
   équipe sportive, PSC1) et attestations internes de l'établissement (sécurité routière niveaux 1 et 2 sur le modèle
   ASSR, compétences numériques sur le modèle Pix / B2i). Les élèves étant candidats libres, sans livret scolaire, le
   bulletin est le seul document qui les montre. Au plus 2 délégués et 2 suppléants par classe (T39).

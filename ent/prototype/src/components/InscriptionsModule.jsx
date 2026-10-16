@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Avatar, Badge, Button, Card, Icon, Stat } from './ui.jsx';
-import { PREREGISTRATIONS, STUDENT_PROFILES, ENROLL_CLASSES, LANGUAGES, RELATIONS, NATIONALITIES } from '../data/enrollment.js';
+import { PREREGISTRATIONS, PREREG_SOURCES, STUDENT_PROFILES, ENROLL_CLASSES, LANGUAGES, RELATIONS, NATIONALITIES } from '../data/enrollment.js';
 import {
   PREREG_STEPS, PREREG_OTHER, nextPreregStep, nextClass, validateProfile, accountsFor, missingDocuments, REQUIRED_DOCUMENTS,
 } from '../rules/enrollment.js';
@@ -41,25 +41,30 @@ function PreregTab({ items, setItems, onConvert }) {
         <Stat label="Liste d'attente" value={items.filter((p) => p.status === 'ATTENTE').length} tone="red" />
       </div>
       <div className="flex justify-end">
-        <Button onClick={() => setDraft({ child: '', birthDate: '', cls: '6e', previousSchool: '', contact: '', phone: '', email: '', source: 'Bouche-à-oreille' })}>＋ Nouvelle pré-inscription</Button>
+        <Button onClick={() => setDraft({ child: '', cls: '6e', previousSchool: '', contact: '', phone: '', source: 'Bouche-à-oreille' })}>＋ Nouvelle pré-inscription</Button>
       </div>
       {draft && (
         <Card title="Nouvelle pré-inscription" subtitle="Premier contact d'une famille : une fiche légère, complétée à l'inscription">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {[['child', 'Nom et prénom de l\'enfant'], ['birthDate', 'Date de naissance', 'date'], ['previousSchool', 'Établissement actuel'], ['contact', 'Responsable'],
-              ['phone', 'Téléphone / WhatsApp'], ['email', 'E-mail'], ['source', 'Connu par']].map(([k, l, type]) => (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {[['child', 'Nom et prénom de l\'enfant'], ['previousSchool', 'Établissement actuel de l\'enfant'], ['contact', 'Responsable'], ['phone', 'Téléphone / WhatsApp', 'tel']].map(([k, l, type]) => (
               <label key={k} className="text-xs text-slate-600">{l}
-                <input type={type ?? 'text'} value={draft[k]} onChange={(e) => setDraft({ ...draft, [k]: e.target.value })} className={`mt-1 w-full ${inputCls}`} />
+                <input type={type ?? 'text'} inputMode={type === 'tel' ? 'tel' : undefined} value={draft[k]} onChange={(e) => setDraft({ ...draft, [k]: e.target.value })} className={`mt-1 w-full ${inputCls}`} />
               </label>
             ))}
+            <label className="text-xs text-slate-600">Connu par
+              <select value={draft.source} onChange={(e) => setDraft({ ...draft, source: e.target.value })} className={`mt-1 w-full ${inputCls}`}>
+                {PREREG_SOURCES.map((x) => <option key={x}>{x}</option>)}
+              </select>
+            </label>
             <label className="text-xs text-slate-600">Classe demandée
               <select value={draft.cls} onChange={(e) => setDraft({ ...draft, cls: e.target.value })} className={`mt-1 w-full ${inputCls}`}>
                 {ENROLL_CLASSES.map((c) => <option key={c}>{c}</option>)}
               </select>
             </label>
           </div>
+          <p className="mt-2 text-xs text-slate-500">Le reste (date de naissance, e-mail, pièces, santé…) se complète à l'inscription.</p>
           <div className="mt-3 flex gap-2">
-            <Button disabled={!draft.child.trim() || !(draft.phone.trim() || draft.email.trim())}
+            <Button disabled={!draft.child.trim() || !draft.contact.trim() || !draft.phone.trim()}
               onClick={() => { setItems([{ ...draft, id: `p${Date.now()}`, receivedOn: '2026-10-13', status: 'DEMANDE' }, ...items]); setDraft(null); }}>Enregistrer</Button>
             <Button variant="secondary" onClick={() => setDraft(null)}>Annuler</Button>
           </div>
@@ -77,8 +82,8 @@ function PreregTab({ items, setItems, onConvert }) {
                   return (
                     <li key={p.id} className="rounded-xl bg-white p-3 text-sm shadow-soft">
                       <p className="font-semibold text-slate-900">{p.child}</p>
-                      <p className="text-xs text-slate-500">{p.cls} · né.e le {fmt(p.birthDate)} · reçue le {fmt(p.receivedOn)}</p>
-                      <p className="mt-1 text-xs text-slate-600">{p.contact} · {p.phone || p.email}</p>
+                      <p className="text-xs text-slate-500">{p.cls} demandée · reçue le {fmt(p.receivedOn)}{p.previousSchool ? ` · vient de ${p.previousSchool}` : ''}</p>
+                      <p className="mt-1 text-xs text-slate-600">{p.contact} · {p.phone || p.email}{p.source ? ` · connu par : ${p.source.toLowerCase()}` : ''}</p>
                       {p.interview && <p className="mt-1 text-xs text-violet-700">{p.interview}</p>}
                       {p.note && <p className="mt-1 text-xs text-amber-700">{p.note}</p>}
                       <div className="mt-2 flex flex-wrap gap-1.5">
@@ -337,8 +342,8 @@ export default function InscriptionsModule() {
     const base = emptyProfile();
     if (from) {
       const [last, ...first] = from.child.split(' ');
-      base.lastName = last; base.firstName = first.join(' '); base.birthDate = from.birthDate; base.cls = from.cls; base.previousSchool = from.previousSchool;
-      base.guardians = [{ ...emptyGuardian(), name: from.contact, relation: /^M\.? /.test(from.contact) ? 'Père' : 'Mère', phone: from.phone, email: from.email, payer: true }];
+      base.lastName = last; base.firstName = first.join(' '); base.birthDate = from.birthDate ?? ''; base.cls = from.cls; base.previousSchool = from.previousSchool;
+      base.guardians = [{ ...emptyGuardian(), name: from.contact, relation: /^M\.? /.test(from.contact) ? 'Père' : 'Mère', phone: from.phone, email: from.email ?? '', whatsapp: true, payer: true }];
     }
     setForm({ initial: base, kind: 'INSCRIPTION', preregId: from?.id });
     setTab('new');

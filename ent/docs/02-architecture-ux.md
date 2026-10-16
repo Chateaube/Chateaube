@@ -180,6 +180,15 @@ chaque portail.
   retards et rappels, catalogue, étiquettes imprimables ; « Livres du CDI » dans le portail des familles.
 - **Bulletins** : rubriques « Engagements » (délégué, suppléant…) et « Attestations de l'établissement » (ASSR 1 et 2,
   compétences numériques) imprimées à droite des absences.
+- **Grilles de notes** : par classe, moyennes de toutes les matières ou détail des évaluations d'une matière (les
+  enseignants : leurs matières) ; impression A4 paysage du seul tableau ; export Excel complet (repères de classe, rang,
+  professeurs, légende). Même fiche imprimée au conseil de classe, avec absences, avis, décisions et appréciations.
+- **Messagerie** : dans tous les sens (professeurs ↔ élèves, professeurs ↔ parents, collègues, établissement), envoi à
+  toute une classe avec réponses en privé ; liste puis conversation sur téléphone, côte à côte sur ordinateur.
+- **Menus** : Bureau (Caisse · Élèves · Notes & bulletins · Vie scolaire & messages) ; Vie scolaire (Au quotidien ·
+  Ressources · Communication).
+- **Pré-inscription** : fiche légère (enfant, établissement actuel, responsable, téléphone / WhatsApp, connu par, classe
+  demandée), complétée à l'inscription.
 - **Appel (enseignant)** : page dédiée, pensée pour le téléphone. Toutes les séances de la semaine, toutes classes
   confondues, par jour ou par classe ; la séance en cours est proposée d'office, les appels oubliés sont signalés.
   Présent par défaut, gros boutons Présent / Retard (5, 10, 15, 20 min et +) / Absent, compteurs, recherche ; parents

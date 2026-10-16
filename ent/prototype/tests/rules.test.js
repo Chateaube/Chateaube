@@ -769,3 +769,17 @@ test('appel : état des séances selon l\'heure et bilan', async () => {
   assert.equal(t.present, 2);
   assert.deepEqual([t.absent, t.late], [['B'], ['C']]);
 });
+
+test('grilles de notes : rangs, matières non suivies, export complet', async () => {
+  const g = await import('../src/rules/gradeSheet.js');
+  assert.deepEqual(g.ranks([12, 15, null, 15]), [3, 1, null, 1]);
+  const subjects = [{ id: 'A', label: 'Maths', inAverage: true }, { id: 'B', label: 'SVT', inAverage: true }];
+  const sheet = g.averagesSheet({ subjects, rows: [{ name: 'X', avgs: { A: 12, B: undefined } }, { name: 'Y', avgs: { A: 14, B: 10 } }] });
+  assert.equal(sheet.rows[0].general, 12, 'spécialité non suivie hors moyenne');
+  assert.equal(sheet.stats.B.avg, 10);
+  const out = g.averagesCsv({ title: 'Grille', subjects, sheet });
+  assert.ok(out.includes('non suivie') && out.includes('Moyenne de la classe') && out.includes('Rang'));
+  const d = g.detailSheet({ evaluations: [{ id: 'e1', title: 'DS', date: '2026-10-01', scale: 20, coef: 1 }], students: ['X', 'Y'], grades: { X: { e1: '15' }, Y: { e1: 'ABS' } } });
+  assert.equal(d.evStats[0].avg, 15);
+  assert.equal(g.cellText(d.rows[1].cells[0]), 'ABS');
+});

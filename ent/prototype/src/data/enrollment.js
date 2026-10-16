@@ -43,6 +43,8 @@ export const STUDENT_PROFILES = [
   },
 ];
 
+// Comment la famille a connu l'école (pré-inscription)
+export const PREREG_SOURCES = ['Bouche-à-oreille', 'Fratrie déjà scolarisée', 'Ami / proche de l\'établissement', 'Réseaux sociaux (Facebook…)', 'Site internet', 'Journée portes ouvertes', 'Passage devant l\'école', 'Autre'];
 export const ENROLL_CLASSES = ['6e', '5e', '4e', '3e', '2de', '1re Générale', '1re STMG', 'Terminale Générale', 'Terminale STMG'];
 // LV1 Anglais et LV2 Espagnol pour tous les élèves
 export const LANGUAGES = { lv1: ['Anglais'], lv2: ['Espagnol'] };

@@ -1,5 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { saveFile } from '../download.js';
+import { printOnly } from '../print.js';
+import { AveragesSheet, classAverages } from './GradeSheets.jsx';
+import { averagesSheet, averagesCsv } from '../rules/gradeSheet.js';
 import { Badge, Button, Card, Icon, Stat, StudentSelect } from './ui.jsx';
 import { RulePanel } from './gradeUi.jsx';
 import { TERM, EVALUATIONS, GRADES, CLASS_SUBJECTS, OTHER_AVERAGES, OTHER_FLAGS, COUNCIL_FLAGS, ABSENCES } from '../data/grades.js';
@@ -53,16 +56,23 @@ export default function CouncilGrid({ settings, role, go }) {
   const written = CLASS_LIST.filter((n) => checkAppreciation(appreciations[n] ?? '').ok).length;
   const flagText = (r) => r.flags.map((f) => `${f.subject} : ${FLAG[f.flag].label}`).join(' / ');
 
+  // Grille imprimable et export Excel : mêmes données, complètes (repères de classe, rang, absences,
+  // avis, décision, appréciation générale, professeurs)
+  const avgData = classAverages('1re STMG', excluded);
+  const sheet = averagesSheet(avgData);
+  const extra = [
+    { label: 'Abs. (½ j)', value: (r) => (ABSENCES[r.name] ? `${ABSENCES[r.name].justified ?? 0} J / ${ABSENCES[r.name].unjustified ?? 0} NJ` : '0') },
+    { label: 'Retards', value: (r) => ABSENCES[r.name]?.late ?? 0 },
+    { label: 'Avis des enseignants', value: (r) => flagText(rows.find((x) => x.name === r.name)) },
+    { label: 'Décision', value: (r) => DECISION[decisions[r.name] ?? rows.find((x) => x.name === r.name).proposal]?.label.replace('—', '').trim() ?? '' },
+  ];
   const exportCsv = () => {
-    const csv = councilCsv({
-      className: '1re STMG', term: TERM.label,
-      subjects: CLASS_SUBJECTS.map((s) => ({ label: s.label, inAverage: !excluded.includes(s.id) })),
-      rows: rows.map((r) => ({
-        name: r.name, subjects: r.subjects, general: r.general, abs: r.abs?.abs ?? 0, late: r.abs?.late ?? 0,
-        flags: flagText(r), decision: DECISION[decisions[r.name] ?? r.proposal]?.label.replace('—', '') ?? '', appreciation: appreciations[r.name] ?? '',
-      })),
-    });
-    saveFile('conseil-1re-STMG-T1.csv', csv);
+    saveFile('conseil-1re-STMG-T1.csv', averagesCsv({
+      title: `Conseil de classe — 1re STMG — ${TERM.label}`,
+      info: [`Conseil le ${TERM.council} · professeure principale : Mme Ranaivo`, `Moyenne générale de la classe : ${fmtAvg(sheet.general.avg)}`],
+      subjects: avgData.subjects, sheet,
+      extra: [...extra, { label: 'Appréciation générale', value: (r) => appreciations[r.name] ?? '' }],
+    }));
   };
 
   return (
@@ -77,7 +87,7 @@ export default function CouncilGrid({ settings, role, go }) {
           <label className="flex items-center gap-1.5 text-sm text-slate-600"><input type="checkbox" checked={finalTerm} onChange={(e) => setFinalTerm(e.target.checked)} />Conseil du 3e trimestre (passage)</label>
           <label className="flex items-center gap-1.5 text-sm text-slate-600"><input type="checkbox" checked={showRank} onChange={(e) => setShowRank(e.target.checked)} />Afficher le rang</label>
           <Button variant="secondary" onClick={exportCsv}>Exporter (Excel)</Button>
-          <Button variant="secondary" onClick={() => window.print()}>Imprimer / afficher</Button>
+          <Button variant="secondary" onClick={() => printOnly('.council-print', 'size: A4 landscape; margin: 8mm;')}>Imprimer la grille</Button>
           <Button variant="secondary" onClick={() => go?.('bulletins')}>Bulletins</Button>
         </div>
       </div>
@@ -218,16 +228,16 @@ export default function CouncilGrid({ settings, role, go }) {
         <Card title="Contrôleur de rédaction"><RulePanel result={appCheck} /></Card>
       </div>}
 
-      {/* Récapitulatif imprimé sous la grille */}
-      <section className="hidden print:block">
-        <h2 className="mb-2 text-sm font-semibold">Appréciations générales et décisions</h2>
-        {rows.map((r) => (
-          <p key={r.name} className="mb-1 text-[10px]">
-            <b>{r.name}</b>{(decisions[r.name] ?? r.proposal) && <> · Décision : {DECISION[decisions[r.name] ?? r.proposal].label}</>}
-            {' · '}Appréciation : {appreciations[r.name] || <span className="text-slate-400">à rédiger</span>}
-          </p>
-        ))}
-      </section>
+      {/* Grille imprimée : uniquement les données (A4 paysage), décisions et appréciations générales */}
+      <div className="council-print hidden">
+        <AveragesSheet cls="1re STMG" subjects={avgData.subjects} sheet={sheet} showRank={showRank} extra={extra}
+          footer={(
+            <div className="mt-3" style={{ breakBefore: 'auto' }}>
+              <p className="mb-1 text-[11px] font-bold">Appréciations générales</p>
+              {rows.map((r) => <p key={r.name} className="mb-0.5 text-[9.5px]"><b>{r.name}</b> : {appreciations[r.name] || '—'}</p>)}
+            </div>
+          )} />
+      </div>
     </div>
   );
 }
