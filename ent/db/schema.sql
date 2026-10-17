@@ -1920,3 +1920,50 @@ SELECT t.id AS textbook_id, t.site_id, t.title, eff.effectif,
                    ELSE eff.effectif - coalesce(loans.sold, 0) - coalesce(stock.good, 0) END) AS to_order
 FROM textbook t JOIN eff ON eff.textbook_id = t.id
 LEFT JOIN stock ON stock.textbook_id = t.id LEFT JOIN loans ON loans.textbook_id = t.id;
+
+-- Examens blancs (3e, 1re, Terminale) : épreuves notées sur 20 avec les coefficients de l'examen.
+CREATE TABLE mock_exam (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  class_id      uuid NOT NULL REFERENCES school_class(id),
+  kind          text NOT NULL CHECK (kind IN ('DNB', 'EAF', 'BAC_G', 'BAC_STMG')),
+  title         text NOT NULL,
+  held_on       date NOT NULL,
+  created_by    uuid NOT NULL REFERENCES app_user(id)
+);
+CREATE TABLE mock_exam_part (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  mock_exam_id  uuid NOT NULL REFERENCES mock_exam(id) ON DELETE CASCADE,
+  code          text NOT NULL,                          -- PHI, SPE1, GO, FR_E…
+  label         text NOT NULL,
+  coef          numeric(4,1) NOT NULL CHECK (coef > 0),
+  UNIQUE (mock_exam_id, code)
+);
+CREATE TABLE mock_exam_mark (
+  part_id       uuid REFERENCES mock_exam_part(id) ON DELETE CASCADE,
+  enrollment_id uuid REFERENCES enrollment(id),
+  mark          numeric(4,2) CHECK (mark BETWEEN 0 AND 20),
+  absent        boolean NOT NULL DEFAULT false,         -- absent : compté 0
+  PRIMARY KEY (part_id, enrollment_id),
+  CHECK (absent = (mark IS NULL))
+);
+-- Notes OFFICIELLES (épreuves anticipées de français passées en 1re) : base de la projection au bac.
+CREATE TABLE official_exam_mark (
+  student_id    uuid REFERENCES student(id),
+  session_year  smallint NOT NULL,
+  code          text NOT NULL CHECK (code IN ('FR_E', 'FR_O')),
+  mark          numeric(4,2) NOT NULL CHECK (mark BETWEEN 0 AND 20),
+  PRIMARY KEY (student_id, code)
+);
+-- Relevé : points, coefficients notés et total, moyenne (absent = 0), complet ou non.
+CREATE VIEW v_mock_exam_result AS
+SELECT x.id AS mock_exam_id, e.id AS enrollment_id,
+  sum(coalesce(m.mark, 0) * p.coef) FILTER (WHERE m.part_id IS NOT NULL) AS points,
+  sum(p.coef) FILTER (WHERE m.part_id IS NOT NULL) AS coef_marked,
+  sum(p.coef) AS coef_total,
+  round(sum(coalesce(m.mark, 0) * p.coef) FILTER (WHERE m.part_id IS NOT NULL) / nullif(sum(p.coef) FILTER (WHERE m.part_id IS NOT NULL), 0), 2) AS average,
+  count(m.part_id) = count(*) AS complete
+FROM mock_exam x
+JOIN mock_exam_part p ON p.mock_exam_id = x.id
+JOIN enrollment e ON e.class_id = x.class_id AND e.left_on IS NULL
+LEFT JOIN mock_exam_mark m ON m.part_id = p.id AND m.enrollment_id = e.id
+GROUP BY x.id, e.id;

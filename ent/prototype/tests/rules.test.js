@@ -1173,3 +1173,28 @@ test('inventaire des manuels : effectif, en prêt, abîmés, perdus, à commande
   assert.equal(manualBalance(c, [{ manualId: 'c', sold: true }], 10).missing, 6);
   assert.equal(manualBalance(c, [], null).missing, null);
 });
+
+import { EXAMS, examResult, bacProjection, examsForClass, mention, decision } from '../src/rules/mockExam.js';
+test('examens blancs : relevé avec coefficients, mention, résultat indicatif', () => {
+  const r = examResult(EXAMS.BAC_STMG.parts, { PHI: 11, MSGN: 13.5, DE: 12, GO: 14 });
+  assert.deepEqual([r.points, r.totalCoef, r.average, r.complete], [648, 50, 12.96, true]);
+  assert.equal(mention(r.average), 'Assez bien');
+  assert.equal(examResult(EXAMS.BAC_STMG.parts, { PHI: 6.5, MSGN: 8, DE: 7, GO: 'ABS' }).average, 5.32); // absent compté 0
+  assert.deepEqual(examResult(EXAMS.DNB.parts, { FR: 11 }).missing.length, 4);
+  assert.deepEqual([decision(9, 'BAC_G'), decision(9, 'DNB'), decision(7.9, 'BAC_G')], ['Second groupe', 'Non admis', 'Non admis']);
+  assert.deepEqual([examsForClass('3e'), examsForClass('1re STMG'), examsForClass('Terminale STMG'), examsForClass('2de')], [['DNB'], ['EAF'], ['BAC_STMG'], []]);
+});
+
+test('projection au bac : notes officielles des épreuves anticipées + contrôle continu + bac blanc', () => {
+  const p = bacProjection('BAC_STMG', { eaf: { FR_E: 10, FR_O: 13 }, cc: 12.4, blanc: { PHI: 11, MSGN: 13.5, DE: 12, GO: 14 } });
+  assert.equal(p.total, 100);
+  assert.equal(p.acquired, 611); // 10×5 + 13×5 + 12,4×40
+  assert.equal(p.remainingCoef, 50);
+  assert.deepEqual([p.needed[10], p.needed[12], p.needed[14]], [7.78, 11.78, 15.78]);
+  assert.equal(p.blancAverage, 12.96);
+  assert.equal(p.projected, 12.59); // (611 + 648) / 100
+  assert.equal(p.mention, 'Assez bien');
+  const q = bacProjection('BAC_G', { eaf: { FR_E: 4, FR_O: 5 }, cc: 6 });
+  assert.equal(q.needed[16], null); // hors d'atteinte
+  assert.equal(q.complete, false);
+});

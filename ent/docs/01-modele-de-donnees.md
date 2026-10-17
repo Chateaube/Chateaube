@@ -375,3 +375,8 @@ recoder.
   **`event_visible`** (examens : niveaux à examen officiel, `level.official_exam`) ; vue **`v_textbook_balance`**
   (manuels comparés à l'effectif de l'année : en état, en prêt, vendus, abîmés, perdus, à commander) ;
   `inventory_item.category` accepte `FOURNITURE`. Scénario **T52**.
+- **`mock_exam`** (examen blanc d'une classe : `DNB`, `EAF`, `BAC_G`, `BAC_STMG`, niveau contrôlé),
+  **`mock_exam_part`** (épreuve, coefficient), **`mock_exam_mark`** (note sur 20 ou absent, compté 0), vue
+  **`v_mock_exam_result`** (points, moyenne, complet) ; **`official_exam_mark`** (notes officielles des épreuves
+  anticipées), fonction **`bac_needed`** (moyenne à obtenir aux épreuves de Terminale pour une moyenne visée).
+  Scénario **T53**.

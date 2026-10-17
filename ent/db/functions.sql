@@ -1092,3 +1092,21 @@ CREATE FUNCTION event_visible(ev school_event, is_staff boolean, for_class uuid)
     ELSE is_staff OR ev.class_id IS NULL OR ev.class_id = for_class
   END
 $$ LANGUAGE sql STABLE;
+
+-- Un examen blanc correspond au niveau de la classe : brevet en 3e, épreuves anticipées en 1re, bac en Terminale.
+CREATE FUNCTION mock_exam_guard() RETURNS trigger AS $$
+DECLARE lvl text := (SELECT level_code FROM school_class WHERE id = NEW.class_id); BEGIN
+  IF (NEW.kind = 'DNB' AND lvl <> '3E') OR (NEW.kind = 'EAF' AND lvl <> '1RE') OR (NEW.kind IN ('BAC_G', 'BAC_STMG') AND lvl <> 'TLE') THEN
+    RAISE EXCEPTION 'Examen blanc % impossible en %', NEW.kind, lvl;
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER mock_exam_level BEFORE INSERT OR UPDATE ON mock_exam FOR EACH ROW EXECUTE FUNCTION mock_exam_guard();
+
+-- Projection au bac (sur 100) : épreuves anticipées officielles (10) + contrôle continu (40) + moyenne à
+-- obtenir aux épreuves de Terminale (50) pour atteindre une moyenne visée ; NULL si hors d'atteinte.
+CREATE FUNCTION bac_needed(student uuid, cc numeric, target numeric) RETURNS numeric AS $$
+  SELECT CASE WHEN v > 20 THEN NULL ELSE greatest(0, round(v, 2)) END FROM (
+    SELECT (target * 100 - coalesce(sum(mark * 5), 0) - cc * 40) / (100 - 40 - 5 * count(*)) AS v
+    FROM official_exam_mark WHERE student_id = student) q
+$$ LANGUAGE sql STABLE;

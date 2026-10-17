@@ -430,3 +430,21 @@ d'explication.
   (élèves importés ; pour une spécialité, ceux qui la suivent) — exemplaires, en prêt ou vendus, en état au
   stock, abîmés, perdus, **à commander** — exportable en Excel. Les prêts et les retours restent dans « Manuels
   scolaires ».
+
+## Examens blancs
+
+- Rubrique **Examens blancs** (Direction : Pédagogie ; secrétariat : Notes & bulletins), à côté des bulletins et
+  séparée d'eux : les notes d'examen blanc ne modifient pas les moyennes trimestrielles.
+- **Saisie** par épreuve, sur 20, avec les coefficients de l'examen : brevet blanc (3e), épreuves anticipées
+  blanches de français (1re), bac blanc général (philosophie, deux spécialités, grand oral) ou STMG. « abs » =
+  absent, compté 0. Seules les classes à examen sont proposées (s'il n'y a plus de 3e, le brevet blanc
+  disparaît).
+- **Relevés de notes** imprimables, un par élève ou toute la classe : épreuves, coefficients, notes, points,
+  total, moyenne, mention, résultat indicatif (admis, second groupe, non admis) ; document interne sans valeur
+  officielle.
+- **Projection au bac** (Terminale) : notes officielles des épreuves anticipées de français (passées en 1re,
+  saisies une fois) + contrôle continu (moyenne des bulletins) + dernier bac blanc. Le tableau donne la moyenne
+  à obtenir aux épreuves de Terminale pour 10, 12 et 14, en vert si le niveau du bac blanc suffit, et la
+  moyenne projetée ; la projection peut figurer sur le relevé.
+- Coefficients du bac (sur 100) : épreuves anticipées 10, contrôle continu 40, épreuves de Terminale 50. À
+  vérifier chaque année (réforme en cours, dont l'épreuve anticipée de mathématiques) et modifiables.

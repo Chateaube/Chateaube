@@ -1225,5 +1225,34 @@ DO $$ DECLARE site uuid; yr uuid; tle uuid; c5 uuid; ev_exam school_event; ev_te
   END IF;
 END $$;
 
+-- T53. Examens blancs : relevé, niveau contrôlé, projection au bac ---------------------------------
+DO $$ DECLARE tle uuid; site uuid; yr uuid; c5 uuid; x uuid; st uuid; e uuid := '30000000-0000-0000-0000-0000000000a1'; r record; BEGIN
+  SELECT c.id, c.site_id, c.year_id, en.student_id INTO tle, site, yr, st FROM enrollment en JOIN school_class c ON c.id = en.class_id WHERE en.id = e;
+  SELECT id INTO c5 FROM school_class WHERE name = '5e T52';
+  BEGIN
+    INSERT INTO mock_exam (class_id, kind, title, held_on, created_by) VALUES (c5, 'DNB', 'Brevet blanc en 5e', '2026-10-08', '00000000-0000-0000-0000-000000000001');
+    RAISE EXCEPTION 'T53: brevet blanc en 5e';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T53:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO mock_exam (class_id, kind, title, held_on, created_by) VALUES (tle, 'BAC_STMG', 'Bac blanc n°1', '2026-10-05', '00000000-0000-0000-0000-000000000001') RETURNING id INTO x;
+  INSERT INTO mock_exam_part (mock_exam_id, code, label, coef) VALUES (x, 'PHI', 'Philosophie', 4), (x, 'MSGN', 'Management, SGN', 16), (x, 'DE', 'Droit et économie', 16), (x, 'GO', 'Grand oral', 14);
+  INSERT INTO mock_exam_mark SELECT p.id, e, v.m, v.m IS NULL FROM mock_exam_part p JOIN (VALUES ('PHI', 11.0), ('MSGN', 13.5), ('DE', 12.0)) v(code, m) ON v.code = p.code WHERE p.mock_exam_id = x;
+  SELECT * INTO r FROM v_mock_exam_result WHERE mock_exam_id = x AND enrollment_id = e;
+  IF r.complete OR r.coef_marked <> 36 OR r.average <> round((44 + 216 + 192) / 36.0, 2) THEN RAISE EXCEPTION 'T53: relevé incomplet faux (%)', r; END IF;
+  INSERT INTO mock_exam_mark SELECT id, e, NULL, true FROM mock_exam_part WHERE mock_exam_id = x AND code = 'GO'; -- absent au grand oral
+  SELECT * INTO r FROM v_mock_exam_result WHERE mock_exam_id = x AND enrollment_id = e;
+  IF NOT r.complete OR r.average <> round(452 / 50.0, 2) THEN RAISE EXCEPTION 'T53: absent non compté 0 (%)', r; END IF;
+  BEGIN
+    INSERT INTO mock_exam_mark SELECT id, e, 21, false FROM mock_exam_part WHERE mock_exam_id = x AND code = 'PHI' ON CONFLICT (part_id, enrollment_id) DO UPDATE SET mark = 21;
+    RAISE EXCEPTION 'T53: note sur plus de 20';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  -- projection : français officiel 10 et 13, contrôle continu 12,4 → 7,78 de moyenne pour 10, 11,78 pour 12
+  INSERT INTO official_exam_mark VALUES (st, 2026, 'FR_E', 10), (st, 2026, 'FR_O', 13);
+  IF bac_needed(st, 12.4, 10) <> 7.78 OR bac_needed(st, 12.4, 12) <> 11.78 OR bac_needed(st, 4, 16) IS NOT NULL THEN
+    RAISE EXCEPTION 'T53: projection au bac fausse';
+  END IF;
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T52 passent'
+\echo 'OK — tous les scénarios T1 à T53 passent'

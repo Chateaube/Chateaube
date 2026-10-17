@@ -28,6 +28,7 @@ import AnnouncementsModule from './components/AnnouncementsModule.jsx';
 import AgendaModule from './components/AgendaModule.jsx';
 import BookCatalog from './components/BookCatalog.jsx';
 import TeachingHours from './components/TeachingHours.jsx';
+import MockExamsModule from './components/MockExamsModule.jsx';
 import CareModule from './components/CareModule.jsx';
 import InventoryModule from './components/InventoryModule.jsx';
 import TimetableChanges from './components/TimetableChanges.jsx';
@@ -69,6 +70,7 @@ const BOOKS_FOR_TEACHER = { id: 'books', label: 'Bibliothèque et manuels', icon
 const TT_CHANGES = { id: 'tt-changes', label: 'Changements d\'emploi du temps', icon: 'clock', screen: TimetableChanges };
 const HOURS = { id: 'hours', label: 'Heures et absences des profs', icon: 'clock', screen: TeachingHours };
 const RESOURCES = { id: 'resources', label: 'Documents, ressources et idées', icon: 'pen', screen: InternalResources };
+const MOCK_EXAMS = { id: 'mock-exams', label: 'Examens blancs', icon: 'cap', screen: MockExamsModule };
 const CARE = { id: 'care', label: 'Soins (passages, Doliprane)', icon: 'care', screen: CareModule };
 const INVENTORY = { id: 'inventory', label: 'Inventaire du matériel', icon: 'box', screen: InventoryModule };
 const AGENDA = { id: 'agenda', label: 'Agendas', icon: 'calendar', screen: AgendaModule };
@@ -97,6 +99,7 @@ const PROFILES = {
       { group: 'Pédagogie', items: [
         COUNCIL,
         BULLETINS,
+        MOCK_EXAMS,
         GRADE_SHEETS,
         ...OVERSIGHT,
         AGENDA,
@@ -132,7 +135,7 @@ const PROFILES = {
         { id: 'accounting', label: 'Encaissements & comptabilité', icon: 'wallet', screen: AccountingModule },
       ] },
       { group: 'Vie scolaire', items: [VIE_SCOLAIRE, CARE, HOURS, TT_CHANGES, MESSAGES, NEWS, RESOURCES, AGENDA, FOLLOW_UP, BOOKING] },
-      { group: 'Notes & bulletins', items: [COUNCIL, BULLETINS, GRADE_SHEETS, ...OVERSIGHT] },
+      { group: 'Notes & bulletins', items: [COUNCIL, BULLETINS, MOCK_EXAMS, GRADE_SHEETS, ...OVERSIGHT] },
       { group: 'Élèves', items: [INSCRIPTIONS, STUDENT_LIST, SIGNATURES, MANUALS, LIBRARY, IMPORT] },
       { group: 'Matériel', items: [INVENTORY] },
     ],
