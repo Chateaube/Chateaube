@@ -167,7 +167,7 @@ function TranscriptsTab({ data }) {
           </select>
           <select value={who} onChange={(e) => setWho(e.target.value)} aria-label="Élève" className={inputCls}><option value="">Toute la classe</option>{(CLASSES[s?.cls] ?? []).map((n) => <option key={n}>{n}</option>)}</select>
           {isBac && <label className="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={withProj} onChange={(e) => setWithProj(e.target.checked)} />Ajouter la projection au bac</label>}
-          <Button className="ml-auto" onClick={() => printOnly('.transcripts-print', 'size: A4 portrait;', `Relevés — ${s.title} — ${s.cls}`)}>Imprimer {students.length > 1 ? `les ${students.length} relevés` : 'le relevé'}</Button>
+          <Button className="ml-auto" onClick={() => printOnly('.transcripts-print', 'size: A4 portrait; margin: 8mm;')}>Imprimer {students.length > 1 ? `les ${students.length} relevés` : 'le relevé'}</Button>
         </div>
       </Card>
       <div className="transcripts-print">
