@@ -12,14 +12,8 @@ export function grantNoWork(absence, role) {
   if (role !== 'DIRECTION') return { error: 'Seule la Direction dispense de laisser un travail.' };
   return { absence: { ...absence, work: 'NON_REQUIS' } };
 }
-/** Message aux élèves et aux parents de la classe : le cours n'a pas lieu, mais les élèves viennent. */
-export function absenceNotice({ teacher, subject, cls, date, start, end, work, workText }, dateLabel) {
-  const travail = work === 'DEVOIR' || work === 'ACTIVITE' ? ` Travail à faire pendant l'heure : ${workText || 'distribué par la vie scolaire'}.` : '';
-  return {
-    title: `${subject} — ${cls} : professeur absent le ${dateLabel}`,
-    text: `${teacher} est absent(e) le ${dateLabel} (${start.replace(':', 'h')}–${end.replace(':', 'h')}). Les élèves viennent comme d'habitude : l'heure se passe en étude surveillée par la vie scolaire.${travail}`,
-  };
-}
+// Pas de message aux familles en cas d'absence : les élèves viennent, en étude surveillée. Un cours annulé
+// ou déplacé passe par les changements d'emploi du temps (rules/timetableChanges.js), eux annoncés.
 
 // --- Retards des professeurs : au-delà d'une heure cumulée, l'heure est à rattraper ---
 export function latenessBalance(teacherId, lateness, makeups = []) {
@@ -37,7 +31,7 @@ export function plannedSessions(slots, from, to, settings) {
   for (let d = from; d <= to; d = addDays(d, 1)) {
     if (!isSchoolDay(d, settings)) continue;
     const wd = isoWeekday(d);
-    slots.filter((s) => s.weekday === wd).forEach((s) => out.push({ date: d, slotId: s.id, teacherId: s.teacherId, cls: s.cls, subject: s.subject, hours: slotHours(s) }));
+    slots.filter((s) => s.weekday === wd).forEach((s) => out.push({ date: d, slotId: s.id, teacherId: s.teacherId, cls: s.cls, subject: s.subject, start: s.start, end: s.end, hours: slotHours(s) }));
   }
   return out;
 }

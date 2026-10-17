@@ -1022,3 +1022,22 @@ BEGIN
   RETURN NEW;
 END $$ LANGUAGE plpgsql;
 CREATE TRIGGER staff_suggestion_check BEFORE INSERT OR UPDATE ON staff_suggestion FOR EACH ROW EXECUTE FUNCTION staff_suggestion_guard();
+
+-- Changements d'emploi du temps : décidés par la Direction ou le secrétariat.
+CREATE FUNCTION timetable_change_guard() RETURNS trigger AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM user_role WHERE user_id = NEW.decided_by AND role IN ('DIRECTION', 'BUREAU')) THEN
+    RAISE EXCEPTION 'Changement d''emploi du temps réservé à la Direction et au secrétariat';
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER timetable_change_check BEFORE INSERT OR UPDATE ON timetable_change FOR EACH ROW EXECUTE FUNCTION timetable_change_guard();
+
+-- Mineur ou majeur : calculé à partir de la date de naissance au moment de la sortie.
+CREATE FUNCTION early_departure_minor() RETURNS trigger AS $$
+BEGIN
+  NEW.student_is_minor := (SELECT age(NEW.left_at::date, s.birth_date) < interval '18 years'
+                           FROM enrollment e JOIN student s ON s.id = e.student_id WHERE e.id = NEW.enrollment_id);
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER early_departure_age BEFORE INSERT OR UPDATE ON early_departure FOR EACH ROW EXECUTE FUNCTION early_departure_minor();

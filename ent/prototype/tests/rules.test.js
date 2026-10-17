@@ -1055,16 +1055,13 @@ test('bibliothèque : rappel 3 jours avant le retour ; jeux de société (sortie
   assert.deepEqual(gameStats([back], [game, { id: 'g2' }], '2026-10-01', '2026-10-31').map((x) => x.count), [1, 0]);
 });
 
-import { grantNoWork, absenceNotice, latenessBalance } from '../src/rules/teachingHours.js';
-test('absences longues dispensées par la Direction, message aux familles, retards cumulés à rattraper', () => {
+import { grantNoWork, latenessBalance } from '../src/rules/teachingHours.js';
+test('absences longues dispensées par la Direction, retards cumulés à rattraper', () => {
   const a = { teacherId: 'p1', date: '2026-10-22', slotIds: ['s1'], reason: 'Maladie (5 jours)', work: 'AUCUN' };
   assert.ok(grantNoWork(a, 'BUREAU').error);
   assert.equal(grantNoWork(a, 'DIRECTION').absence.work, 'NON_REQUIS');
   assert.ok(absenceErrors({ ...a, work: 'NON_REQUIS', declaredRole: 'ENSEIGNANT' }).length === 1);
   assert.deepEqual(absenceErrors({ ...a, work: 'NON_REQUIS', declaredRole: 'DIRECTION' }), []);
-  const n = absenceNotice({ teacher: 'Mme Ranaivo', subject: 'Management', cls: '1re STMG', date: '2026-10-22', start: '07:00', end: '09:00', work: 'DEVOIR', workText: 'Exercices p. 52' }, 'jeudi 22 octobre');
-  assert.match(n.text, /Les élèves viennent comme d'habitude/);
-  assert.match(n.text, /Exercices p. 52/);
   const late = [5, 10, 15, 5, 10, 20].map((minutes, i) => ({ teacherId: 'p1', minutes, date: `2026-10-0${i + 1}` }));
   assert.deepEqual(latenessBalance('p1', late), { minutes: 65, owed: 1, madeUp: 0, toMakeUp: 1, beforeNext: 55 });
   assert.equal(latenessBalance('p1', late, [{ teacherId: 'p1', hours: 1 }]).toMakeUp, 0);
@@ -1087,4 +1084,24 @@ test('documents par public, ressources de l\'équipe protégées, boîte à idé
   assert.ok(answerSuggestion(s, { role: 'BUREAU', status: 'RETENUE' }).error);
   assert.ok(answerSuggestion(s, { role: 'DIRECTION', status: 'NON_RETENUE', answer: ' ' }).error);
   assert.equal(answerSuggestion(s, { role: 'DIRECTION', status: 'RETENUE' }).suggestion.status, 'RETENUE');
+});
+
+import { changeErrors, changeNotice, applyChanges } from '../src/rules/timetableChanges.js';
+import { isMinor, leaveErrors } from '../src/rules/earlyLeave.js';
+test('changements d\'emploi du temps annoncés ; sorties anticipées des mineurs', () => {
+  const base = { cls: '1re STMG', subject: 'Management', date: '2026-10-20', start: '07:00', end: '09:00' };
+  assert.deepEqual(changeErrors({ ...base, type: 'ANNULE' }), []);
+  assert.equal(changeErrors({ ...base, type: 'DEPLACE' }).length, 1);
+  const moved = { ...base, id: 'c1', type: 'DEPLACE', newDate: '2026-10-22', newStart: '13:30', newEnd: '15:30', room: 'Salle 8' };
+  assert.match(changeNotice(moved, (d) => d).text, /déplacé au 2026-10-22, de 13h30 à 15h30, Salle 8/);
+  const sessions = [{ id: 's', ...base, room: 'Salle 12' }, { id: 't', ...base, date: '2026-10-21' }];
+  const out = applyChanges(sessions, [moved, { ...base, id: 'c2', type: 'ANNULE', date: '2026-10-21' }, { ...base, id: 'c3', type: 'AJOUT', date: '2026-10-24', start: '08:00', end: '10:00' }]);
+  assert.deepEqual(out.map((s) => [s.date, s.status ?? '']), [['2026-10-22', 'DEPLACE'], ['2026-10-21', 'ANNULE'], ['2026-10-24', 'AJOUT']]);
+  assert.ok(isMinor('2009-10-18', '2026-10-17'));
+  assert.ok(!isMinor('2008-10-17', '2026-10-17'));
+  assert.ok(isMinor(null, '2026-10-17'));
+  assert.equal(leaveErrors({ minor: true, reason: 'Malaise', parentCalled: true }).length, 1); // pas parti seul, même en moto
+  assert.equal(leaveErrors({ minor: true, reason: 'Malaise', parentCalled: true, pickedUpBy: 'M. Rabe', relation: 'Oncle' }).length, 1); // confirmation du parent
+  assert.deepEqual(leaveErrors({ minor: true, reason: 'Malaise', parentCalled: true, pickedUpBy: 'M. Rabe', relation: 'Oncle', guardianConfirmed: true }), []);
+  assert.deepEqual(leaveErrors({ minor: false, reason: 'Rendez-vous', parentCalled: true }), []); // majeur : peut partir seul
 });

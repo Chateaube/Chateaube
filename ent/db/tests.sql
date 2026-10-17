@@ -1127,5 +1127,36 @@ DO $$ DECLARE parent uuid; sg uuid; BEGIN
   UPDATE staff_suggestion SET status = 'RETENUE', answered_by = '00000000-0000-0000-0000-000000000001', answer = 'Au conseil pédagogique' WHERE id = sg;
 END $$;
 
+-- T50. Changements d'emploi du temps ; sortie anticipée d'un mineur ---------------------------------
+DO $$ DECLARE sl uuid := (SELECT id FROM timetable_slot LIMIT 1); BEGIN
+  BEGIN
+    INSERT INTO timetable_change (kind, class_id, slot_id, on_date, decided_by) VALUES ('ANNULE', '10000000-0000-0000-0000-000000000001', sl, '2026-10-19', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T50: cours annulé par un professeur';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T50:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    INSERT INTO timetable_change (kind, class_id, slot_id, on_date, decided_by) VALUES ('DEPLACE', '10000000-0000-0000-0000-000000000001', sl, '2026-10-19', '00000000-0000-0000-0000-000000000001');
+    RAISE EXCEPTION 'T50: cours déplacé sans nouvelle date';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO timetable_change (kind, class_id, slot_id, on_date, new_date, new_starts_at, new_ends_at, decided_by)
+  VALUES ('DEPLACE', '10000000-0000-0000-0000-000000000001', sl, '2026-10-19', '2026-10-22', '13:30', '15:30', '00000000-0000-0000-0000-000000000008');
+  -- Hery RAKOTO (né le 14/03/2009) est mineur en octobre 2026 : il ne part pas seul
+  BEGIN
+    INSERT INTO early_departure (enrollment_id, left_at, reason, parent_called_at, student_is_minor, recorded_by)
+    VALUES ('30000000-0000-0000-0000-000000000001', '2026-10-13 10:20+03', 'Malaise', '2026-10-13 10:05+03', false, '00000000-0000-0000-0000-000000000008');
+    RAISE EXCEPTION 'T50: mineur parti seul';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO early_departure (enrollment_id, left_at, reason, parent_called_at, student_is_minor, picked_up_by, relation, picked_up_is_guardian, recorded_by)
+    VALUES ('30000000-0000-0000-0000-000000000001', '2026-10-13 10:20+03', 'Malaise', '2026-10-13 10:05+03', true, 'M. Rabe', 'oncle', false, '00000000-0000-0000-0000-000000000008');
+    RAISE EXCEPTION 'T50: oncle sans confirmation du parent';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO early_departure (enrollment_id, left_at, reason, parent_called_at, student_is_minor, picked_up_by, relation, picked_up_is_guardian, guardian_confirmed, recorded_by)
+  VALUES ('30000000-0000-0000-0000-000000000001', '2026-10-13 10:20+03', 'Malaise', '2026-10-13 10:05+03', true, 'M. Rabe', 'oncle', false, true, '00000000-0000-0000-0000-000000000008');
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T49 passent'
+\echo 'OK — tous les scénarios T1 à T50 passent'

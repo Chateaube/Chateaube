@@ -1735,8 +1735,8 @@ ALTER TABLE teacher_absence DROP CONSTRAINT teacher_absence_work_kind_check, DRO
   ADD CONSTRAINT teacher_absence_work_given CHECK (work_kind NOT IN ('DEVOIR', 'ACTIVITE') OR work_text IS NOT NULL OR work_file_key IS NOT NULL);
 ALTER TABLE teacher_absence ADD CONSTRAINT teacher_absence_work_kind_check CHECK (work_kind IN ('DEVOIR', 'ACTIVITE', 'NON_REQUIS', 'AUCUN')),
   ADD COLUMN granted_by uuid REFERENCES app_user(id),
-  ADD CONSTRAINT teacher_absence_granted CHECK ((work_kind = 'NON_REQUIS') = (granted_by IS NOT NULL)),
-  ADD COLUMN families_notified_at timestamptz;   -- élèves et parents de la classe prévenus (les élèves viennent)
+  ADD CONSTRAINT teacher_absence_granted CHECK ((work_kind = 'NON_REQUIS') = (granted_by IS NOT NULL));
+-- Une absence n'est pas annoncée aux familles : les élèves viennent, en étude surveillée.
 
 -- Retards des professeurs (pointage) et heures rattrapées : une heure de retard cumulée = une heure à rattraper
 CREATE TABLE teacher_lateness (
@@ -1802,4 +1802,43 @@ CREATE TABLE staff_suggestion (
   answered_by   uuid REFERENCES app_user(id),
   CHECK (status <> 'NON_RETENUE' OR length(trim(coalesce(answer, ''))) > 0),
   CHECK ((status = 'NOUVELLE') = (answered_by IS NULL))
+);
+
+-- Changements d'emploi du temps annoncés aux élèves, aux parents et aux professeurs de la classe :
+-- cours annulé, déplacé, ajouté (temporaire), ou nouvel horaire définitif à partir d'une date.
+CREATE TABLE timetable_change (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  kind          text NOT NULL CHECK (kind IN ('ANNULE', 'DEPLACE', 'AJOUT', 'DEFINITIF')),
+  class_id      uuid NOT NULL REFERENCES school_class(id),
+  slot_id       uuid REFERENCES timetable_slot(id),     -- cours concerné (sauf ajout)
+  subject_id    uuid REFERENCES subject(id),            -- cours ajouté
+  on_date       date NOT NULL,                          -- date du cours, ou début du changement définitif
+  starts_at     time, ends_at time,                     -- cours ajouté
+  new_date      date, new_starts_at time, new_ends_at time, new_weekday smallint CHECK (new_weekday BETWEEN 1 AND 6),
+  room_id       uuid REFERENCES room(id),
+  note          text,
+  decided_by    uuid NOT NULL REFERENCES app_user(id),
+  announced_at  timestamptz NOT NULL DEFAULT now(),
+  CHECK (kind = 'AJOUT' OR slot_id IS NOT NULL),
+  CHECK (kind <> 'AJOUT' OR (subject_id IS NOT NULL AND starts_at IS NOT NULL AND ends_at > starts_at)),
+  CHECK (kind <> 'DEPLACE' OR (new_date IS NOT NULL AND new_ends_at > new_starts_at)),
+  CHECK (kind <> 'DEFINITIF' OR (new_weekday IS NOT NULL AND new_ends_at > new_starts_at))
+);
+
+-- Sorties anticipées (malaise, rendez-vous) : les parents sont toujours appelés ; un élève mineur ne part
+-- qu'avec un adulte (responsable légal, ou personne confirmée par lui), même avec son propre véhicule.
+CREATE TABLE early_departure (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  enrollment_id uuid NOT NULL REFERENCES enrollment(id),
+  left_at       timestamptz NOT NULL,
+  reason        text NOT NULL CHECK (length(trim(reason)) > 0),
+  parent_called_at timestamptz NOT NULL,
+  student_is_minor boolean NOT NULL,
+  picked_up_by  text,
+  relation      text,
+  picked_up_is_guardian boolean,
+  guardian_confirmed boolean NOT NULL DEFAULT false,
+  recorded_by   uuid NOT NULL REFERENCES app_user(id),
+  CHECK (NOT student_is_minor OR (picked_up_by IS NOT NULL AND relation IS NOT NULL)),
+  CHECK (NOT student_is_minor OR picked_up_is_guardian OR guardian_confirmed)
 );

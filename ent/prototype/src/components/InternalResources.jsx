@@ -12,7 +12,7 @@ import { useScreenGuard } from '../screenGuard.js';
 // Dans l'application installée, la capture d'écran donne un écran noir (Android) ; voir la doc pour
 // iPhone. Aucun écran ne peut empêcher une photo prise avec un autre appareil.
 
-const KEY = 'ent-ressources-v2'; // v2 : un ou plusieurs publics (élèves, parents, professeurs, personnel)
+const KEY = 'ent-ressources-v3'; // v2 : un ou plusieurs publics (élèves, parents, professeurs, personnel)
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) ?? RESOURCES; } catch { return RESOURCES; } };
 const save = (l) => { try { localStorage.setItem(KEY, JSON.stringify(l)); return true; } catch { return false; } };
 const SKEY = 'ent-suggestions-v1';

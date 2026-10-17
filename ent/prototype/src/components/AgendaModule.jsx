@@ -2,10 +2,14 @@ import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card } from './ui.jsx';
 import { AGENDAS, agendaItems, toIcs } from '../rules/agenda.js';
 import { SCHOOL_EVENTS } from '../data/events.js';
-import { WEEK_SESSIONS } from '../data/attendance.js';
+import { TIMETABLE } from '../data/timetable.js';
+import { plannedSessions } from '../rules/teachingHours.js';
+import { DEFAULT_SETTINGS } from '../data/settings.js';
 import { HOMEWORK } from '../data/homework.js';
 import { saveFile } from '../download.js';
 import { formatDateFr } from '../rules/calendar.js';
+import { applyChanges } from '../rules/timetableChanges.js';
+import { loadChanges } from './TimetableChanges.jsx';
 
 // Agendas : cours, événements de l'école, devoirs — séparés, à afficher ensemble ou non, et à
 // ajouter dans Google Agenda ou Apple Agenda (.ics ; avec le serveur, lien d'abonnement).
@@ -13,14 +17,17 @@ import { formatDateFr } from '../rules/calendar.js';
 const CLASSES = ['1re STMG', 'Terminale STMG', 'Terminale Générale', '2de', '5e'];
 const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 
-export default function AgendaModule({ role, cls: fixedCls }) {
+export default function AgendaModule({ role, cls: fixedCls, settings }) {
   const staff = ['DIRECTION', 'BUREAU', 'VIE_SCOLAIRE', 'ENSEIGNANT'].includes(role);
   const canAdd = ['DIRECTION', 'BUREAU', 'VIE_SCOLAIRE'].includes(role);
   const [cls, setCls] = useState(fixedCls ?? '');
   const [shown, setShown] = useState(Object.keys(AGENDAS));
   const [events, setEvents] = useState(SCHOOL_EVENTS);
   const [draft, setDraft] = useState(null);
-  const items = useMemo(() => agendaItems({ sessions: WEEK_SESSIONS, events, homework: HOMEWORK, cls: cls || null, staff }), [cls, events, staff]);
+  // cours des prochaines semaines, d'après l'emploi du temps (jours de classe), puis les changements
+  const courses = useMemo(() => plannedSessions(role === 'ENSEIGNANT' ? TIMETABLE.filter((x) => x.teacherId === 'p1') : TIMETABLE, '2026-10-12', '2026-11-06', settings ?? DEFAULT_SETTINGS)
+    .map((x) => ({ id: `${x.slotId}-${x.date}`, date: x.date, start: x.start, end: x.end, cls: x.cls, subject: x.subject, room: '' })), [role, settings]);
+  const items = useMemo(() => agendaItems({ sessions: applyChanges(courses, loadChanges()), events, homework: HOMEWORK, cls: cls || null, staff }), [cls, events, staff, courses]);
   const visible = items.filter((i) => shown.includes(i.agenda));
   const days = [...new Set(visible.map((i) => i.date))];
   const exportIcs = (agenda) => saveFile(`agenda-${agenda.toLowerCase()}${cls ? `-${cls.replace(/\s+/g, '-')}` : ''}.ics`,
@@ -73,7 +80,7 @@ export default function AgendaModule({ role, cls: fixedCls }) {
                   {visible.filter((i) => i.date === d).map((i) => (
                     <li key={i.id} className="flex items-start gap-3 rounded-lg border border-slate-100 px-3 py-2 text-sm">
                       <span className="w-24 shrink-0 tabular-nums text-slate-600">{i.allDay ? 'journée' : `${i.start.replace(':', 'h')}–${(i.end ?? '').replace(':', 'h')}`}</span>
-                      <span className="min-w-0 flex-1 text-slate-800">{i.title}{i.place && <span className="block text-xs text-slate-500">{i.place}</span>}</span>
+                      <span className={`min-w-0 flex-1 ${i.status === 'ANNULE' ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{i.title}{i.place && <span className="block text-xs text-slate-500">{i.place}</span>}</span>
                       <Badge tone={AGENDAS[i.agenda].tone}>{AGENDAS[i.agenda].label}</Badge>
                     </li>
                   ))}

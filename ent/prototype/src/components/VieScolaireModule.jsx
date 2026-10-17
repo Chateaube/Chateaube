@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Badge, Button, Card, Icon, Stat } from './ui.jsx';
 import { CLASSES, classOf, STAFF_NAMES, ATTENDANCE, MEASURES_LOG, PHONES } from '../data/schoollife.js';
+import { isMinor, leaveErrors } from '../rules/earlyLeave.js';
+import { loadProfiles } from '../profilesStore.js';
 import { MEASURES, AUTHORS, validateMeasure, phoneReturnAt, PHONE_DURATIONS, PHONE_ACTIONS, phoneDurationFor, validateReturn, ackReminderDue } from '../rules/discipline.js';
 import { formatDateFr } from '../rules/calendar.js';
 
@@ -244,11 +246,71 @@ function PhonesTab({ phones, setPhones, settings, toast }) {
   );
 }
 
-const TABS = [['attendance', 'Absences & retards'], ['measures', 'Punitions & sanctions'], ['phones', 'Téléphones']];
+const TABS = [['attendance', 'Absences & retards'], ['measures', 'Punitions & sanctions'], ['phones', 'Téléphones'], ['leave', 'Sorties anticipées']];
+
+/* ---------- Sorties anticipées : un mineur ne part pas seul ---------- */
+const LEAVE_KEY = 'ent-sorties-v1';
+const loadLeaves = () => { try { return JSON.parse(localStorage.getItem(LEAVE_KEY)) ?? []; } catch { return []; } };
+function EarlyLeaveTab({ toast }) {
+  const [list, setList] = useState(loadLeaves);
+  const blank = { student: '', reason: '', parentCalled: false, calledAt: NOW.slice(11), pickedUpBy: '', relation: '', pickedUpIsGuardian: true, guardianConfirmed: false, majorChecked: false, at: NOW };
+  const [d, setD] = useState(blank);
+  const [tried, setTried] = useState(false);
+  const profile = d.student ? loadProfiles().find((p) => `${p.lastName} ${p.firstName}` === d.student) : null;
+  const minor = d.majorChecked ? false : isMinor(profile?.birthDate, NOW.slice(0, 10));
+  const errors = d.student ? leaveErrors({ ...d, minor }) : ['Choisir un élève.'];
+  const save = () => {
+    setTried(true);
+    if (errors.length) return;
+    const item = { ...d, id: `s${Date.now()}`, minor, leftAlone: !d.pickedUpBy.trim() };
+    const next = [item, ...list]; setList(next);
+    try { localStorage.setItem(LEAVE_KEY, JSON.stringify(next)); } catch { /* stockage indisponible */ }
+    toast(`Sortie enregistrée ; les parents de ${d.student} sont prévenus dans l'application.`);
+    setD(blank); setTried(false);
+  };
+  return (
+    <div className="grid gap-5 xl:grid-cols-[1fr_400px] xl:items-start">
+      <Card title="Sorties anticipées" subtitle="Élève malade ou rendez-vous : les parents sont toujours appelés ; un élève mineur ne part qu'avec un adulte venu le chercher">
+        {list.length === 0 && <p className="text-sm text-slate-500">Aucune sortie enregistrée.</p>}
+        <ul className="divide-y divide-slate-100 text-sm">
+          {list.map((x) => (
+            <li key={x.id} className="flex flex-wrap items-start justify-between gap-2 py-2">
+              <span className="min-w-0"><span className="font-medium text-slate-900">{x.student}</span> <span className="text-slate-500">· {classOf(x.student)}</span>
+                <span className="block text-xs text-slate-500">{fmtDT(x.at)} · {x.reason} · parent appelé à {x.calledAt.replace(':', 'h')} · {x.leftAlone ? 'parti seul (majeur)' : `avec ${x.pickedUpBy} (${x.relation}${x.pickedUpIsGuardian ? '' : ', confirmé par le parent'})`}</span></span>
+              <Badge tone={x.minor ? 'navy' : 'slate'}>{x.minor ? 'mineur' : 'majeur'}</Badge>
+            </li>
+          ))}
+        </ul>
+      </Card>
+      <Card title="Enregistrer une sortie">
+        <div className="space-y-2 text-sm">
+          <ClassStudentPicker value={d.student} onChange={(student) => setD({ ...d, student })} />
+          {d.student && <p className={`rounded-md px-2 py-1.5 text-xs ${minor ? 'bg-amber-50 text-amber-900' : 'bg-slate-50 text-slate-700'}`}>{minor ? 'Élève mineur : il reste à l\'école jusqu\'à ce qu\'un adulte vienne le chercher, même s\'il a son propre véhicule (moto…).' : 'Élève majeur : il peut partir seul, ses parents étant prévenus.'}</p>}
+          {d.student && !profile?.birthDate && <label className="flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" checked={d.majorChecked} onChange={(e) => setD({ ...d, majorChecked: e.target.checked })} />Date de naissance absente de la fiche : élève majeur (vérifié)</label>}
+          <label className="block text-xs text-slate-600">Motif<input value={d.reason} onChange={(e) => setD({ ...d, reason: e.target.value })} placeholder="ex. malaise, fièvre, rendez-vous médical" className={`mt-1 w-full ${inputCls}`} /></label>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" checked={d.parentCalled} onChange={(e) => setD({ ...d, parentCalled: e.target.checked })} />Parent appelé à</label>
+            <input type="time" value={d.calledAt} onChange={(e) => setD({ ...d, calledAt: e.target.value })} aria-label="Heure de l'appel" className={inputCls} />
+          </div>
+          <label className="block text-xs text-slate-600">Récupéré par{!minor && ' (vide si l\'élève part seul)'}<input value={d.pickedUpBy} onChange={(e) => setD({ ...d, pickedUpBy: e.target.value })} placeholder="Nom de l'adulte" className={`mt-1 w-full ${inputCls}`} /></label>
+          {d.pickedUpBy.trim() && (
+            <>
+              <label className="block text-xs text-slate-600">Lien avec l'élève<input value={d.relation} onChange={(e) => setD({ ...d, relation: e.target.value })} placeholder="ex. mère, oncle, chauffeur" className={`mt-1 w-full ${inputCls}`} /></label>
+              <label className="flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" checked={d.pickedUpIsGuardian} onChange={(e) => setD({ ...d, pickedUpIsGuardian: e.target.checked })} />C'est un responsable légal</label>
+              {!d.pickedUpIsGuardian && <label className="flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" checked={d.guardianConfirmed} onChange={(e) => setD({ ...d, guardianConfirmed: e.target.checked })} />Le parent a confirmé au téléphone que cette personne peut repartir avec l'élève</label>}
+            </>
+          )}
+          {tried && errors.length > 0 && <ul className="rounded-md bg-red-50 p-2 text-xs text-red-800">{errors.map((e) => <li key={e}>· {e}</li>)}</ul>}
+          <Button className="w-full" onClick={save}>Enregistrer la sortie</Button>
+        </div>
+      </Card>
+    </div>
+  );
+}
 
 export default function VieScolaireModule({ settings, role = 'VIE_SCOLAIRE' }) {
   // l'enseignant ne voit que ses outils : punitions et remise d'un téléphone confisqué
-  const tabs = role === 'ENSEIGNANT' ? TABS.slice(1) : TABS;
+  const tabs = role === 'ENSEIGNANT' ? TABS.filter(([id]) => ['measures', 'phones'].includes(id)) : TABS;
   const [tab, setTab] = useState(tabs[0][0]);
   const [rows, setRows] = useState(ATTENDANCE);
   const [log, setLog] = useState(MEASURES_LOG);
@@ -277,6 +339,7 @@ export default function VieScolaireModule({ settings, role = 'VIE_SCOLAIRE' }) {
       </div>
       {tab === 'attendance' && <AttendanceTab rows={rows} setRows={setRows} toast={setMessage} />}
       {tab === 'measures' && <MeasuresTab log={log} setLog={setLog} role={role} toast={setMessage} />}
+      {tab === 'leave' && <EarlyLeaveTab toast={setMessage} />}
       {tab === 'phones' && <PhonesTab phones={phones} setPhones={setPhones} settings={settings} toast={setMessage} />}
     </div>
   );

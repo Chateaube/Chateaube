@@ -2,10 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, Stat } from './ui.jsx';
 import { TIMETABLE } from '../data/timetable.js';
 import { STAFF } from '../data/people.js';
-import { WORK_KINDS, teacherHours, absenceErrors, sessionsToSupervise, slotHours, grantNoWork, absenceNotice, latenessBalance } from '../rules/teachingHours.js';
+import { WORK_KINDS, teacherHours, absenceErrors, sessionsToSupervise, slotHours, grantNoWork, latenessBalance } from '../rules/teachingHours.js';
 import { loadTeacherAbsences, saveTeacherAbsences, loadLateness, saveLateness } from '../absencesStore.js';
-import { publishAnnouncement } from '../announcementsStore.js';
-import { POPULATION } from '../data/announcements.js';
 import { DocumentInput, DocumentThumb } from './PhotoInput.jsx';
 import { formatDateFr } from '../rules/calendar.js';
 
@@ -66,7 +64,7 @@ function AbsenceForm({ teacherId: fixed, onSave, declaredBy, role }) {
               {a.file ? <DocumentThumb doc={a.file} title="Document joint" /> : <DocumentInput label="Joindre (photo ou PDF)" onAdd={(file) => setA({ ...a, file })} />}
             </div>
           )}
-        <p className="mt-2 text-xs text-slate-500">Les élèves et les parents de la classe sont prévenus dans l'application : le cours n'a pas lieu avec le professeur, mais les élèves viennent, en étude surveillée.</p>
+        <p className="mt-2 text-xs text-slate-500">Les familles ne sont pas prévenues : les élèves viennent, en étude surveillée par la vie scolaire. Pour annuler ou déplacer un cours, utilisez « Changements d'emploi du temps » (les familles sont alors prévenues).</p>
       </div>
       {tried && errors.length > 0 && <ul className="mt-2 text-sm text-red-700">{errors.map((e) => <li key={e}>· {e}</li>)}</ul>}
       <Button className="mt-3" onClick={() => { setTried(true); if (!errors.length) { onSave({ ...a, id: `a${Date.now()}`, declaredBy, declaredRole: role, declaredAt: TODAY }); setA({ ...a, slotIds: [], reason: '', workText: '', file: null }); setTried(false); } }}>Enregistrer l'absence</Button>
@@ -109,11 +107,6 @@ export default function TeachingHours({ role, settings }) {
   const [, from, to] = PERIODS[period];
   const add = (a) => {
     const next = [a, ...absences]; setAbsences(next); saveTeacherAbsences(next);
-    // prévenir les élèves et les parents de chaque classe concernée
-    a.slotIds.map((id) => TIMETABLE.find((x) => x.id === id)).filter((sl) => sl && POPULATION.TMV.classes[sl.cls] !== undefined).forEach((sl) => {
-      const n = absenceNotice({ teacher: nameOf(a.teacherId), subject: sl.subject, cls: sl.cls, date: a.date, start: sl.start, end: sl.end, work: a.work, workText: a.workText }, formatDateFr(a.date));
-      publishAnnouncement({ ...n, author: 'Vie scolaire', photos: [], pinned: false, ack: false, email: true, audience: { roles: ['PARENT', 'ELEVE'], site: 'TMV', scope: 'CLASS', values: [sl.cls] } });
-    });
   };
   const grant = (a) => { const r = grantNoWork(a, role); if (r.error) return; const next = absences.map((x) => (x.id === a.id ? r.absence : x)); setAbsences(next); saveTeacherAbsences(next); };
   const [late, setLateState] = useState(loadLateness);

@@ -368,9 +368,9 @@ prêt est enregistré), remet en rayon celles non retirées et met de côté un 
   retour complet ou incident (pièce manquante, jeu abîmé, avec une note), incidents à régler, jeux les plus joués
   du mois. Les élèves voient les jeux libres ; les parents n'ont pas besoin de cette information.
 - **Absences des professeurs** : pour une absence de plusieurs jours, la Direction peut **dispenser de travail**
-  (« travail non requis ») à la déclaration ou après coup ; « rien laissé » reste signalé. À chaque absence, les
-  **élèves et les parents de la classe sont prévenus** : le cours n'a pas lieu avec le professeur, mais les élèves
-  viennent, en étude surveillée, avec le travail laissé s'il y en a un.
+  (« travail non requis ») à la déclaration ou après coup ; « rien laissé » reste signalé. Une absence **n'est pas
+  annoncée aux familles** (sinon les élèves ne viennent pas) : les élèves restent en étude surveillée, avec le
+  travail laissé s'il y en a un.
 - **Retards des professeurs** : pointage (5, 10, 15 minutes…) par la CPE, le secrétariat ou la Direction ; à
   chaque heure cumulée, une heure est à rattraper ; l'heure rattrapée est enregistrée.
 - **Ressources internes** : un document, un lien ou un texte (consigne, annonce). **Pas de filigrane** : écran
@@ -388,3 +388,15 @@ guide du cahier de textes, les procédures… en consultation seulement (écran 
 idées** permet aux professeurs et au personnel de proposer une idée (école, ressources, méthodologie, vie
 scolaire), avec ou sans leur nom ; la Direction répond : à l'étude, retenue, ou non retenue avec un mot
 d'explication.
+
+## Changements d'emploi du temps et sorties anticipées
+
+- **Changements d'emploi du temps** (Direction, secrétariat, CPE) : quatre cas — cours **annulé**, cours
+  **déplacé** (autre date ou horaire, une fois), **cours ajouté** (temporaire), **nouvel horaire définitif** à
+  partir d'une date. Chaque changement est annoncé aux élèves, aux parents et aux professeurs de la classe
+  (épinglé avec « J'ai lu » s'il est définitif) et l'agenda se met à jour (cours barré, « déplacé », « ajouté »).
+  Les absences des professeurs, elles, ne sont jamais annoncées.
+- **Sorties anticipées** (Vie scolaire) : motif, heure, parents **toujours appelés**. Un élève **mineur** ne part
+  qu'avec un adulte, même s'il a son propre véhicule (moto) : responsable légal, ou autre personne confirmée par le
+  parent au téléphone. Sinon il reste à l'école. Un élève majeur peut partir seul. La règle figure dans le
+  règlement intérieur ; le registre garde la trace de chaque sortie.

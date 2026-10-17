@@ -355,9 +355,13 @@ recoder.
   d'absence, faites sur une période, jours de classe seulement), **`internal_resource`** (professeurs ou tout le
   personnel, partagée par la Direction, le secrétariat ou la CPE) et **`internal_resource_view`** (chaque
   consultation tracée). Scénario **T47**.
-- **`teacher_absence`** : `NON_REQUIS` (dispense de travail accordée par la Direction, `granted_by`),
-  `families_notified_at` ; **`teacher_lateness`** et **`teacher_makeup`**, vue **`v_teacher_lateness`** (heures à
+- **`teacher_absence`** : `NON_REQUIS` (dispense de travail accordée par la Direction, `granted_by`)
+  (pas d'annonce aux familles) ; **`teacher_lateness`** et **`teacher_makeup`**, vue **`v_teacher_lateness`** (heures à
   rattraper par tranche de 60 minutes) ; **`internal_resource.url`** (lien) ; **`board_game`** et
   **`board_game_use`** (sorties, retour complet ou incident décrit, un exemplaire à la fois). Scénario **T48**.
 - **`internal_resource.audiences`** (élèves, parents, professeurs, personnel), fonction **`resources_for`** ;
   **`staff_suggestion`** (boîte à idées, anonyme possible, réponse de la Direction seule). Scénario **T49**.
+- **`timetable_change`** (`ANNULE` / `DEPLACE` / `AJOUT` / `DEFINITIF`, classe, séance ou matière ajoutée,
+  date, nouvel horaire, décidé par la Direction ou le secrétariat, annoncé à la classe) ; **`early_departure`**
+  (sortie anticipée : motif, appel aux parents obligatoire, mineur calculé depuis la date de naissance ; un mineur
+  part avec un adulte nommé, responsable légal ou confirmé par lui). Scénario **T50**.

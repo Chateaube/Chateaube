@@ -13,7 +13,7 @@ export const AGENDAS = {
 export function agendaItems({ sessions = [], events = [], homework = [], cls = null, staff = false }) {
   const forCls = (c) => !cls || c === cls;
   return [
-    ...sessions.filter((s) => forCls(s.cls)).map((s) => ({ id: `c-${s.id}`, agenda: 'COURS', date: s.date, start: s.start, end: s.end, title: `${s.subject} — ${s.cls}`, place: s.room })),
+    ...sessions.filter((s) => forCls(s.cls)).map((s) => ({ id: `c-${s.id}`, agenda: 'COURS', date: s.date, start: s.start, end: s.end, title: `${s.subject} — ${s.cls}${{ ANNULE: ' (annulé)', DEPLACE: ' (déplacé)', AJOUT: ' (cours ajouté)' }[s.status] ?? ''}`, place: s.room, status: s.status })),
     ...events.filter((e) => (staff || !e.staffOnly) && (!cls || !e.classes.length || e.classes.includes(cls))).map((e) => ({ id: `e-${e.id}`, agenda: 'EVENEMENTS', date: e.date, start: e.start, end: e.allDay ? e.end : e.end, allDay: !!e.allDay, title: e.title, place: e.place })),
     ...homework.filter((h) => h.due && h.todo && forCls(h.cls)).map((h) => ({ id: `d-${h.id}`, agenda: 'DEVOIRS', date: h.due, allDay: true, title: `${h.subject} (${h.cls}) : ${h.todo}` })),
   ].sort((a, b) => `${a.date}${a.start ?? '00:00'}`.localeCompare(`${b.date}${b.start ?? '00:00'}`));

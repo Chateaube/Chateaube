@@ -28,6 +28,7 @@ import AnnouncementsModule from './components/AnnouncementsModule.jsx';
 import AgendaModule from './components/AgendaModule.jsx';
 import BookCatalog from './components/BookCatalog.jsx';
 import TeachingHours from './components/TeachingHours.jsx';
+import TimetableChanges from './components/TimetableChanges.jsx';
 import InternalResources from './components/InternalResources.jsx';
 import SignaturesModule from './components/SignaturesModule.jsx';
 import { PublicPreregistration } from './components/FamilyRequests.jsx';
@@ -63,6 +64,7 @@ const LIBRARY = { id: 'library', label: 'Bibliothèque (salle d\'étude)', icon:
 const IMPORT = { id: 'import', label: 'Importer des données (Excel)', icon: 'swap', screen: ImportModule };
 const GRADE_SHEETS = { id: 'grade-sheets', label: 'Grilles de notes', icon: 'pen', screen: GradeSheets };
 const BOOKS_FOR_TEACHER = { id: 'books', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who="Mme Ranaivo" kind="PROF" /> };
+const TT_CHANGES = { id: 'tt-changes', label: 'Changements d\'emploi du temps', icon: 'clock', screen: TimetableChanges };
 const HOURS = { id: 'hours', label: 'Heures et absences des profs', icon: 'clock', screen: TeachingHours };
 const RESOURCES = { id: 'resources', label: 'Documents, ressources et idées', icon: 'pen', screen: InternalResources };
 const AGENDA = { id: 'agenda', label: 'Agendas', icon: 'calendar', screen: AgendaModule };
@@ -94,6 +96,7 @@ const PROFILES = {
         GRADE_SHEETS,
         ...OVERSIGHT,
         AGENDA,
+        TT_CHANGES,
         HOURS,
         { id: 'timetable', label: 'Emplois du temps', icon: 'clock' },
         BOOKING,
@@ -122,7 +125,7 @@ const PROFILES = {
         { id: 'bureau', label: 'Accueil du secrétariat', icon: 'home', screen: BureauHome },
         { id: 'accounting', label: 'Encaissements & comptabilité', icon: 'wallet', screen: AccountingModule },
       ] },
-      { group: 'Vie scolaire', items: [VIE_SCOLAIRE, HOURS, MESSAGES, NEWS, RESOURCES, AGENDA, FOLLOW_UP, BOOKING] },
+      { group: 'Vie scolaire', items: [VIE_SCOLAIRE, HOURS, TT_CHANGES, MESSAGES, NEWS, RESOURCES, AGENDA, FOLLOW_UP, BOOKING] },
       { group: 'Notes & bulletins', items: [COUNCIL, BULLETINS, GRADE_SHEETS, ...OVERSIGHT] },
       { group: 'Élèves', items: [INSCRIPTIONS, STUDENT_LIST, SIGNATURES, MANUALS, LIBRARY, IMPORT] },
     ],
@@ -132,7 +135,7 @@ const PROFILES = {
     title: 'CPE — vie scolaire',
     home: 'vs',
     nav: [
-      { group: 'Au quotidien', items: [VIE_SCOLAIRE, { ...HOURS, label: 'Absences des profs' }, AGENDA, FOLLOW_UP, STUDENT_LIST, SIGNATURES] },
+      { group: 'Au quotidien', items: [VIE_SCOLAIRE, { ...HOURS, label: 'Absences des profs' }, TT_CHANGES, AGENDA, FOLLOW_UP, STUDENT_LIST, SIGNATURES] },
       { group: 'Ressources', items: [BOOKING, LIBRARY, MANUALS, OVERSIGHT[1]] },
       { group: 'Communication', items: [MESSAGES, NEWS, RESOURCES] },
     ],
