@@ -982,3 +982,11 @@ test('trésorerie : transactions unifiées, trésorerie nette, reste à recouvre
   assert.equal(expenseErrors({ label: 'Loyer', amount: 2_500_000, category: 'Loyer', status: 'PAYE', date: '2026-10-05' }).length, 1); // photo
   assert.equal(expenseErrors({ label: 'x', amount: 12.5, category: 'Autre', status: 'EN_ATTENTE' }).length, 2);
 });
+
+import { menuFor } from '../src/rules/familyMenu.js';
+test('portail des familles : menu selon la classe de l\'enfant', () => {
+  assert.deepEqual(menuFor({ cls: 'Terminale STMG' }), { stages: false, orientation: true, reenrol: false });
+  assert.deepEqual(menuFor({ cls: '5e' }), { stages: false, orientation: false, reenrol: true });
+  assert.deepEqual(menuFor({ cls: '3e' }), { stages: true, orientation: true, reenrol: true });
+  assert.equal(menuFor({ cls: '1re STMG' }, { hasInternships: true }).stages, true); // stage de 2de passé
+});

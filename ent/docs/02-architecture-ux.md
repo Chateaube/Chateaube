@@ -325,3 +325,7 @@ voient les annonces sur l'accueil de leur portail. Base : `announcement` + `anno
   au-delà de 100 000 Ar ; une dépense en espèces sort de la caisse) et fournisseurs. Tableau de bord de la
   Direction : trésorerie nette, reste à recouvrer, dépenses engagées, entrées et sorties par mois, dépenses par
   catégorie. Les dépôts en banque ne sont pas des dépenses.
+
+**Portail des familles selon la classe.** Le menu « Plus » dépend de l'enfant affiché : *Stages* en 3e et en 2de
+(ou s'il reste un stage passé à consulter), *Orientation* de la 3e à la Terminale, *Réinscription* dans toutes les
+classes sauf la Terminale. Un parent de plusieurs enfants voit le menu changer quand il change d'enfant.

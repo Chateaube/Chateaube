@@ -25,6 +25,7 @@ import { loadWindows, handoverBlocks } from './BulletinHandover.jsx';
 import { pickupStatus, familyMessage } from '../rules/bulletinPickup.js';
 import { loadManuals } from '../manualsStore.js';
 import { nextClass } from '../rules/enrollment.js';
+import { menuFor } from '../rules/familyMenu.js';
 import { FicheForm, FICHE_YEAR } from './FicheSignaletique.jsx';
 import SignaturePad from './SignaturePad.jsx';
 import { ficheOf, referenceOf, setReference } from '../ficheStore.js';
@@ -98,7 +99,7 @@ function Home({ child, isParent, openFiche, openReenrol, settings }) {
       )}
       {isParent && <BulletinPickup child={child} settings={settings} />}
       <Announcements isParent={isParent} />
-      {isParent && profileOf(child) && (
+      {isParent && profileOf(child) && nextClass(child.cls) && (
         <div className="rounded-2xl bg-emerald-50 p-4">
           <p className="text-sm font-semibold text-emerald-900">Réinscriptions 2027-2028 ouvertes</p>
           <p className="text-sm text-emerald-800">{nextClass(profileOf(child).cls) ? `Réinscrivez ${child.name} en ${nextClass(profileOf(child).cls)} depuis votre téléphone, avec les pièces en photo.` : `Dites-nous si ${child.name} poursuit ailleurs l'an prochain.`}</p>
@@ -464,7 +465,10 @@ export default function FamilyPortal({ settings, audience = 'PARENT' }) {
   const [acks, setAcks] = useState({});
   const child = PARENT.children.find((c) => c.id === (isParent ? childId : 'aina'));
   const pendingAcks = isParent ? [...ATTENDANCE, ...MEASURES_LOG].filter((x) => PARENT.children.some((c) => fullName(c) === x.student) && !x.parentAck && !acks[x.id] && (x.notified ?? true)).length : 0;
-  const view = tab === 'more' ? sub : tab;
+  // menu « Plus » selon la classe de l'enfant affiché ; un écran qui ne le concerne pas est refermé
+  const menu = menuFor(child, { hasInternships: (INTERNSHIPS[child.id] ?? []).length > 0 });
+  const shownSub = sub && menu[sub] === false ? null : sub;
+  const view = tab === 'more' ? shownSub : tab;
   const unread = tab === 'messages' ? 0 : unreadCount(audience);
   const go = (t) => { setTab(t); setSub(null); };
 
@@ -484,7 +488,7 @@ export default function FamilyPortal({ settings, audience = 'PARENT' }) {
           )}
         </header>
         <div role="region" aria-label="Contenu du portail" className="flex-1 space-y-3 overflow-y-auto p-4">
-          {tab === 'more' && sub && <button onClick={() => setSub(null)} className="text-sm font-medium text-navy-500">‹ Plus</button>}
+          {tab === 'more' && shownSub && <button onClick={() => setSub(null)} className="text-sm font-medium text-navy-500">‹ Plus</button>}
           {view === 'home' && <Home child={child} isParent={isParent} settings={settings} openFiche={() => { setTab('more'); setSub('fiche'); }} openReenrol={() => { setTab('more'); setSub('reenrol'); }} />}
           {view === 'agenda' && <div className="-m-4 p-3"><AgendaModule role={audience} cls={child.cls} /></div>}
           {view === 'reenrol' && (profileOf(child) ? <FamilyRequestForm key={`r-${child.id}`} profile={profileOf(child)} kind="REINSCRIPTION" guardianName={ACCOUNT.name} /> : <Section><p className="text-sm text-slate-500">Fiche introuvable.</p></Section>)}
@@ -500,9 +504,9 @@ export default function FamilyPortal({ settings, audience = 'PARENT' }) {
           {view === 'orientation' && <Orientation key={child.id} child={child} isParent={isParent} />}
           {view === 'payments' && <Payments />}
           {view === 'messages' && <div className="-m-4 h-full bg-white p-3"><Messenger audience={audience} compact /></div>}
-          {tab === 'more' && !sub && (
+          {tab === 'more' && !shownSub && (
             <div className="grid grid-cols-2 gap-2">
-              {MORE.filter((m) => !m[3] || m[3] === audience).map(([id, label, icon]) => (
+              {MORE.filter((m) => (!m[3] || m[3] === audience) && (menu[m[0]] ?? true)).map(([id, label, icon]) => (
                 <button key={id} onClick={() => setSub(id)} className="flex flex-col items-start gap-2 rounded-2xl bg-white p-4 text-left text-sm font-medium text-slate-800 shadow-soft">
                   <Icon name={icon} className="h-5 w-5 text-navy-500" />{label}
                 </button>
