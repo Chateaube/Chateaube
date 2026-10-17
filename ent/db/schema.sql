@@ -1842,3 +1842,52 @@ CREATE TABLE early_departure (
   CHECK (NOT student_is_minor OR (picked_up_by IS NOT NULL AND relation IS NOT NULL)),
   CHECK (NOT student_is_minor OR picked_up_is_guardian OR guardian_confirmed)
 );
+
+-- Inventaire du matériel : mobilier, équipement (dont le matériel réservable), trousse de secours.
+CREATE TABLE inventory_item (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id       uuid NOT NULL REFERENCES site(id),
+  category      text NOT NULL CHECK (category IN ('MOBILIER', 'EQUIPEMENT', 'SECOURS')),
+  name          text NOT NULL,
+  place         text,
+  qty           integer NOT NULL CHECK (qty >= 0),
+  broken        integer NOT NULL DEFAULT 0,
+  min_qty       integer CHECK (min_qty >= 0),          -- seuil : à recommander en dessous
+  expires_on    date,                                  -- trousse de secours
+  is_paracetamol boolean NOT NULL DEFAULT false,       -- le Doliprane : retiré du stock à chaque passage
+  resource_id   uuid,                                  -- matériel réservable (booking_resource)
+  CHECK (broken BETWEEN 0 AND qty),
+  UNIQUE (site_id, name)
+);
+-- Mouvements : casse (décrite), réparation, mise au rebut, achat (facture), utilisation.
+CREATE TABLE inventory_movement (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  item_id       uuid NOT NULL REFERENCES inventory_item(id),
+  kind          text NOT NULL CHECK (kind IN ('CASSE', 'REPARE', 'JETE', 'ACHAT', 'UTILISE')),
+  n             integer NOT NULL CHECK (n > 0),
+  note          text,
+  supplier_id   uuid REFERENCES supplier(id),
+  amount        integer CHECK (amount >= 0),
+  invoice_file  text,                                  -- photo ou PDF de la facture
+  by_user       uuid NOT NULL REFERENCES app_user(id),
+  at            timestamptz NOT NULL DEFAULT now(),
+  CHECK (kind <> 'CASSE' OR length(trim(coalesce(note, ''))) > 0)
+);
+
+-- Passages au secrétariat pour un souci de santé (pas d'infirmerie) ; seul médicament : le Doliprane.
+CREATE TABLE care_visit (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  enrollment_id uuid NOT NULL REFERENCES enrollment(id),
+  at            timestamptz NOT NULL,
+  reason        text NOT NULL CHECK (length(trim(reason)) > 0),
+  paracetamol   boolean NOT NULL DEFAULT false,
+  dose          text,
+  outcome       text NOT NULL CHECK (outcome IN ('CLASSE', 'REPOS', 'SORTIE', 'URGENCE')),
+  recorded_by   uuid NOT NULL REFERENCES app_user(id),
+  parents_notified_at timestamptz,                     -- message aux parents dans l'application
+  CHECK (NOT paracetamol OR dose IS NOT NULL)
+);
+-- Élèves passés 3 fois ou plus dans le même mois : à voir avec la famille.
+CREATE VIEW v_frequent_care_visits AS
+  SELECT enrollment_id, date_trunc('month', at)::date AS month, count(*) AS visits
+  FROM care_visit GROUP BY 1, 2 HAVING count(*) >= 3;

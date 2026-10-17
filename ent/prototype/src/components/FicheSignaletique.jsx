@@ -171,6 +171,7 @@ export function FicheForm({ studentKey, profile, account, accountName, onSigned 
 
       <Block title="Informations médicales">
         <Field label="Allergies connues">{input('allergies')}</Field>
+        <p className="text-[11px] text-slate-500">L'école n'a pas d'infirmerie : le seul médicament donné est le Doliprane (paracétamol), par le secrétariat, comme le prévoit le règlement intérieur. Signalez toute allergie au paracétamol.</p>
         <Field label="Traitement / maladie chronique">{input('treatment')}</Field>
         <div className="grid grid-cols-2 gap-2"><Field label="Contact d'urgence">{input('emergencyName')}</Field><Field label="Téléphone">{input('emergencyPhone', { inputMode: 'tel' })}</Field></div>
       </Block>

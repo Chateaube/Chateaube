@@ -1158,5 +1158,51 @@ DO $$ DECLARE sl uuid := (SELECT id FROM timetable_slot LIMIT 1); BEGIN
   VALUES ('30000000-0000-0000-0000-000000000001', '2026-10-13 10:20+03', 'Malaise', '2026-10-13 10:05+03', true, 'M. Rabe', 'oncle', false, true, '00000000-0000-0000-0000-000000000008');
 END $$;
 
+-- T51. Passages (Doliprane) et inventaire ----------------------------------------------------------
+DO $$ DECLARE site uuid; doli uuid; tab uuid; enr uuid := '30000000-0000-0000-0000-000000000001'; BEGIN
+  SELECT c.site_id INTO site FROM enrollment e JOIN school_class c ON c.id = e.class_id WHERE e.id = enr;
+  INSERT INTO inventory_item (site_id, category, name, qty, min_qty, is_paracetamol) VALUES (site, 'SECOURS', 'Doliprane 500 mg', 2, 1, true) RETURNING id INTO doli;
+  INSERT INTO inventory_item (site_id, category, name, qty) VALUES (site, 'MOBILIER', 'Table double', 10) RETURNING id INTO tab;
+  -- un professeur ne donne pas de Doliprane
+  BEGIN
+    INSERT INTO care_visit (enrollment_id, at, reason, paracetamol, dose, outcome, recorded_by) VALUES (enr, '2026-10-13 09:00+03', 'Mal de tête', true, '1 cp', 'REPOS', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T51: Doliprane donné par un professeur';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T51:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO care_visit (enrollment_id, at, reason, paracetamol, dose, outcome, recorded_by) VALUES (enr, '2026-10-13 09:00+03', 'Mal de tête', true, '1 cp', 'REPOS', '00000000-0000-0000-0000-000000000008');
+  IF (SELECT qty FROM inventory_item WHERE id = doli) <> 1 THEN RAISE EXCEPTION 'T51: stock non décompté'; END IF;
+  BEGIN
+    INSERT INTO care_visit (enrollment_id, at, reason, paracetamol, dose, outcome, recorded_by) VALUES (enr, '2026-10-13 12:00+03', 'Mal de tête', true, '1 cp', 'CLASSE', '00000000-0000-0000-0000-000000000008');
+    RAISE EXCEPTION 'T51: deux Doliprane en 3 heures';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T51:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO care_visit (enrollment_id, at, reason, outcome, recorded_by) VALUES (enr, '2026-10-20 10:00+03', 'Mal de ventre', 'CLASSE', '00000000-0000-0000-0000-000000000008');
+  INSERT INTO care_visit (enrollment_id, at, reason, outcome, recorded_by) VALUES (enr, '2026-10-22 10:00+03', 'Malaise', 'REPOS', '00000000-0000-0000-0000-000000000008');
+  IF NOT EXISTS (SELECT 1 FROM v_frequent_care_visits WHERE enrollment_id = enr AND visits = 3) THEN RAISE EXCEPTION 'T51: passages fréquents non signalés'; END IF;
+  -- allergie déclarée
+  UPDATE student SET health_notes = 'Allergie : paracétamol' WHERE id = (SELECT student_id FROM enrollment WHERE id = enr);
+  BEGIN
+    INSERT INTO care_visit (enrollment_id, at, reason, paracetamol, dose, outcome, recorded_by) VALUES (enr, '2026-10-23 10:00+03', 'Fièvre', true, '1 cp', 'REPOS', '00000000-0000-0000-0000-000000000008');
+    RAISE EXCEPTION 'T51: Doliprane malgré une allergie';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T51:%' THEN RAISE; END IF;
+  END;
+  -- casse, réparation, rebut, achat
+  INSERT INTO inventory_movement (item_id, kind, n, note, by_user) VALUES (tab, 'CASSE', 2, 'pied cassé', '00000000-0000-0000-0000-000000000008');
+  INSERT INTO inventory_movement (item_id, kind, n, by_user) VALUES (tab, 'REPARE', 1, '00000000-0000-0000-0000-000000000008');
+  INSERT INTO inventory_movement (item_id, kind, n, by_user) VALUES (tab, 'JETE', 1, '00000000-0000-0000-0000-000000000008');
+  INSERT INTO inventory_movement (item_id, kind, n, amount, invoice_file, by_user) VALUES (tab, 'ACHAT', 3, 150000, 'factures/table.pdf', '00000000-0000-0000-0000-000000000001');
+  IF (SELECT (qty, broken) FROM inventory_item WHERE id = tab) <> (12, 0) THEN RAISE EXCEPTION 'T51: quantités fausses'; END IF;
+  BEGIN
+    INSERT INTO inventory_movement (item_id, kind, n, by_user) VALUES (tab, 'REPARE', 1, '00000000-0000-0000-0000-000000000008');
+    RAISE EXCEPTION 'T51: réparation sans casse';
+  EXCEPTION WHEN raise_exception OR check_violation THEN IF SQLERRM LIKE 'T51:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    INSERT INTO inventory_movement (item_id, kind, n, by_user) VALUES (tab, 'CASSE', 1, '00000000-0000-0000-0000-000000000008');
+    RAISE EXCEPTION 'T51: casse sans description';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T50 passent'
+\echo 'OK — tous les scénarios T1 à T51 passent'

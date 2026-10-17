@@ -400,3 +400,19 @@ d'explication.
   qu'avec un adulte, même s'il a son propre véhicule (moto) : responsable légal, ou autre personne confirmée par le
   parent au téléphone. Sinon il reste à l'école. Un élève majeur peut partir seul. La règle figure dans le
   règlement intérieur ; le registre garde la trace de chaque sortie.
+
+## Soins et inventaire du matériel
+
+- **Soins** (Vie scolaire ; secrétariat) : pas d'infirmerie. Registre des **passages** au secrétariat (mal de
+  tête, mal de ventre, fièvre, malaise, blessure légère…), avec la suite donnée (retour en classe, repos, sortie
+  anticipée, urgence). Seul médicament : le **Doliprane**, donné par le secrétariat qui garde la trousse de
+  secours (règlement intérieur, rappelé sur la fiche signalétique). L'écran refuse le Doliprane en cas
+  d'allergie au paracétamol inscrite sur la fiche, ou si une dose a été donnée à l'école il y a moins de
+  6 heures ; chaque dose est retirée du stock. **Chaque passage est signalé aux parents** dans l'application,
+  pour qu'ils prennent des nouvelles le soir. Un élève passé **3 fois ou plus dans le mois** est signalé. La CPE
+  et la Direction consultent le registre.
+- **Inventaire du matériel** (secrétariat, Direction ; la CPE signale la casse) : mobilier (tables simples ou
+  doubles, chaises, bureaux, armoires…), équipement (dont le matériel réservable par les professeurs, qui se
+  réserve toujours dans Réservations) et trousse de secours (dates de péremption). Casse décrite, réparée ou
+  jetée ; achats avec la facture en photo ou PDF ; liste « à faire » (sous le seuil, cassé, bientôt périmé) ;
+  export Excel et impression.

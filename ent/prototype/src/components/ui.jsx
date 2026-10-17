@@ -102,6 +102,8 @@ const PATHS = {
   clock: 'M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM10 6v4l3 2',
   search: 'M9 3a6 6 0 1 0 0 12A6 6 0 0 0 9 3zM13.5 13.5 17 17',
   menu: 'M3 6h14M3 10h14M3 14h14',
+  care: 'M8 3h4v5h5v4h-5v5H8v-5H3V8h5z',
+  box: 'M3 6l7-3 7 3v8l-7 3-7-3zM3 6l7 3 7-3M10 9v8',
 };
 
 export function Icon({ name, className = 'h-4 w-4' }) {

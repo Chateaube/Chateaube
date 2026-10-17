@@ -365,3 +365,9 @@ recoder.
   date, nouvel horaire, décidé par la Direction ou le secrétariat, annoncé à la classe) ; **`early_departure`**
   (sortie anticipée : motif, appel aux parents obligatoire, mineur calculé depuis la date de naissance ; un mineur
   part avec un adulte nommé, responsable légal ou confirmé par lui). Scénario **T50**.
+- **`care_visit`** (passage au secrétariat : motif, Doliprane et dose, suite, parents prévenus ; Doliprane
+  donné par le secrétariat seul, refusé si allergie au paracétamol dans `student.health_notes` ou dose de moins
+  de 6 heures, retiré du stock), vue **`v_frequent_care_visits`** (3 passages ou plus dans le mois) ;
+  **`inventory_item`** (mobilier, équipement, trousse de secours ; quantité, cassés, seuil, péremption) et
+  **`inventory_movement`** (casse décrite, réparation, rebut, achat avec facture, utilisation), quantités mises à
+  jour par déclencheur. Scénario **T51**.

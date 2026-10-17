@@ -1041,3 +1041,43 @@ BEGIN
   RETURN NEW;
 END $$ LANGUAGE plpgsql;
 CREATE TRIGGER early_departure_age BEFORE INSERT OR UPDATE ON early_departure FOR EACH ROW EXECUTE FUNCTION early_departure_minor();
+
+-- Inventaire : chaque mouvement met à jour les quantités (jamais plus de casse que d'articles en état).
+CREATE FUNCTION inventory_apply() RETURNS trigger AS $$
+BEGIN
+  UPDATE inventory_item SET
+    broken = broken + CASE NEW.kind WHEN 'CASSE' THEN NEW.n WHEN 'REPARE' THEN -NEW.n WHEN 'JETE' THEN -NEW.n ELSE 0 END,
+    qty    = qty    + CASE NEW.kind WHEN 'ACHAT' THEN NEW.n WHEN 'JETE' THEN -NEW.n WHEN 'UTILISE' THEN -NEW.n ELSE 0 END
+  WHERE id = NEW.item_id;
+  IF EXISTS (SELECT 1 FROM inventory_item WHERE id = NEW.item_id AND (broken < 0 OR broken > qty)) THEN
+    RAISE EXCEPTION 'Quantité incorrecte pour cet article';
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER inventory_movement_apply AFTER INSERT ON inventory_movement FOR EACH ROW EXECUTE FUNCTION inventory_apply();
+
+-- Passage : le Doliprane est donné par le secrétariat seulement, jamais en cas d'allergie au paracétamol
+-- déclarée, jamais deux fois en moins de 6 heures ; il est retiré du stock du site.
+CREATE FUNCTION care_visit_guard() RETURNS trigger AS $$
+DECLARE item uuid; BEGIN
+  IF NEW.paracetamol THEN
+    IF NOT EXISTS (SELECT 1 FROM user_role WHERE user_id = NEW.recorded_by AND role = 'BUREAU') THEN
+      RAISE EXCEPTION 'Le Doliprane est donné par le secrétariat';
+    END IF;
+    IF EXISTS (SELECT 1 FROM enrollment e JOIN student s ON s.id = e.student_id
+               WHERE e.id = NEW.enrollment_id AND s.health_notes ~* '(paracétamol|paracetamol|doliprane)') THEN
+      RAISE EXCEPTION 'Allergie au paracétamol déclarée : pas de Doliprane';
+    END IF;
+    IF EXISTS (SELECT 1 FROM care_visit WHERE enrollment_id = NEW.enrollment_id AND paracetamol
+               AND at > NEW.at - interval '6 hours' AND at <= NEW.at) THEN
+      RAISE EXCEPTION 'Doliprane déjà donné il y a moins de 6 heures';
+    END IF;
+    SELECT i.id INTO item FROM inventory_item i JOIN enrollment e ON e.id = NEW.enrollment_id
+      JOIN school_class c ON c.id = e.class_id
+      WHERE i.is_paracetamol AND i.site_id = c.site_id AND i.qty - i.broken > 0 LIMIT 1;
+    IF item IS NULL THEN RAISE EXCEPTION 'Plus de Doliprane en stock'; END IF;
+    INSERT INTO inventory_movement (item_id, kind, n, note, by_user, at) VALUES (item, 'UTILISE', 1, 'passage', NEW.recorded_by, NEW.at);
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER care_visit_check BEFORE INSERT ON care_visit FOR EACH ROW EXECUTE FUNCTION care_visit_guard();

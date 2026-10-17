@@ -1105,3 +1105,43 @@ test('changements d\'emploi du temps annoncés ; sorties anticipées des mineurs
   assert.deepEqual(leaveErrors({ minor: true, reason: 'Malaise', parentCalled: true, pickedUpBy: 'M. Rabe', relation: 'Oncle', guardianConfirmed: true }), []);
   assert.deepEqual(leaveErrors({ minor: false, reason: 'Rendez-vous', parentCalled: true }), []); // majeur : peut partir seul
 });
+
+import { careErrors, frequentVisitors, parentNotice, recentDose } from '../src/rules/care.js';
+import { inventoryAlerts, reportBroken, resolveBroken, addPurchase, consume, usable } from '../src/rules/inventory.js';
+
+test('soins : Doliprane refusé si allergie, si déjà donné il y a moins de 6 h, ou sans stock', () => {
+  const visits = [{ student: 'A', at: '2026-10-13T08:30', paracetamol: true }];
+  const v = { student: 'A', reason: 'Mal de tête', outcome: 'REPOS', paracetamol: true, dose: '1 cp', at: '2026-10-13T11:00' };
+  assert.match(careErrors(v, { visits }).join(), /6 heures/);
+  assert.equal(recentDose(visits, 'A', '2026-10-13T15:00'), undefined);
+  assert.match(careErrors({ ...v, at: '2026-10-13T15:00' }, { visits, allergies: 'Paracétamol' }).join(), /Allergie/);
+  assert.match(careErrors({ ...v, at: '2026-10-13T15:00' }, { visits, stock: 0 }).join(), /stock/);
+  assert.deepEqual(careErrors({ ...v, at: '2026-10-13T15:00' }, { visits, allergies: 'Arachides', stock: 5 }), []);
+  assert.deepEqual(careErrors({ ...v, paracetamol: false }, { visits }), []);
+});
+
+test('soins : élèves passés 3 fois dans le mois, message aux parents', () => {
+  const visits = ['2026-10-02', '2026-10-07', '2026-10-12', '2026-09-30'].map((d) => ({ student: 'A', at: `${d}T10:00` }));
+  assert.deepEqual(frequentVisitors(visits, '2026-10'), [{ student: 'A', count: 3 }]);
+  assert.deepEqual(frequentVisitors(visits.slice(1), '2026-10'), []);
+  const m = parentNotice({ at: '2026-10-13T10:15', reason: 'Mal de tête', paracetamol: true, dose: '1 comprimé 500 mg', outcome: 'REPOS' }, 'Aina');
+  assert.match(m, /Aina .* 10h15 : mal de tête\. Un Doliprane lui a été donné \(1 comprimé 500 mg\)/);
+});
+
+test('inventaire : casse, réparation, achat avec facture, stock et péremption', () => {
+  let t = { id: 't', name: 'Table double', qty: 10, broken: 0, min: 8 };
+  t = reportBroken(t, 2, 'pied cassé', 'Mme Hanta', 'x');
+  assert.equal(usable(t), 8);
+  assert.throws(() => reportBroken(t, 9, 'x', 'y', 'z'), /Seulement 8/);
+  assert.equal(inventoryAlerts([t], '2026-10-13').length, 2);
+  t = resolveBroken(t, 1, 'REPARE', 'y', 'z'); assert.deepEqual([t.qty, t.broken], [10, 1]);
+  t = resolveBroken(t, 1, 'JETE', 'y', 'z'); assert.deepEqual([t.qty, t.broken], [9, 0]);
+  t = addPurchase(t, { n: 3, supplier: 'Menuiserie', price: 150000, invoice: { kind: 'pdf' } }, 'y', 'z');
+  assert.deepEqual([t.qty, t.invoices.length], [12, 1]);
+  assert.deepEqual(inventoryAlerts([t], '2026-10-13'), []);
+  const d = { id: 'd', name: 'Doliprane', qty: 1, broken: 0, expires: '2026-11-01' };
+  assert.equal(inventoryAlerts([d], '2026-10-13')[0].kind, 'PEREMPTION');
+  assert.equal(inventoryAlerts([d], '2026-11-02')[0].kind, 'PERIME');
+  assert.equal(consume(d, 1, 'y', 'z').qty, 0);
+  assert.throws(() => consume({ ...d, qty: 0 }, 1, 'y', 'z'));
+});

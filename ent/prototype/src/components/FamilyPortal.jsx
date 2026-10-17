@@ -34,6 +34,8 @@ import { ficheOf, referenceOf, setReference } from '../ficheStore.js';
 import { loadLibrary } from '../libraryStore.js';
 import { designation, dueSoonLoans, daysLeft, gamesOut } from '../rules/library.js';
 import { GAMES, GAME_LOG } from '../data/games.js';
+import { loadVisits } from '../careStore.js';
+import { parentNotice } from '../rules/care.js';
 
 // Portail famille : PARENT (toutes les actions) ou ELEVE (presque la même chose, en lecture,
 // sans paiements, sans accusés de lecture ni signatures).
@@ -75,6 +77,14 @@ function BookDueSoon({ child }) {
   const soon = dueSoonLoans(loadLibrary().loans, TODAY).filter((l) => l.borrower === fullName(child));
   if (!soon.length) return null;
   return <div className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-900"><p className="font-semibold">Livre à rendre bientôt — {child.name}</p>{soon.map((l) => <p key={l.id}>{l.code} : à rendre le {l.due.split('-').reverse().join('/')} au secrétariat (ou repasser avec le livre pour le garder un mois de plus).</p>)}</div>;
+}
+
+function CareNotice({ child }) {
+  // passage au secrétariat (mal de tête, Doliprane…) des 3 derniers jours, pour en reparler le soir
+  const since = new Date(new Date(`${TODAY}T12:00:00`) - 3 * 864e5).toISOString().slice(0, 10);
+  const list = loadVisits().filter((v) => v.student === fullName(child) && v.at.slice(0, 10) >= since && v.at.slice(0, 10) <= TODAY);
+  if (!list.length) return null;
+  return <div className="rounded-2xl bg-sky-50 p-4 text-sm text-sky-900"><p className="font-semibold">Passage au secrétariat — {child.name}</p>{list.map((v) => <p key={v.id}>{v.at.slice(8, 10)}/{v.at.slice(5, 7)} · {v.notice ?? parentNotice(v, child.name)}</p>)}</div>;
 }
 
 function GamesAvailable() {
@@ -121,6 +131,7 @@ function Home({ child, isParent, openFiche, openReenrol, settings, features }) {
         </div>
       )}
       {isParent && <BulletinPickup child={child} settings={settings} />}
+      {isParent && <CareNotice child={child} />}
       <BookDueSoon child={child} />
       <Announcements isParent={isParent} />
       {isParent && profileOf(child) && nextClass(child.cls) && (

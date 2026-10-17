@@ -28,6 +28,8 @@ import AnnouncementsModule from './components/AnnouncementsModule.jsx';
 import AgendaModule from './components/AgendaModule.jsx';
 import BookCatalog from './components/BookCatalog.jsx';
 import TeachingHours from './components/TeachingHours.jsx';
+import CareModule from './components/CareModule.jsx';
+import InventoryModule from './components/InventoryModule.jsx';
 import TimetableChanges from './components/TimetableChanges.jsx';
 import InternalResources from './components/InternalResources.jsx';
 import SignaturesModule from './components/SignaturesModule.jsx';
@@ -67,6 +69,8 @@ const BOOKS_FOR_TEACHER = { id: 'books', label: 'Bibliothèque et manuels', icon
 const TT_CHANGES = { id: 'tt-changes', label: 'Changements d\'emploi du temps', icon: 'clock', screen: TimetableChanges };
 const HOURS = { id: 'hours', label: 'Heures et absences des profs', icon: 'clock', screen: TeachingHours };
 const RESOURCES = { id: 'resources', label: 'Documents, ressources et idées', icon: 'pen', screen: InternalResources };
+const CARE = { id: 'care', label: 'Soins (passages, Doliprane)', icon: 'care', screen: CareModule };
+const INVENTORY = { id: 'inventory', label: 'Inventaire du matériel', icon: 'box', screen: InventoryModule };
 const AGENDA = { id: 'agenda', label: 'Agendas', icon: 'calendar', screen: AgendaModule };
 const NEWS = { id: 'news', label: 'Annonces', icon: 'megaphone', screen: AnnouncementsModule };
 const STUDENT_LIST = { id: 'students-list', label: 'Liste des élèves', icon: 'users', screen: StudentList };
@@ -104,6 +108,7 @@ const PROFILES = {
       ] },
       { group: 'Vie scolaire & familles', items: [
         VIE_SCOLAIRE,
+        CARE,
         FOLLOW_UP,
         MESSAGES,
         NEWS,
@@ -111,6 +116,7 @@ const PROFILES = {
       { group: 'Administration', items: [
         { id: 'staff', label: 'Gestion des agents', icon: 'users', screen: StaffModule },
         RESOURCES,
+        INVENTORY,
         IMPORT,
         { id: 'settings', label: 'Paramètres', icon: 'settings', screen: SettingsModule },
       ] },
@@ -125,9 +131,10 @@ const PROFILES = {
         { id: 'bureau', label: 'Accueil du secrétariat', icon: 'home', screen: BureauHome },
         { id: 'accounting', label: 'Encaissements & comptabilité', icon: 'wallet', screen: AccountingModule },
       ] },
-      { group: 'Vie scolaire', items: [VIE_SCOLAIRE, HOURS, TT_CHANGES, MESSAGES, NEWS, RESOURCES, AGENDA, FOLLOW_UP, BOOKING] },
+      { group: 'Vie scolaire', items: [VIE_SCOLAIRE, CARE, HOURS, TT_CHANGES, MESSAGES, NEWS, RESOURCES, AGENDA, FOLLOW_UP, BOOKING] },
       { group: 'Notes & bulletins', items: [COUNCIL, BULLETINS, GRADE_SHEETS, ...OVERSIGHT] },
       { group: 'Élèves', items: [INSCRIPTIONS, STUDENT_LIST, SIGNATURES, MANUALS, LIBRARY, IMPORT] },
+      { group: 'Matériel', items: [INVENTORY] },
     ],
   },
   VIE_SCOLAIRE: {
@@ -135,8 +142,8 @@ const PROFILES = {
     title: 'CPE — vie scolaire',
     home: 'vs',
     nav: [
-      { group: 'Au quotidien', items: [VIE_SCOLAIRE, { ...HOURS, label: 'Absences des profs' }, TT_CHANGES, AGENDA, FOLLOW_UP, STUDENT_LIST, SIGNATURES] },
-      { group: 'Ressources', items: [BOOKING, LIBRARY, MANUALS, OVERSIGHT[1]] },
+      { group: 'Au quotidien', items: [VIE_SCOLAIRE, CARE, { ...HOURS, label: 'Absences des profs' }, TT_CHANGES, AGENDA, FOLLOW_UP, STUDENT_LIST, SIGNATURES] },
+      { group: 'Ressources', items: [BOOKING, LIBRARY, MANUALS, OVERSIGHT[1], INVENTORY] },
       { group: 'Communication', items: [MESSAGES, NEWS, RESOURCES] },
     ],
   },
