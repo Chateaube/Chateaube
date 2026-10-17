@@ -6,7 +6,28 @@
 import { isSchoolDay } from './discipline.js';
 import { addDays, isoWeekday } from './calendar.js';
 
-export const WORK_KINDS = { DEVOIR: 'Devoir laissé', ACTIVITE: 'Activité laissée', AUCUN: 'Rien laissé' };
+export const WORK_KINDS = { DEVOIR: 'Devoir laissé', ACTIVITE: 'Activité laissée', NON_REQUIS: 'Travail non requis (accordé par la Direction)', AUCUN: 'Rien laissé' };
+/** Absence de plusieurs jours : après quelques jours, la Direction peut dispenser de laisser du travail. */
+export function grantNoWork(absence, role) {
+  if (role !== 'DIRECTION') return { error: 'Seule la Direction dispense de laisser un travail.' };
+  return { absence: { ...absence, work: 'NON_REQUIS' } };
+}
+/** Message aux élèves et aux parents de la classe : le cours n'a pas lieu, mais les élèves viennent. */
+export function absenceNotice({ teacher, subject, cls, date, start, end, work, workText }, dateLabel) {
+  const travail = work === 'DEVOIR' || work === 'ACTIVITE' ? ` Travail à faire pendant l'heure : ${workText || 'distribué par la vie scolaire'}.` : '';
+  return {
+    title: `${subject} — ${cls} : professeur absent le ${dateLabel}`,
+    text: `${teacher} est absent(e) le ${dateLabel} (${start.replace(':', 'h')}–${end.replace(':', 'h')}). Les élèves viennent comme d'habitude : l'heure se passe en étude surveillée par la vie scolaire.${travail}`,
+  };
+}
+
+// --- Retards des professeurs : au-delà d'une heure cumulée, l'heure est à rattraper ---
+export function latenessBalance(teacherId, lateness, makeups = []) {
+  const minutes = lateness.filter((l) => l.teacherId === teacherId).reduce((t, l) => t + l.minutes, 0);
+  const madeUp = makeups.filter((m) => m.teacherId === teacherId).reduce((t, m) => t + m.hours, 0);
+  const owed = Math.floor(minutes / 60);
+  return { minutes, owed, madeUp, toMakeUp: Math.max(0, owed - madeUp), beforeNext: 60 - (minutes % 60) };
+}
 const minutes = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
 export const slotHours = (s) => (minutes(s.end) - minutes(s.start)) / 60;
 
@@ -41,7 +62,7 @@ export function teacherHours(teacherId, slots, absences, { from, to, today, sett
     plannedToDate: sum(past),
     done: sum(past.filter((s) => !isAbsent(s))),
     absent: sum(sessions.filter(isAbsent)),
-    absentNoWork: sum(sessions.filter((s) => noWork.has(`${s.date}|${s.slotId}`))),
+    absentNoWork: sum(sessions.filter((s) => noWork.has(`${s.date}|${s.slotId}`))), // « rien laissé » sans dispense
     remaining: sum(sessions.filter((s) => s.date > today && !isAbsent(s))),
     byClass,
   };
@@ -55,7 +76,8 @@ export function absenceErrors(a) {
   if (!a.slotIds?.length) e.push('Choisir au moins une séance.');
   if (!a.reason?.trim()) e.push('Indiquer le motif de l\'absence.');
   if (!WORK_KINDS[a.work]) e.push('Indiquer le travail laissé.');
-  if (a.work !== 'AUCUN' && !a.workText?.trim() && !a.file) e.push('Décrire le devoir ou l\'activité, ou joindre le document.');
+  if (['DEVOIR', 'ACTIVITE'].includes(a.work) && !a.workText?.trim() && !a.file) e.push('Décrire le devoir ou l\'activité, ou joindre le document.');
+  if (a.work === 'NON_REQUIS' && a.declaredRole !== 'DIRECTION') e.push('Seule la Direction dispense de laisser un travail.');
   return e;
 }
 

@@ -20,3 +20,14 @@ export const TEACHER_ABSENCES = [
   { id: 'a2', teacherId: 'p4', date: '2026-10-12', slotIds: ['t10'], reason: 'Absence imprévue', work: 'AUCUN', workText: '', declaredBy: 'Secrétariat', declaredAt: '2026-10-12' },
   { id: 'a3', teacherId: 'p5', date: '2026-10-14', slotIds: ['t13'], reason: 'Formation', work: 'ACTIVITE', workText: 'Fiche d\'activité « suites géométriques » (photo jointe au secrétariat).', declaredBy: 'TOJO Andry', declaredAt: '2026-10-13' },
 ];
+
+// Pointage des retards des professeurs (minutes) et heures rattrapées
+export const TEACHER_LATENESS = [
+  { id: 'l1', teacherId: 'p4', date: '2026-09-21', minutes: 10, by: 'CPE' }, { id: 'l2', teacherId: 'p4', date: '2026-09-28', minutes: 15, by: 'CPE' },
+  { id: 'l3', teacherId: 'p4', date: '2026-10-05', minutes: 20, by: 'CPE' }, { id: 'l4', teacherId: 'p4', date: '2026-10-12', minutes: 25, by: 'Secrétariat' },
+  { id: 'l5', teacherId: 'p2', date: '2026-10-01', minutes: 5, by: 'CPE' }, { id: 'l6', teacherId: 'p2', date: '2026-10-08', minutes: 10, by: 'CPE' },
+  { id: 'l7', teacherId: 'p5', date: '2026-09-16', minutes: 30, by: 'CPE' }, { id: 'l8', teacherId: 'p5', date: '2026-09-30', minutes: 35, by: 'CPE' },
+];
+export const TEACHER_MAKEUPS = [
+  { id: 'm1', teacherId: 'p5', date: '2026-10-10', hours: 1, note: 'Heure rattrapée samedi matin avec la Terminale STMG' },
+];

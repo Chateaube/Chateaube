@@ -355,3 +355,7 @@ recoder.
   d'absence, faites sur une période, jours de classe seulement), **`internal_resource`** (professeurs ou tout le
   personnel, partagée par la Direction, le secrétariat ou la CPE) et **`internal_resource_view`** (chaque
   consultation tracée). Scénario **T47**.
+- **`teacher_absence`** : `NON_REQUIS` (dispense de travail accordée par la Direction, `granted_by`),
+  `families_notified_at` ; **`teacher_lateness`** et **`teacher_makeup`**, vue **`v_teacher_lateness`** (heures à
+  rattraper par tranche de 60 minutes) ; **`internal_resource.url`** (lien) ; **`board_game`** et
+  **`board_game_use`** (sorties, retour complet ou incident décrit, un exemplaire à la fois). Scénario **T48**.

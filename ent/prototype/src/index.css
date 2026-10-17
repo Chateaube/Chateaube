@@ -131,7 +131,7 @@ main .bulletin thead th { color: #000; }
 .consultation input:not(.nav-control), .consultation textarea { pointer-events: none; background-color: var(--color-slate-50); }
 .consultation button:not(.nav-control):not([role=tab]) { display: none; }
 
-/* Protection d'écran : filigrane nominatif et impression noircie (hors Direction et Bureau) */
+/* Protection d'écran : impression noircie (hors Direction et secrétariat) */
 .screen-watermark {
   position: fixed; inset: -50%; z-index: 90; pointer-events: none; user-select: none;
   transform: rotate(-24deg); font-size: 13px; line-height: 64px; word-spacing: 6px;

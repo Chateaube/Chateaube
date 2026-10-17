@@ -31,7 +31,8 @@ import { FicheForm, FICHE_YEAR } from './FicheSignaletique.jsx';
 import SignaturePad from './SignaturePad.jsx';
 import { ficheOf, referenceOf, setReference } from '../ficheStore.js';
 import { loadLibrary } from '../libraryStore.js';
-import { designation } from '../rules/library.js';
+import { designation, dueSoonLoans, daysLeft, gamesOut } from '../rules/library.js';
+import { GAMES, GAME_LOG } from '../data/games.js';
 
 // Portail famille : PARENT (toutes les actions) ou ELEVE (presque la même chose, en lecture,
 // sans paiements, sans accusés de lecture ni signatures).
@@ -68,6 +69,24 @@ function Announcements({ isParent }) {
   return <>{list.map((a) => <AnnouncementCard key={a.id} a={a} who={isParent ? ACCOUNT.id : 'aina'} compact />)}</>;
 }
 
+function BookDueSoon({ child }) {
+  // rappel automatique quelques jours avant la date de retour
+  const soon = dueSoonLoans(loadLibrary().loans, TODAY).filter((l) => l.borrower === fullName(child));
+  if (!soon.length) return null;
+  return <div className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-900"><p className="font-semibold">Livre à rendre bientôt — {child.name}</p>{soon.map((l) => <p key={l.id}>{l.code} : à rendre le {l.due.split('-').reverse().join('/')} au secrétariat (ou repasser avec le livre pour le garder un mois de plus).</p>)}</div>;
+}
+
+function GamesAvailable() {
+  const d = loadLibrary();
+  const games = d.games ?? GAMES; const log = d.gameLog ?? GAME_LOG;
+  return (
+    <Section title="Jeux de société (salle d'étude)">
+      <ul className="space-y-1 text-sm">{games.map((g) => { const free = g.copies - gamesOut(g.id, log).length; return <li key={g.id} className="flex justify-between gap-2"><span>{g.name}</span><span className={free ? 'text-emerald-700' : 'text-slate-400'}>{free ? `${free} libre${free > 1 ? 's' : ''}` : 'tous sortis'}</span></li>; })}</ul>
+      <p className="mt-2 text-xs text-slate-500">À demander à la vie scolaire pendant les pauses. Range le jeu complet.</p>
+    </Section>
+  );
+}
+
 function BulletinPickup({ child, settings }) {
   // bulletin du trimestre : à retirer au secrétariat, ou en attente de régularisation
   const w = loadWindows()[`T1|${child.cls}`];
@@ -81,10 +100,12 @@ function BulletinPickup({ child, settings }) {
   return <div className={`rounded-2xl p-4 text-sm ${status === 'BLOQUE' ? 'bg-red-50 text-red-900' : 'bg-navy-50 text-navy-900'}`}><p className="font-semibold">Bulletin — {child.name}</p><p>{msg}</p></div>;
 }
 
-function Home({ child, isParent, openFiche, openReenrol, settings }) {
+function Home({ child, isParent, openFiche, openReenrol, settings, features }) {
   const due = HOMEWORK.filter((h) => h.cls === child.cls && h.due && h.due > TODAY).sort((a, b) => a.due.localeCompare(b.due)).slice(0, 2);
   return (
     <>
+      {features}
+      <h2 className="px-1 pt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">À faire et à savoir</h2>
       {isParent && PARENT.alerts.map((a) => (
         <div key={a.title} className={`rounded-2xl p-4 ${a.tone === 'red' ? 'bg-red-50' : 'bg-amber-50'}`}>
           <p className={`text-sm font-semibold ${a.tone === 'red' ? 'text-red-900' : 'text-amber-900'}`}>{a.title}</p>
@@ -99,6 +120,7 @@ function Home({ child, isParent, openFiche, openReenrol, settings }) {
         </div>
       )}
       {isParent && <BulletinPickup child={child} settings={settings} />}
+      <BookDueSoon child={child} />
       <Announcements isParent={isParent} />
       {isParent && profileOf(child) && nextClass(child.cls) && (
         <div className="rounded-2xl bg-emerald-50 p-4">
@@ -416,7 +438,7 @@ function LibraryLoans({ child }) {
           {mine.map((l) => (
             <li key={l.id} className="rounded-xl border border-slate-200 p-3 text-sm">
               <p className="font-medium text-slate-800">{designation(bookOf(l.code))}</p>
-              <p className={`text-xs ${l.due < TODAY ? 'text-red-700' : 'text-slate-500'}`}>{l.code} · à rendre le {l.due.split('-').reverse().join('/')}{l.due < TODAY ? ' (en retard)' : ''}</p>
+              <p className={`text-xs ${l.due < TODAY ? 'text-red-700' : daysLeft(l.due, TODAY) <= 3 ? 'font-medium text-amber-700' : 'text-slate-500'}`}>{l.code} · à rendre le {l.due.split('-').reverse().join('/')}{l.due < TODAY ? ' (en retard)' : daysLeft(l.due, TODAY) <= 3 ? ` (dans ${daysLeft(l.due, TODAY)} jour${daysLeft(l.due, TODAY) > 1 ? 's' : ''})` : ''}</p>
             </li>
           ))}
         </ul>
@@ -450,28 +472,57 @@ function MySignature() {
 
 /* ---------- Coquille ---------- */
 // En bas d'écran : Vie scolaire, Notes et Messages mis en avant ; Devoirs passe dans « Plus »
-const TABS = [['home', 'Accueil', 'home'], ['life', 'Vie scol.', 'users'], ['notes', 'Notes', 'pen'], ['messages', 'Messages', 'bell'], ['more', 'Plus', 'settings']];
-const MORE = [
-  ['homework', 'Devoirs & cahier de textes', 'calendar'], ['documents', 'Documents & autorisations', 'pen'], ['stages', 'Stages', 'cap'],
-  ['orientation', 'Orientation', 'cap'], ['payments', 'Paiements', 'wallet', 'PARENT'],
-  ['library', 'Bibliothèque', 'cap'], ['fiche', 'Fiche signalétique', 'pen', 'PARENT'], ['signature', 'Ma signature', 'pen', 'PARENT'],
-  ['agenda', 'Agendas', 'calendar'], ['reenrol', 'Réinscription 2027-2028', 'calendar', 'PARENT'], ['update', 'Mettre à jour nos informations', 'users', 'PARENT'],
+// Barre du bas : les écrans de tous les jours. Tout le reste est visible d'un coup d'œil sur l'accueil,
+// rangé par thème (plus de menu « Plus » caché).
+const TABS = [['home', 'Accueil', 'home'], ['notes', 'Notes', 'pen'], ['homework', 'Devoirs', 'calendar'], ['life', 'Vie scol.', 'users'], ['messages', 'Messages', 'bell']];
+const SECTIONS = [
+  ['Scolarité', [['notes', 'Notes', 'pen'], ['homework', 'Devoirs', 'calendar'], ['life', 'Vie scolaire', 'users'], ['agenda', 'Agendas', 'calendar'], ['library', 'Bibliothèque', 'cap'], ['stages', 'Stages', 'cap'], ['orientation', 'Orientation', 'cap']]],
+  ['Démarches', [['documents', 'Documents et autorisations', 'pen'], ['payments', 'Paiements', 'wallet', 'PARENT'], ['fiche', 'Fiche signalétique', 'pen', 'PARENT'], ['reenrol', 'Réinscription', 'calendar', 'PARENT'], ['update', 'Mettre à jour nos informations', 'users', 'PARENT'], ['signature', 'Ma signature', 'pen', 'PARENT']]],
 ];
+
+/** Toutes les fonctions, par thème, sur l'accueil ; ce qui ne concerne pas l'enfant reste grisé. */
+function AllFeatures({ audience, menu, badges, open }) {
+  const isParent = audience === 'PARENT';
+  return SECTIONS.map(([title, items]) => {
+    const list = items.filter((m) => !m[3] || m[3] === audience);
+    if (!list.length) return null;
+    return (
+      <section key={title}>
+        <h2 className="mb-1.5 px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</h2>
+        <div className="grid grid-cols-3 gap-2">
+          {list.map(([id, label, icon]) => {
+            const off = menu[id] === false;
+            return (
+              <button key={id} type="button" disabled={off} onClick={() => open(id)}
+                className={`relative flex min-h-[78px] flex-col items-center justify-center gap-1 rounded-2xl p-2 text-center text-[12px] font-medium leading-tight ${off ? 'cursor-default bg-slate-100 text-slate-400' : 'bg-white text-slate-800 shadow-soft'}`}>
+                <Icon name={icon} className={`h-5 w-5 ${off ? 'text-slate-300' : 'text-navy-500'}`} />
+                <span>{label}{off && <span className="block text-[10px] font-normal">(ne concerne pas {isParent ? 'votre enfant' : 'ta classe'})</span>}</span>
+                {!off && badges[id] > 0 && <span className="absolute right-1.5 top-1.5 rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white">{badges[id]}</span>}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+    );
+  });
+}
+
 
 export default function FamilyPortal({ settings, audience = 'PARENT' }) {
   const isParent = audience === 'PARENT';
-  const [tab, setTab] = useState('home');
-  const [sub, setSub] = useState(null);
+  const [screen, setScreen] = useState('home');
   const [childId, setChildId] = useState(PARENT.children[0].id);
   const [acks, setAcks] = useState({});
   const child = PARENT.children.find((c) => c.id === (isParent ? childId : 'aina'));
   const pendingAcks = isParent ? [...ATTENDANCE, ...MEASURES_LOG].filter((x) => PARENT.children.some((c) => fullName(c) === x.student) && !x.parentAck && !acks[x.id] && (x.notified ?? true)).length : 0;
   // menu « Plus » selon la classe de l'enfant affiché ; un écran qui ne le concerne pas est refermé
   const menu = menuFor(child, { hasInternships: (INTERNSHIPS[child.id] ?? []).length > 0 });
-  const shownSub = sub && menu[sub] === false ? null : sub;
-  const view = tab === 'more' ? shownSub : tab;
-  const unread = tab === 'messages' ? 0 : unreadCount(audience);
-  const go = (t) => { setTab(t); setSub(null); };
+  // un écran qui ne concerne pas l'enfant choisi revient à l'accueil
+  const view = menu[screen] === false ? 'home' : screen;
+  const unread = view === 'messages' ? 0 : unreadCount(audience);
+  const go = (t) => setScreen(t);
+  const badges = { life: pendingAcks, fiche: isParent && !ficheOf(fullName(child))?.signedAt ? 1 : 0 };
+  const isTab = TABS.some(([id]) => id === view);
 
   return (
     <div className="mx-auto w-full max-w-[420px]">
@@ -489,8 +540,9 @@ export default function FamilyPortal({ settings, audience = 'PARENT' }) {
           )}
         </header>
         <div role="region" aria-label="Contenu du portail" className="flex-1 space-y-3 overflow-y-auto p-4">
-          {tab === 'more' && shownSub && <button onClick={() => setSub(null)} className="text-sm font-medium text-navy-500">‹ Plus</button>}
-          {view === 'home' && <Home child={child} isParent={isParent} settings={settings} openFiche={() => { setTab('more'); setSub('fiche'); }} openReenrol={() => { setTab('more'); setSub('reenrol'); }} />}
+          {view !== 'home' && !isTab && <button onClick={() => go('home')} className="text-sm font-medium text-navy-500">‹ Accueil</button>}
+          {view === 'home' && <Home child={child} isParent={isParent} settings={settings} openFiche={() => go('fiche')} openReenrol={() => go('reenrol')}
+            features={<AllFeatures audience={audience} menu={menu} badges={badges} open={go} />} />}
           {view === 'agenda' && <div className="-m-4 p-3"><AgendaModule role={audience} cls={child.cls} /></div>}
           {view === 'reenrol' && (profileOf(child) ? <FamilyRequestForm key={`r-${child.id}`} profile={profileOf(child)} kind="REINSCRIPTION" guardianName={ACCOUNT.name} /> : <Section><p className="text-sm text-slate-500">Fiche introuvable.</p></Section>)}
           {view === 'update' && (profileOf(child) ? <FamilyRequestForm key={`u-${child.id}`} profile={profileOf(child)} kind="MISE_A_JOUR" guardianName={ACCOUNT.name} /> : <Section><p className="text-sm text-slate-500">Fiche introuvable.</p></Section>)}
@@ -500,6 +552,7 @@ export default function FamilyPortal({ settings, audience = 'PARENT' }) {
             <LibraryLoans child={child} />
             <BookCatalog key={child.id} compact who={fullName(child)} kind={isParent ? 'PARENT' : 'ELEVE'} cls={child.cls} />
             {isParent && <p className="text-center text-xs text-slate-500">La réservation se fait depuis le compte de l'élève.</p>}
+            {!isParent && <GamesAvailable />}
           </>)}
           {view === 'notes' && <Notes child={child} audience={audience} settings={settings} />}
           {view === 'homework' && <Homework child={child} isParent={isParent} />}
@@ -509,26 +562,11 @@ export default function FamilyPortal({ settings, audience = 'PARENT' }) {
           {view === 'orientation' && <Orientation key={child.id} child={child} isParent={isParent} />}
           {view === 'payments' && <Payments />}
           {view === 'messages' && <div className="-m-4 h-full bg-white p-3"><Messenger audience={audience} compact /></div>}
-          {tab === 'more' && !shownSub && (
-            <div className="grid grid-cols-2 gap-2">
-              {MORE.filter((m) => !m[3] || m[3] === audience).map(([id, label, icon]) => {
-                // ce qui ne concerne pas cet enfant reste visible, grisé et sans clic
-                const off = menu[id] === false;
-                return (
-                  <button key={id} disabled={off} onClick={() => setSub(id)}
-                    className={`flex flex-col items-start gap-2 rounded-2xl p-4 text-left text-sm font-medium ${off ? 'cursor-default bg-slate-100 text-slate-400' : 'bg-white text-slate-800 shadow-soft'}`}>
-                    <Icon name={icon} className={`h-5 w-5 ${off ? 'text-slate-300' : 'text-navy-500'}`} />
-                    <span>{label}{off && <span className="block text-[11px] font-normal">(ne concerne pas {isParent ? 'votre enfant' : 'ta classe'})</span>}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
         </div>
         <nav className="grid grid-cols-5 border-t border-slate-100 bg-white px-1 pb-1" aria-label="Navigation du portail">
           {TABS.map(([id, label, icon]) => (
-            <button key={id} onClick={() => go(id)} aria-current={tab === id ? 'page' : undefined}
-              className={`relative flex flex-col items-center gap-0.5 py-2 text-[11px] ${tab === id ? 'font-semibold text-navy-900' : 'text-slate-400'}`}>
+            <button key={id} onClick={() => go(id)} aria-current={view === id ? 'page' : undefined}
+              className={`relative flex flex-col items-center gap-0.5 py-2 text-[11px] ${view === id ? 'font-semibold text-navy-900' : 'text-slate-400'}`}>
               <Icon name={icon} className="h-5 w-5" />{label}
               {id === 'life' && pendingAcks > 0 && <span className="absolute right-3 top-1 rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white">{pendingAcks}</span>}
               {id === 'messages' && unread > 0 && <span className="absolute right-3 top-1 rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white">{unread}</span>}

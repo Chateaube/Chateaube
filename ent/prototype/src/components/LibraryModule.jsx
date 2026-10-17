@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Badge, Button, Card, Stat } from './ui.jsx';
 import { CLASSES } from '../data/schoollife.js';
 import { STAFF } from '../data/people.js';
-import { BOOK_TYPES, LOAN_DAYS, nextCode, designation, openLoan, borrow, renew, giveBackBook, overdueLoans, availability, expiredReservations, RESERVATION_HOLD_DAYS } from '../rules/library.js';
+import { BOOK_TYPES, LOAN_DAYS, nextCode, designation, openLoan, borrow, renew, giveBackBook, overdueLoans, availability, expiredReservations, RESERVATION_HOLD_DAYS, dueSoonLoans, REMINDER_DAYS_BEFORE, gamesOut, takeGame, returnGame, gameStats, gameIncidents } from '../rules/library.js';
 import BookCatalog from './BookCatalog.jsx';
+import { GAMES, GAME_LOG } from '../data/games.js';
 import { CONDITIONS, conditionLabel } from '../rules/manuals.js';
 import { loadLibrary, saveLibrary } from '../libraryStore.js';
 import { printOnly } from '../print.js';
@@ -17,7 +18,7 @@ const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-s
 const fmt = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
 const daysLate = (due) => Math.round((Date.parse(TODAY) - Date.parse(due)) / 86_400_000);
 const TEACHERS = STAFF.filter((s) => /Enseignant|Intervenant/.test(s.poste)).map((s) => s.name);
-const TABS = [['desk', 'Prêt et retour'], ['reservations', 'Réservations'], ['late', 'En retard'], ['search', 'Rechercher'], ['catalog', 'Gérer le catalogue'], ['labels', 'Étiquettes']];
+const TABS = [['desk', 'Prêt et retour'], ['reservations', 'Réservations'], ['late', 'Rappels et retards'], ['games', 'Jeux de société'], ['search', 'Rechercher'], ['catalog', 'Gérer le catalogue'], ['labels', 'Étiquettes']];
 
 /* ---------- Réservations des élèves et des professeurs ---------- */
 function ReservationsTab({ data, setData }) {
@@ -159,8 +160,17 @@ function DeskTab({ books, loans, setLoans }) {
 
 function LateTab({ books, loans }) {
   const late = overdueLoans(loans, TODAY).sort((a, b) => a.due.localeCompare(b.due));
+  const soon = dueSoonLoans(loans, TODAY).sort((a, b) => a.due.localeCompare(b.due));
   const [sent, setSent] = useState({});
   return (
+    <div className="space-y-5">
+    <Card title={`À rendre bientôt (${soon.length})`} subtitle={`Rappel automatique ${REMINDER_DAYS_BEFORE} jours avant la date de retour, à l'élève et à ses parents (application et e-mail)`}>
+      {soon.length === 0 ? <p className="text-sm text-slate-500">Aucun livre à rendre dans les prochains jours.</p> : (
+        <ul className="divide-y divide-slate-100 text-sm">
+          {soon.map((l) => <li key={l.id} className="flex flex-wrap items-center justify-between gap-2 py-2"><span><span className="font-medium">{l.borrower}</span> <span className="text-slate-500">· {l.cls}</span><span className="block text-xs text-slate-500">{l.code} · {designation(bookOf(l.code, books))}</span></span><Badge tone="amber">à rendre le {fmt(l.due)} · rappel envoyé</Badge></li>)}
+        </ul>
+      )}
+    </Card>
     <Card title={`Livres en retard (${late.length})`} subtitle="Élèves seulement : les professeurs n'ont pas de date limite">
       {late.length === 0 ? <p className="text-sm text-emerald-700">Aucun retard.</p> : (
         <ul className="divide-y divide-slate-100">
@@ -176,6 +186,78 @@ function LateTab({ books, loans }) {
         </ul>
       )}
     </Card>
+    </div>
+  );
+}
+
+/* ---------- Jeux de société : le cahier des sorties, en ligne ---------- */
+function GamesTab({ data, setData }) {
+  const games = data.games ?? GAMES;
+  const log = data.gameLog ?? GAME_LOG;
+  const setLog = (next) => setData((d) => ({ ...d, gameLog: next, games: d.games ?? GAMES }));
+  const [taking, setTaking] = useState(null); // { gameId, cls, who }
+  const [returning, setReturning] = useState(null); // { id, complete, note }
+  const [msg, setMsg] = useState(null);
+  const at = `${TODAY}T12:05`;
+  const stats = gameStats(log, games, '2026-10-01', '2026-10-31');
+  const incidents = gameIncidents(log);
+  return (
+    <div className="space-y-5">
+      <p className="text-sm text-slate-500">Les téléphones sont interdits dans l'établissement : les jeux de la salle d'étude occupent les pauses. Ce cahier remplace le cahier papier : qui prend quel jeu, s'il revient complet, et les jeux les plus joués.</p>
+      {msg && <p role="status" className="rounded-lg bg-red-50 p-2 text-sm text-red-800">{msg}</p>}
+      <div className="grid gap-5 xl:grid-cols-[1fr_340px] xl:items-start">
+        <Card title="Jeux">
+          <ul className="divide-y divide-slate-100">
+            {games.map((g) => {
+              const out = gamesOut(g.id, log);
+              return (
+                <li key={g.id} className="py-2.5 text-sm">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <span className="min-w-0"><span className="font-medium text-slate-900">{g.name}</span> <span className="text-xs text-slate-500">· {g.copies} exemplaire{g.copies > 1 ? 's' : ''} · {g.pieces}</span>
+                      {out.map((e) => (
+                        <span key={e.id} className="mt-1 flex flex-wrap items-center gap-2 text-xs text-amber-800">Sorti à {e.out.slice(11, 16).replace(':', 'h')} par {e.who} ({e.cls})
+                          {returning?.id === e.id ? (
+                            <span className="flex flex-wrap items-center gap-1.5">
+                              <label className="flex items-center gap-1 text-slate-700"><input type="checkbox" checked={returning.complete} onChange={(ev) => setReturning({ ...returning, complete: ev.target.checked })} />Complet</label>
+                              {!returning.complete && <input value={returning.note} onChange={(ev) => setReturning({ ...returning, note: ev.target.value })} placeholder="Ce qui manque ou est abîmé" className="rounded-md border border-slate-300 px-2 py-0.5 text-xs" />}
+                              <Button className="!px-2 !py-0.5 text-xs" onClick={() => { const r = returnGame(e, { at: `${TODAY}T12:55`, complete: returning.complete, note: returning.note }); if (r.error) { setMsg(r.error); return; } setMsg(null); setLog(log.map((x) => (x.id === e.id ? r.entry : x))); setReturning(null); }}>Valider le retour</Button>
+                            </span>
+                          ) : <Button variant="secondary" className="!px-2 !py-0.5 text-xs" onClick={() => setReturning({ id: e.id, complete: true, note: '' })}>Retour</Button>}
+                        </span>
+                      ))}
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <Badge tone={out.length < g.copies ? 'green' : 'amber'}>{g.copies - out.length} en salle</Badge>
+                      {out.length < g.copies && <Button variant="secondary" className="!px-2 !py-1 text-xs" onClick={() => setTaking({ gameId: g.id, cls: '', who: '' })}>Sortir</Button>}
+                    </span>
+                  </div>
+                  {taking?.gameId === g.id && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <select value={taking.cls} onChange={(e) => setTaking({ ...taking, cls: e.target.value })} className={inputCls}><option value="">Classe…</option>{Object.keys(CLASSES).map((c) => <option key={c}>{c}</option>)}</select>
+                      <input value={taking.who} onChange={(e) => setTaking({ ...taking, who: e.target.value })} placeholder="Prénoms des élèves" className={inputCls} />
+                      <Button className="!px-2 !py-1 text-xs" onClick={() => { const r = takeGame(g, log, { cls: taking.cls, who: taking.who, at }); if (r.error) { setMsg(r.error); return; } setMsg(null); setLog([...log, r.entry]); setTaking(null); }}>Enregistrer</Button>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
+        <div className="space-y-5">
+          <Card title="Les plus joués ce mois-ci">
+            <ol className="space-y-1 text-sm">{stats.slice(0, 5).map((x, i) => <li key={x.game.id} className="flex justify-between gap-2"><span>{i + 1}. {x.game.name}</span><span className="tabular-nums text-slate-500">{x.count} sortie{x.count > 1 ? 's' : ''}</span></li>)}</ol>
+          </Card>
+          <Card title={`Pièces manquantes ou jeux abîmés (${incidents.length})`}>
+            {incidents.length === 0 ? <p className="text-sm text-slate-500">Rien à signaler.</p> : (
+              <ul className="space-y-1.5 text-sm">{incidents.map((e) => (
+                <li key={e.id} className="flex flex-wrap items-center justify-between gap-2"><span>{games.find((g) => g.id === e.gameId)?.name} : {e.note}<span className="block text-xs text-slate-500">le {fmt(e.out.slice(0, 10))} · {e.who} ({e.cls})</span></span>
+                  <Button variant="ghost" className="!px-2 !py-0.5 text-xs" onClick={() => setLog(log.map((x) => (x.id === e.id ? { ...x, resolved: true } : x)))}>Réglé</Button></li>
+              ))}</ul>
+            )}
+          </Card>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -287,6 +369,7 @@ export default function LibraryModule() {
       {tab === 'desk' && <DeskTab books={data.books} loans={data.loans} setLoans={setLoans} />}
       {tab === 'late' && <LateTab books={data.books} loans={data.loans} />}
       {tab === 'reservations' && <ReservationsTab data={data} setData={setData} />}
+      {tab === 'games' && <GamesTab data={data} setData={setData} />}
       {tab === 'search' && <BookCatalog key="search" who="Secrétariat" kind="STAFF" compact />}
       {tab === 'catalog' && <CatalogTab books={data.books} setBooks={setBooks} loans={data.loans} />}
       {tab === 'labels' && <LabelsTab books={data.books} />}

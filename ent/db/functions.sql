@@ -973,3 +973,32 @@ RETURNS TABLE (planned numeric, absent numeric, done numeric) AS $$
          coalesce(sum(hours) FILTER (WHERE NOT EXISTS (SELECT 1 FROM teacher_absence t WHERE t.slot_id = sessions.slot_id AND t.on_date = sessions.on_date)), 0)
   FROM sessions
 $$ LANGUAGE sql STABLE;
+
+-- Dispense de travail : par la Direction seulement.
+CREATE FUNCTION teacher_absence_grant_guard() RETURNS trigger AS $$
+BEGIN
+  IF NEW.granted_by IS NOT NULL AND NOT is_direction(NEW.granted_by) THEN
+    RAISE EXCEPTION 'Seule la Direction dispense de laisser un travail';
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER teacher_absence_grant BEFORE INSERT OR UPDATE ON teacher_absence FOR EACH ROW EXECUTE FUNCTION teacher_absence_grant_guard();
+
+-- Heures de retard à rattraper : une heure par tranche de 60 minutes cumulées, moins les heures rattrapées.
+CREATE VIEW v_teacher_lateness AS
+SELECT t.teacher_id, t.minutes_total, floor(t.minutes_total / 60.0)::int AS hours_owed,
+       coalesce(m.hours, 0) AS hours_made_up,
+       greatest(floor(t.minutes_total / 60.0) - coalesce(m.hours, 0), 0) AS hours_to_make_up
+FROM (SELECT teacher_id, sum(minutes)::int AS minutes_total FROM teacher_lateness GROUP BY teacher_id) t
+LEFT JOIN (SELECT teacher_id, sum(hours) AS hours FROM teacher_makeup GROUP BY teacher_id) m USING (teacher_id);
+
+-- Un jeu ne sort pas si tous ses exemplaires sont déjà dehors.
+CREATE FUNCTION board_game_use_guard() RETURNS trigger AS $$
+BEGIN
+  IF TG_OP = 'INSERT' AND (SELECT count(*) FROM board_game_use WHERE game_id = NEW.game_id AND back_at IS NULL)
+       >= (SELECT copies FROM board_game WHERE id = NEW.game_id) THEN
+    RAISE EXCEPTION 'Tous les exemplaires de ce jeu sont sortis';
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER board_game_use_check BEFORE INSERT ON board_game_use FOR EACH ROW EXECUTE FUNCTION board_game_use_guard();

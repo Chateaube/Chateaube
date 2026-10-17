@@ -1040,3 +1040,32 @@ test('volume horaire des professeurs : prévu, fait, absences avec ou sans trava
   assert.deepEqual(absenceErrors({ ...base, work: 'AUCUN', workText: '' }), []); // possible, mais signalé
   assert.equal(sessionsToSupervise([base], slots, '2026-10-13')[0].slot.start, '07:00');
 });
+
+import { dueSoonLoans, takeGame, returnGame, gameStats, gameIncidents, gamesOut } from '../src/rules/library.js';
+test('bibliothèque : rappel 3 jours avant le retour ; jeux de société (sorties, incidents, plus joués)', () => {
+  const loans = [{ code: 'A', due: '2026-10-15' }, { code: 'B', due: '2026-10-20' }, { code: 'C', due: '2026-10-12' }, { code: 'D', due: null }];
+  assert.deepEqual(dueSoonLoans(loans, '2026-10-13').map((l) => l.code), ['A']);
+  const game = { id: 'g1', name: 'Échecs', copies: 1 };
+  const first = takeGame(game, [], { cls: '3e', who: 'Hasina', at: '2026-10-13T12:05' }).entry;
+  assert.ok(takeGame(game, [first], { cls: '4e', who: 'Fy', at: '2026-10-13T12:06' }).error); // déjà sorti
+  assert.equal(gamesOut('g1', [first]).length, 1);
+  assert.ok(returnGame(first, { at: '2026-10-13T12:50', complete: false, note: ' ' }).error);
+  const back = returnGame(first, { at: '2026-10-13T12:50', complete: false, note: 'Il manque un pion' }).entry;
+  assert.equal(gameIncidents([back]).length, 1);
+  assert.deepEqual(gameStats([back], [game, { id: 'g2' }], '2026-10-01', '2026-10-31').map((x) => x.count), [1, 0]);
+});
+
+import { grantNoWork, absenceNotice, latenessBalance } from '../src/rules/teachingHours.js';
+test('absences longues dispensées par la Direction, message aux familles, retards cumulés à rattraper', () => {
+  const a = { teacherId: 'p1', date: '2026-10-22', slotIds: ['s1'], reason: 'Maladie (5 jours)', work: 'AUCUN' };
+  assert.ok(grantNoWork(a, 'BUREAU').error);
+  assert.equal(grantNoWork(a, 'DIRECTION').absence.work, 'NON_REQUIS');
+  assert.ok(absenceErrors({ ...a, work: 'NON_REQUIS', declaredRole: 'ENSEIGNANT' }).length === 1);
+  assert.deepEqual(absenceErrors({ ...a, work: 'NON_REQUIS', declaredRole: 'DIRECTION' }), []);
+  const n = absenceNotice({ teacher: 'Mme Ranaivo', subject: 'Management', cls: '1re STMG', date: '2026-10-22', start: '07:00', end: '09:00', work: 'DEVOIR', workText: 'Exercices p. 52' }, 'jeudi 22 octobre');
+  assert.match(n.text, /Les élèves viennent comme d'habitude/);
+  assert.match(n.text, /Exercices p. 52/);
+  const late = [5, 10, 15, 5, 10, 20].map((minutes, i) => ({ teacherId: 'p1', minutes, date: `2026-10-0${i + 1}` }));
+  assert.deepEqual(latenessBalance('p1', late), { minutes: 65, owed: 1, madeUp: 0, toMakeUp: 1, beforeNext: 55 });
+  assert.equal(latenessBalance('p1', late, [{ teacherId: 'p1', hours: 1 }]).toMakeUp, 0);
+});

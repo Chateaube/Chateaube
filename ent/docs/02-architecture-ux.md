@@ -355,3 +355,27 @@ prêt est enregistré), remet en rayon celles non retirées et met de côté un 
   d'impression, clic droit et copie bloqués, écran masqué dès que la page perd le focus, filigrane au nom de la
   personne et à la date. Aucun site ne peut empêcher une photo de l'écran avec un autre téléphone : le filigrane
   permet de savoir d'où vient une fuite ; dans l'application Android, la capture d'écran est bloquée.
+
+## Retours : menu des familles, livres, jeux, absences longues, retards, ressources
+
+- **Portail des familles et des élèves** : plus de menu « Plus ». La barre du bas garde les écrans de tous les
+  jours (Accueil, Notes, Devoirs, Vie scolaire, Messages) ; l'**accueil montre toutes les fonctions**, rangées en
+  « Scolarité » et « Démarches », avec un badge rouge quand une action est attendue ; ce qui ne concerne pas
+  l'enfant est grisé. Viennent ensuite « À faire et à savoir », les annonces et la journée.
+- **Rappel avant le retour d'un livre** : 3 jours avant, à l'élève et à ses parents (accueil du portail), et liste
+  « À rendre bientôt » pour le secrétariat.
+- **Jeux de société** (salle d'étude) : le cahier papier passe en ligne : qui sort quel jeu (classe, prénoms),
+  retour complet ou incident (pièce manquante, jeu abîmé, avec une note), incidents à régler, jeux les plus joués
+  du mois. Les élèves voient les jeux libres ; les parents n'ont pas besoin de cette information.
+- **Absences des professeurs** : pour une absence de plusieurs jours, la Direction peut **dispenser de travail**
+  (« travail non requis ») à la déclaration ou après coup ; « rien laissé » reste signalé. À chaque absence, les
+  **élèves et les parents de la classe sont prévenus** : le cours n'a pas lieu avec le professeur, mais les élèves
+  viennent, en étude surveillée, avec le travail laissé s'il y en a un.
+- **Retards des professeurs** : pointage (5, 10, 15 minutes…) par la CPE, le secrétariat ou la Direction ; à
+  chaque heure cumulée, une heure est à rattraper ; l'heure rattrapée est enregistrée.
+- **Ressources internes** : un document, un lien ou un texte (consigne, annonce). **Pas de filigrane** : écran
+  noir dès que la page perd le focus, ni téléchargement, ni impression, ni copie. Blocage réel des captures :
+  dans l'application installée (Android : capture = écran noir ; iPhone : la capture ne peut pas être interdite,
+  mais l'enregistrement d'écran affiche un écran noir et l'application masque le contenu dès qu'elle passe en
+  arrière-plan). Une photo prise avec un autre appareil reste possible : la protection juridique (clause de
+  confidentialité et de non-concurrence dans le contrat des professeurs) complète la protection technique.

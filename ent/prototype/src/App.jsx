@@ -358,7 +358,6 @@ export default function App() {
       </main>
 
       {profile !== 'VISITEUR' && <FeedbackButton profile={profile} who={persona.detail ?? persona.name} screen={NAV.flatMap((g) => g.items).find((i) => i.id === screen)?.label ?? screen} />}
-      {protectedProfile && <div aria-hidden="true" className="screen-watermark">{`${persona.name} · ${persona.detail} · `.repeat(60)}</div>}
       {hidden && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black text-center text-sm text-slate-400" role="alert">
           Contenu masqué : les captures d'écran ne sont pas autorisées.<br />Revenez sur la page pour continuer.

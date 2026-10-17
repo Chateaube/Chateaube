@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 // Protection contre les captures d'écran (profils Vie scolaire, Enseignant, Parent, Élève).
 // Un site web ne peut pas INTERDIRE une capture : on masque l'écran en noir dès que la page perd
 // le focus (outil de capture, changement d'application, aperçu des applications ouvertes) ou à
-// l'appui sur Impr. écran, on noircit l'impression et on filigrane le nom de la personne.
+// l'appui sur Impr. écran, et on noircit l'impression (pas de filigrane : rien ne doit sortir de l'ENT).
 // Le blocage complet se fait dans l'application mobile (Android : FLAG_SECURE, écran noir).
 export function useScreenGuard(active) {
   const [hidden, setHidden] = useState(false);

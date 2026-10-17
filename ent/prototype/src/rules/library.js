@@ -92,3 +92,30 @@ export function reserve(book, { who, kind, cls, date }, { loans, reservations, t
 
 /** Réservations mises de côté dont le délai de retrait est passé : elles tombent. */
 export const expiredReservations = (reservations, today) => reservations.filter((r) => r.status === 'A_RETIRER' && r.holdUntil < today);
+
+// --- Rappel avant la date de retour (dans l'application, pas de SMS) ---
+export const REMINDER_DAYS_BEFORE = 3;
+/** Emprunts d'élèves à rendre dans les prochains jours (rappel automatique). */
+export const dueSoonLoans = (loans, today, days = REMINDER_DAYS_BEFORE) => loans.filter((l) => !l.returnedOn && l.due && l.due >= today && l.due <= addDays(today, days));
+export const daysLeft = (due, today) => Math.round((Date.parse(due) - Date.parse(today)) / 86_400_000);
+
+// --- Jeux de société : le cahier des sorties, en ligne ---
+/** Exemplaires d'un jeu sortis en ce moment. */
+export const gamesOut = (gameId, log) => log.filter((e) => e.gameId === gameId && !e.back);
+export function takeGame(game, log, { cls, who, at }) {
+  if (!cls || !who?.trim()) return { error: 'Indiquer la classe et les élèves.' };
+  if (gamesOut(game.id, log).length >= game.copies) return { error: `Tous les exemplaires de « ${game.name} » sont déjà sortis.` };
+  return { entry: { id: `j${Date.now()}`, gameId: game.id, cls, who: who.trim(), out: at, back: null, complete: null } };
+}
+/** Retour : complet, ou incident (pièce manquante, jeu abîmé) avec une note obligatoire. */
+export function returnGame(entry, { at, complete, note }) {
+  if (!complete && !note?.trim()) return { error: 'Préciser ce qui manque ou ce qui est abîmé.' };
+  return { entry: { ...entry, back: at, complete, note: complete ? undefined : note.trim() } };
+}
+/** Jeux les plus joués sur une période (nombre de sorties). */
+export function gameStats(log, games, from, to) {
+  const counts = Object.fromEntries(games.map((g) => [g.id, 0]));
+  log.filter((e) => e.out.slice(0, 10) >= from && e.out.slice(0, 10) <= to).forEach((e) => { counts[e.gameId] = (counts[e.gameId] ?? 0) + 1; });
+  return games.map((g) => ({ game: g, count: counts[g.id] })).sort((a, b) => b.count - a.count);
+}
+export const gameIncidents = (log) => log.filter((e) => e.complete === false && !e.resolved);

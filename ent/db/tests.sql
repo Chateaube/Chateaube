@@ -1067,5 +1067,38 @@ DO $$ DECLARE sl uuid; r record; BEGIN
   INSERT INTO internal_resource (site_id, title, audience, body, shared_by) SELECT id, 'Charte de l''enseignant', 'PROFS', 'Ponctualité…', '00000000-0000-0000-0000-000000000001' FROM site WHERE code = 'TMV';
 END $$;
 
+-- T48. Dispense de travail, retards cumulés, jeux de société, ressource « lien » ---------------------
+DO $$ DECLARE sl uuid; g uuid; u uuid; BEGIN
+  SELECT slot_id INTO sl FROM teacher_absence LIMIT 1;
+  BEGIN
+    INSERT INTO teacher_absence (slot_id, on_date, reason, work_kind, declared_by, granted_by)
+    VALUES (sl, '2026-10-19', 'Maladie', 'NON_REQUIS', '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T48: dispense accordée par un professeur';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T48:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO teacher_absence (slot_id, on_date, reason, work_kind, declared_by, granted_by)
+  VALUES (sl, '2026-10-19', 'Maladie (cinquième jour)', 'NON_REQUIS', '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000001');
+  INSERT INTO teacher_lateness (teacher_id, on_date, minutes, recorded_by)
+  SELECT '00000000-0000-0000-0000-000000000003', d, m, '00000000-0000-0000-0000-000000000008'
+  FROM (VALUES ('2026-10-01'::date, 10), ('2026-10-05', 15), ('2026-10-08', 20), ('2026-10-12', 25)) v(d, m);
+  ASSERT (SELECT hours_to_make_up FROM v_teacher_lateness WHERE teacher_id = '00000000-0000-0000-0000-000000000003') = 1, 'T48: 70 min = 1 h à rattraper';
+  INSERT INTO teacher_makeup (teacher_id, on_date, recorded_by) VALUES ('00000000-0000-0000-0000-000000000003', '2026-10-17', '00000000-0000-0000-0000-000000000008');
+  ASSERT (SELECT hours_to_make_up FROM v_teacher_lateness WHERE teacher_id = '00000000-0000-0000-0000-000000000003') = 0, 'T48: heure rattrapée';
+  INSERT INTO board_game (site_id, name, pieces, copies) SELECT id, 'Échecs', '32 pièces', 1 FROM site WHERE code = 'TMV' RETURNING id INTO g;
+  INSERT INTO board_game_use (game_id, players) VALUES (g, 'Hasina, Miora') RETURNING id INTO u;
+  BEGIN
+    INSERT INTO board_game_use (game_id, players) VALUES (g, 'Fy');
+    RAISE EXCEPTION 'T48: jeu sorti deux fois';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T48:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    UPDATE board_game_use SET back_at = now(), complete = false WHERE id = u;
+    RAISE EXCEPTION 'T48: incident sans description';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE board_game_use SET back_at = now(), complete = false, incident = 'Il manque un pion' WHERE id = u;
+  INSERT INTO internal_resource (site_id, title, audience, url, shared_by) SELECT id, 'Programme officiel', 'PROFS', 'https://eduscol.education.fr', '00000000-0000-0000-0000-000000000001' FROM site WHERE code = 'TMV';
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T47 passent'
+\echo 'OK — tous les scénarios T1 à T48 passent'

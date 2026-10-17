@@ -1729,3 +1729,56 @@ CREATE TABLE internal_resource_view (
   viewed_at     timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (resource_id, viewer_id, viewed_at)
 );
+
+-- Absence de plusieurs jours : la Direction peut dispenser de laisser du travail (NON_REQUIS)
+ALTER TABLE teacher_absence DROP CONSTRAINT teacher_absence_work_kind_check, DROP CONSTRAINT teacher_absence_check,
+  ADD CONSTRAINT teacher_absence_work_given CHECK (work_kind NOT IN ('DEVOIR', 'ACTIVITE') OR work_text IS NOT NULL OR work_file_key IS NOT NULL);
+ALTER TABLE teacher_absence ADD CONSTRAINT teacher_absence_work_kind_check CHECK (work_kind IN ('DEVOIR', 'ACTIVITE', 'NON_REQUIS', 'AUCUN')),
+  ADD COLUMN granted_by uuid REFERENCES app_user(id),
+  ADD CONSTRAINT teacher_absence_granted CHECK ((work_kind = 'NON_REQUIS') = (granted_by IS NOT NULL)),
+  ADD COLUMN families_notified_at timestamptz;   -- élèves et parents de la classe prévenus (les élèves viennent)
+
+-- Retards des professeurs (pointage) et heures rattrapées : une heure de retard cumulée = une heure à rattraper
+CREATE TABLE teacher_lateness (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  teacher_id    uuid NOT NULL REFERENCES app_user(id),
+  on_date       date NOT NULL,
+  minutes       smallint NOT NULL CHECK (minutes BETWEEN 1 AND 240),
+  recorded_by   uuid NOT NULL REFERENCES app_user(id)
+);
+CREATE TABLE teacher_makeup (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  teacher_id    uuid NOT NULL REFERENCES app_user(id),
+  on_date       date NOT NULL,
+  hours         numeric(3,1) NOT NULL DEFAULT 1 CHECK (hours > 0),
+  note          text,
+  recorded_by   uuid NOT NULL REFERENCES app_user(id)
+);
+
+-- Ressources internes : un document, un lien ou un texte
+ALTER TABLE internal_resource ADD COLUMN url text CHECK (url IS NULL OR url ~ '^https?://'),
+  DROP CONSTRAINT internal_resource_check,
+  ADD CONSTRAINT internal_resource_content CHECK (file_key IS NOT NULL OR body IS NOT NULL OR url IS NOT NULL);
+
+-- Jeux de société de la salle d'étude : le cahier des sorties en ligne
+CREATE TABLE board_game (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id       uuid NOT NULL REFERENCES site(id),
+  name          text NOT NULL,
+  pieces        text,                          -- contenu de la boîte (pour vérifier au retour)
+  copies        smallint NOT NULL DEFAULT 1 CHECK (copies > 0),
+  condition     textbook_condition NOT NULL DEFAULT 'BON'
+);
+CREATE TABLE board_game_use (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  game_id       uuid NOT NULL REFERENCES board_game(id),
+  class_id      uuid REFERENCES school_class(id),
+  players       text NOT NULL,
+  out_at        timestamptz NOT NULL DEFAULT now(),
+  back_at       timestamptz,
+  complete      boolean,
+  incident      text,                          -- pièce manquante, jeu abîmé
+  resolved_at   timestamptz,
+  CHECK ((back_at IS NULL) = (complete IS NULL)),
+  CHECK (complete IS DISTINCT FROM false OR incident IS NOT NULL)
+);
