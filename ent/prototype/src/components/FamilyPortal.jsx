@@ -19,6 +19,7 @@ import { FamilyRequestForm, sendDocument } from './FamilyRequests.jsx';
 import { DocumentInput } from './PhotoInput.jsx';
 import { AnnouncementCard } from './AnnouncementsModule.jsx';
 import AgendaModule from './AgendaModule.jsx';
+import { FamilyDocuments } from './InternalResources.jsx';
 import BookCatalog from './BookCatalog.jsx';
 import { loadAnnouncements } from '../announcementsStore.js';
 import { receives } from '../rules/announcements.js';
@@ -477,7 +478,7 @@ function MySignature() {
 const TABS = [['home', 'Accueil', 'home'], ['notes', 'Notes', 'pen'], ['homework', 'Devoirs', 'calendar'], ['life', 'Vie scol.', 'users'], ['messages', 'Messages', 'bell']];
 const SECTIONS = [
   ['Scolarité', [['notes', 'Notes', 'pen'], ['homework', 'Devoirs', 'calendar'], ['life', 'Vie scolaire', 'users'], ['agenda', 'Agendas', 'calendar'], ['library', 'Bibliothèque', 'cap'], ['stages', 'Stages', 'cap'], ['orientation', 'Orientation', 'cap']]],
-  ['Démarches', [['documents', 'Documents et autorisations', 'pen'], ['payments', 'Paiements', 'wallet', 'PARENT'], ['fiche', 'Fiche signalétique', 'pen', 'PARENT'], ['reenrol', 'Réinscription', 'calendar', 'PARENT'], ['update', 'Mettre à jour nos informations', 'users', 'PARENT'], ['signature', 'Ma signature', 'pen', 'PARENT']]],
+  ['Démarches', [['schooldocs', 'Règlement et chartes', 'pen'], ['documents', 'Documents et autorisations', 'pen'], ['payments', 'Paiements', 'wallet', 'PARENT'], ['fiche', 'Fiche signalétique', 'pen', 'PARENT'], ['reenrol', 'Réinscription', 'calendar', 'PARENT'], ['update', 'Mettre à jour nos informations', 'users', 'PARENT'], ['signature', 'Ma signature', 'pen', 'PARENT']]],
 ];
 
 /** Toutes les fonctions, par thème, sur l'accueil ; ce qui ne concerne pas l'enfant reste grisé. */
@@ -543,6 +544,7 @@ export default function FamilyPortal({ settings, audience = 'PARENT' }) {
           {view !== 'home' && !isTab && <button onClick={() => go('home')} className="text-sm font-medium text-navy-500">‹ Accueil</button>}
           {view === 'home' && <Home child={child} isParent={isParent} settings={settings} openFiche={() => go('fiche')} openReenrol={() => go('reenrol')}
             features={<AllFeatures audience={audience} menu={menu} badges={badges} open={go} />} />}
+          {view === 'schooldocs' && <FamilyDocuments audience={audience} />}
           {view === 'agenda' && <div className="-m-4 p-3"><AgendaModule role={audience} cls={child.cls} /></div>}
           {view === 'reenrol' && (profileOf(child) ? <FamilyRequestForm key={`r-${child.id}`} profile={profileOf(child)} kind="REINSCRIPTION" guardianName={ACCOUNT.name} /> : <Section><p className="text-sm text-slate-500">Fiche introuvable.</p></Section>)}
           {view === 'update' && (profileOf(child) ? <FamilyRequestForm key={`u-${child.id}`} profile={profileOf(child)} kind="MISE_A_JOUR" guardianName={ACCOUNT.name} /> : <Section><p className="text-sm text-slate-500">Fiche introuvable.</p></Section>)}

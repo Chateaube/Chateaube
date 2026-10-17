@@ -379,3 +379,12 @@ prêt est enregistré), remet en rayon celles non retirées et met de côté un 
   mais l'enregistrement d'écran affiche un écran noir et l'application masque le contenu dès qu'elle passe en
   arrière-plan). Une photo prise avec un autre appareil reste possible : la protection juridique (clause de
   confidentialité et de non-concurrence dans le contrat des professeurs) complète la protection technique.
+
+**Documents et ressources par public, boîte à idées.** Un même écran « Documents, ressources et idées » : chaque
+document est destiné à un ou plusieurs publics (élèves, parents, professeurs, personnel). Les familles trouvent
+« Règlement et chartes » sur l'accueil de leur portail (règlement intérieur / contrat de vie scolaire, charte
+informatique et IA, usage des réseaux sociaux), lisibles librement. Les professeurs trouvent leur règlement, le
+guide du cahier de textes, les procédures… en consultation seulement (écran noir en cas de capture). La **boîte à
+idées** permet aux professeurs et au personnel de proposer une idée (école, ressources, méthodologie, vie
+scolaire), avec ou sans leur nom ; la Direction répond : à l'étude, retenue, ou non retenue avec un mot
+d'explication.

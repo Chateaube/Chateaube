@@ -359,3 +359,5 @@ recoder.
   `families_notified_at` ; **`teacher_lateness`** et **`teacher_makeup`**, vue **`v_teacher_lateness`** (heures à
   rattraper par tranche de 60 minutes) ; **`internal_resource.url`** (lien) ; **`board_game`** et
   **`board_game_use`** (sorties, retour complet ou incident décrit, un exemplaire à la fois). Scénario **T48**.
+- **`internal_resource.audiences`** (élèves, parents, professeurs, personnel), fonction **`resources_for`** ;
+  **`staff_suggestion`** (boîte à idées, anonyme possible, réponse de la Direction seule). Scénario **T49**.

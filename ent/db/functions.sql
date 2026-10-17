@@ -1002,3 +1002,23 @@ BEGIN
   RETURN NEW;
 END $$ LANGUAGE plpgsql;
 CREATE TRIGGER board_game_use_check BEFORE INSERT ON board_game_use FOR EACH ROW EXECUTE FUNCTION board_game_use_guard();
+
+-- Ce que voit une personne : ses publics (élève, parent, professeur, personnel) ; l'équipe de direction voit tout.
+CREATE FUNCTION resources_for(p_user uuid) RETURNS SETOF internal_resource AS $$
+  SELECT r.* FROM internal_resource r
+  WHERE EXISTS (SELECT 1 FROM user_role u WHERE u.user_id = p_user AND (
+          u.role IN ('DIRECTION', 'BUREAU', 'VIE_SCOLAIRE')
+       OR (u.role = 'PROFESSEUR' AND 'PROFS' = ANY (r.audiences))
+       OR (u.role = 'PARENT' AND 'PARENTS' = ANY (r.audiences))
+       OR (u.role = 'ELEVE' AND 'ELEVES' = ANY (r.audiences))))
+$$ LANGUAGE sql STABLE;
+
+-- Seule la Direction répond à une suggestion.
+CREATE FUNCTION staff_suggestion_guard() RETURNS trigger AS $$
+BEGIN
+  IF NEW.answered_by IS NOT NULL AND NOT is_direction(NEW.answered_by) THEN
+    RAISE EXCEPTION 'Seule la Direction répond aux suggestions';
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER staff_suggestion_check BEFORE INSERT OR UPDATE ON staff_suggestion FOR EACH ROW EXECUTE FUNCTION staff_suggestion_guard();

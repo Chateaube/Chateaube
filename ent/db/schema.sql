@@ -1782,3 +1782,24 @@ CREATE TABLE board_game_use (
   CHECK ((back_at IS NULL) = (complete IS NULL)),
   CHECK (complete IS DISTINCT FROM false OR incident IS NOT NULL)
 );
+
+-- Documents par public : élèves, parents, professeurs, personnel (un ou plusieurs). Les documents des
+-- familles (règlement intérieur, chartes) se lisent librement ; ceux de l'équipe restent protégés.
+ALTER TABLE internal_resource DROP CONSTRAINT internal_resource_audience_check, ALTER COLUMN audience DROP NOT NULL;
+ALTER TABLE internal_resource ADD COLUMN audiences text[] NOT NULL DEFAULT '{PROFS}'
+  CHECK (audiences <> '{}' AND audiences <@ ARRAY['ELEVES', 'PARENTS', 'PROFS', 'PERSONNEL']);
+
+-- Boîte à idées de l'équipe : suggestion (anonyme possible), réponse de la Direction
+CREATE TABLE staff_suggestion (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id       uuid NOT NULL REFERENCES site(id),
+  category      text NOT NULL CHECK (category IN ('ECOLE', 'RESSOURCES', 'METHODOLOGIE', 'VIE_SCOLAIRE', 'AUTRE')),
+  body          text NOT NULL CHECK (length(trim(body)) >= 10),
+  author_id     uuid REFERENCES app_user(id),   -- NULL : envoyée sans nom
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  status        text NOT NULL DEFAULT 'NOUVELLE' CHECK (status IN ('NOUVELLE', 'ETUDE', 'RETENUE', 'NON_RETENUE')),
+  answer        text,
+  answered_by   uuid REFERENCES app_user(id),
+  CHECK (status <> 'NON_RETENUE' OR length(trim(coalesce(answer, ''))) > 0),
+  CHECK ((status = 'NOUVELLE') = (answered_by IS NULL))
+);

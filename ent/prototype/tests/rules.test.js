@@ -1069,3 +1069,22 @@ test('absences longues dispensées par la Direction, message aux familles, retar
   assert.deepEqual(latenessBalance('p1', late), { minutes: 65, owed: 1, madeUp: 0, toMakeUp: 1, beforeNext: 55 });
   assert.equal(latenessBalance('p1', late, [{ teacherId: 'p1', hours: 1 }]).toMakeUp, 0);
 });
+
+import { forOf, isProtected, visibleFor, suggestionErrors, answerSuggestion } from '../src/rules/resources.js';
+test('documents par public, ressources de l\'équipe protégées, boîte à idées', () => {
+  const list = [
+    { id: 'reglement', for: ['ELEVES', 'PARENTS'] }, { id: 'charte', for: ['ELEVES', 'PARENTS', 'PROFS'] },
+    { id: 'cahier', for: ['PROFS'] }, { id: 'ancienne', audience: 'PERSONNEL' },
+  ];
+  assert.deepEqual(visibleFor(list, 'PARENT').map((r) => r.id), ['reglement', 'charte']);
+  assert.deepEqual(visibleFor(list, 'ENSEIGNANT').map((r) => r.id), ['charte', 'cahier', 'ancienne']);
+  assert.equal(visibleFor(list, 'BUREAU').length, 4);
+  assert.deepEqual(forOf(list[3]), ['PROFS', 'PERSONNEL']);
+  assert.ok(isProtected(list[2]) && !isProtected(list[1]));
+  assert.equal(suggestionErrors({ category: 'METHODOLOGIE', text: 'Court' }).length, 1);
+  assert.deepEqual(suggestionErrors({ category: 'METHODOLOGIE', text: 'Partager nos fiches méthode entre collègues' }), []);
+  const s = { id: 'x', text: 'Une salle informatique ouverte le midi', status: 'NOUVELLE' };
+  assert.ok(answerSuggestion(s, { role: 'BUREAU', status: 'RETENUE' }).error);
+  assert.ok(answerSuggestion(s, { role: 'DIRECTION', status: 'NON_RETENUE', answer: ' ' }).error);
+  assert.equal(answerSuggestion(s, { role: 'DIRECTION', status: 'RETENUE' }).suggestion.status, 'RETENUE');
+});

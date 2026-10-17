@@ -1060,11 +1060,11 @@ DO $$ DECLARE sl uuid; r record; BEGIN
   SELECT * INTO r FROM teacher_hours('00000000-0000-0000-0000-000000000003', '2026-10-05', '2026-10-16');
   ASSERT r.planned = 4 AND r.absent = 2 AND r.done = 2, format('T47: heures %s / %s / %s', r.planned, r.absent, r.done);
   BEGIN
-    INSERT INTO internal_resource (site_id, title, audience, body, shared_by) SELECT id, 'Charte', 'PROFS', 'Texte', '00000000-0000-0000-0000-000000000003' FROM site WHERE code = 'TMV';
+    INSERT INTO internal_resource (site_id, title, audiences, body, shared_by) SELECT id, 'Charte', '{PROFS}', 'Texte', '00000000-0000-0000-0000-000000000003' FROM site WHERE code = 'TMV';
     RAISE EXCEPTION 'T47: ressource partagée par un professeur';
   EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T47:%' THEN RAISE; END IF;
   END;
-  INSERT INTO internal_resource (site_id, title, audience, body, shared_by) SELECT id, 'Charte de l''enseignant', 'PROFS', 'Ponctualité…', '00000000-0000-0000-0000-000000000001' FROM site WHERE code = 'TMV';
+  INSERT INTO internal_resource (site_id, title, audiences, body, shared_by) SELECT id, 'Charte de l''enseignant', '{PROFS}', 'Ponctualité…', '00000000-0000-0000-0000-000000000001' FROM site WHERE code = 'TMV';
 END $$;
 
 -- T48. Dispense de travail, retards cumulés, jeux de société, ressource « lien » ---------------------
@@ -1097,8 +1097,35 @@ DO $$ DECLARE sl uuid; g uuid; u uuid; BEGIN
   EXCEPTION WHEN check_violation THEN NULL;
   END;
   UPDATE board_game_use SET back_at = now(), complete = false, incident = 'Il manque un pion' WHERE id = u;
-  INSERT INTO internal_resource (site_id, title, audience, url, shared_by) SELECT id, 'Programme officiel', 'PROFS', 'https://eduscol.education.fr', '00000000-0000-0000-0000-000000000001' FROM site WHERE code = 'TMV';
+  INSERT INTO internal_resource (site_id, title, audiences, url, shared_by) SELECT id, 'Programme officiel', '{PROFS}', 'https://eduscol.education.fr', '00000000-0000-0000-0000-000000000001' FROM site WHERE code = 'TMV';
+END $$;
+
+-- T49. Documents par public ; boîte à idées --------------------------------------------------------
+DO $$ DECLARE parent uuid; sg uuid; BEGIN
+  INSERT INTO internal_resource (site_id, title, audiences, body, shared_by)
+  SELECT id, 'Règlement intérieur', '{ELEVES,PARENTS}', 'Horaires…', '00000000-0000-0000-0000-000000000001' FROM site WHERE code = 'TMV';
+  BEGIN
+    INSERT INTO internal_resource (site_id, title, audiences, body, shared_by) SELECT id, 'x', '{VOISINS}', 'x', '00000000-0000-0000-0000-000000000001' FROM site WHERE code = 'TMV';
+    RAISE EXCEPTION 'T49: public inconnu';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO app_user (email, first_name, last_name) VALUES ('parent.t49@exemple.mg', 'Parent', 'T49') RETURNING id INTO parent;
+  INSERT INTO user_role (user_id, role, site_id) SELECT parent, 'PARENT', id FROM site WHERE code = 'TMV';
+  ASSERT (SELECT count(*) FROM resources_for(parent) WHERE title = 'Règlement intérieur') = 1, 'T49: le parent voit le règlement';
+  ASSERT NOT EXISTS (SELECT 1 FROM resources_for(parent) WHERE 'PROFS' = ANY (audiences) AND NOT 'PARENTS' = ANY (audiences)), 'T49: le parent ne voit pas les documents des professeurs';
+  INSERT INTO staff_suggestion (site_id, category, body, author_id) SELECT id, 'METHODOLOGIE', 'Une fiche méthode commune pour la dissertation', '00000000-0000-0000-0000-000000000003' FROM site WHERE code = 'TMV' RETURNING id INTO sg;
+  BEGIN
+    UPDATE staff_suggestion SET status = 'RETENUE', answered_by = '00000000-0000-0000-0000-000000000003' WHERE id = sg;
+    RAISE EXCEPTION 'T49: réponse d''un professeur';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T49:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    UPDATE staff_suggestion SET status = 'NON_RETENUE', answered_by = '00000000-0000-0000-0000-000000000001' WHERE id = sg;
+    RAISE EXCEPTION 'T49: refus sans explication';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE staff_suggestion SET status = 'RETENUE', answered_by = '00000000-0000-0000-0000-000000000001', answer = 'Au conseil pédagogique' WHERE id = sg;
 END $$;
 
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T48 passent'
+\echo 'OK — tous les scénarios T1 à T49 passent'
