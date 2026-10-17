@@ -165,3 +165,6 @@ main .bulletin thead th { color: #000; }
 .hatched {
   background-image: repeating-linear-gradient(135deg, var(--color-slate-200) 0 6px, var(--color-slate-100) 6px 12px);
 }
+
+/* Ressources internes : jamais imprimées */
+@media print { .protected-view { display: none !important; } }

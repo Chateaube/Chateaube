@@ -19,6 +19,9 @@ import { EXPENSES, SUPPLIERS } from '../data/treasury.js';
 import { toTransactions } from '../rules/treasury.js';
 import { payOf, rateOn } from '../rules/payroll.js';
 import { ExpensesTab, TreasuryDashboard } from './Treasury.jsx';
+import { TIMETABLE } from '../data/timetable.js';
+import { teacherHours } from '../rules/teachingHours.js';
+import { loadTeacherAbsences } from '../absencesStore.js';
 
 const TODAY = '2026-10-13';
 const fmtDate = (iso) => iso.split('-').reverse().join('/');
@@ -320,7 +323,12 @@ export default function AccountingModule({ settings, role }) {
   const [audit, setAudit] = useState(CASH_AUDIT);
   const [closings, setClosings] = useState(CASH_CLOSINGS);
   const [reductionTypes, setReductionTypes] = useState(REDUCTION_TYPES);
-  const [payroll, setPayroll] = useState(PAYROLL);
+  // heures des vacataires proposées d'après l'emploi du temps du mois, moins les absences déclarées
+  const [payroll, setPayroll] = useState(() => PAYROLL.map((p) => {
+    if (!p.byHour || !TIMETABLE.some((s) => s.teacherId === p.staffId)) return p;
+    const hrs = teacherHours(p.staffId, TIMETABLE, loadTeacherAbsences(), { from: '2026-10-01', to: '2026-10-31', today: '2026-10-31', settings });
+    return { ...p, hours: hrs.done, plannedHours: hrs.planned };
+  }));
   const [rates, setRates] = useState(HOURLY_RATES);
   const [salaryPayments, setSalaryPayments] = useState([]);
   const [payrollValidated, setPayrollValidated] = useState(null);

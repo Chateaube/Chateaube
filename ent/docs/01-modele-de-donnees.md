@@ -350,3 +350,8 @@ recoder.
 - **`library_reservation`** : réservation d'un livre par un élève ou un professeur (une seule active par personne
   et par livre, au plus 30 jours à l'avance, `A_RETIRER` avec date limite de retrait, `REMISE` liée au prêt).
   Scénario **T46**.
+- **`teacher_absence`** (séance de l'emploi du temps à une date, motif, travail laissé `DEVOIR` / `ACTIVITE` /
+  `AUCUN`, consignes ou document obligatoires sauf `AUCUN`), fonction **`teacher_hours`** (heures prévues,
+  d'absence, faites sur une période, jours de classe seulement), **`internal_resource`** (professeurs ou tout le
+  personnel, partagée par la Direction, le secrétariat ou la CPE) et **`internal_resource_view`** (chaque
+  consultation tracée). Scénario **T47**.

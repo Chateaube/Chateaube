@@ -27,6 +27,8 @@ import StudentList from './components/StudentList.jsx';
 import AnnouncementsModule from './components/AnnouncementsModule.jsx';
 import AgendaModule from './components/AgendaModule.jsx';
 import BookCatalog from './components/BookCatalog.jsx';
+import TeachingHours from './components/TeachingHours.jsx';
+import InternalResources from './components/InternalResources.jsx';
 import SignaturesModule from './components/SignaturesModule.jsx';
 import { PublicPreregistration } from './components/FamilyRequests.jsx';
 import pillar from './assets/pilier.png';
@@ -61,6 +63,8 @@ const LIBRARY = { id: 'library', label: 'Bibliothèque (salle d\'étude)', icon:
 const IMPORT = { id: 'import', label: 'Importer des données (Excel)', icon: 'swap', screen: ImportModule };
 const GRADE_SHEETS = { id: 'grade-sheets', label: 'Grilles de notes', icon: 'pen', screen: GradeSheets };
 const BOOKS_FOR_TEACHER = { id: 'books', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who="Mme Ranaivo" kind="PROF" /> };
+const HOURS = { id: 'hours', label: 'Heures et absences des profs', icon: 'clock', screen: TeachingHours };
+const RESOURCES = { id: 'resources', label: 'Ressources internes', icon: 'pen', screen: InternalResources };
 const AGENDA = { id: 'agenda', label: 'Agendas', icon: 'calendar', screen: AgendaModule };
 const NEWS = { id: 'news', label: 'Annonces', icon: 'megaphone', screen: AnnouncementsModule };
 const STUDENT_LIST = { id: 'students-list', label: 'Liste des élèves', icon: 'users', screen: StudentList };
@@ -90,6 +94,7 @@ const PROFILES = {
         GRADE_SHEETS,
         ...OVERSIGHT,
         AGENDA,
+        HOURS,
         { id: 'timetable', label: 'Emplois du temps', icon: 'clock' },
         BOOKING,
         { id: 'exams', label: 'Examens & Campus France', icon: 'cap' },
@@ -102,6 +107,7 @@ const PROFILES = {
       ] },
       { group: 'Administration', items: [
         { id: 'staff', label: 'Gestion des agents', icon: 'users', screen: StaffModule },
+        RESOURCES,
         IMPORT,
         { id: 'settings', label: 'Paramètres', icon: 'settings', screen: SettingsModule },
       ] },
@@ -116,7 +122,7 @@ const PROFILES = {
         { id: 'bureau', label: 'Accueil du secrétariat', icon: 'home', screen: BureauHome },
         { id: 'accounting', label: 'Encaissements & comptabilité', icon: 'wallet', screen: AccountingModule },
       ] },
-      { group: 'Vie scolaire', items: [VIE_SCOLAIRE, MESSAGES, NEWS, AGENDA, FOLLOW_UP, BOOKING] },
+      { group: 'Vie scolaire', items: [VIE_SCOLAIRE, HOURS, MESSAGES, NEWS, RESOURCES, AGENDA, FOLLOW_UP, BOOKING] },
       { group: 'Notes & bulletins', items: [COUNCIL, BULLETINS, GRADE_SHEETS, ...OVERSIGHT] },
       { group: 'Élèves', items: [INSCRIPTIONS, STUDENT_LIST, SIGNATURES, MANUALS, LIBRARY, IMPORT] },
     ],
@@ -126,9 +132,9 @@ const PROFILES = {
     title: 'CPE — vie scolaire',
     home: 'vs',
     nav: [
-      { group: 'Au quotidien', items: [VIE_SCOLAIRE, AGENDA, FOLLOW_UP, STUDENT_LIST, SIGNATURES] },
+      { group: 'Au quotidien', items: [VIE_SCOLAIRE, { ...HOURS, label: 'Absences des profs' }, AGENDA, FOLLOW_UP, STUDENT_LIST, SIGNATURES] },
       { group: 'Ressources', items: [BOOKING, LIBRARY, MANUALS, OVERSIGHT[1]] },
-      { group: 'Communication', items: [MESSAGES, NEWS] },
+      { group: 'Communication', items: [MESSAGES, NEWS, RESOURCES] },
     ],
   },
   ENSEIGNANT: {
@@ -139,6 +145,7 @@ const PROFILES = {
       { group: 'Ma journée', items: [
         { id: 'teacher', label: 'Mon tableau de bord', icon: 'home', screen: TeacherPortal },
         { id: 'appel', label: 'Appel', icon: 'check', screen: AttendanceModule },
+        { ...HOURS, label: 'Mes heures et absences' },
         AGENDA,
         { id: 'grades', label: 'Notes & appréciations', icon: 'pen', screen: GradebookModule },
         { id: 'homework', label: 'Cahier de textes', icon: 'calendar', screen: HomeworkModule },
@@ -147,7 +154,7 @@ const PROFILES = {
         BOOKING,
       ] },
       { group: 'Communication', items: [MESSAGES, NEWS] },
-      { group: 'Ressources', items: [BOOKS_FOR_TEACHER] },
+      { group: 'Ressources', items: [BOOKS_FOR_TEACHER, RESOURCES] },
     ],
   },
   PARENT: {

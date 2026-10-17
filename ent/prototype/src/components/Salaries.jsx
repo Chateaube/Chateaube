@@ -141,7 +141,7 @@ export default function Salaries({ role, actor, settings, payroll, setPayroll, r
           </table>
         </div>
         <p className="mt-3 text-xs text-slate-500">Professeurs vacataires : payés uniquement pour les heures de cours faites, rien pendant les vacances scolaires. Taux horaire : celui en vigueur au mois payé (voir l'historique ci-dessous).</p>
-        <p className="mt-1 text-xs text-slate-500">Chaque salaire payé en espèces crée une sortie « Salaires » dans la caisse, avec l'émargement du salarié. Les heures des professeurs sont proposées d'après les appels faits (cours effectivement assurés) et corrigées si besoin avant le paiement.</p>
+        <p className="mt-1 text-xs text-slate-500">Chaque salaire payé en espèces crée une sortie « Salaires » dans la caisse, avec l'émargement du salarié. Les heures des professeurs sont proposées d'après l'emploi du temps du mois moins les absences déclarées (avec le serveur : les appels validés), et corrigées si besoin avant le paiement.</p>
       </Card>
 
       <Card title="Taux horaires des professeurs" subtitle={isDirection ? 'Historique des augmentations ; un nouveau taux s\'applique à partir de sa date d\'effet' : 'Consultation : seule la Direction fixe les taux'}>

@@ -1017,3 +1017,26 @@ test('bibliothèque : catalogue pour tous, recherche livres et manuels, réserva
   assert.ok(reserve(books[0], { who: 'X', kind: 'ELEVE', date: '2026-12-31' }, { loans, reservations: [], today: '2026-10-13' }).error);
   assert.deepEqual(expiredReservations([r1], '2026-10-18').map((r) => r.id), [r1.id]);
 });
+
+import { plannedSessions, teacherHours, absenceErrors, sessionsToSupervise, slotHours } from '../src/rules/teachingHours.js';
+test('volume horaire des professeurs : prévu, fait, absences avec ou sans travail laissé', () => {
+  const slots = [{ id: 's1', teacherId: 'p1', cls: '1re STMG', subject: 'Management', weekday: 1, start: '07:00', end: '09:00' },
+    { id: 's2', teacherId: 'p1', cls: 'Terminale STMG', subject: 'Droit', weekday: 3, start: '13:30', end: '15:00' }];
+  assert.equal(slotHours(slots[1]), 1.5);
+  // du lundi 19 au vendredi 30 octobre 2026 : vacances à partir du 24 → une seule semaine de cours
+  assert.equal(plannedSessions(slots, '2026-10-19', '2026-10-30', DEFAULT_SETTINGS).length, 2);
+  const absences = [{ teacherId: 'p1', date: '2026-10-07', slotIds: ['s2'], work: 'AUCUN' }];
+  const h = teacherHours('p1', slots, absences, { from: '2026-10-05', to: '2026-10-23', today: '2026-10-13', settings: DEFAULT_SETTINGS });
+  assert.equal(h.planned, 10.5);        // 3 semaines × 3,5 h
+  assert.equal(h.plannedToDate, 5.5);   // 5, 7 et 12 octobre
+  assert.equal(h.absent, 1.5);
+  assert.equal(h.absentNoWork, 1.5);
+  assert.equal(h.done, 4);
+  assert.equal(h.remaining, 5);         // 14, 19 et 21 octobre
+  assert.deepEqual(h.byClass['Terminale STMG — Droit'], { planned: 4.5, done: 0, absent: 1.5 });
+  const base = { teacherId: 'p1', date: '2026-10-20', slotIds: ['s1'], reason: 'Formation', work: 'DEVOIR', workText: 'Exercices p. 40' };
+  assert.deepEqual(absenceErrors(base), []);
+  assert.equal(absenceErrors({ ...base, workText: '' }).length, 1);
+  assert.deepEqual(absenceErrors({ ...base, work: 'AUCUN', workText: '' }), []); // possible, mais signalé
+  assert.equal(sessionsToSupervise([base], slots, '2026-10-13')[0].slot.start, '07:00');
+});

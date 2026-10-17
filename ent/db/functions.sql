@@ -935,3 +935,41 @@ SELECT s.id AS site_id,
        greatest(coalesce((SELECT mga FROM due WHERE site_id = s.id), 0), 0) AS to_collect_mga,
        coalesce((SELECT sum(mga) FROM committed WHERE site_id = s.id), 0) AS committed_mga
 FROM site s;
+
+-- La séance déclarée doit exister ce jour-là dans l'emploi du temps (bon jour de semaine, période valide).
+CREATE FUNCTION teacher_absence_guard() RETURNS trigger AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM timetable_slot s WHERE s.id = NEW.slot_id
+                   AND s.weekday = extract(isodow FROM NEW.on_date) AND s.valid_during @> NEW.on_date) THEN
+    RAISE EXCEPTION 'Pas de séance de ce professeur à cette date dans l''emploi du temps';
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER teacher_absence_check BEFORE INSERT OR UPDATE ON teacher_absence FOR EACH ROW EXECUTE FUNCTION teacher_absence_guard();
+
+-- Seuls la Direction, le secrétariat et la vie scolaire partagent une ressource interne.
+CREATE FUNCTION internal_resource_guard() RETURNS trigger AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM user_role WHERE user_id = NEW.shared_by AND role IN ('DIRECTION', 'BUREAU', 'VIE_SCOLAIRE')) THEN
+    RAISE EXCEPTION 'Partage réservé à la Direction, au secrétariat et à la vie scolaire';
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER internal_resource_check BEFORE INSERT OR UPDATE ON internal_resource FOR EACH ROW EXECUTE FUNCTION internal_resource_guard();
+
+-- Heures d'un professeur sur une période : prévues (emploi du temps, jours de classe), d'absence, faites.
+CREATE FUNCTION teacher_hours(p_teacher uuid, p_from date, p_to date)
+RETURNS TABLE (planned numeric, absent numeric, done numeric) AS $$
+  WITH sessions AS (
+    SELECT s.id AS slot_id, d::date AS on_date, extract(epoch FROM s.ends_at - s.starts_at) / 3600 AS hours
+    FROM timetable_slot s JOIN teaching_assignment a ON a.id = s.assignment_id
+    JOIN school_class c ON c.id = a.class_id
+    CROSS JOIN generate_series(p_from, p_to, interval '1 day') d
+    WHERE a.teacher_id = p_teacher AND extract(isodow FROM d) = s.weekday AND s.valid_during @> d::date
+      AND is_school_day(c.site_id, d::date)
+  )
+  SELECT coalesce(sum(hours), 0),
+         coalesce(sum(hours) FILTER (WHERE EXISTS (SELECT 1 FROM teacher_absence t WHERE t.slot_id = sessions.slot_id AND t.on_date = sessions.on_date)), 0),
+         coalesce(sum(hours) FILTER (WHERE NOT EXISTS (SELECT 1 FROM teacher_absence t WHERE t.slot_id = sessions.slot_id AND t.on_date = sessions.on_date)), 0)
+  FROM sessions
+$$ LANGUAGE sql STABLE;

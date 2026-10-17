@@ -1041,5 +1041,31 @@ DO $$ DECLARE b uuid := (SELECT book_id FROM library_copy WHERE code = 'ROM-0001
   INSERT INTO library_reservation (book_id, staff_id, wanted_on) VALUES (b, (SELECT id FROM staff_member LIMIT 1), current_date);
 END $$;
 
+-- T47. Heures des professeurs et absences (travail laissé) ; ressources internes -------------------
+DO $$ DECLARE sl uuid; r record; BEGIN
+  INSERT INTO timetable_slot (assignment_id, weekday, starts_at, ends_at, valid_during)
+  VALUES ('c0000000-0000-0000-0000-000000000001', 1, '07:00', '09:00', daterange('2026-09-01', '2027-07-05')) RETURNING id INTO sl;
+  BEGIN
+    INSERT INTO teacher_absence (slot_id, on_date, reason, work_kind, declared_by) VALUES (sl, '2026-10-13', 'Formation', 'AUCUN', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T47: absence un jour sans cours';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T47:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    INSERT INTO teacher_absence (slot_id, on_date, reason, work_kind, declared_by) VALUES (sl, '2026-10-12', 'Formation', 'DEVOIR', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T47: devoir sans consigne';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO teacher_absence (slot_id, on_date, reason, work_kind, work_text, declared_by)
+  VALUES (sl, '2026-10-12', 'Formation', 'DEVOIR', 'Exercices 1 à 4 p. 52', '00000000-0000-0000-0000-000000000003');
+  SELECT * INTO r FROM teacher_hours('00000000-0000-0000-0000-000000000003', '2026-10-05', '2026-10-16');
+  ASSERT r.planned = 4 AND r.absent = 2 AND r.done = 2, format('T47: heures %s / %s / %s', r.planned, r.absent, r.done);
+  BEGIN
+    INSERT INTO internal_resource (site_id, title, audience, body, shared_by) SELECT id, 'Charte', 'PROFS', 'Texte', '00000000-0000-0000-0000-000000000003' FROM site WHERE code = 'TMV';
+    RAISE EXCEPTION 'T47: ressource partagée par un professeur';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T47:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO internal_resource (site_id, title, audience, body, shared_by) SELECT id, 'Charte de l''enseignant', 'PROFS', 'Ponctualité…', '00000000-0000-0000-0000-000000000001' FROM site WHERE code = 'TMV';
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T46 passent'
+\echo 'OK — tous les scénarios T1 à T47 passent'

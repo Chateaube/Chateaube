@@ -338,3 +338,20 @@ manuels se prennent avec le lot de la classe). **Élèves et professeurs réserv
 30 jours à l'avance) : il est mis de côté au secrétariat jusqu'à 2 jours après, sinon la personne entre en liste
 d'attente. Les **parents consultent seulement**. Le secrétariat voit les réservations à préparer, les remet (le
 prêt est enregistré), remet en rayon celles non retirées et met de côté un livre rendu pour le premier en attente.
+
+## Heures des professeurs, absences, ressources internes
+
+- **Volume horaire** (Direction, secrétariat) : à partir de l'emploi du temps, pour le mois ou le trimestre :
+  heures prévues (jours de classe seulement, hors fériés et vacances), prévues à ce jour, faites, absences (dont
+  sans travail laissé), reste à faire ; détail par classe et matière. Le professeur voit ses propres heures. Les
+  heures des vacataires dans Salaires sont proposées à partir de ce calcul (avec le serveur : les appels validés).
+- **Absence d'un professeur** : déclarée par lui-même, la Direction, le secrétariat ou la CPE, séance par séance
+  (d'après l'emploi du temps), avec un motif et le **travail laissé** : devoir ou activité (consignes ou document
+  joint, photo ou PDF). « Rien laissé » reste possible mais est signalé à la Direction. La CPE voit les **séances à
+  surveiller** avec le travail à distribuer. Les heures d'absence ne sont pas payées.
+- **Annonces internes** : déjà possibles avec Annonces (destinataires Professeurs ou Personnel).
+- **Ressources internes** : documents partagés par la Direction, le secrétariat ou la CPE avec les professeurs ou
+  tout le personnel, jamais avec les familles. Consultation seulement : pas de bouton de téléchargement ni
+  d'impression, clic droit et copie bloqués, écran masqué dès que la page perd le focus, filigrane au nom de la
+  personne et à la date. Aucun site ne peut empêcher une photo de l'écran avec un autre téléphone : le filigrane
+  permet de savoir d'où vient une fuite ; dans l'application Android, la capture d'écran est bloquée.

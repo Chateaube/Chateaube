@@ -1689,3 +1689,43 @@ CREATE TABLE library_reservation (
   CHECK (wanted_on <= requested_at::date + 30)
 );
 CREATE UNIQUE INDEX library_reservation_one_per_person ON library_reservation (book_id, coalesce(enrollment_id, staff_id)) WHERE status IN ('ATTENTE', 'A_RETIRER');
+
+-- =====  HEURES DES PROFESSEURS, ABSENCES, RESSOURCES INTERNES  =====
+-- Absence d'un professeur, séance par séance (d'après l'emploi du temps) : il laisse un devoir ou une
+-- activité, distribué par la vie scolaire qui surveille ; « rien laissé » est signalé à la Direction.
+-- Les heures d'absence ne sont pas payées (vacataires).
+CREATE TABLE teacher_absence (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  slot_id       uuid NOT NULL REFERENCES timetable_slot(id),
+  on_date       date NOT NULL,
+  reason        text NOT NULL CHECK (length(trim(reason)) > 0),
+  work_kind     text NOT NULL CHECK (work_kind IN ('DEVOIR', 'ACTIVITE', 'AUCUN')),
+  work_text     text,
+  work_file_key text,
+  declared_by   uuid NOT NULL REFERENCES app_user(id),
+  declared_at   timestamptz NOT NULL DEFAULT now(),
+  supervised_by uuid REFERENCES app_user(id),  -- vie scolaire
+  UNIQUE (slot_id, on_date),
+  CHECK (work_kind = 'AUCUN' OR work_text IS NOT NULL OR work_file_key IS NOT NULL)
+);
+
+-- Ressources internes : consultables par les professeurs ou par tout le personnel, jamais par les
+-- familles ; pas de téléchargement (le serveur ne sert que des pages filigranées) ; chaque
+-- consultation est tracée.
+CREATE TABLE internal_resource (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id       uuid NOT NULL REFERENCES site(id),
+  title         text NOT NULL,
+  audience      text NOT NULL CHECK (audience IN ('PROFS', 'PERSONNEL')),
+  file_key      text,
+  body          text,
+  shared_by     uuid NOT NULL REFERENCES app_user(id),
+  shared_at     timestamptz NOT NULL DEFAULT now(),
+  CHECK (file_key IS NOT NULL OR body IS NOT NULL)
+);
+CREATE TABLE internal_resource_view (
+  resource_id   uuid REFERENCES internal_resource(id) ON DELETE CASCADE,
+  viewer_id     uuid REFERENCES app_user(id),
+  viewed_at     timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (resource_id, viewer_id, viewed_at)
+);
