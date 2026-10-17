@@ -19,6 +19,7 @@ import { FamilyRequestForm, sendDocument } from './FamilyRequests.jsx';
 import { DocumentInput } from './PhotoInput.jsx';
 import { AnnouncementCard } from './AnnouncementsModule.jsx';
 import AgendaModule from './AgendaModule.jsx';
+import BookCatalog from './BookCatalog.jsx';
 import { loadAnnouncements } from '../announcementsStore.js';
 import { receives } from '../rules/announcements.js';
 import { loadWindows, handoverBlocks } from './BulletinHandover.jsx';
@@ -453,7 +454,7 @@ const TABS = [['home', 'Accueil', 'home'], ['life', 'Vie scol.', 'users'], ['not
 const MORE = [
   ['homework', 'Devoirs & cahier de textes', 'calendar'], ['documents', 'Documents & autorisations', 'pen'], ['stages', 'Stages', 'cap'],
   ['orientation', 'Orientation', 'cap'], ['payments', 'Paiements', 'wallet', 'PARENT'],
-  ['library', 'Livres empruntés', 'cap'], ['fiche', 'Fiche signalétique', 'pen', 'PARENT'], ['signature', 'Ma signature', 'pen', 'PARENT'],
+  ['library', 'Bibliothèque', 'cap'], ['fiche', 'Fiche signalétique', 'pen', 'PARENT'], ['signature', 'Ma signature', 'pen', 'PARENT'],
   ['agenda', 'Agendas', 'calendar'], ['reenrol', 'Réinscription 2027-2028', 'calendar', 'PARENT'], ['update', 'Mettre à jour nos informations', 'users', 'PARENT'],
 ];
 
@@ -495,7 +496,11 @@ export default function FamilyPortal({ settings, audience = 'PARENT' }) {
           {view === 'update' && (profileOf(child) ? <FamilyRequestForm key={`u-${child.id}`} profile={profileOf(child)} kind="MISE_A_JOUR" guardianName={ACCOUNT.name} /> : <Section><p className="text-sm text-slate-500">Fiche introuvable.</p></Section>)}
           {view === 'fiche' && <FicheForm key={child.id} studentKey={fullName(child)} profile={profileOf(child)} account={ACCOUNT.id} accountName={ACCOUNT.name} />}
           {view === 'signature' && <MySignature />}
-          {view === 'library' && <LibraryLoans child={child} />}
+          {view === 'library' && (<>
+            <LibraryLoans child={child} />
+            <BookCatalog key={child.id} compact who={fullName(child)} kind={isParent ? 'PARENT' : 'ELEVE'} cls={child.cls} />
+            {isParent && <p className="text-center text-xs text-slate-500">La réservation se fait depuis le compte de l'élève.</p>}
+          </>)}
           {view === 'notes' && <Notes child={child} audience={audience} settings={settings} />}
           {view === 'homework' && <Homework child={child} isParent={isParent} />}
           {view === 'life' && <SchoolLife child={child} isParent={isParent} acks={acks} setAcks={setAcks} settings={settings} />}

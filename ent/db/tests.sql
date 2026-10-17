@@ -1020,5 +1020,26 @@ DO $$ DECLARE e2 uuid; r uuid; p uuid; BEGIN
   END;
 END $$;
 
+-- T46. Réservations de livres : une seule par personne et par livre, au plus 30 jours à l'avance -----
+DO $$ DECLARE b uuid := (SELECT book_id FROM library_copy WHERE code = 'ROM-0001'); BEGIN
+  INSERT INTO library_reservation (book_id, enrollment_id, wanted_on, status, hold_until) VALUES (b, '30000000-0000-0000-0000-000000000001', current_date + 2, 'A_RETIRER', current_date + 4);
+  BEGIN
+    INSERT INTO library_reservation (book_id, enrollment_id, wanted_on) VALUES (b, '30000000-0000-0000-0000-000000000001', current_date + 5);
+    RAISE EXCEPTION 'T46: deux réservations du même livre';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO library_reservation (book_id, staff_id, wanted_on) VALUES (b, (SELECT id FROM staff_member LIMIT 1), current_date + 60);
+    RAISE EXCEPTION 'T46: réservation à deux mois';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    UPDATE library_reservation SET status = 'REMISE' WHERE book_id = b;
+    RAISE EXCEPTION 'T46: remise sans prêt';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO library_reservation (book_id, staff_id, wanted_on) VALUES (b, (SELECT id FROM staff_member LIMIT 1), current_date);
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T45 passent'
+\echo 'OK — tous les scénarios T1 à T46 passent'

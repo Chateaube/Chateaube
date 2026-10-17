@@ -26,6 +26,7 @@ import BulletinsModule from './components/BulletinsModule.jsx';
 import StudentList from './components/StudentList.jsx';
 import AnnouncementsModule from './components/AnnouncementsModule.jsx';
 import AgendaModule from './components/AgendaModule.jsx';
+import BookCatalog from './components/BookCatalog.jsx';
 import SignaturesModule from './components/SignaturesModule.jsx';
 import { PublicPreregistration } from './components/FamilyRequests.jsx';
 import pillar from './assets/pilier.png';
@@ -59,6 +60,7 @@ const FEEDBACK = { id: 'feedback', label: 'Avis du pilote', icon: 'bell', screen
 const LIBRARY = { id: 'library', label: 'Bibliothèque (salle d\'étude)', icon: 'pen', screen: LibraryModule };
 const IMPORT = { id: 'import', label: 'Importer des données (Excel)', icon: 'swap', screen: ImportModule };
 const GRADE_SHEETS = { id: 'grade-sheets', label: 'Grilles de notes', icon: 'pen', screen: GradeSheets };
+const BOOKS_FOR_TEACHER = { id: 'books', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who="Mme Ranaivo" kind="PROF" /> };
 const AGENDA = { id: 'agenda', label: 'Agendas', icon: 'calendar', screen: AgendaModule };
 const NEWS = { id: 'news', label: 'Annonces', icon: 'megaphone', screen: AnnouncementsModule };
 const STUDENT_LIST = { id: 'students-list', label: 'Liste des élèves', icon: 'users', screen: StudentList };
@@ -145,6 +147,7 @@ const PROFILES = {
         BOOKING,
       ] },
       { group: 'Communication', items: [MESSAGES, NEWS] },
+      { group: 'Ressources', items: [BOOKS_FOR_TEACHER] },
     ],
   },
   PARENT: {

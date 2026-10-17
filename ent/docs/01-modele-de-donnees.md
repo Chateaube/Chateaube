@@ -347,3 +347,6 @@ recoder.
   obligatoire au-delà de 100 000 Ar, échéance obligatoire si à payer), vue **`v_treasury`** par site (trésorerie
   nette, reste à recouvrer, dépenses engagées). Le grand livre en partie double reste la référence comptable.
 - Scénarios **T44** (trésorerie) et **T45** (ajustements).
+- **`library_reservation`** : réservation d'un livre par un élève ou un professeur (une seule active par personne
+  et par livre, au plus 30 jours à l'avance, `A_RETIRER` avec date limite de retrait, `REMISE` liée au prêt).
+  Scénario **T46**.

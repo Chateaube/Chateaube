@@ -329,3 +329,12 @@ voient les annonces sur l'accueil de leur portail. Base : `announcement` + `anno
 **Portail des familles selon la classe.** Le menu « Plus » dépend de l'enfant affiché : *Stages* en 3e et en 2de
 (ou s'il reste un stage passé à consulter), *Orientation* de la 3e à la Terminale, *Réinscription* dans toutes les
 classes sauf la Terminale. Ce qui ne concerne pas l'enfant reste visible, grisé et sans clic, avec « (ne concerne pas votre enfant) » ; le menu suit l'enfant choisi en haut de l'écran.
+
+**Catalogue pour tous (bibliothèque et manuels).** Direction, secrétariat, CPE, professeurs, élèves et parents
+consultent le même catalogue : une barre de recherche (titre, auteur, éditeur, matière, classe ; sans tenir compte
+des accents) et des filtres (romans, annales, documentaires, référence, BD, manuels). Chaque livre affiche ses
+exemplaires disponibles, ou la date de retour prévue s'ils sont tous empruntés ; chaque manuel, son stock (les
+manuels se prennent avec le lot de la classe). **Élèves et professeurs réservent** un livre pour une date (au plus
+30 jours à l'avance) : il est mis de côté au secrétariat jusqu'à 2 jours après, sinon la personne entre en liste
+d'attente. Les **parents consultent seulement**. Le secrétariat voit les réservations à préparer, les remet (le
+prêt est enregistré), remet en rayon celles non retirées et met de côté un livre rendu pour le premier en attente.

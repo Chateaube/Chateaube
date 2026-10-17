@@ -1670,3 +1670,22 @@ CREATE TABLE pre_registration_campaign (
   PRIMARY KEY (site_id, school_year),
   CHECK (closes_on >= opens_on)
 );
+
+-- Réservations de livres (élèves et professeurs ; les parents consultent seulement le catalogue).
+-- Mis de côté jusqu'à 2 jours après la date choisie ; sinon liste d'attente, dans l'ordre des demandes.
+CREATE TABLE library_reservation (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  book_id       uuid NOT NULL REFERENCES library_book(id),
+  enrollment_id uuid REFERENCES enrollment(id),        -- élève
+  staff_id      uuid REFERENCES staff_member(id),       -- professeur
+  wanted_on     date NOT NULL,
+  requested_at  timestamptz NOT NULL DEFAULT now(),
+  status        text NOT NULL DEFAULT 'ATTENTE' CHECK (status IN ('ATTENTE', 'A_RETIRER', 'REMISE', 'ANNULEE', 'EXPIREE')),
+  hold_until    date,
+  loan_id       uuid REFERENCES library_loan(id),
+  CHECK ((enrollment_id IS NULL) <> (staff_id IS NULL)),
+  CHECK ((status = 'A_RETIRER') = (hold_until IS NOT NULL) OR status IN ('REMISE', 'EXPIREE', 'ANNULEE')),
+  CHECK (status <> 'REMISE' OR loan_id IS NOT NULL),
+  CHECK (wanted_on <= requested_at::date + 30)
+);
+CREATE UNIQUE INDEX library_reservation_one_per_person ON library_reservation (book_id, coalesce(enrollment_id, staff_id)) WHERE status IN ('ATTENTE', 'A_RETIRER');

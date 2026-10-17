@@ -14,7 +14,7 @@ export const BINDINGS = { DOS_CARRE: 'Dos carré', RELIURE: 'Reliure' };
 export const CATEGORIES = { MANUEL: 'Manuel', CAHIER: 'Cahier d\'activités' };
 export const conditionLabel = (id) => (id === 'PERDU' ? 'Perdu' : CONDITIONS.find((c) => c.id === id)?.label ?? id);
 
-const inStock = (m) => Object.values(m.stock).reduce((s, n) => s + n, 0);
+export const inStock = (m) => Object.values(m.stock).reduce((s, n) => s + n, 0);
 export const lentCount = (m, loans) => loans.filter((l) => l.manualId === m.id && !l.sold && !l.returnedOn && l.stateIn !== 'PERDU').length;
 
 /** Un élève reçoit ce titre ? (les manuels de spécialité vont aux seuls élèves qui la suivent) */

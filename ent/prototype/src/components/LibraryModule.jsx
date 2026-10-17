@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Badge, Button, Card, Stat } from './ui.jsx';
 import { CLASSES } from '../data/schoollife.js';
 import { STAFF } from '../data/people.js';
-import { BOOK_TYPES, LOAN_DAYS, nextCode, designation, openLoan, borrow, renew, giveBackBook, overdueLoans } from '../rules/library.js';
+import { BOOK_TYPES, LOAN_DAYS, nextCode, designation, openLoan, borrow, renew, giveBackBook, overdueLoans, availability, expiredReservations, RESERVATION_HOLD_DAYS } from '../rules/library.js';
+import BookCatalog from './BookCatalog.jsx';
 import { CONDITIONS, conditionLabel } from '../rules/manuals.js';
 import { loadLibrary, saveLibrary } from '../libraryStore.js';
 import { printOnly } from '../print.js';
@@ -16,7 +17,62 @@ const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-s
 const fmt = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
 const daysLate = (due) => Math.round((Date.parse(TODAY) - Date.parse(due)) / 86_400_000);
 const TEACHERS = STAFF.filter((s) => /Enseignant|Intervenant/.test(s.poste)).map((s) => s.name);
-const TABS = [['desk', 'Prêt et retour'], ['late', 'En retard'], ['catalog', 'Catalogue'], ['labels', 'Étiquettes']];
+const TABS = [['desk', 'Prêt et retour'], ['reservations', 'Réservations'], ['late', 'En retard'], ['search', 'Rechercher'], ['catalog', 'Gérer le catalogue'], ['labels', 'Étiquettes']];
+
+/* ---------- Réservations des élèves et des professeurs ---------- */
+function ReservationsTab({ data, setData }) {
+  const reservations = data.reservations ?? [];
+  const bookOfId = (id) => data.books.find((b) => b.id === id);
+  const set = (id, patch) => setData((d) => ({ ...d, reservations: (d.reservations ?? []).map((r) => (r.id === id ? { ...r, ...patch } : r)) }));
+  const expired = expiredReservations(reservations, TODAY);
+  const ready = reservations.filter((r) => r.status === 'A_RETIRER' && !expired.includes(r)).sort((a, b) => a.date.localeCompare(b.date));
+  const waiting = reservations.filter((r) => r.status === 'ATTENTE').sort((a, b) => a.rank - b.rank);
+  // remise : l'élève (ou le professeur) repart avec un exemplaire libre, enregistré comme un prêt
+  const handOver = (r) => {
+    const b = bookOfId(r.bookId);
+    const free = b.copies.find((c) => !openLoan(c.code, data.loans));
+    if (!free) return;
+    const res = borrow(free.code, data.loans, { borrower: r.who, kind: r.kind === 'PROF' ? 'PROF' : 'ELEVE', cls: r.cls, on: TODAY });
+    if (res.error) return;
+    setData((d) => ({ ...d, loans: [...d.loans, res.loan], reservations: (d.reservations ?? []).map((x) => (x.id === r.id ? { ...x, status: 'REMISE', code: free.code } : x)) }));
+  };
+  return (
+    <div className="grid gap-5 xl:grid-cols-2 xl:items-start">
+      <Card title={`À préparer (${ready.length})`} subtitle={`Mis de côté jusqu'à ${RESERVATION_HOLD_DAYS} jours après la date choisie`}>
+        {ready.length === 0 && <p className="text-sm text-slate-500">Aucune réservation à préparer.</p>}
+        <ul className="divide-y divide-slate-100 text-sm">
+          {ready.map((r) => (
+            <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+              <span><span className="font-medium">{bookOfId(r.bookId)?.title}</span><span className="block text-xs text-slate-500">{r.who}{r.cls ? ` (${r.cls})` : ' (professeur)'} · vient le {fmt(r.date)} · jusqu'au {fmt(r.holdUntil)}</span></span>
+              <span className="flex gap-2"><Button className="!px-2 !py-1 text-xs" onClick={() => handOver(r)}>Remis</Button><Button variant="ghost" className="!px-2 !py-1 text-xs" onClick={() => set(r.id, { status: 'ANNULEE' })}>Annuler</Button></span>
+            </li>
+          ))}
+        </ul>
+        {expired.length > 0 && (
+          <div className="mt-3 rounded-lg bg-amber-50 p-2 text-sm text-amber-900">
+            {expired.length} réservation{expired.length > 1 ? 's' : ''} non retirée{expired.length > 1 ? 's' : ''} : {expired.map((r) => `${bookOfId(r.bookId)?.title} (${r.who})`).join(', ')}.
+            <Button variant="secondary" className="ml-2 !px-2 !py-0.5 text-xs" onClick={() => expired.forEach((r) => set(r.id, { status: 'EXPIREE' }))}>Remettre en rayon</Button>
+          </div>
+        )}
+      </Card>
+      <Card title={`Liste d'attente (${waiting.length})`} subtitle="Quand un exemplaire revient, mettez-le de côté pour la première personne : elle est prévenue">
+        {waiting.length === 0 && <p className="text-sm text-slate-500">Personne en attente.</p>}
+        <ul className="divide-y divide-slate-100 text-sm">
+          {waiting.map((r) => {
+            const free = availability(bookOfId(r.bookId), data.loans, reservations).available > 0;
+            return (
+              <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                <span><span className="font-medium">{bookOfId(r.bookId)?.title}</span><span className="block text-xs text-slate-500">n° {r.rank} · {r.who}{r.cls ? ` (${r.cls})` : ' (professeur)'} · demandé le {fmt(r.madeOn)}</span></span>
+                {free ? <Button className="!px-2 !py-1 text-xs" onClick={() => set(r.id, { status: 'A_RETIRER', date: TODAY, holdUntil: addDaysIso(TODAY, RESERVATION_HOLD_DAYS) })}>Disponible : mettre de côté</Button> : <Badge tone="amber">en attente</Badge>}
+              </li>
+            );
+          })}
+        </ul>
+      </Card>
+    </div>
+  );
+}
+const addDaysIso = (iso, n) => new Date(Date.parse(`${iso}T12:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 
 const bookOf = (code, books) => books.find((b) => b.copies.some((c) => c.code === code));
 
@@ -211,6 +267,7 @@ export default function LibraryModule() {
   const setBooks = (books) => setData((d) => ({ ...d, books }));
   const setLoans = (loans) => setData((d) => ({ ...d, loans }));
   const late = overdueLoans(data.loans, TODAY).length;
+  const toPrepare = (data.reservations ?? []).filter((r) => r.status === 'A_RETIRER').length;
   return (
     <div className="space-y-5">
       <div>
@@ -223,11 +280,14 @@ export default function LibraryModule() {
           <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
             className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ${tab === id ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>
             {label}{id === 'late' && late > 0 && <span className="ml-1.5 rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white">{late}</span>}
+            {id === 'reservations' && toPrepare > 0 && <span className="ml-1.5 rounded-full bg-emerald-600 px-1.5 text-[10px] font-semibold text-white">{toPrepare}</span>}
           </button>
         ))}
       </div>
       {tab === 'desk' && <DeskTab books={data.books} loans={data.loans} setLoans={setLoans} />}
       {tab === 'late' && <LateTab books={data.books} loans={data.loans} />}
+      {tab === 'reservations' && <ReservationsTab data={data} setData={setData} />}
+      {tab === 'search' && <BookCatalog key="search" who="Secrétariat" kind="STAFF" compact />}
       {tab === 'catalog' && <CatalogTab books={data.books} setBooks={setBooks} loans={data.loans} />}
       {tab === 'labels' && <LabelsTab books={data.books} />}
     </div>

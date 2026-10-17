@@ -990,3 +990,30 @@ test('portail des familles : menu selon la classe de l\'enfant', () => {
   assert.deepEqual(menuFor({ cls: '3e' }), { stages: true, orientation: true, reenrol: true });
   assert.equal(menuFor({ cls: '1re STMG' }, { hasInternships: true }).stages, true); // stage de 2de passé
 });
+
+import { searchCatalog, availability, reserve, canReserve, expiredReservations } from '../src/rules/library.js';
+test('bibliothèque : catalogue pour tous, recherche livres et manuels, réservation élèves et professeurs', () => {
+  const books = [
+    { id: 'k1', type: 'ROMAN', title: 'L\'Étranger', author: 'Albert Camus', editor: 'Gallimard', copies: [{ code: 'ROM-0001' }, { code: 'ROM-0002' }] },
+    { id: 'k2', type: 'ANNALES', title: 'Annabac — Philosophie', author: '', editor: 'Hatier', copies: [{ code: 'ANN-0001' }] },
+  ];
+  const manuals = [{ id: 'm1', title: 'Mathématiques 6e', subject: 'Mathématiques', levels: ['6e'], category: 'MANUEL', editor: 'Hachette' }];
+  assert.deepEqual(searchCatalog('etranger', books, manuals).map((r) => r.id), ['k1']); // sans accent
+  assert.deepEqual(searchCatalog('camus', books, manuals).map((r) => r.id), ['k1']);
+  assert.deepEqual(searchCatalog('maths 6e', books, manuals).map((r) => r.id), []);
+  assert.deepEqual(searchCatalog('mathématiques 6e', books, manuals).map((r) => r.source), ['MANUEL']);
+  assert.equal(searchCatalog('', books, manuals, { type: 'ANNALES' }).length, 1);
+  const loans = [{ code: 'ANN-0001', due: '2026-10-28' }];
+  assert.deepEqual(availability(books[1], loans), { total: 1, available: 0, nextReturn: '2026-10-28' });
+  assert.ok(!canReserve('PARENT'));
+  assert.ok(reserve(books[0], { who: 'P', kind: 'PARENT', date: '2026-10-14' }, { loans, reservations: [], today: '2026-10-13' }).error);
+  const r1 = reserve(books[0], { who: 'Aina', kind: 'ELEVE', date: '2026-10-15' }, { loans, reservations: [], today: '2026-10-13' }).reservation;
+  assert.equal(r1.status, 'A_RETIRER');
+  assert.equal(r1.holdUntil, '2026-10-17');
+  assert.ok(reserve(books[0], { who: 'Aina', kind: 'ELEVE', date: '2026-10-16' }, { loans, reservations: [r1], today: '2026-10-13' }).error); // déjà réservé
+  const r2 = reserve(books[1], { who: 'M. Tojo', kind: 'PROF', date: '2026-10-13' }, { loans, reservations: [], today: '2026-10-13' }).reservation;
+  assert.equal(r2.status, 'ATTENTE'); assert.equal(r2.rank, 1);
+  assert.ok(reserve(books[0], { who: 'X', kind: 'ELEVE', date: '2026-10-12' }, { loans, reservations: [], today: '2026-10-13' }).error);
+  assert.ok(reserve(books[0], { who: 'X', kind: 'ELEVE', date: '2026-12-31' }, { loans, reservations: [], today: '2026-10-13' }).error);
+  assert.deepEqual(expiredReservations([r1], '2026-10-18').map((r) => r.id), [r1.id]);
+});

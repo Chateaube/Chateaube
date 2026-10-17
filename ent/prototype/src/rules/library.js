@@ -43,3 +43,52 @@ export const giveBackBook = (loan, on, state) => ({ ...loan, returnedOn: on, sta
 
 /** Emprunts en retard (élèves). */
 export const overdueLoans = (loans, today) => loans.filter((l) => !l.returnedOn && l.due && l.due < today);
+
+// --- Catalogue pour tous et réservations ---
+// Tout le monde consulte le catalogue (livres et manuels). Les élèves et les professeurs réservent un
+// livre pour une date ; les parents consultent seulement. Un livre réservé est mis de côté au
+// secrétariat jusqu'à 2 jours après la date choisie ; si tous les exemplaires sont pris, la réservation
+// entre en liste d'attente.
+export const RESERVATION_HOLD_DAYS = 2;
+export const RESERVATION_MAX_AHEAD = 30;
+export const canReserve = (role) => ['ELEVE', 'PROF'].includes(role);
+
+const norm = (t = '') => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+/** Exemplaires disponibles (ni empruntés ni mis de côté pour une réservation). */
+export function availability(book, loans, reservations = []) {
+  const out = book.copies.filter((c) => openLoan(c.code, loans));
+  const held = reservations.filter((r) => r.bookId === book.id && r.status === 'A_RETIRER').length;
+  const dues = out.map((c) => openLoan(c.code, loans).due).filter(Boolean).sort();
+  return { total: book.copies.length, available: Math.max(0, book.copies.length - out.length - held), nextReturn: dues[0] ?? null };
+}
+
+/** Recherche dans les livres et les manuels (titre, auteur, éditeur, matière, classe). */
+export function searchCatalog(query, books, manuals = [], { type = 'ALL' } = {}) {
+  const q = norm(query.trim());
+  const match = (...fields) => !q || q.split(/\s+/).every((w) => fields.some((f) => norm(String(f ?? '')).includes(w)));
+  const bookItems = books.filter((b) => (type === 'ALL' || type === b.type) && match(b.title, b.author, b.editor, b.collection, BOOK_TYPES[b.type]?.label))
+    .map((b) => ({ source: 'LIVRE', id: b.id, title: b.title, detail: designation(b).replace(`${b.title} — `, '').replace(b.title, ''), type: BOOK_TYPES[b.type]?.label, book: b }));
+  const manualItems = (type === 'ALL' || type === 'MANUEL') ? manuals.filter((m) => match(m.title, m.subject, m.editor, ...(m.levels ?? []), 'manuel'))
+    .map((m) => ({ source: 'MANUEL', id: m.id, title: m.title, detail: [m.subject, (m.levels ?? []).join(', '), m.editor].filter(Boolean).join(' · '), type: m.category === 'CAHIER' ? 'Cahier d\'activités' : 'Manuel scolaire', manual: m })) : [];
+  return [...bookItems, ...manualItems].sort((a, b) => a.title.localeCompare(b.title));
+}
+
+/** Réserver un livre pour une date : mis de côté s'il en reste, sinon liste d'attente. */
+export function reserve(book, { who, kind, cls, date }, { loans, reservations, today }) {
+  if (!canReserve(kind)) return { error: 'Les parents consultent le catalogue ; la réservation se fait depuis le compte de l\'élève.' };
+  if (!date || date < today) return { error: 'Choisir une date à partir d\'aujourd\'hui.' };
+  if (date > addDays(today, RESERVATION_MAX_AHEAD)) return { error: `Réservation au plus ${RESERVATION_MAX_AHEAD} jours à l'avance.` };
+  if (reservations.some((r) => r.bookId === book.id && r.who === who && ['A_RETIRER', 'ATTENTE'].includes(r.status))) return { error: 'Vous avez déjà réservé ce livre.' };
+  const free = availability(book, loans, reservations).available > 0;
+  const waiting = reservations.filter((r) => r.bookId === book.id && r.status === 'ATTENTE').length;
+  return {
+    reservation: {
+      id: `rv${Date.now()}${Math.round(Math.random() * 1e4)}`, bookId: book.id, who, kind, cls: cls ?? null, date, madeOn: today,
+      status: free ? 'A_RETIRER' : 'ATTENTE', holdUntil: free ? addDays(date, RESERVATION_HOLD_DAYS) : null, rank: free ? null : waiting + 1,
+    },
+  };
+}
+
+/** Réservations mises de côté dont le délai de retrait est passé : elles tombent. */
+export const expiredReservations = (reservations, today) => reservations.filter((r) => r.status === 'A_RETIRER' && r.holdUntil < today);
