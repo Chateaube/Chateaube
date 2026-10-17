@@ -6,6 +6,8 @@ import { CLASS_LIST } from '../data/people.js';
 import { TLE_G_SUBJECTS, TLE_G_STUDENTS } from '../data/bulletins.js';
 import { COMPETENCY_HISTORY } from '../data/competencyHistory.js';
 import { studentAverage, generalAverage, classStats } from '../rules/grading.js';
+import { loadGA } from '../appreciationStore.js';
+import { onBulletin } from '../rules/generalAppreciation.js';
 import { subjectsOf, subjectClassAverage, classLine, specialtyErrors, SPECIALTIES } from '../rules/bulletin.js';
 import { loadImport, saveImport } from '../importStore.js';
 import { demoAppreciation, accord } from '../rules/documents.js';
@@ -42,6 +44,7 @@ function buildPremiereSTMG(settings) {
     avgs: Object.fromEntries(CLASS_SUBJECTS.map((s) => [s.id, s.service ? studentAverage(EVALUATIONS[s.service], GRADES[s.service][name]) : OTHER_AVERAGES[name][s.id]])),
   }));
   const generals = students.map((st) => generalAverage(CLASS_SUBJECTS.map((s) => ({ ...s, inAverage: !excluded.includes(s.id), avg: st.avgs[s.id] }))));
+  const ga = loadGA();
   return students.map((st, i) => ({
     term: '1er Trimestre', year: '2026/2027', student: st.name, birthLine: `Né(e) le ${longDate(demoBirth(i))}`, classLine: classLine('1re STMG'),
     rows: CLASS_SUBJECTS.filter((s) => s.id !== 'VDC').map((s) => ({
@@ -50,6 +53,7 @@ function buildPremiereSTMG(settings) {
       appreciation: demoAppreciation(st.avgs[s.id]),
     })),
     general: generals[i], classGeneral: classStats(generals).avg, justified: ABSENCES[st.name]?.justified ?? 0, unjustified: ABSENCES[st.name]?.unjustified ?? 0, late: ABSENCES[st.name]?.late ?? 0,
+    generalAppreciation: onBulletin(ga[st.name]), // seulement si validée par la Direction
   }));
 }
 
@@ -169,7 +173,7 @@ export default function BulletinsModule({ settings, role }) {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-navy-500">{TERM.label} · Direction et Bureau</p>
+          <p className="text-sm font-semibold text-navy-500">{TERM.label} · Direction et secrétariat</p>
           <h1 className="text-2xl font-semibold text-navy-900">Bulletins</h1>
           <p className="text-sm text-slate-500">Une page A4 par élève, sur le modèle de l'établissement. Chaque bulletin ne garde que les matières de l'élève.</p>
         </div>

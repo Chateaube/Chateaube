@@ -126,11 +126,11 @@ export default function DirectionDashboard({ account, settings, go }) {
     <div className="space-y-5">
       {toSign > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-amber-50 p-4">
-          <p className="text-sm text-amber-900"><strong>{toSign} document{toSign > 1 ? 's' : ''} à signer</strong> — demandé{toSign > 1 ? 's' : ''} par le bureau ou la vie scolaire.</p>
+          <p className="text-sm text-amber-900"><strong>{toSign} document{toSign > 1 ? 's' : ''} à signer</strong> — demandé{toSign > 1 ? 's' : ''} par le secrétariat ou la vie scolaire.</p>
           <button onClick={() => go?.('signatures')} className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white">Voir et signer</button>
         </div>
       )}
-      {familyRequests > 0 && <p className="rounded-2xl bg-navy-50 p-3 text-sm text-navy-900">{familyRequests} démarche{familyRequests > 1 ? 's' : ''} en ligne des familles en attente du bureau (Inscriptions).</p>}
+      {familyRequests > 0 && <p className="rounded-2xl bg-navy-50 p-3 text-sm text-navy-900">{familyRequests} démarche{familyRequests > 1 ? 's' : ''} en ligne des familles en attente du secrétariat (Inscriptions).</p>}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-navy-500">Année scolaire 2026-2027</p>

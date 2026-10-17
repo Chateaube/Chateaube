@@ -25,13 +25,13 @@ import ImportModule from './components/ImportModule.jsx';
 import BulletinsModule from './components/BulletinsModule.jsx';
 import StudentList from './components/StudentList.jsx';
 import AnnouncementsModule from './components/AnnouncementsModule.jsx';
+import AgendaModule from './components/AgendaModule.jsx';
 import SignaturesModule from './components/SignaturesModule.jsx';
 import { PublicPreregistration } from './components/FamilyRequests.jsx';
 import pillar from './assets/pilier.png';
 import { useScreenGuard } from './screenGuard.js';
 import { useOnline } from './online.js';
 
-const THEMES = [['ocean', 'Océan (dégradé bleu)'], ['aurore', 'Aurore (dégradé violet-corail)'], ['classique', 'Classique (bleu uni)'], ['elegant', 'Élégant (clair)']];
 import { DEFAULT_SETTINGS } from './data/settings.js';
 import { DIRECTION_ACCOUNTS } from './data/demo.js';
 
@@ -59,6 +59,7 @@ const FEEDBACK = { id: 'feedback', label: 'Avis du pilote', icon: 'bell', screen
 const LIBRARY = { id: 'library', label: 'Bibliothèque (salle d\'étude)', icon: 'pen', screen: LibraryModule };
 const IMPORT = { id: 'import', label: 'Importer des données (Excel)', icon: 'swap', screen: ImportModule };
 const GRADE_SHEETS = { id: 'grade-sheets', label: 'Grilles de notes', icon: 'pen', screen: GradeSheets };
+const AGENDA = { id: 'agenda', label: 'Agendas', icon: 'calendar', screen: AgendaModule };
 const NEWS = { id: 'news', label: 'Annonces', icon: 'megaphone', screen: AnnouncementsModule };
 const STUDENT_LIST = { id: 'students-list', label: 'Liste des élèves', icon: 'users', screen: StudentList };
 const SIGNATURES = { id: 'signatures', label: 'Documents à signer', icon: 'pen', screen: SignaturesModule };
@@ -86,6 +87,7 @@ const PROFILES = {
         BULLETINS,
         GRADE_SHEETS,
         ...OVERSIGHT,
+        AGENDA,
         { id: 'timetable', label: 'Emplois du temps', icon: 'clock' },
         BOOKING,
         { id: 'exams', label: 'Examens & Campus France', icon: 'cap' },
@@ -104,26 +106,26 @@ const PROFILES = {
     ],
   },
   BUREAU: {
-    label: 'Bureau',
-    title: 'Administration / économat',
+    label: 'Secrétariat',
+    title: 'Secrétariat / économat',
     home: 'bureau',
     nav: [
       { group: 'Caisse', items: [
-        { id: 'bureau', label: 'Accueil du bureau', icon: 'home', screen: BureauHome },
+        { id: 'bureau', label: 'Accueil du secrétariat', icon: 'home', screen: BureauHome },
         { id: 'accounting', label: 'Encaissements & comptabilité', icon: 'wallet', screen: AccountingModule },
       ] },
-      { group: 'Élèves', items: [INSCRIPTIONS, STUDENT_LIST, SIGNATURES, MANUALS, LIBRARY, IMPORT] },
+      { group: 'Vie scolaire', items: [VIE_SCOLAIRE, MESSAGES, NEWS, AGENDA, FOLLOW_UP, BOOKING] },
       { group: 'Notes & bulletins', items: [COUNCIL, BULLETINS, GRADE_SHEETS, ...OVERSIGHT] },
-      { group: 'Vie scolaire & messages', items: [MESSAGES, NEWS, VIE_SCOLAIRE, FOLLOW_UP, BOOKING] },
+      { group: 'Élèves', items: [INSCRIPTIONS, STUDENT_LIST, SIGNATURES, MANUALS, LIBRARY, IMPORT] },
     ],
   },
   VIE_SCOLAIRE: {
-    label: 'Vie scol.',
-    title: 'Vie scolaire',
+    label: 'CPE',
+    title: 'CPE — vie scolaire',
     home: 'vs',
     nav: [
-      { group: 'Au quotidien', items: [VIE_SCOLAIRE, FOLLOW_UP, STUDENT_LIST, SIGNATURES] },
-      { group: 'Ressources', items: [BOOKING, LIBRARY] },
+      { group: 'Au quotidien', items: [VIE_SCOLAIRE, AGENDA, FOLLOW_UP, STUDENT_LIST, SIGNATURES] },
+      { group: 'Ressources', items: [BOOKING, LIBRARY, MANUALS, OVERSIGHT[1]] },
       { group: 'Communication', items: [MESSAGES, NEWS] },
     ],
   },
@@ -135,6 +137,7 @@ const PROFILES = {
       { group: 'Ma journée', items: [
         { id: 'teacher', label: 'Mon tableau de bord', icon: 'home', screen: TeacherPortal },
         { id: 'appel', label: 'Appel', icon: 'check', screen: AttendanceModule },
+        AGENDA,
         { id: 'grades', label: 'Notes & appréciations', icon: 'pen', screen: GradebookModule },
         { id: 'homework', label: 'Cahier de textes', icon: 'calendar', screen: HomeworkModule },
         GRADE_SHEETS,
@@ -167,8 +170,8 @@ const PROFILES = {
 
 // Personne connectée, par profil (démonstration)
 const PERSONAS = {
-  BUREAU: { name: 'Mme Hanta', short: 'Mme Hanta', detail: 'Bureau (accueil, caisse…) · Tamatave' },
-  VIE_SCOLAIRE: { name: 'M. Be', short: 'M. Be', detail: 'Vie scolaire · Tamatave' },
+  BUREAU: { name: 'Mme Hanta', short: 'Mme Hanta', detail: 'Secrétariat (accueil, caisse…) · Tamatave' },
+  VIE_SCOLAIRE: { name: 'M. Be', short: 'M. Be', detail: 'CPE · Tamatave' },
   ENSEIGNANT: { name: 'Mme RANAIVO', short: 'Mme Ranaivo', detail: 'Management · SGN' },
   PARENT: { name: 'Mme RAKOTOARISOA', short: 'Mme Rakotoarisoa', detail: 'Maman d\'Aina et de Toky' },
   ELEVE: { name: 'Aina RAKOTOARISOA', short: 'Aina', detail: '1re STMG · Tamatave' },
@@ -202,10 +205,11 @@ export default function App() {
 
   const persona = profile === 'DIRECTION' ? { name: account.name, detail: account.email } : PERSONAS[profile];
 
-  // Ambiance graphique (préférence de l'utilisateur, mémorisée dans le navigateur)
-  const [theme, setThemeState] = useState(() => { try { return localStorage.getItem('ent-theme') || 'ocean'; } catch { return 'ocean'; } });
-  const setTheme = (t) => { setThemeState(t); try { localStorage.setItem('ent-theme', t); } catch { /* navigation privée */ } };
-  useEffect(() => { document.documentElement.dataset.theme = theme; }, [theme]);
+  // Ambiance retenue par l'établissement : Océan (dégradé bleu)
+  const theme = 'ocean';
+  useEffect(() => { document.documentElement.dataset.theme = theme; }, []);
+  // Site affiché (Direction) : Tamatave pour l'instant ; Tana sera ajouté avec son secrétariat et sa vie scolaire
+  const [site, setSite] = useState('TMV');
 
   // Protection d'écran : tous les profils sauf Direction et Bureau
   const [protection, setProtection] = useState(true);
@@ -247,12 +251,7 @@ export default function App() {
               ))}
             </span>
           </span>
-          <label className="flex items-center gap-1.5">Ambiance
-            <select value={theme} onChange={(e) => setTheme(e.target.value)} aria-label="Ambiance" className="rounded-full border-0 bg-white/10 px-2 py-0.5 text-white">
-              {THEMES.map(([id, l]) => <option key={id} value={id} className="text-slate-900">{l}</option>)}
-            </select>
-          </label>
-          <label className="flex items-center gap-1.5"><input type="checkbox" checked={protection} onChange={(e) => setProtection(e.target.checked)} />Protection d'écran (sauf Direction et Bureau)</label>
+          <label className="flex items-center gap-1.5"><input type="checkbox" checked={protection} onChange={(e) => setProtection(e.target.checked)} />Protection d'écran (sauf Direction et Secrétariat)</label>
         </div>
       </div>
 
@@ -266,6 +265,13 @@ export default function App() {
               <span className="block text-[11px]" style={{ color: 'var(--topbar-muted)' }}>Tamatave · {PROFILES[profile].title}</span>
             </span>
           </button>
+          {profile === 'DIRECTION' && (
+            <select value={site} onChange={(e) => setSite(e.target.value)} aria-label="Site" onClick={(e) => e.stopPropagation()}
+              className="hidden rounded-full border-0 bg-white/15 px-3 py-1 text-xs font-medium text-white sm:block">
+              <option value="TMV" className="text-slate-900">Tamatave</option>
+              <option value="TNR" disabled className="text-slate-400">Tana (bientôt)</option>
+            </select>
+          )}
 
           <nav aria-label="Navigation principale" className="ml-4 hidden flex-1 items-center gap-1 lg:flex">
             {NAV.map((g) => {
@@ -276,7 +282,7 @@ export default function App() {
                   <button onClick={() => (single ? goTo(g.items[0].id) : setOpenGroup(openGroup === g.group ? null : g.group))}
                     aria-expanded={single ? undefined : openGroup === g.group}
                     className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-medium transition ${active ? 'bg-white/20 shadow-inner' : 'hover:bg-white/10'}`}
-                    style={theme === 'elegant' ? { background: active ? '#eef4fb' : undefined } : undefined}>
+                  >
                     {single ? g.items[0].label : g.group}
                     {!single && <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 opacity-70" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 8l5 5 5-5" /></svg>}
                   </button>
@@ -338,7 +344,7 @@ export default function App() {
         </p>
       )}
       <main className="mx-auto w-full max-w-[1400px] px-4 py-6 lg:px-8">
-        <Current key={`${profile}-${screen}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={setScreen} role={profile} />
+        <Current key={`${profile}-${screen}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={setScreen} role={profile} site={site} />
       </main>
 
       {profile !== 'VISITEUR' && <FeedbackButton profile={profile} who={persona.detail ?? persona.name} screen={NAV.flatMap((g) => g.items).find((i) => i.id === screen)?.label ?? screen} />}

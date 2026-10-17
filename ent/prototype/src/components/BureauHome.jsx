@@ -15,7 +15,7 @@ export default function BureauHome({ go }) {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-semibold text-navy-500">Bureau de Tamatave</p>
+        <p className="text-sm font-semibold text-navy-500">Secrétariat de Tamatave</p>
         <h1 className="text-2xl font-semibold text-navy-900">Administration & économat</h1>
       </div>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -48,7 +48,7 @@ export default function BureauHome({ go }) {
             ))}
           </ul>
           <Button className="mt-3 w-full" onClick={() => go('accounting')}><Icon name="wallet" />Nouvel encaissement</Button>
-          <p className="mt-2 text-xs text-slate-500"><Badge>Accès</Badge> Le Bureau voit aussi la Vie scolaire (l'inverse n'est pas possible).</p>
+          <p className="mt-2 text-xs text-slate-500"><Badge>Accès</Badge> Le secrétariat voit aussi la vie scolaire ; la CPE ne voit pas la caisse.</p>
         </Card>
       </div>
     </div>

@@ -8,7 +8,7 @@ import { loadLibrary, saveLibrary } from '../libraryStore.js';
 import { printOnly } from '../print.js';
 
 // Bibliothèque de la salle d'étude / permanence (Tamatave n'a pas de CDI) : romans, annales, documentaires, ouvrages de référence.
-// Élèves : un mois, prolongeable d'un mois en repassant au bureau avec le livre.
+// Élèves : un mois, prolongeable d'un mois en repassant au secrétariat avec le livre.
 // Professeurs : sans date limite. Chaque exemplaire porte une cote (étiquette imprimable).
 
 const TODAY = '2026-10-13';
@@ -62,7 +62,7 @@ function DeskTab({ books, loans, setLoans }) {
                 </div>
                 {loan.kind === 'ELEVE' && (
                   <div className="flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 p-2">
-                    <label className="flex items-center gap-1.5 text-xs text-slate-700"><input type="checkbox" checked={presented} onChange={(e) => setPresented(e.target.checked)} />L'élève a présenté le livre au bureau</label>
+                    <label className="flex items-center gap-1.5 text-xs text-slate-700"><input type="checkbox" checked={presented} onChange={(e) => setPresented(e.target.checked)} />L'élève a présenté le livre au secrétariat</label>
                     <Button variant="secondary" className="!py-1 text-xs" disabled={!presented} onClick={() => { const r = renew(loan, { on: TODAY, presented }); setLoans(loans.map((l) => (l.id === loan.id ? r.loan : l))); done(`${found} prolongé jusqu'au ${fmt(r.loan.due)}.`); }}>Prolonger d'un mois</Button>
                   </div>
                 )}
@@ -91,7 +91,7 @@ function DeskTab({ books, loans, setLoans }) {
       </Card>
       <Card title="Règles de prêt">
         <ul className="list-disc space-y-1.5 pl-4 text-sm text-slate-600">
-          <li>Élèves : {LOAN_DAYS} jours. Pour garder le livre un mois de plus, l'élève repasse au bureau <strong>avec le livre</strong>.</li>
+          <li>Élèves : {LOAN_DAYS} jours. Pour garder le livre un mois de plus, l'élève repasse au secrétariat <strong>avec le livre</strong>.</li>
           <li>Professeurs : pas de date limite.</li>
           <li>Un livre en retard est rappelé à l'élève et au parent ; il bloque la remise du bulletin comme un manuel.</li>
           <li>Livre perdu ou abîmé : à remplacer ou à régler à la caisse.</li>
@@ -188,7 +188,7 @@ function LabelsTab({ books }) {
       action={(
         <span className="flex gap-2">
           <select value={type} onChange={(e) => setType(e.target.value)} className={inputCls} aria-label="Type"><option value="">Tous les types</option>{Object.entries(BOOK_TYPES).map(([k, t]) => <option key={k} value={k}>{t.label}</option>)}</select>
-          <Button onClick={() => printOnly('.labels-print', 'size: A4 portrait; margin: 8mm;')}>Imprimer</Button>
+          <Button onClick={() => printOnly('.labels-print', 'size: A4 portrait;', 'Étiquettes de la bibliothèque')}>Imprimer</Button>
         </span>
       )}>
       <div className="labels-print grid grid-cols-2 gap-2 sm:grid-cols-4">

@@ -329,3 +329,21 @@ recoder.
   la Direction ; signature par la Direction seule, avec sa propre signature ; code de vérification attribué à la
   signature ; impression ou envoi par e-mail seulement après signature.
 - Vue **`v_bulletin_blocked`** : le motif des livres de la salle d'étude s'appelle désormais `LIVRE`.
+
+### Retours du 17 octobre
+
+- **`enrollment.matricule`** (unique par année, format `TG-001`) ; **`student.other_nationality`**,
+  **`student.usual_first_name`**.
+- **`phone_confiscation`** : `action` (`AVERTISSEMENT` sans durée ni garde, ou `CONFISCATION`), durée `24H` / `48H` /
+  `5J` (récidive : au moins 48 h au 2e fait, 5 jours ensuite), `owner_enrollment_id` (propriétaire).
+  `AVERTISSEMENT` devient une punition (professeur, CPE, secrétariat).
+- **`report_card`** : appréciation générale écrite par la Direction ou le secrétariat, `general_comment_status`
+  validé par la Direction seule ; un texte modifié repasse « à valider ».
+- **`bulletin_release`** (disponibilité et délai de retrait), **`orientation_track`** (pistes par pays, clôture avec
+  motif), **`school_event`** et **`calendar_feed`** (agendas et liens d'abonnement), **`pre_registration_campaign`**.
+- **Salaires** : plus de validation préalable ; seuls le secrétariat et la Direction paient
+  (`payroll_month.validated_by` = « vu par la Direction », facultatif).
+- **Trésorerie** : **`expense_category`** (liste modifiable), **`supplier`**, **`expense`** (Ariary entiers, photo
+  obligatoire au-delà de 100 000 Ar, échéance obligatoire si à payer), vue **`v_treasury`** par site (trésorerie
+  nette, reste à recouvrer, dépenses engagées). Le grand livre en partie double reste la référence comptable.
+- Scénarios **T44** (trésorerie) et **T45** (ajustements).

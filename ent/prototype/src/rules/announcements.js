@@ -1,4 +1,4 @@
-// Annonces de la Direction, du bureau, de la vie scolaire (et des professeurs pour leurs classes) :
+// Annonces de la Direction, du secrétariat, de la vie scolaire (et des professeurs pour leurs classes) :
 // à qui (parents, élèves, professeurs, personnel), où (Tamatave, Tana, les deux), et quelle partie
 // de l'école (toute l'école, un cycle, des niveaux, des classes). Application et e-mail ; pas de SMS.
 

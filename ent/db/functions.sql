@@ -519,7 +519,8 @@ DECLARE v_site uuid; v_local timestamp;
 BEGIN
   SELECT c.site_id INTO v_site FROM enrollment e JOIN school_class c ON c.id = e.class_id WHERE e.id = NEW.enrollment_id;
   v_local := NEW.confiscated_at AT TIME ZONE 'Indian/Antananarivo';
-  NEW.return_due_at := (add_school_days(v_site, v_local::date, CASE NEW.duration_code WHEN '24H' THEN 1 ELSE 5 END)
+  IF NEW.duration_code IS NULL THEN RETURN NEW; END IF; -- avertissement : le téléphone n'est pas gardé
+  NEW.return_due_at := (add_school_days(v_site, v_local::date, CASE NEW.duration_code WHEN '24H' THEN 1 WHEN '48H' THEN 2 ELSE 5 END)
                         + v_local::time) AT TIME ZONE 'Indian/Antananarivo';
   RETURN NEW;
 END $$ LANGUAGE plpgsql;
@@ -558,15 +559,19 @@ SELECT 'ABSENCE_RETARD' AS kind, a.id, a.enrollment_id, a.occurred_at AS at FROM
 UNION ALL
 SELECT 'MESURE', m.id, m.enrollment_id, m.decided_on::timestamptz FROM discipline_measure m WHERE m.parent_ack_at IS NULL;
 
--- Récidive : à partir de la 2e confiscation de l'année, la durée passe à 5 jours ouvrés.
+-- Récidive (avertissements compris) : au moins 48 h au 2e fait, 5 jours ouvrés à partir du 3e.
 CREATE FUNCTION phone_recidive() RETURNS trigger AS $$
+DECLARE n int;
 BEGIN
+  IF NEW.action = 'AVERTISSEMENT' THEN RETURN NEW; END IF;
   IF coalesce((SELECT p.phone_recidive_5j FROM school_life_policy p
                  JOIN enrollment e ON e.year_id = p.year_id
                  JOIN school_class c ON c.id = e.class_id AND c.site_id = p.site_id
-                WHERE e.id = NEW.enrollment_id), true)
-     AND EXISTS (SELECT 1 FROM phone_confiscation WHERE enrollment_id = NEW.enrollment_id) THEN
-    NEW.duration_code := '5J';
+                WHERE e.id = NEW.enrollment_id), true) THEN
+    SELECT count(*) INTO n FROM phone_confiscation WHERE enrollment_id = NEW.enrollment_id;
+    IF n >= 2 THEN NEW.duration_code := '5J';
+    ELSIF n = 1 AND NEW.duration_code = '24H' THEN NEW.duration_code := '48H';
+    END IF;
   END IF;
   RETURN NEW;
 END $$ LANGUAGE plpgsql;
@@ -578,9 +583,18 @@ CREATE TRIGGER phone_a_recidive BEFORE INSERT ON phone_confiscation
 -- L'appréciation générale du bulletin est rédigée par la Direction (après le conseil).
 CREATE FUNCTION general_comment_guard() RETURNS trigger AS $$
 BEGIN
+  -- tapée par la Direction ou le secrétariat (d'après les notes de la Directrice)…
   IF NEW.general_comment IS DISTINCT FROM OLD.general_comment AND NEW.general_comment IS NOT NULL
-     AND NOT EXISTS (SELECT 1 FROM user_role WHERE user_id = NEW.general_comment_by AND role = 'DIRECTION') THEN
-    RAISE EXCEPTION 'L''appréciation générale est rédigée par la Direction';
+     AND NOT EXISTS (SELECT 1 FROM user_role WHERE user_id = NEW.general_comment_by AND role IN ('DIRECTION', 'BUREAU')) THEN
+    RAISE EXCEPTION 'L''appréciation générale est rédigée par la Direction ou le secrétariat';
+  END IF;
+  -- …un texte modifié repasse à valider ; seule la Direction valide
+  IF NEW.general_comment IS DISTINCT FROM OLD.general_comment AND NEW.general_comment_status = 'VALIDE'
+     AND NEW.general_comment_validated_by IS NOT DISTINCT FROM OLD.general_comment_validated_by THEN
+    NEW.general_comment_status := 'A_VALIDER'; NEW.general_comment_validated_by := NULL;
+  END IF;
+  IF NEW.general_comment_status = 'VALIDE' AND NOT is_direction(NEW.general_comment_validated_by) THEN
+    RAISE EXCEPTION 'Seule la Direction valide l''appréciation générale';
   END IF;
   RETURN NEW;
 END $$ LANGUAGE plpgsql;
@@ -769,11 +783,13 @@ WHERE d.day IS NOT NULL
 -- Salaires, engagements, bibliothèque
 -- -----------------------------------------------------------------------------
 -- Paiement d'un salaire seulement si l'état de paie du mois est validé par la Direction.
+-- Salaires : le secrétariat prépare et paie sans attendre la Direction (qui voit tout et reçoit un
+-- récapitulatif) ; seuls le secrétariat et la Direction paient. Les taux horaires restent à la Direction.
 CREATE FUNCTION payroll_payment_guard() RETURNS trigger AS $$
 BEGIN
   IF NEW.paid_at IS NOT NULL AND NOT EXISTS (
-       SELECT 1 FROM payroll_month m WHERE m.site_id = NEW.site_id AND m.month = NEW.month AND m.validated_by IS NOT NULL) THEN
-    RAISE EXCEPTION 'État de paie non validé par la Direction : paiement impossible';
+       SELECT 1 FROM user_role WHERE user_id = NEW.paid_by AND role IN ('BUREAU', 'DIRECTION')) THEN
+    RAISE EXCEPTION 'Paiement des salaires réservé au secrétariat et à la Direction';
   END IF;
   RETURN NEW;
 END $$ LANGUAGE plpgsql;
@@ -892,3 +908,30 @@ BEGIN
   RETURN NEW;
 END $$ LANGUAGE plpgsql;
 CREATE TRIGGER signature_request_check BEFORE INSERT OR UPDATE ON signature_request FOR EACH ROW EXECUTE FUNCTION signature_request_guard();
+
+-- Tableau de bord de trésorerie, par site :
+--   trésorerie nette = encaissements (hors reçus annulés) − dépenses payées − salaires payés
+--   reste à recouvrer = factures émises non réglées ; dépenses engagées = dépenses à payer + salaires non payés
+CREATE VIEW v_treasury AS
+WITH paid_in AS (
+  SELECT p.site_id, sum(p.amount_mga) AS mga FROM payment p
+  WHERE NOT EXISTS (SELECT 1 FROM payment_cancellation c WHERE c.payment_id = p.id AND c.approved)
+  GROUP BY p.site_id
+), paid_out AS (
+  SELECT site_id, sum(amount_mga) AS mga FROM expense WHERE status = 'PAYE' GROUP BY site_id
+  UNION ALL
+  SELECT site_id, sum(net_mga) FROM payroll_line WHERE paid_at IS NOT NULL GROUP BY site_id
+), due AS (
+  SELECT c.site_id, sum(s.debit_mga - s.credit_mga) AS mga
+  FROM v_account_statement s JOIN enrollment e ON e.id = s.enrollment_id JOIN school_class c ON c.id = e.class_id
+  GROUP BY c.site_id
+), committed AS (
+  SELECT site_id, sum(amount_mga) AS mga FROM expense WHERE status = 'EN_ATTENTE' GROUP BY site_id
+  UNION ALL
+  SELECT site_id, sum(net_mga) FROM payroll_line WHERE paid_at IS NULL GROUP BY site_id
+)
+SELECT s.id AS site_id,
+       coalesce((SELECT mga FROM paid_in WHERE site_id = s.id), 0) - coalesce((SELECT sum(mga) FROM paid_out WHERE site_id = s.id), 0) AS net_mga,
+       greatest(coalesce((SELECT mga FROM due WHERE site_id = s.id), 0), 0) AS to_collect_mga,
+       coalesce((SELECT sum(mga) FROM committed WHERE site_id = s.id), 0) AS committed_mga
+FROM site s;

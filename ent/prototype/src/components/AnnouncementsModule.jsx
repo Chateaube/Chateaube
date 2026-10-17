@@ -12,7 +12,7 @@ import { imageToDataUrl } from '../image.js';
 const MY_CLASSES = ['1re STMG', 'Terminale STMG'];
 const MAX_PHOTOS = 6;
 const fmt = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)} à ${iso.slice(11, 16).replace(':', 'h')}`;
-const AUTHOR = { DIRECTION: 'Direction', BUREAU: 'Bureau', VIE_SCOLAIRE: 'Vie scolaire', ENSEIGNANT: 'Mme Ranaivo' };
+const AUTHOR = { DIRECTION: 'Direction', BUREAU: 'Secrétariat', VIE_SCOLAIRE: 'CPE', ENSEIGNANT: 'Mme Ranaivo' };
 
 function Chip({ on, onClick, children }) {
   return <button type="button" aria-pressed={on} onClick={onClick}

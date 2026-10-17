@@ -82,3 +82,44 @@ export function detailCsv({ title, info = [], sheet }) {
 
 /** Conseil du 3e trimestre (passage) : le seul où le rang apparaît, sans rien cocher. */
 export const isFinalTerm = (term) => term?.id === 'T3';
+
+// --- Classeur Excel en couleurs (mêmes repères qu'à l'écran : rouge sous 10) ---
+const num = (v) => (v === null || v === undefined ? null : round2(v));
+const tone = (v, base = 'cell', red = 'red') => ({ v: num(v), s: v !== null && v !== undefined && v < 10 ? red : base });
+
+/** Lignes de la feuille « Moyennes » : en-tête, élèves, repères de classe, professeurs. */
+export function averagesRows({ title, info = [], subjects, sheet, extra = [] }) {
+  const head = ['Élève', ...subjects.map((s) => `${s.short ?? s.label}${s.inAverage === false ? ' (hors moy.)' : ''}`), 'Moy. gén.', 'Rang', ...extra.map((e) => e.label)].map((v) => ({ v, s: 'head' }));
+  const rows = sheet.rows.map((r) => [
+    { v: r.name, s: 'name' },
+    ...subjects.map((s) => (r.avgs[s.id] === undefined ? { v: 'non suivie', s: 'small' } : tone(r.avgs[s.id]))),
+    tone(r.general, 'avg', 'avgRed'), { v: r.rank ?? null, s: 'cell' },
+    ...extra.map((e) => ({ v: e.value(r), s: 'small' })),
+  ]);
+  const stat = (k, label) => [{ v: label, s: 'name' }, ...subjects.map((s) => tone(sheet.stats[s.id][k])), tone(sheet.general[k], 'avg', 'avgRed'), { v: null, s: 'cell' }, ...extra.map(() => ({ v: null, s: 'cell' }))];
+  return {
+    rows: [[{ v: title, s: 'title' }], ...info.map((i) => [{ v: i, s: 'muted' }]), [], head, ...rows, [],
+      stat('avg', 'Moyenne de la classe'), stat('min', 'Note la plus basse'), stat('max', 'Note la plus haute'), [],
+      [{ v: 'Professeurs', s: 'muted' }], ...subjects.map((s) => [{ v: `${s.short ?? s.label} : ${s.label}`, s: 'muted' }, { v: s.teacher ?? '', s: 'muted' }])],
+    widths: [24, ...subjects.map(() => 7), 9, 6, ...extra.map((e) => (e.wide ? 36 : 12))],
+    freeze: { row: info.length + 3, col: 1 },
+  };
+}
+
+/** Lignes de la feuille « détail d'une matière ». */
+export function detailRows({ title, info = [], sheet }) {
+  const evs = sheet.evaluations;
+  const head = ['Élève', ...evs.map((ev) => `${ev.title}\n${ev.date.split('-').reverse().join('/')} · /${ev.scale} · coef. ${ev.coef}`), 'Moyenne /20'].map((v) => ({ v, s: 'head' }));
+  const rows = sheet.rows.map((r) => [
+    { v: r.name, s: 'name' },
+    ...r.cells.map((c, i) => (c.status === 'NOTE' ? { v: num(c.value), s: (c.value * 20) / evs[i].scale < 10 ? 'red' : 'cell' } : { v: cellText(c), s: 'small' })),
+    tone(r.avg, 'avg', 'avgRed'),
+  ]);
+  return {
+    rows: [[{ v: title, s: 'title' }], ...info.map((i) => [{ v: i, s: 'muted' }]), [], head, ...rows, [],
+      [{ v: 'Moyenne de la classe', s: 'name' }, ...sheet.evStats.map((s) => ({ v: num(s.avg), s: 'cell' })), tone(sheet.avgStats.avg, 'avg', 'avgRed')],
+      [], [{ v: 'ABS : absent · DISP : dispensé · NN : non noté', s: 'muted' }]],
+    widths: [24, ...evs.map(() => 14), 11],
+    freeze: { row: info.length + 3, col: 1 },
+  };
+}

@@ -314,7 +314,7 @@ export default function SettingsModule({ settings, onChange, onReset }) {
                 </div>
                 {d.channels.includes('WHATSAPP') && (
                   <p className="mt-2 rounded-lg bg-emerald-50 p-2.5 text-xs text-emerald-800">WhatsApp : envoi automatique par l'API WhatsApp Business (payant au message, avec des modèles de messages validés par Meta),
-                    ou envoi manuel gratuit depuis le téléphone du bureau grâce à un lien « Envoyer sur WhatsApp » prérempli. Seuls les responsables ayant coché WhatsApp sur la fiche élève le reçoivent.</p>
+                    ou envoi manuel gratuit depuis le téléphone du secrétariat grâce à un lien « Envoyer sur WhatsApp » prérempli. Seuls les responsables ayant coché WhatsApp sur la fiche élève le reçoivent.</p>
                 )}
               </div>
             </div>

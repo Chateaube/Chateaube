@@ -2,7 +2,11 @@ import React, { useMemo, useState } from 'react';
 import { saveFile } from '../download.js';
 import { printOnly } from '../print.js';
 import { AveragesSheet, classAverages } from './GradeSheets.jsx';
-import { averagesSheet, averagesCsv, isFinalTerm } from '../rules/gradeSheet.js';
+import { averagesSheet, averagesRows, isFinalTerm } from '../rules/gradeSheet.js';
+import { buildXlsx } from '../xlsx.js';
+import { GA_STATUS, saveText, submit, validate, sendBack } from '../rules/generalAppreciation.js';
+
+import { loadGA, saveGA } from '../appreciationStore.js';
 import { Badge, Button, Card, Icon, Stat, StudentSelect } from './ui.jsx';
 import { RulePanel } from './gradeUi.jsx';
 import { TERM, EVALUATIONS, GRADES, CLASS_SUBJECTS, OTHER_AVERAGES, OTHER_FLAGS, COUNCIL_FLAGS, ABSENCES } from '../data/grades.js';
@@ -21,15 +25,21 @@ const ENTRY_STATUS = { LVB: 'En cours (3 / 4 notes)', MUS: 'En cours (2 / 4 note
 const tone = (v) => (v === null ? 'text-slate-400' : v < 10 ? 'text-red-700' : v >= 14 ? 'text-emerald-700' : 'text-slate-800');
 
 export default function CouncilGrid({ settings, role, go }) {
-  // l'appréciation générale est rédigée par la Directrice, après le conseil de classe
-  const canWriteGeneral = role === 'DIRECTION';
+  // appréciation générale : tapée par la Direction, ou par le secrétariat puis validée par la Direction
+  const canWriteGeneral = role === 'DIRECTION' || role === 'BUREAU';
+  const isDirection = role === 'DIRECTION';
   // conseil du 3e trimestre (passage) : décidé par le trimestre ; la case ne sert qu'à la démonstration
   const [finalTerm, setFinalTerm] = useState(isFinalTerm(TERM));
   const showRank = finalTerm; // le rang n'apparaît qu'au 3e trimestre, sans rien cocher
   const [decisions, setDecisions] = useState({});
   const [passage, setPassage] = useState({});
   const [open, setOpen] = useState(null);
-  const [appreciations, setAppreciations] = useState({});
+  const [ga, setGaState] = useState(loadGA);
+  const setGa = (next) => { setGaState(next); saveGA(next); };
+  const appreciations = Object.fromEntries(Object.entries(ga).map(([k, e]) => [k, e.text ?? '']));
+  const [gaNote, setGaNote] = useState('');
+  const [gaError, setGaError] = useState('');
+  const act = (fn) => { try { setGaError(''); fn(); } catch (e) { setGaError(e.message); } };
   const [current, setCurrent] = useState(CLASS_LIST[0]);
   const excluded = settings.grading.excludedSubjects;
 
@@ -54,7 +64,8 @@ export default function CouncilGrid({ settings, role, go }) {
   const decided = rows.filter((r) => decisions[r.name] !== undefined).length;
   const appText = appreciations[current] ?? '';
   const appCheck = checkAppreciation(appText);
-  const written = CLASS_LIST.filter((n) => checkAppreciation(appreciations[n] ?? '').ok).length;
+  const written = CLASS_LIST.filter((n) => ga[n]?.status === 'VALIDEE').length;
+  const toValidate = CLASS_LIST.filter((n) => ga[n]?.status === 'A_VALIDER');
   const flagText = (r) => r.flags.map((f) => `${f.subject} : ${FLAG[f.flag].label}`).join(' / ');
 
   // Grille imprimable et export Excel : mêmes données, complètes (repères de classe, rang, absences,
@@ -64,30 +75,36 @@ export default function CouncilGrid({ settings, role, go }) {
   const extra = [
     { label: 'Abs. (½ j)', value: (r) => (ABSENCES[r.name] ? `${ABSENCES[r.name].justified ?? 0} J / ${ABSENCES[r.name].unjustified ?? 0} NJ` : '0') },
     { label: 'Retards', value: (r) => ABSENCES[r.name]?.late ?? 0 },
-    { label: 'Avis des enseignants', small: true, value: (r) => flagText(rows.find((x) => x.name === r.name)) },
-    { label: 'Décision', small: true, value: (r) => DECISION[decisions[r.name] ?? rows.find((x) => x.name === r.name).proposal]?.label.replace('—', '').trim() ?? '' },
+    { label: 'Avis des enseignants', small: true, wide: true, value: (r) => flagText(rows.find((x) => x.name === r.name)) },
   ];
+  const decisionCol = { label: 'Décision', wide: true, value: (r) => DECISION[decisions[r.name] ?? rows.find((x) => x.name === r.name).proposal]?.label.replace('—', '').trim() ?? '' };
+  // choix avant impression : matières, absences, avis (la décision n'est jamais imprimée : prise pendant le conseil)
+  const [hiddenSubjects, setHiddenSubjects] = useState([]);
+  const [printAbs, setPrintAbs] = useState(true);
+  const [printAvis, setPrintAvis] = useState(true);
+  const printSubjects = avgData.subjects.filter((x) => !hiddenSubjects.includes(x.id));
+  const printExtra = extra.filter((e) => (e.label === 'Avis des enseignants' ? printAvis : printAbs));
   const exportCsv = () => {
-    saveFile('conseil-1re-STMG-T1.csv', averagesCsv({
+    saveFile('conseil-1re-STMG-T1.xlsx', buildXlsx([{ name: 'Conseil 1re STMG', ...averagesRows({
       title: `Conseil de classe — 1re STMG — ${TERM.label}`,
       info: [`Conseil le ${TERM.council}`, `Moyenne générale de la classe : ${fmtAvg(sheet.general.avg)}`],
       subjects: avgData.subjects, sheet,
-      extra: [...extra, { label: 'Appréciation générale', value: (r) => appreciations[r.name] ?? '' }],
-    }));
+      extra: [...extra, decisionCol, { label: 'Appréciation générale', wide: true, value: (r) => (ga[r.name]?.status === 'VALIDEE' ? ga[r.name].text : '') }],
+    }) }]));
   };
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-navy-500">Conseil de classe · Direction et Bureau uniquement</p>
+          <p className="text-sm font-semibold text-navy-500">Conseil de classe · Direction et secrétariat uniquement</p>
           <h1 className="text-2xl font-semibold text-navy-900">1re STMG — {TERM.label}</h1>
           <p className="text-sm text-slate-500">Tamatave · conseil le {TERM.council}</p>
         </div>
         <div className="flex flex-wrap gap-2 print:hidden">
           <label className="flex items-center gap-1.5 text-sm text-slate-600"><input type="checkbox" checked={finalTerm} onChange={(e) => setFinalTerm(e.target.checked)} />Démonstration : voir le conseil du 3e trimestre (passage, rang)</label>
           <Button variant="secondary" onClick={exportCsv}>Exporter (Excel)</Button>
-          <Button variant="secondary" onClick={() => printOnly('.council-print', 'size: A4 landscape; margin: 8mm;')}>Imprimer la grille</Button>
+          <Button variant="secondary" onClick={() => printOnly('.council-print', 'size: A4 landscape;', `Grille du conseil de classe — 1re STMG — ${TERM.label}`)}>Imprimer la grille</Button>
           <Button variant="secondary" onClick={() => go?.('bulletins')}>Bulletins</Button>
         </div>
       </div>
@@ -149,9 +166,8 @@ export default function CouncilGrid({ settings, role, go }) {
                         {decisions[r.name] === undefined && r.proposal && <p className="text-[10px] text-navy-500">Proposition — à confirmer</p>}
                       </td>
                       <td className="px-2 text-center">
-                        <button onClick={() => setCurrent(r.name)} disabled={!canWriteGeneral} title={canWriteGeneral ? 'Rédiger l\'appréciation générale' : 'Rédigée par la Direction'}
-                          className={`rounded-full px-2 py-0.5 text-xs font-medium ${checkAppreciation(appreciations[r.name] ?? '').ok ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                          {checkAppreciation(appreciations[r.name] ?? '').ok ? '✓' : 'À rédiger'}
+                        <button onClick={() => setCurrent(r.name)} disabled={!canWriteGeneral} title={canWriteGeneral ? 'Rédiger l\'appréciation générale' : 'Rédigée par la Direction'}>
+                          {ga[r.name]?.status ? <Badge tone={GA_STATUS[ga[r.name].status][0]}>{GA_STATUS[ga[r.name].status][1]}</Badge> : <Badge>à rédiger</Badge>}
                         </button>
                       </td>
                       {finalTerm && (
@@ -199,16 +215,20 @@ export default function CouncilGrid({ settings, role, go }) {
         </p>
       </Card>
 
-      {/* Appréciation générale : rédigée par la Directrice après le conseil */}
+      {/* Appréciation générale : tapée par la Direction, ou par le secrétariat puis validée par la Direction */}
       {!canWriteGeneral && (
-        <Card title="Appréciations générales" subtitle="Rédigées par la Directrice après le conseil de classe" className="print:hidden">
-          <p className="text-sm text-slate-600">{written} / {rows.length} rédigées. Elles apparaîtront ici et dans l'export dès leur rédaction.</p>
+        <Card title="Appréciations générales" subtitle="Rédigées après le conseil de classe" className="print:hidden">
+          <p className="text-sm text-slate-600">{written} / {rows.length} validées par la Direction.</p>
         </Card>
       )}
       {canWriteGeneral && <div className="grid gap-5 xl:grid-cols-[1fr_320px] xl:items-start print:hidden">
-        <Card title="Appréciations générales" subtitle={`Rédigées par la Direction après le conseil · ${written} / ${rows.length} conformes`}>
+        <Card title="Appréciations générales"
+          subtitle={isDirection ? `Tapées par vous ou par le secrétariat · ${written} / ${rows.length} validées${toValidate.length ? ` · ${toValidate.length} à valider` : ''}` : 'Tapez d\'après les notes de la Directrice, puis envoyez-les-lui pour validation'}>
+          {isDirection && toValidate.length > 0 && (
+            <p className="mb-3 flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">À valider : {toValidate.map((n) => <button key={n} onClick={() => setCurrent(n)} className="font-medium underline">{n.split(' ').slice(1).join(' ')}</button>)}</p>
+          )}
           <StudentSelect students={CLASS_LIST} value={current} onChange={setCurrent}
-            suffix={(n) => (checkAppreciation(appreciations[n] ?? '').ok ? '  ✓' : '')} />
+            suffix={(n) => (ga[n]?.status ? `  · ${GA_STATUS[ga[n].status][1]}` : '')} />
           {(() => {
             const r = rows.find((x) => x.name === current);
             return (
@@ -217,20 +237,44 @@ export default function CouncilGrid({ settings, role, go }) {
               </p>
             );
           })()}
-          <textarea rows={4} value={appText} onChange={(e) => setAppreciations({ ...appreciations, [current]: e.target.value })}
+          {ga[current]?.status && <p className="mt-2 text-xs">État : <Badge tone={GA_STATUS[ga[current].status][0]}>{GA_STATUS[ga[current].status][1]}</Badge>{ga[current].note && <span className="ml-2 text-red-700">Remarque de la Direction : {ga[current].note}</span>}</p>}
+          <textarea rows={4} value={appText} onChange={(e) => setGa({ ...ga, [current]: saveText(ga[current], e.target.value, role) })}
             placeholder="Appréciation générale du conseil de classe…" className="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-          <div className="mt-2 flex gap-2">
-            <Button variant="secondary" disabled={!appText.trim() || autoFix(appText) === appText.trim()} onClick={() => setAppreciations({ ...appreciations, [current]: autoFix(appText) })}>Corriger la forme</Button>
-            <Button className="ml-auto" disabled={!appCheck.ok || CLASS_LIST.indexOf(current) === CLASS_LIST.length - 1}
+          {gaError && <p className="mt-1 text-sm text-red-700">{gaError}</p>}
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Button variant="secondary" disabled={!appText.trim() || autoFix(appText) === appText.trim()} onClick={() => setGa({ ...ga, [current]: saveText(ga[current], autoFix(appText), role) })}>Corriger la forme</Button>
+            {!isDirection && <Button disabled={!appText.trim() || ga[current]?.status === 'A_VALIDER'} onClick={() => act(() => setGa({ ...ga, [current]: submit(ga[current], 'BUREAU') }))}>{ga[current]?.status === 'A_VALIDER' ? 'Envoyée à la Direction' : 'Envoyer à la Direction'}</Button>}
+            {isDirection && <Button disabled={!appText.trim() || ga[current]?.status === 'VALIDEE'} onClick={() => act(() => setGa({ ...ga, [current]: validate(ga[current], 'DIRECTION', appText) }))}>{ga[current]?.status === 'VALIDEE' ? 'Validée' : 'Valider'}</Button>}
+            {isDirection && ga[current]?.status === 'A_VALIDER' && (
+              <span className="flex gap-2">
+                <input value={gaNote} onChange={(e) => setGaNote(e.target.value)} placeholder="Remarque pour le secrétariat" className="rounded-md border border-slate-300 px-2 py-1 text-sm" />
+                <Button variant="secondary" onClick={() => act(() => { setGa({ ...ga, [current]: sendBack(ga[current], 'DIRECTION', gaNote) }); setGaNote(''); })}>Renvoyer</Button>
+              </span>
+            )}
+            <Button variant="ghost" className="ml-auto" disabled={CLASS_LIST.indexOf(current) === CLASS_LIST.length - 1}
               onClick={() => setCurrent(CLASS_LIST[CLASS_LIST.indexOf(current) + 1])}>Élève suivant ›</Button>
           </div>
+          <p className="mt-2 text-xs text-slate-500">Seules les appréciations validées par la Direction vont sur le bulletin.</p>
         </Card>
         <Card title="Contrôleur de rédaction"><RulePanel result={appCheck} /></Card>
       </div>}
 
-      {/* Grille imprimée : uniquement les données (A4 paysage) : moyennes, absences, avis, décision */}
+      <Card title="Avant d'imprimer la grille" className="print:hidden">
+        <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-600">
+          <span className="font-semibold">Matières :</span>
+          {avgData.subjects.map((x) => (
+            <button key={x.id} type="button" aria-pressed={!hiddenSubjects.includes(x.id)} onClick={() => setHiddenSubjects(hiddenSubjects.includes(x.id) ? hiddenSubjects.filter((y) => y !== x.id) : [...hiddenSubjects, x.id])}
+              className={`rounded-full px-2.5 py-0.5 font-medium ring-1 ${hiddenSubjects.includes(x.id) ? 'bg-white ring-slate-300' : 'bg-navy-500 text-white ring-navy-500'}`}>{x.short ?? x.label}</button>
+          ))}
+          <label className="ml-2 flex items-center gap-1"><input type="checkbox" checked={printAbs} onChange={(e) => setPrintAbs(e.target.checked)} />Absences et retards</label>
+          <label className="flex items-center gap-1"><input type="checkbox" checked={printAvis} onChange={(e) => setPrintAvis(e.target.checked)} />Avis des enseignants</label>
+        </div>
+        <p className="mt-1 text-xs text-slate-500">La décision n'est pas imprimée : elle se prend pendant le conseil. Le rang apparaît seul au 3e trimestre.</p>
+      </Card>
+
+      {/* Grille imprimée : uniquement les données (A4 paysage) : moyennes, absences, avis */}
       <div className="council-print hidden">
-        <AveragesSheet cls="1re STMG" subjects={avgData.subjects} sheet={sheet} showRank={showRank} extra={extra} />
+        <AveragesSheet cls="1re STMG" subjects={printSubjects} sheet={sheet} showRank={showRank} extra={printExtra} />
       </div>
     </div>
   );

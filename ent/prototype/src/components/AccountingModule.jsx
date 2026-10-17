@@ -2,19 +2,23 @@ import React, { useMemo, useState } from 'react';
 import { saveFile } from '../download.js';
 import { Badge, Button, Card, Icon, Stat } from './ui.jsx';
 import {
-  JOURNALS, CLASS_FEES, FEE_COLUMNS, ARTICLES, CASH_MOVEMENTS, CASH_NATURES, CASH_OPENING, CASH_HISTORY, CASH_YEAR_OPENING,
+  JOURNALS, CLASS_FEES, FEE_COLUMNS, ARTICLES, CASH_MOVEMENTS, FAMILIES, CASH_NATURES, CASH_OPENING, CASH_HISTORY, CASH_YEAR_OPENING,
   RECEIPTS_TODAY, CASH_AUDIT, CASH_SAFE, CASH_CLOSINGS, REDUCTION_TYPES, PAYROLL, HOURLY_RATES,
 } from '../data/accounting.js';
 import CashControl, { methodText } from './CashControl.jsx';
 import Reductions from './Reductions.jsx';
 import Salaries, { cashSalariesPaid } from './Salaries.jsx';
-import { annualCost, cashBalance, monthlyCashReport, cashMonthCsv } from '../rules/accounting.js';
+import { accountStatement, annualCost, cashBalance, monthlyCashReport, cashMonthCsv } from '../rules/accounting.js';
 import { printOnly } from '../print.js';
 import { planMonths } from '../rules/calendar.js';
 import { formatAr } from '../rules/finance.js';
 import CollectPayment, { CASH_ACCOUNTS, feesFor } from './CollectPayment.jsx';
 import { loadManuals } from '../manualsStore.js';
 import { kitFor } from '../rules/manuals.js';
+import { EXPENSES, SUPPLIERS } from '../data/treasury.js';
+import { toTransactions } from '../rules/treasury.js';
+import { payOf, rateOn } from '../rules/payroll.js';
+import { ExpensesTab, TreasuryDashboard } from './Treasury.jsx';
 
 const TODAY = '2026-10-13';
 const fmtDate = (iso) => iso.split('-').reverse().join('/');
@@ -170,13 +174,13 @@ function MonthlyCashExport({ movements }) {
             {MONTH_OPTIONS.map(([m, l]) => <option key={m} value={m}>{l}</option>)}
           </select>
           <Button variant="secondary" onClick={download}>Exporter vers Excel</Button>
-          <Button variant="secondary" onClick={() => printOnly('.cash-report', 'size: A4 portrait; margin: 12mm;')}>Imprimer</Button>
+          <Button variant="secondary" onClick={() => printOnly('.cash-report', 'size: A4 portrait;', 'Rapport de caisse')}>Imprimer</Button>
         </div>
       )}>
       <div className="cash-report">
         <div className="print-only mb-3 hidden">
           <p className="text-lg font-semibold">École Chateaubriand Tamatave — caisse de {label.toLowerCase()}</p>
-          <p className="text-xs">Édité le 13/10/2026 par le bureau · {r.movements.length} mouvements</p>
+          <p className="text-xs">Édité le 13/10/2026 par le secrétariat · {r.movements.length} mouvements</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm">
@@ -303,7 +307,7 @@ function CashTab({ movements, setMovements }) {
   );
 }
 
-const TABS = [['collect', 'Encaisser'], ['receipts', 'Reçus & clôture'], ['fees', 'Classes & tarifs'], ['articles', 'Articles & services'], ['reductions', 'Réductions'], ['salaries', 'Salaires'], ['cash', 'Caisse : entrées / sorties']];
+const TABS = [['collect', 'Encaisser'], ['receipts', 'Reçus & clôture'], ['fees', 'Classes & tarifs'], ['articles', 'Articles & services'], ['reductions', 'Réductions'], ['salaries', 'Salaires'], ['expenses', 'Dépenses & fournisseurs'], ['cash', 'Caisse : entrées / sorties'], ['treasury', 'Trésorerie', 'DIRECTION']];
 
 export default function AccountingModule({ settings, role }) {
   const canEdit = role === 'DIRECTION'; // classes, tarifs, articles et services : Direction uniquement
@@ -320,7 +324,18 @@ export default function AccountingModule({ settings, role }) {
   const [rates, setRates] = useState(HOURLY_RATES);
   const [salaryPayments, setSalaryPayments] = useState([]);
   const [payrollValidated, setPayrollValidated] = useState(null);
-  const actor = canEdit ? 'Mme Sheena Lo (Direction)' : 'Mme Hanta (bureau)';
+  const [expenses, setExpenses] = useState(EXPENSES);
+  const [suppliers, setSuppliers] = useState(SUPPLIERS);
+  // dépense payée en espèces : sortie de caisse liée (comptée une seule fois en trésorerie)
+  const cashOut = (x) => setMovements((prev) => [...prev, { id: `x-${x.id}`, expenseId: x.id, date: x.date, time: '12:00', dir: 'OUT', nature: 'Dépense de fonctionnement', journal: 'ECOLAGE', label: x.label, method: 'Espèces', amount: x.amount, agent: actor }]);
+  // trésorerie : caisse, dépenses, salaires du mois, dus des familles
+  const tx = useMemo(() => toTransactions({
+    cash: [...CASH_HISTORY, ...movements],
+    expenses,
+    payroll: payroll.map((p) => ({ staffId: p.staffId, amount: payOf(p, rateOn(rates, p.staffId, '2026-10-01')), paid: salaryPayments.find((x) => x.staffId === p.staffId) ? TODAY : null, due: '2026-10-30' })),
+    dues: FAMILIES.map((f) => ({ id: f.id, amount: accountStatement(f.lines).totals.balance, due: TODAY })).filter((d) => d.amount > 0),
+  }), [movements, expenses, payroll, rates, salaryPayments]);
+  const actor = canEdit ? 'Mme Sheena Lo (Direction)' : 'Mme Hanta (secrétariat)';
   const closed = closings.some((c) => c.date === '2026-10-13');
   const pendingCancels = receipts.filter((r) => r.status === 'ANNULATION_DEMANDEE').length;
   // Chaque reçu émis à l'encaissement entre dans le journal des reçus et dans la caisse
@@ -341,7 +356,7 @@ export default function AccountingModule({ settings, role }) {
         </div>
       </div>
       <div className="flex gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1" role="tablist">
-        {TABS.map(([id, label]) => (
+        {TABS.filter(([, , only]) => !only || only === role).map(([id, label]) => (
           <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
             className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ${tab === id ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>
             {label}{id === 'receipts' && pendingCancels > 0 && <span className="ml-1.5 rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white">{pendingCancels}</span>}
@@ -355,6 +370,8 @@ export default function AccountingModule({ settings, role }) {
       {tab === 'fees' && <FeesTab fees={fees} setFees={setFees} settings={settings} canEdit={canEdit} />}
       {tab === 'articles' && <ArticlesTab articles={articles} setArticles={setArticles} canEdit={canEdit} />}
       {tab === 'cash' && <CashTab movements={movements} setMovements={setMovements} />}
+      {tab === 'expenses' && <ExpensesTab expenses={expenses} setExpenses={setExpenses} suppliers={suppliers} setSuppliers={setSuppliers} onCashOut={cashOut} today={TODAY} />}
+      {tab === 'treasury' && role === 'DIRECTION' && <TreasuryDashboard tx={tx} opening={Object.values(CASH_YEAR_OPENING).reduce((a, b) => a + b, 0)} months={['2026-09', '2026-10']} />}
     </div>
   );
 }

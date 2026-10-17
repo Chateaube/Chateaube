@@ -58,7 +58,7 @@ const CASH_CLASSES = CLASS_FEES.map((f) => f.cls).filter((c) => CASH_ACCOUNTS.so
 /** « −25 % scolarité, −50 % inscription » */
 export const reductionText = (rates) => [rates.ECOLAGE && (rates.ECOLAGE === 100 ? 'frais de scolarité offerts' : `−${rates.ECOLAGE} % frais de scolarité`), rates.INSCRIPTION && `−${rates.INSCRIPTION} % inscription`].filter(Boolean).join(', ') + ' ; autres frais à 100 %';
 
-// Qui apporte le paiement au bureau (imprimé sur le ticket)
+// Qui apporte le paiement au secrétariat (imprimé sur le ticket)
 export const BEARERS = [
   { id: 'PARENT', label: 'Parent' },
   { id: 'TUTEUR', label: 'Tuteur / tutrice' },

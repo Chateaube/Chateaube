@@ -2,10 +2,11 @@ import React, { useMemo, useState } from 'react';
 import { Avatar, Badge, Button, Card, Icon, Stat } from './ui.jsx';
 import { PREREGISTRATIONS, PREREG_SOURCES, ENROLL_CLASSES, LANGUAGES, RELATIONS } from '../data/enrollment.js';
 import {
-  PREREG_STEPS, PREREG_OTHER, nextPreregStep, nextClass, validateProfile, accountsFor, missingDocuments, REQUIRED_DOCUMENTS,
+  PREREG_STEPS, PREREG_OTHER, nextPreregStep, nextClass, validateProfile, accountsFor, missingDocuments, documentsFor, nextMatricule,
 } from '../rules/enrollment.js';
 import { loadProfiles, saveProfiles, profileKey } from '../profilesStore.js';
-import { loadRequests, updateOnlinePrereg } from '../requestsStore.js';
+import { loadRequests, updateOnlinePrereg, loadCampaign, saveCampaign } from '../requestsStore.js';
+import { campaignOpen } from '../rules/enrollment.js';
 import { NATIONALITY_CHOICES, nationalityLabels, toggleNationality, hasOtherNationality } from '../rules/enrollment.js';
 import { PhotoInput, DocumentThumb } from './PhotoInput.jsx';
 import { firstNames, usualFirstName } from '../rules/names.js';
@@ -25,7 +26,7 @@ const ALL_STEPS = [...PREREG_STEPS, ...PREREG_OTHER];
 const stepLabel = (id) => ALL_STEPS.find((s) => s.id === id)?.label ?? id;
 const TONE = { DEMANDE: 'slate', DOSSIER: 'navy', ENTRETIEN: 'violet', ACCEPTEE: 'green', INSCRITE: 'green', ATTENTE: 'amber', REFUSEE: 'red' };
 
-const emptyGuardian = () => ({ name: '', relation: 'Mère', phone: '', email: '', whatsapp: true, payer: false, pickup: true });
+const emptyGuardian = () => ({ name: '', relation: 'Mère', phone: '', email: '', whatsapp: true, payer: false });
 const emptyProfile = () => ({
   lastName: '', firstName: '', sex: 'F', birthDate: '', birthPlace: '', nationalities: ['MG'], cls: '6e', lv1: 'Anglais', lv2: 'Espagnol',
   enteredOn: '2026-10-13', previousSchool: '', guardians: [{ ...emptyGuardian(), payer: true }], health: { allergies: '', emergency: '' },
@@ -33,12 +34,33 @@ const emptyProfile = () => ({
 });
 
 /* ---------- Pré-inscriptions ---------- */
-function PreregTab({ items, setItems, onConvert }) {
+/** Dates de la campagne de pré-inscription en ligne (modifiables par la Direction). */
+function CampaignCard({ canEdit }) {
+  const [c, setC] = useState(loadCampaign);
+  const today = new Date().toISOString().slice(0, 10);
+  const set = (patch) => { const next = { ...c, ...patch }; setC(next); saveCampaign(next); };
+  const open = campaignOpen(c, today);
+  return (
+    <Card title={`Pré-inscriptions en ligne ${c.year}`} subtitle="Formulaire public (site de l'école, Facebook, communauté WhatsApp)"
+      action={<Badge tone={open ? 'green' : 'slate'}>{open ? 'ouvertes' : 'fermées'}</Badge>}>
+      <div className="flex flex-wrap items-end gap-3 text-sm">
+        <label className="text-xs text-slate-600">Ouverture<input type="date" disabled={!canEdit} value={c.opens} onChange={(e) => set({ opens: e.target.value })} className={`mt-1 block ${inputCls}`} /></label>
+        <label className="text-xs text-slate-600">Fermeture<input type="date" disabled={!canEdit} value={c.closes} onChange={(e) => set({ closes: e.target.value })} className={`mt-1 block ${inputCls}`} /></label>
+        {canEdit && !open && <Button variant="secondary" onClick={() => set({ opens: today, closes: c.closes > today ? c.closes : `${Number(today.slice(0, 4)) + 1}-07-16` })}>Ouvrir dès aujourd'hui</Button>}
+        {canEdit && open && <Button variant="secondary" onClick={() => set({ closes: new Date(Date.now() - 864e5).toISOString().slice(0, 10) })}>Fermer maintenant</Button>}
+        {!canEdit && <p className="text-xs text-slate-500">Dates fixées par la Direction.</p>}
+      </div>
+    </Card>
+  );
+}
+
+function PreregTab({ items, setItems, onConvert, canEdit }) {
   const [draft, setDraft] = useState(null);
   const set = (id, patch) => setItems(items.map((p) => (p.id === id ? { ...p, ...patch } : p)));
   const columns = [...PREREG_STEPS.filter((s) => s.id !== 'INSCRITE'), ...PREREG_OTHER];
   return (
     <div className="space-y-5">
+      <CampaignCard canEdit={canEdit} />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Demandes en cours" value={items.filter((p) => !['INSCRITE', 'REFUSEE'].includes(p.status)).length} />
         <Stat label="Entretiens à faire" value={items.filter((p) => p.status === 'ENTRETIEN').length} tone="amber" />
@@ -156,17 +178,16 @@ function ProfileForm({ initial, kind, onSave, onCancel }) {
                     className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset ${on ? 'bg-navy-500 text-white ring-navy-500' : 'text-slate-600 ring-slate-300'}`}>{l}</button>
                 );
               })}
+              {hasOtherNationality(p.nationalities) && <input value={p.otherNationality ?? ''} onChange={(e) => set({ otherNationality: e.target.value })} placeholder="Laquelle ? (ex. Comorienne)" aria-label="Autre nationalité" className={`w-48 ${inputCls}`} />}
             </div>
           </Field>
         </div>
 
         <h4 className="mb-2 mt-5 text-sm font-semibold text-slate-800">Scolarité</h4>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <Field label={kind === 'REINSCRIPTION' ? 'Classe à la rentrée' : 'Classe'}>
             <select value={p.cls} onChange={(e) => set({ cls: e.target.value })} className={`w-full ${inputCls}`}>{ENROLL_CLASSES.map((c) => <option key={c}>{c}</option>)}</select>
           </Field>
-          <Field label="LV1"><select value={p.lv1} onChange={(e) => set({ lv1: e.target.value })} className={`w-full ${inputCls}`}>{LANGUAGES.lv1.map((l) => <option key={l}>{l}</option>)}</select></Field>
-          <Field label="LV2"><select value={p.lv2} onChange={(e) => set({ lv2: e.target.value })} className={`w-full ${inputCls}`}>{LANGUAGES.lv2.map((l) => <option key={l}>{l}</option>)}</select></Field>
           <Field label="Entrée dans l'établissement">{input('enteredOn', { type: 'date' })}
             <span className="mt-1 block text-[11px] text-slate-500">{seniority(p.enteredOn)?.label ?? 'Nouveau ou ancien : indiquer la date d\'entrée'}</span></Field>
           <Field label="Établissement d'origine">{input('previousSchool')}</Field>
@@ -195,9 +216,8 @@ function ProfileForm({ initial, kind, onSave, onCancel }) {
               <Field label="Téléphone"><input value={g.phone} onChange={(e) => setG(i, { phone: e.target.value })} placeholder="+261 34 …" className={`w-full ${inputCls}`} /></Field>
               <Field label="E-mail (compte Google)"><input value={g.email} onChange={(e) => setG(i, { email: e.target.value })} className={`w-full ${inputCls}`} /></Field>
               <div className="flex flex-wrap items-end gap-3 pb-1.5 text-xs text-slate-600">
-                <label className="flex items-center gap-1"><input type="radio" name="payer" checked={g.payer} onChange={() => setG(i, { payer: true })} />Règle les frais</label>
+                <label className="flex items-center gap-1"><input type="radio" name="payer" checked={g.payer} onChange={() => setG(i, { payer: true })} />Responsable financier</label>
                 <label className="flex items-center gap-1"><input type="checkbox" checked={g.whatsapp} onChange={(e) => setG(i, { whatsapp: e.target.checked })} />WhatsApp</label>
-                <label className="flex items-center gap-1"><input type="checkbox" checked={g.pickup} onChange={(e) => setG(i, { pickup: e.target.checked })} />Peut récupérer l'élève</label>
                 {p.guardians.length > 1 && <button type="button" aria-label="Retirer ce responsable" onClick={() => set({ guardians: p.guardians.filter((_, k) => k !== i) })} className="rounded p-1 text-slate-400 hover:text-red-600"><Icon name="x" /></button>}
               </div>
             </div>
@@ -220,12 +240,13 @@ function ProfileForm({ initial, kind, onSave, onCancel }) {
             </Field>
           </div>
           <div>
-            <h4 className="mb-2 text-sm font-semibold text-slate-800">Pièces du dossier</h4>
+            <h4 className="mb-2 text-sm font-semibold text-slate-800">Pièces déposées au secrétariat</h4>
             <ul className="space-y-1">
-              {REQUIRED_DOCUMENTS.filter((d) => !(d.newOnly && kind !== 'INSCRIPTION')).map((d) => (
-                <li key={d.id}><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={p.documents.includes(d.id)} onChange={() => toggleDoc(d.id)} />{d.label}</label></li>
+              {documentsFor(kind === 'INSCRIPTION' ? 'INSCRIPTION' : 'REINSCRIPTION', p.cls).map((d) => (
+                <li key={d.id}><label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={p.documents.includes(d.id)} onChange={() => toggleDoc(d.id)} /><span>{d.label}{d.detail && <span className="block text-[11px] text-slate-500">{d.detail}</span>}</span></label></li>
               ))}
             </ul>
+            <p className="mt-1 text-[11px] text-slate-500">Cochez à la réception de l'original ; une copie envoyée en ligne ne suffit pas.</p>
           </div>
         </div>
 
@@ -278,7 +299,7 @@ function ProfileCard({ p, onReenrol, onComplete, created }) {
   const missing = missingDocuments(p, 'REINSCRIPTION');
   const accounts = accountsFor(p);
   return (
-    <Card title={`${p.lastName} ${p.firstName}`} subtitle={`${p.cls} · né.e le ${fmt(p.birthDate)} à ${p.birthPlace || '—'} · ${nationalityLabels(p.nationalities).join(', ') || 'nationalité à renseigner'}`}
+    <Card title={`${p.lastName} ${p.firstName}`} subtitle={`${p.cls} · né.e le ${fmt(p.birthDate)} à ${p.birthPlace || '—'} · ${nationalityLabels(p.nationalities, p.otherNationality).join(', ') || 'nationalité à renseigner'}`}
       action={(
         <span className="flex flex-wrap gap-2">
           <CertificateButton profile={p} />
@@ -296,9 +317,8 @@ function ProfileCard({ p, onReenrol, onComplete, created }) {
           <p><span className="text-slate-500">Entrée :</span> {fmt(p.enteredOn)} · {p.previousSchool || '—'}{' '}
             {seniority(p.enteredOn) ? <Badge tone={seniority(p.enteredOn).isNew ? 'green' : 'navy'}>{seniority(p.enteredOn).label}</Badge> : <Badge tone="amber">ancienneté à renseigner</Badge>}</p>
           {SPECIALTY_COUNT[p.cls] && <p><span className="text-slate-500">Spécialités :</span> {(p.specialties ?? []).map((k) => SPECIALTIES[k]).join(', ') || <Badge tone="amber">à choisir</Badge>}</p>}
-          {p.nextYear && <p><span className="text-slate-500">Rentrée 2027 :</span> {p.nextYear.status === 'DEPART' ? <Badge tone="amber">ne revient pas</Badge> : <Badge tone="green">réinscrit.e en {p.nextYear.cls}</Badge>}</p>}
+          {p.nextYear && <p><span className="text-slate-500">Rentrée 2027 :</span> {p.nextYear.status === 'DEPART' ? <Badge tone="amber">ne revient pas</Badge> : <Badge tone="green">réinscrit.e en {p.nextYear.cls}{p.nextYear.number ? ` · ${p.nextYear.number}` : ''}</Badge>}</p>}
           {firstNames(p.firstName).length > 1 && <p><span className="text-slate-500">Prénom d'usage :</span> {usualFirstName(p)}</p>}
-          <p><span className="text-slate-500">Langues :</span> {[p.lv1, p.lv2].filter(Boolean).join(', ') || '—'}</p>
           <p><span className="text-slate-500">Santé :</span> {p.health.allergies || '—'}</p>
           <p><span className="text-slate-500">Urgence :</span> {p.health.emergency || '—'}</p>
           <p><span className="text-slate-500">Autorisations :</span> image {p.authorizations.image ? 'oui' : 'non'} · {p.authorizations.exit}</p>
@@ -313,7 +333,7 @@ function ProfileCard({ p, onReenrol, onComplete, created }) {
                 <Avatar name={g.name} className="h-7 w-7 text-[10px]" />
                 <span className="min-w-0">{g.name} <span className="text-slate-500">({g.relation})</span>
                   <span className="block text-xs text-slate-500">{g.phone}{g.whatsapp ? ' · WhatsApp' : ''}{g.email ? ` · ${g.email}` : ''}</span>
-                  <span className="flex flex-wrap gap-1">{g.payer && <Badge tone="navy">règle les frais</Badge>}{g.pickup && <Badge>peut récupérer l'élève</Badge>}</span>
+                  <span className="flex flex-wrap gap-1">{g.payer && <Badge tone="navy">responsable financier</Badge>}</span>
                 </span>
               </li>
             ))}
@@ -338,7 +358,7 @@ const TABS = [['prereg', 'Pré-inscriptions'], ['online', 'Demandes des familles
 
 const initialProfiles = loadProfiles;
 
-export default function InscriptionsModule() {
+export default function InscriptionsModule({ role }) {
   const [tab, setTab] = useState('prereg');
   const [prereg, setPreregState] = useState(() => [...loadRequests().prereg, ...PREREGISTRATIONS]);
   // pré-inscriptions envoyées en ligne : leur avancement est gardé avec elles
@@ -362,7 +382,9 @@ export default function InscriptionsModule() {
   };
   const complete = (p) => { setForm({ initial: { ...p, guardians: p.guardians.length ? p.guardians : [{ ...emptyGuardian(), payer: true }] }, kind: 'COMPLETER' }); setTab('new'); };
   const reenrol = (p) => { setForm({ initial: { ...p, cls: nextClass(p.cls) }, kind: 'REINSCRIPTION' }); setTab('new'); };
-  const save = (p) => {
+  const save = (input) => {
+    // inscription définitive d'un nouvel élève : matricule de l'année (TG-001…), jamais réattribué
+    const p = form.kind === 'INSCRIPTION' && !input.number ? { ...input, number: nextMatricule(input.cls, profiles.map((x) => x.number)) } : input;
     const id = p.id ?? `f${Date.now()}`;
     const next = p.id ? profiles.map((x) => (x.id === p.id ? p : x)) : [...profiles, { ...p, id }];
     setProfiles(next);
@@ -390,7 +412,7 @@ export default function InscriptionsModule() {
         ))}
       </div>
 
-      {tab === 'prereg' && <PreregTab items={prereg} setItems={setPrereg} onConvert={startNew} />}
+      {tab === 'prereg' && <PreregTab items={prereg} setItems={setPrereg} onConvert={startNew} canEdit={role === 'DIRECTION'} />}
       {tab === 'online' && <RequestsTab profiles={profiles} onApply={(p) => { const next = profiles.map((x) => (x.id === p.id ? p : x)); setProfiles(next); saveProfiles(next); }} />}
       {tab === 'new' && form && <ProfileForm key={form.initial.id ?? form.preregId ?? 'new'} initial={form.initial} kind={form.kind} onSave={save} onCancel={() => { setForm(null); setTab('profiles'); }} />}
       {tab === 'profiles' && (

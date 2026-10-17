@@ -287,3 +287,41 @@ de ses classes. Filtres : **pour qui** (parents, élèves, professeurs, personne
 s'affiche avant de publier. Texte et jusqu'à 6 photos, « J'ai lu » facultatif (suivi « lu par x / y »), épingler,
 e-mail en plus de la notification, « Copier pour WhatsApp » pour les groupes existants. Pas de SMS. Les familles
 voient les annonces sur l'accueil de leur portail. Base : `announcement` + `announcement_audience` (un cycle = ses niveaux).
+
+## Retours du 17 octobre : noms, notes, familles, trésorerie
+
+- **Noms des services** : *Secrétariat* (Tamatave : accueil, caisse, inscriptions ; *Économat* à Tana) et
+  *CPE* pour la vie scolaire. Menus du secrétariat dans l'ordre Caisse, Vie scolaire, Notes, Élèves. Une seule
+  apparence : Océan (dégradé bleu). La Direction a un sélecteur de site (Tana à venir).
+- **CPE** : manuels, bibliothèque, cahiers de textes (lecture), liste des élèves en consultation seulement
+  (ni impression ni export).
+- **Inscriptions** : pièces exigées selon le cas (acte de naissance en français de moins de 3 mois pour un nouvel
+  élève et pour la réinscription en 1re et en Terminale ; deux photos d'identité récentes aux normes
+  internationales ; bulletins de l'année précédente pour un nouvel élève ; carnet de vaccination). Les originaux se
+  déposent au secrétariat ; l'envoi en ligne sert d'aperçu. Plus de LV1 / LV2, de « peut récupérer l'élève » ni de
+  certificat de radiation. Nationalité « Autre » à préciser. Campagne de pré-inscription en ligne ouverte entre deux
+  dates fixées par la Direction. **Matricule** par année : code de classe + rang d'inscription (TG-001), jamais
+  réattribué. **Codes des parents** : 8 chiffres, un par responsable.
+- **Appréciations générales** : tapées par le secrétariat d'après les notes de la Directrice, envoyées à la
+  Direction qui valide, corrige ou renvoie avec une remarque ; seules les validées vont sur le bulletin.
+- **Grilles de notes** : export Excel (.xlsx) avec les couleurs de l'écran (rouge sous 10, en-têtes, colonnes
+  figées) ; avant d'imprimer, choix des matières (et, au conseil, des absences et des avis) ; la décision n'est
+  jamais imprimée. **Toutes les impressions** : marges réduites, pied de page avec le nom de l'école, le titre du
+  document et « page / total ». Liste des élèves : colonnes à imprimer au choix (dont une colonne Signature).
+- **Retrait des bulletins** : la Direction fixe « disponibles à partir du … » et un délai (2 semaines par défaut) ;
+  annonce aux parents de la classe, rappel 3 jours avant la fin ; les familles à régulariser voient « en attente
+  de régularisation » ; passé le délai, le bulletin est archivé au dossier et remis sur rendez-vous (pas de
+  destruction : à inscrire au règlement intérieur, après avis d'un juriste).
+- **Téléphones** : avertissement (téléphone non pris) ou confiscation de 24 h, 48 h ou 5 jours ouvrés (proposée
+  selon les faits précédents) ; le propriétaire peut être un autre élève (rendu au propriétaire, les deux familles
+  prévenues). **Avertissement** : punition que peuvent donner les professeurs, la CPE et le secrétariat.
+- **Poursuite d'études** : une piste par pays ; la France (Parcoursup) n'est pas obligatoire mais conseillée en
+  plan B ; une piste se clôture avec un motif.
+- **Agendas** : cours, événements de l'école, devoirs, affichables ensemble ou séparément ; export iCalendar pour
+  Google Agenda / Apple Agenda (lien d'abonnement avec le serveur).
+- **Salaires** : préparés et payés par le secrétariat sans attendre la Direction (qui voit chaque paiement et peut
+  marquer l'état « vu ») ; les taux horaires restent réservés à la Direction.
+- **Trésorerie** : dépenses (catégorie, fournisseur, échéance, payée / à payer, photo de la facture obligatoire
+  au-delà de 100 000 Ar ; une dépense en espèces sort de la caisse) et fournisseurs. Tableau de bord de la
+  Direction : trésorerie nette, reste à recouvrer, dépenses engagées, entrées et sorties par mois, dépenses par
+  catégorie. Les dépôts en banque ne sont pas des dépenses.

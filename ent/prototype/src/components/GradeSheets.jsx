@@ -4,7 +4,8 @@ import { TERM, SERVICES, EVALUATIONS, GRADES, CLASS_SUBJECTS, OTHER_AVERAGES } f
 import { CLASS_LIST } from '../data/people.js';
 import { TLE_G_SUBJECTS, TLE_G_STUDENTS } from '../data/bulletins.js';
 import { studentAverage, fmtAvg } from '../rules/grading.js';
-import { averagesSheet, detailSheet, averagesCsv, detailCsv, cellText, isFinalTerm } from '../rules/gradeSheet.js';
+import { averagesSheet, detailSheet, averagesRows, detailRows, cellText, isFinalTerm } from '../rules/gradeSheet.js';
+import { buildXlsx } from '../xlsx.js';
 import { shortNames } from '../rules/names.js';
 import { loadProfiles } from '../profilesStore.js';
 import { saveFile } from '../download.js';
@@ -152,10 +153,16 @@ export default function GradeSheets({ settings, role }) {
   const sheetDetail = service ? detailSheet({ evaluations: EVALUATIONS[service.id], students: service.students, grades: GRADES[service.id] }) : null;
   const slug = `${cls}-${current === 'AVG' ? 'moyennes' : service?.subject}`.replace(/\s+/g, '-');
 
+  // matières retenues pour l'écran, l'impression et l'export (toutes par défaut)
+  const [hidden, setHidden] = useState([]);
+  const shownSubjects = averages ? averages.subjects.filter((s) => !hidden.includes(s.id)) : [];
+  const docTitle = sheetAvg ? `Grille des moyennes — ${cls} — ${TERM.label}` : `Grille de notes — ${service?.subject} — ${cls} — ${TERM.label}`;
   const exportExcel = () => {
     const info = [`${cls} · ${TERM.label} · édité le ${EDITED}`];
-    if (sheetAvg) saveFile(`grille-${slug}.csv`, averagesCsv({ title: `Grille des moyennes — ${cls}`, info, subjects: averages.subjects, sheet: sheetAvg }));
-    else saveFile(`grille-${slug}.csv`, detailCsv({ title: `Grille de notes — ${service.subject} — ${cls}`, info, sheet: sheetDetail }));
+    const sheet = sheetAvg
+      ? { name: 'Moyennes', ...averagesRows({ title: `Grille des moyennes — ${cls}`, info, subjects: shownSubjects, sheet: sheetAvg }) }
+      : { name: service.subject, ...detailRows({ title: `Grille de notes — ${service.subject} — ${cls}`, info, sheet: sheetDetail }) };
+    saveFile(`grille-${slug}.xlsx`, buildXlsx([sheet]));
   };
 
   return (
@@ -164,11 +171,11 @@ export default function GradeSheets({ settings, role }) {
         <div>
           <p className="text-sm font-semibold text-navy-500">{TERM.label} · {isTeacher ? 'mes matières' : 'toutes les classes'}</p>
           <h1 className="text-2xl font-semibold text-navy-900">Grilles de notes</h1>
-          <p className="text-sm text-slate-500">À imprimer (seulement le tableau, A4 paysage) ou à exporter vers Excel avec toutes les données. Sur téléphone, faites glisser le tableau.</p>
+          <p className="text-sm text-slate-500">Choisissez les matières, puis imprimez (seulement le tableau, A4 paysage, pied de page numéroté) ou exportez vers Excel avec les couleurs. Sur téléphone, faites glisser le tableau.</p>
         </div>
         <span className="flex flex-wrap gap-2">
           <Button variant="secondary" disabled={!current} onClick={exportExcel}>Exporter (Excel)</Button>
-          <Button disabled={!current} onClick={() => printOnly('.grade-sheet-print', 'size: A4 landscape; margin: 8mm;')}>Imprimer</Button>
+          <Button disabled={!current} onClick={() => printOnly('.grade-sheet-print', 'size: A4 landscape;', docTitle)}>Imprimer</Button>
         </span>
       </div>
       <Card>
@@ -183,11 +190,20 @@ export default function GradeSheets({ settings, role }) {
           </label>
           {!views.length && <Badge tone="amber">Pas encore de notes saisies pour cette classe</Badge>}
         </div>
+        {sheetAvg && (
+          <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-slate-600">
+            <span className="font-semibold">Matières :</span>
+            {averages.subjects.map((s) => (
+              <button key={s.id} type="button" aria-pressed={!hidden.includes(s.id)} onClick={() => setHidden(hidden.includes(s.id) ? hidden.filter((x) => x !== s.id) : [...hidden, s.id])}
+                className={`rounded-full px-2.5 py-0.5 font-medium ring-1 ${hidden.includes(s.id) ? 'bg-white ring-slate-300' : 'bg-navy-500 text-white ring-navy-500'}`}>{s.short ?? s.label}</button>
+            ))}
+          </div>
+        )}
       </Card>
       {current && (
         <div className="overflow-x-auto rounded-2xl bg-slate-100 p-4">
           <div className="grade-sheet-print min-w-[900px] shadow-soft">
-            {sheetAvg && <AveragesSheet cls={cls} subjects={averages.subjects} sheet={sheetAvg} showRank={showRank} />}
+            {sheetAvg && <AveragesSheet cls={cls} subjects={shownSubjects} sheet={sheetAvg} showRank={showRank} />}
             {sheetDetail && <DetailSheet cls={cls} service={service} sheet={sheetDetail} />}
           </div>
         </div>

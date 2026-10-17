@@ -1,34 +1,35 @@
 import React, { useState } from 'react';
 import { Badge, Button, Card } from './ui.jsx';
 import { PhotoInput, DocumentInput, DocumentThumb } from './PhotoInput.jsx';
-import { addRequest, addOnlinePrereg, decideRequest, loadRequests, requestsFor } from '../requestsStore.js';
+import { addRequest, addOnlinePrereg, decideRequest, loadRequests, requestsFor, loadCampaign } from '../requestsStore.js';
 import { profileKey } from '../profilesStore.js';
-import { NATIONALITY_CHOICES, toggleNationality, hasOtherNationality, nationalityLabels, nextClass, REQUIRED_DOCUMENTS } from '../rules/enrollment.js';
+import { NATIONALITY_CHOICES, toggleNationality, hasOtherNationality, nationalityLabels, nextClass, REQUIRED_DOCUMENTS, documentsFor, campaignOpen, nextMatricule } from '../rules/enrollment.js';
 import { PREREG_SOURCES, ENROLL_CLASSES } from '../data/enrollment.js';
 
-// Démarches des familles sans passer au bureau :
+// Démarches des familles sans passer au secrétariat :
 //  - nouvelle famille : pré-inscription en ligne, avec les pièces en photo ;
 //  - famille inscrite : réinscription, mise à jour des informations, dépôt des pièces.
-// Le bureau valide (les données passent dans la fiche élève) ou refuse avec un motif.
+// Le secrétariat valide (les données passent dans la fiche élève) ou refuse avec un motif.
 
 const inputCls = 'w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm';
 const fmt = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('/') : '');
 const DOC_LABEL = Object.fromEntries(REQUIRED_DOCUMENTS.map((d) => [d.id, d.label.replace(' (nouvel élève)', '')]));
 export const KIND_LABEL = { REINSCRIPTION: 'Réinscription 2027-2028', MISE_A_JOUR: 'Mise à jour des informations', PIECE: 'Pièce déposée' };
-const STATUS = { A_TRAITER: ['amber', 'en attente du bureau'], VALIDEE: ['green', 'validée'], REFUSEE: ['red', 'refusée'] };
+const STATUS = { A_TRAITER: ['amber', 'en attente du secrétariat'], VALIDEE: ['green', 'validée'], REFUSEE: ['red', 'refusée'] };
 
 function Field({ label, children }) {
   return <label className="block text-xs text-slate-600">{label}<div className="mt-1">{children}</div></label>;
 }
 
-function Chips({ value, onChange }) {
+function Chips({ value, onChange, other, onOther }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap items-center gap-1.5">
       {NATIONALITY_CHOICES.map(([code, l]) => {
         const on = code === 'XX' ? hasOtherNationality(value) : value.includes(code);
         return <button key={code} type="button" aria-pressed={on} onClick={() => onChange(toggleNationality(value, code))}
           className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${on ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-600 ring-slate-300'}`}>{l}</button>;
       })}
+      {hasOtherNationality(value) && <input value={other ?? ''} onChange={(e) => onOther(e.target.value)} placeholder="Laquelle ?" aria-label="Autre nationalité" className="w-36 rounded-lg border border-slate-300 px-2 py-1 text-sm" />}
     </div>
   );
 }
@@ -41,7 +42,7 @@ function DocumentsPicker({ docs, setDocs, kinds }) {
         const mine = docs.filter((x) => x.code === d.id);
         return (
           <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-            <span className="min-w-0 text-slate-800">{d.label}</span>
+            <span className="min-w-0 text-slate-800">{d.label}{d.detail && <span className="block text-[11px] text-slate-500">{d.detail}</span>}</span>
             <span className="flex items-center gap-1.5">
               {mine.map((x, i) => <DocumentThumb key={i} doc={x} title={d.label} />)}
               <DocumentInput label={mine.length ? '＋ page' : 'Déposer'} onAdd={(file) => setDocs([...docs, { ...file, code: d.id, label: d.label }])} />
@@ -61,15 +62,16 @@ export function FamilyRequestForm({ profile, kind, guardianName }) {
   const [decision, setDecision] = useState(next ? 'REINSCRIT' : 'DEPART');
   const [photo, setPhoto] = useState(profile.photo ?? null);
   const [nat, setNat] = useState(profile.nationalities ?? ['MG']);
+  const [otherNat, setOtherNat] = useState(profile.otherNationality ?? '');
   const [guardians, setGuardians] = useState((profile.guardians ?? []).map((g) => ({ name: g.name, relation: g.relation, phone: g.phone ?? '', email: g.email ?? '', whatsapp: !!g.whatsapp })));
   const [health, setHealth] = useState({ allergies: profile.health?.allergies ?? '', emergency: profile.health?.emergency ?? '' });
   const [docs, setDocs] = useState([]);
   const [error, setError] = useState('');
   const pending = sent.find((r) => r.status === 'A_TRAITER');
   const isReenrol = kind === 'REINSCRIPTION';
-  const docKinds = REQUIRED_DOCUMENTS.filter((d) => !d.newOnly).filter((d) => !isReenrol || d.id !== 'ACTE');
+  const docKinds = documentsFor('REINSCRIPTION', isReenrol ? next ?? profile.cls : profile.cls);
   const submit = () => {
-    const ok = addRequest({ kind, studentKey: key, studentId: profile.id, from: guardianName, payload: { decision: isReenrol ? decision : undefined, cls: isReenrol && decision === 'REINSCRIT' ? next : undefined, photo, nationalities: nat, guardians, health }, documents: docs });
+    const ok = addRequest({ kind, studentKey: key, studentId: profile.id, from: guardianName, payload: { decision: isReenrol ? decision : undefined, cls: isReenrol && decision === 'REINSCRIT' ? next : undefined, photo, nationalities: nat, otherNationality: otherNat, guardians, health }, documents: docs });
     if (!ok) { setError('Le téléphone manque de place : retirez une page ou envoyez des photos plus légères.'); return; }
     setSent(requestsFor(key).filter((r) => r.kind === kind));
     setDocs([]);
@@ -81,10 +83,10 @@ export function FamilyRequestForm({ profile, kind, guardianName }) {
           <p className="text-sm font-semibold text-slate-800">{KIND_LABEL[r.kind]} — envoyée le {fmt(r.submittedAt)}</p>
           <Badge tone={STATUS[r.status][0]}>{STATUS[r.status][1]}</Badge>
           {r.status === 'REFUSEE' && <p className="mt-1 text-sm text-red-800">Motif : {r.note}</p>}
-          {r.status === 'VALIDEE' && isReenrol && r.payload.decision === 'REINSCRIT' && <p className="mt-1 text-sm text-slate-600">Place confirmée au paiement des frais de réinscription, au bureau.</p>}
+          {r.status === 'VALIDEE' && isReenrol && r.payload.decision === 'REINSCRIT' && <p className="mt-1 text-sm text-slate-600">Place confirmée au paiement des frais de réinscription, au secrétariat.</p>}
         </section>
       ))}
-      {pending ? <p className="text-center text-xs text-slate-500">Le bureau traite votre demande ; vous serez prévenu ici.</p> : (
+      {pending ? <p className="text-center text-xs text-slate-500">Le secrétariat traite votre demande ; vous serez prévenu ici.</p> : (
         <section className="space-y-4 rounded-2xl bg-white p-4 shadow-soft">
           <h2 className="font-display text-[15px] font-semibold text-slate-900">{isReenrol ? `Réinscription 2027-2028 — ${profile.firstName}` : `Nos informations — ${profile.firstName}`}</h2>
           {isReenrol && (
@@ -105,7 +107,7 @@ export function FamilyRequestForm({ profile, kind, guardianName }) {
           {(!isReenrol || decision === 'REINSCRIT') && (
             <>
               <PhotoInput value={photo} onChange={setPhoto} label={`Photo d'identité de ${profile.firstName}`} />
-              <Field label="Nationalité(s)"><Chips value={nat} onChange={setNat} /></Field>
+              <Field label="Nationalité(s)"><Chips value={nat} onChange={setNat} other={otherNat} onOther={setOtherNat} /></Field>
               {guardians.map((g, i) => (
                 <div key={i} className="space-y-2 rounded-xl bg-slate-50 p-3">
                   <p className="text-sm font-medium text-slate-800">{g.name} <span className="text-slate-500">({g.relation})</span></p>
@@ -118,13 +120,14 @@ export function FamilyRequestForm({ profile, kind, guardianName }) {
               <Field label="Contact d'urgence (nom et téléphone)"><input value={health.emergency} onChange={(e) => setHealth({ ...health, emergency: e.target.value })} className={inputCls} /></Field>
               <div>
                 <p className="mb-1 text-xs font-semibold text-slate-500">Pièces du dossier (photo de chaque page ou PDF)</p>
+                <p className="mb-2 text-[11px] text-slate-500">Envoyées en ligne pour un premier aperçu ; les originaux sont à déposer au secrétariat.</p>
                 <DocumentsPicker docs={docs} setDocs={setDocs} kinds={docKinds} />
               </div>
             </>
           )}
           {error && <p className="text-sm text-red-700">{error}</p>}
           <Button className="w-full" onClick={submit}>{isReenrol ? (decision === 'REINSCRIT' ? 'Envoyer la réinscription' : 'Prévenir l\'établissement') : 'Envoyer les modifications'}</Button>
-          <p className="text-xs text-slate-500">{isReenrol ? 'Le bureau vérifie puis valide. La place est confirmée au paiement des frais de réinscription, au bureau.' : 'Le bureau vérifie avant de modifier la fiche.'}</p>
+          <p className="text-xs text-slate-500">{isReenrol ? 'Le secrétariat vérifie puis valide. La place est confirmée au paiement des frais de réinscription, au secrétariat.' : 'Le secrétariat vérifie avant de modifier la fiche.'}</p>
         </section>
       )}
     </>
@@ -138,6 +141,22 @@ export function sendDocument(profile, guardianName, title, file) {
 
 /* ---------- Nouvelle famille : pré-inscription en ligne ---------- */
 export function PublicPreregistration() {
+  const campaign = loadCampaign();
+  const today = new Date().toISOString().slice(0, 10);
+  if (!campaignOpen(campaign, today)) {
+    return (
+      <div className="mx-auto max-w-[520px] rounded-2xl bg-white p-6 text-center shadow-soft">
+        <p className="text-xs font-semibold text-navy-500">École Collège Lycée Chateaubriand · Tamatave</p>
+        <p className="mt-1 font-display text-lg font-semibold text-navy-900">Pré-inscriptions {campaign.year}</p>
+        <p className="mt-2 text-sm text-slate-600">{today < campaign.opens ? `Ouverture le ${fmt(campaign.opens)}, jusqu'au ${fmt(campaign.closes)}.` : 'La campagne est terminée. Contactez le secrétariat.'}</p>
+        <p className="mt-3 text-xs text-slate-400">Démonstration : la Direction règle ces dates dans Inscriptions → Pré-inscriptions.</p>
+      </div>
+    );
+  }
+  return <PublicForm />;
+}
+
+function PublicForm() {
   const empty = { child: '', birthDate: '', previousSchool: '', cls: '6e', contact: '', phone: '', email: '', source: PREREG_SOURCES[0], message: '' };
   const [f, setF] = useState(empty);
   const [docs, setDocs] = useState([]);
@@ -149,14 +168,14 @@ export function PublicPreregistration() {
     return (
       <div className="mx-auto max-w-[520px] rounded-2xl bg-white p-6 text-center shadow-soft">
         <p className="font-display text-lg font-semibold text-navy-900">Demande envoyée</p>
-        <p className="mt-2 text-sm text-slate-600">Merci. Le bureau vous rappelle sur WhatsApp ou par téléphone pour la suite : dossier, entretien, inscription.</p>
+        <p className="mt-2 text-sm text-slate-600">Merci. Le secrétariat vous rappelle sur WhatsApp ou par téléphone pour la suite : dossier, entretien, inscription.</p>
         <Button variant="secondary" className="mt-4" onClick={() => { setF(empty); setDocs([]); setDone(false); }}>Nouvelle demande</Button>
       </div>
     );
   }
   return (
     <div className="mx-auto max-w-[520px] space-y-4">
-      <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-900">Démonstration : la demande reste dans ce navigateur et apparaît dans Bureau → Inscriptions. Rien n'est envoyé à l'école tant que le serveur n'est pas en place.</p>
+      <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-900">Démonstration : la demande reste dans ce navigateur et apparaît dans Secrétariat → Inscriptions. Rien n'est envoyé à l'école tant que le serveur n'est pas en place.</p>
       <section className="space-y-3 rounded-2xl bg-white p-4 shadow-soft">
         <div>
           <p className="text-xs font-semibold text-navy-500">École Collège Lycée Chateaubriand · Tamatave</p>
@@ -177,8 +196,9 @@ export function PublicPreregistration() {
         <Field label="Comment nous avez-vous connus ?"><select value={f.source} onChange={(e) => setF({ ...f, source: e.target.value })} className={inputCls}>{PREREG_SOURCES.map((x) => <option key={x}>{x}</option>)}</select></Field>
         <Field label="Message (facultatif)"><textarea rows={2} value={f.message} onChange={(e) => setF({ ...f, message: e.target.value })} className={inputCls} /></Field>
         <div>
-          <p className="mb-1 text-xs font-semibold text-slate-500">Pièces (facultatif : vous pourrez aussi les apporter)</p>
-          <DocumentsPicker docs={docs} setDocs={setDocs} kinds={REQUIRED_DOCUMENTS.filter((d) => ['BULLETINS', 'ACTE'].includes(d.id))} />
+          <p className="mb-1 text-xs font-semibold text-slate-500">Pièces (facultatif)</p>
+          <p className="mb-2 text-[11px] text-slate-500">Utile si vous n'êtes pas à Tamatave : nous les verrons tout de suite. Les originaux restent à déposer au secrétariat.</p>
+          <DocumentsPicker docs={docs} setDocs={setDocs} kinds={documentsFor('INSCRIPTION', f.cls)} />
         </div>
         {error && <p className="text-sm text-red-700">{error}</p>}
         <Button className="w-full" disabled={!ready} onClick={() => {
@@ -196,7 +216,7 @@ function diffLines(p, payload) {
   if (payload.decision === 'DEPART') return ['Ne reviendra pas l\'an prochain'];
   if (payload.cls) out.push(`Classe à la rentrée : ${p.cls} → ${payload.cls}`);
   if (payload.photo && payload.photo !== p.photo) out.push('Nouvelle photo d\'identité');
-  if (payload.nationalities && payload.nationalities.join() !== (p.nationalities ?? []).join()) out.push(`Nationalité(s) : ${nationalityLabels(payload.nationalities).join(', ')}`);
+  if (payload.nationalities && payload.nationalities.join() !== (p.nationalities ?? []).join()) out.push(`Nationalité(s) : ${nationalityLabels(payload.nationalities, payload.otherNationality).join(', ')}`);
   (payload.guardians ?? []).forEach((g) => {
     const old = (p.guardians ?? []).find((x) => x.name === g.name) ?? {};
     if (g.phone !== (old.phone ?? '')) out.push(`${g.name} — téléphone : ${old.phone || '—'} → ${g.phone || '—'}`);
@@ -208,7 +228,7 @@ function diffLines(p, payload) {
 }
 
 /** Fiche élève après validation d'une demande. */
-export function applyRequest(p, r) {
+export function applyRequest(p, r, nextYearNumbers = []) {
   const x = r.payload ?? {};
   const docs = [...new Set([...(p.documents ?? []), ...(r.documents ?? []).map((d) => d.code).filter((c) => c !== 'AUTRE')])];
   if (r.kind === 'PIECE') return { ...p, documents: docs };
@@ -216,9 +236,11 @@ export function applyRequest(p, r) {
   if (x.decision === 'DEPART') return { ...p, nextYear: { status: 'DEPART' } };
   return {
     ...p,
-    nextYear: x.cls ? { status: 'REINSCRIT', cls: x.cls, year: '2027-2028' } : p.nextYear,
+    // matricule de l'année suivante, dans l'ordre des réinscriptions validées
+    nextYear: x.cls ? { status: 'REINSCRIT', cls: x.cls, year: '2027-2028', number: p.nextYear?.number ?? nextMatricule(x.cls, nextYearNumbers) } : p.nextYear,
     photo: x.photo ?? p.photo,
     nationalities: x.nationalities ?? p.nationalities,
+    otherNationality: x.otherNationality ?? p.otherNationality,
     guardians: (p.guardians ?? []).map((g) => { const n = (x.guardians ?? []).find((y) => y.name === g.name); return n ? { ...g, phone: n.phone, email: n.email, whatsapp: n.whatsapp } : g; }),
     health: x.health ? { ...p.health, ...x.health } : p.health,
     documents: docs,
@@ -253,12 +275,12 @@ export function RequestsTab({ profiles, onApply }) {
             {refusing === r.id ? (
               <div className="mt-3 flex flex-wrap gap-2">
                 <input autoFocus value={note} onChange={(e) => setNote(e.target.value)} placeholder="Motif du refus (vu par le parent)" className="min-w-[240px] flex-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
-                <Button disabled={!note.trim()} onClick={() => { decideRequest(r.id, 'REFUSEE', 'Bureau', note); setRefusing(null); setNote(''); refresh(); }}>Refuser</Button>
+                <Button disabled={!note.trim()} onClick={() => { decideRequest(r.id, 'REFUSEE', 'Secrétariat', note); setRefusing(null); setNote(''); refresh(); }}>Refuser</Button>
                 <Button variant="secondary" onClick={() => setRefusing(null)}>Annuler</Button>
               </div>
             ) : (
               <div className="mt-3 flex flex-wrap gap-2">
-                <Button disabled={!p} onClick={() => { onApply(applyRequest(p, r)); decideRequest(r.id, 'VALIDEE', 'Bureau'); refresh(); }}>Valider{r.kind !== 'PIECE' ? ' et mettre à jour la fiche' : ' la pièce'}</Button>
+                <Button disabled={!p} onClick={() => { onApply(applyRequest(p, r, profiles.map((x) => x.nextYear?.number))); decideRequest(r.id, 'VALIDEE', 'Secrétariat'); refresh(); }}>Valider{r.kind !== 'PIECE' ? ' et mettre à jour la fiche' : ' la pièce'}</Button>
                 <Button variant="secondary" onClick={() => { setRefusing(r.id); setNote(''); }}>Refuser…</Button>
                 {r.kind === 'REINSCRIPTION' && r.payload?.decision === 'REINSCRIT' && <p className="self-center text-xs text-slate-500">Les frais de réinscription s'encaissent ensuite dans « Encaisser ».</p>}
               </div>

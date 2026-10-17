@@ -248,7 +248,7 @@ function StockTab({ manuals, setManuals, loans, canEdit }) {
                 setDraft({ ...draft, title: '', subject: '', qty: 1 });
               }}>Ajouter</Button>
             </div>
-          ) : <p className="text-sm text-slate-500">Le Bureau enregistre les entrées, réparations et réformes ; la Direction crée les titres et fixe les prix.</p>}
+          ) : <p className="text-sm text-slate-500">Le secrétariat enregistre les entrées, réparations et réformes ; la Direction crée les titres et fixe les prix.</p>}
         </Card>
       </div>
     </div>
@@ -388,7 +388,7 @@ export default function ManualsModule({ role }) {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-semibold text-navy-500">Bureau et Direction · Tamatave</p>
+        <p className="text-sm font-semibold text-navy-500">Secrétariat et Direction · Tamatave</p>
         <h1 className="text-2xl font-semibold text-navy-900">Manuels scolaires</h1>
         <p className="text-sm text-slate-500">Manuels de base en location ({formatAr(RENTAL_PRICE)} l'un), cahiers d'activités à rendre ou gardés. Un manuel dû bloque la remise du bulletin.</p>
       </div>

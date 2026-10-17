@@ -4,7 +4,7 @@ import { parseSpecialties, specialtyErrors, SPECIALTY_COUNT } from './bulletin.j
 // Import des données existantes (copier-coller depuis Excel, ou fichier CSV) :
 // élèves de l'année en cours et enseignements des professeurs.
 // Les lignes sont normalisées (classes, téléphones, nationalités) et chaque problème est signalé
-// AVANT l'import, pour que le bureau complète ou corrige le fichier d'origine.
+// AVANT l'import, pour que le secrétariat complète ou corrige le fichier d'origine.
 
 /** Découpe un tableau collé depuis Excel (tabulations) ou un CSV (« ; » ou « , »). */
 export function parseTable(text) {

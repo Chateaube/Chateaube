@@ -462,9 +462,15 @@ DO $$ BEGIN
   END;
 END $$;
 
--- T24. Téléphone : récidive → 5 jours ; restitution à un parent uniquement -
+-- T24. Téléphone : récidive → 48 h puis 5 jours ; restitution à un parent uniquement pour 5 jours -
 DO $$ DECLARE d text; BEGIN
-  -- l'élève a déjà une confiscation (T21) : la 2e passe d'office à 5 jours ouvrés
+  -- l'élève a déjà une confiscation (T21) : la 2e passe d'office à 48 h…
+  INSERT INTO phone_confiscation (enrollment_id, reason, confiscated_at, confiscated_by, received_by, duration_code)
+  VALUES ('30000000-0000-0000-0000-000000000001', 'Deuxième fois', '2027-01-08 09:00+03',
+          '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000002', '24H')
+  RETURNING duration_code INTO d;
+  ASSERT d = '48H', 'T24: 2e fait non passé à 48 h';
+  -- …et la 3e à 5 jours ouvrés
   INSERT INTO phone_confiscation (enrollment_id, reason, confiscated_at, confiscated_by, received_by, duration_code)
   VALUES ('30000000-0000-0000-0000-000000000001', 'Récidive', '2027-01-11 09:00+03',
           '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000002', '24H')
@@ -768,8 +774,10 @@ DO $$ DECLARE s uuid := (SELECT id FROM site WHERE code = 'TMV'); BEGIN
   END;
 END $$;
 
--- T38. Salaires : état de paie validé par la Direction, émargement pour les espèces -------
+-- T38. Salaires : payés par le secrétariat sans attendre la Direction, émargement pour les espèces ---
 DO $$ DECLARE s uuid := (SELECT id FROM site WHERE code = 'TMV'); st uuid := (SELECT id FROM staff_member LIMIT 1); BEGIN
+  INSERT INTO app_user (id, email, first_name, last_name) VALUES ('00000000-0000-0000-0000-000000000008', 'secretariat@exemple.mg', 'Secrétariat', 'TMV');
+  INSERT INTO user_role (user_id, role, site_id) VALUES ('00000000-0000-0000-0000-000000000008', 'BUREAU', s);
   INSERT INTO payroll_month (site_id, month) VALUES (s, '2026-10-01');
   INSERT INTO hourly_rate (staff_id, effective_from, rate_mga) VALUES (st, '2024-09-01', 18000), (st, '2025-09-01', 20000), (st, '2026-09-01', 22000), (st, '2027-01-01', 24000);
   ASSERT rate_on(st, '2026-06-15') = 20000, 'T38: taux en vigueur en juin 2026';
@@ -780,7 +788,7 @@ DO $$ DECLARE s uuid := (SELECT id FROM site WHERE code = 'TMV'); st uuid := (SE
   ASSERT (SELECT contract FROM staff_member WHERE id = st) = 'VACATAIRE', 'T38: professeur vacataire automatiquement';
   BEGIN
     UPDATE payroll_line SET paid_at = now(), paid_by = '00000000-0000-0000-0000-000000000003', signature_key = 'sig/x.png' WHERE staff_id = st;
-    RAISE EXCEPTION 'T38: salaire payé avant validation';
+    RAISE EXCEPTION 'T38: salaire payé par un professeur';
   EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T38:%' THEN RAISE; END IF;
   END;
   BEGIN
@@ -788,13 +796,13 @@ DO $$ DECLARE s uuid := (SELECT id FROM site WHERE code = 'TMV'); st uuid := (SE
     RAISE EXCEPTION 'T38: état de paie validé hors Direction';
   EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T38:%' THEN RAISE; END IF;
   END;
-  UPDATE payroll_month SET validated_by = '00000000-0000-0000-0000-000000000001', validated_at = now() WHERE site_id = s;
   BEGIN
-    UPDATE payroll_line SET paid_at = now(), paid_by = '00000000-0000-0000-0000-000000000003' WHERE staff_id = st;
+    UPDATE payroll_line SET paid_at = now(), paid_by = '00000000-0000-0000-0000-000000000008' WHERE staff_id = st;
     RAISE EXCEPTION 'T38: espèces sans émargement';
   EXCEPTION WHEN check_violation THEN NULL;
   END;
-  UPDATE payroll_line SET paid_at = now(), paid_by = '00000000-0000-0000-0000-000000000003', signature_key = 'sig/x.png' WHERE staff_id = st;
+  -- payé par le secrétariat, sans validation préalable de la Direction
+  UPDATE payroll_line SET paid_at = now(), paid_by = '00000000-0000-0000-0000-000000000008', signature_key = 'sig/x.png' WHERE staff_id = st;
 END $$;
 
 -- T39. Engagements : au plus 2 délégués par classe -----------------------------------
@@ -922,5 +930,95 @@ DO $$ DECLARE r uuid; sig uuid; BEGIN
   UPDATE signature_request SET sent_to = 'famille@exemple.mg', sent_at = now() WHERE id = r;
 END $$;
 
+-- T44. Trésorerie : dépenses (photo de la facture au-delà de 100 000 Ar) et tableau de bord -------
+DO $$ DECLARE s uuid := (SELECT id FROM site WHERE code = 'TMV'); f uuid; before_net bigint; before_committed bigint; BEGIN
+  INSERT INTO expense_category VALUES ('LOYER', 'Loyer'), ('FOURNITURES', 'Fournitures');
+  INSERT INTO supplier (site_id, name, category_code) VALUES (s, 'Bailleur', 'LOYER') RETURNING id INTO f;
+  SELECT net_mga, committed_mga INTO before_net, before_committed FROM v_treasury WHERE site_id = s;
+  BEGIN
+    INSERT INTO expense (site_id, supplier_id, category_code, label, amount_mga, status, paid_on, method, created_by)
+    VALUES (s, f, 'LOYER', 'Loyer d''octobre', 2500000, 'PAYE', '2026-10-05', 'VIREMENT', '00000000-0000-0000-0000-000000000008');
+    RAISE EXCEPTION 'T44: grosse dépense sans photo de la facture';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO expense (site_id, supplier_id, category_code, label, amount_mga, status, paid_on, method, attachment_key, created_by)
+  VALUES (s, f, 'LOYER', 'Loyer d''octobre', 2500000, 'PAYE', '2026-10-05', 'VIREMENT', 'factures/loyer-10.jpg', '00000000-0000-0000-0000-000000000008');
+  INSERT INTO expense (site_id, category_code, label, amount_mga, status, due_on, created_by)
+  VALUES (s, 'FOURNITURES', 'Ramettes', 85000, 'EN_ATTENTE', '2026-10-20', '00000000-0000-0000-0000-000000000008');
+  BEGIN
+    INSERT INTO expense (site_id, category_code, label, amount_mga, status, created_by) VALUES (s, 'FOURNITURES', 'Encre', 30000, 'EN_ATTENTE', '00000000-0000-0000-0000-000000000008');
+    RAISE EXCEPTION 'T44: dépense à payer sans échéance';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  ASSERT (SELECT net_mga FROM v_treasury WHERE site_id = s) = before_net - 2500000, 'T44: loyer payé déduit de la trésorerie';
+  ASSERT (SELECT committed_mga FROM v_treasury WHERE site_id = s) = before_committed + 85000, 'T44: ramettes engagées';
+END $$;
+
+-- T45. Ajustements : matricule, avertissement téléphone, propriétaire, appréciation générale,
+--      retrait des bulletins, pistes d'orientation, campagne de pré-inscription ----------------
+DO $$ DECLARE e2 uuid; r uuid; p uuid; BEGIN
+  UPDATE enrollment SET matricule = 'TSTMG-001' WHERE id = '30000000-0000-0000-0000-000000000001';
+  BEGIN
+    UPDATE enrollment SET matricule = 'TSTMG-001' WHERE id = '30000000-0000-0000-0000-0000000000a1';
+    RAISE EXCEPTION 'T45: matricule attribué deux fois';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  BEGIN
+    UPDATE enrollment SET matricule = 'tg 1' WHERE id = '30000000-0000-0000-0000-0000000000a1';
+    RAISE EXCEPTION 'T45: matricule mal formé';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  -- avertissement : pas de durée, téléphone non gardé
+  INSERT INTO phone_confiscation (enrollment_id, action, reason, confiscated_at, confiscated_by)
+  VALUES ('30000000-0000-0000-0000-0000000000a1', 'AVERTISSEMENT', 'Téléphone sorti en classe', now(), '00000000-0000-0000-0000-000000000003');
+  BEGIN
+    INSERT INTO phone_confiscation (enrollment_id, action, reason, confiscated_at, confiscated_by, duration_code)
+    VALUES ('30000000-0000-0000-0000-0000000000a1', 'AVERTISSEMENT', 'x', now(), '00000000-0000-0000-0000-000000000003', '24H');
+    RAISE EXCEPTION 'T45: avertissement avec une durée';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  -- confiscation du téléphone d'un autre élève, 48 h
+  INSERT INTO phone_confiscation (enrollment_id, owner_enrollment_id, reason, confiscated_at, confiscated_by, received_by, duration_code)
+  VALUES ('30000000-0000-0000-0000-0000000000a1', '30000000-0000-0000-0000-000000000001', 'Téléphone d''un camarade', '2026-10-16 10:00+03',
+          '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000002', '48H') RETURNING id INTO p;
+  ASSERT (SELECT (return_due_at AT TIME ZONE 'Indian/Antananarivo')::date FROM phone_confiscation WHERE id = p) = '2026-10-20', 'T45: 48 h = 2 jours de classe';
+  -- l'avertissement est une punition : un professeur peut le donner
+  INSERT INTO discipline_measure (enrollment_id, type_code, reason, decided_by, decided_on)
+  VALUES ('30000000-0000-0000-0000-0000000000a1', 'AVERTISSEMENT', 'Bavardages répétés', '00000000-0000-0000-0000-000000000003', current_date);
+  -- appréciation générale : tapée par le secrétariat, validée par la Direction
+  SELECT id INTO r FROM report_card WHERE general_comment IS NOT NULL LIMIT 1;
+  UPDATE report_card SET general_comment = 'Trimestre correct ; doit gagner en régularité.', general_comment_by = '00000000-0000-0000-0000-000000000008',
+         general_comment_status = 'A_VALIDER', general_comment_validated_by = NULL WHERE id = r;
+  BEGIN
+    UPDATE report_card SET general_comment_status = 'VALIDE', general_comment_validated_by = '00000000-0000-0000-0000-000000000008' WHERE id = r;
+    RAISE EXCEPTION 'T45: validée par le secrétariat';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T45:%' THEN RAISE; END IF;
+  END;
+  UPDATE report_card SET general_comment_status = 'VALIDE', general_comment_validated_by = '00000000-0000-0000-0000-000000000001' WHERE id = r;
+  UPDATE report_card SET general_comment = 'Trimestre correct ; doit gagner en régularité et en rigueur.', general_comment_by = '00000000-0000-0000-0000-000000000008' WHERE id = r;
+  ASSERT (SELECT general_comment_status FROM report_card WHERE id = r) = 'A_VALIDER', 'T45: texte modifié = à revalider';
+  -- retrait des bulletins, pistes, campagne
+  INSERT INTO bulletin_release (period_id, class_id, available_from, pickup_days, set_by)
+  SELECT id, '10000000-0000-0000-0000-000000000001', '2026-12-14', 14, '00000000-0000-0000-0000-000000000001' FROM period LIMIT 1;
+  INSERT INTO orientation_track (enrollment_id, destination) VALUES ('30000000-0000-0000-0000-000000000001', 'FRANCE'), ('30000000-0000-0000-0000-000000000001', 'CANADA');
+  BEGIN
+    INSERT INTO orientation_track (enrollment_id, destination) VALUES ('30000000-0000-0000-0000-000000000001', 'CANADA');
+    RAISE EXCEPTION 'T45: deux pistes Canada ouvertes';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  BEGIN
+    UPDATE orientation_track SET closed_on = current_date WHERE destination = 'FRANCE';
+    RAISE EXCEPTION 'T45: piste clôturée sans motif';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE orientation_track SET closed_on = current_date, close_reason = 'Ne part pas en France' WHERE destination = 'FRANCE';
+  INSERT INTO pre_registration_campaign SELECT id, '2027-2028', '2027-05-03', '2027-07-16' FROM site WHERE code = 'TMV';
+  BEGIN
+    INSERT INTO pre_registration_campaign SELECT id, '2028-2029', '2028-07-16', '2028-05-03' FROM site WHERE code = 'TMV';
+    RAISE EXCEPTION 'T45: campagne qui ferme avant d''ouvrir';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T43 passent'
+\echo 'OK — tous les scénarios T1 à T45 passent'

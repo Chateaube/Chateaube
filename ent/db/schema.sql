@@ -1364,7 +1364,7 @@ CREATE TABLE hourly_rate (
 CREATE TABLE payroll_month (
   site_id       uuid REFERENCES site(id),
   month         date CHECK (extract(day FROM month) = 1),
-  validated_by  uuid REFERENCES app_user(id),
+  validated_by  uuid REFERENCES app_user(id),   -- facultatif : « vu par la Direction » (ne bloque pas la paie)
   validated_at  timestamptz,
   PRIMARY KEY (site_id, month),
   CHECK ((validated_by IS NULL) = (validated_at IS NULL))
@@ -1543,4 +1543,130 @@ CREATE TABLE signature_request (
   CHECK ((status = 'SIGNEE') = (signature_id IS NOT NULL)),
   CHECK (status <> 'REFUSEE' OR refusal_note IS NOT NULL),
   CHECK ((sent_at IS NULL AND printed_at IS NULL) OR status = 'SIGNEE')
+);
+
+-- =====  TRÉSORERIE : FOURNISSEURS ET DÉPENSES  =====
+-- Catégories de dépenses : liste modifiable par la Direction (pas une liste figée).
+CREATE TABLE expense_category (
+  code          text PRIMARY KEY,
+  label         text NOT NULL,
+  is_active     boolean NOT NULL DEFAULT true
+);
+CREATE TABLE supplier (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id       uuid NOT NULL REFERENCES site(id),
+  name          text NOT NULL,
+  category_code text REFERENCES expense_category(code),
+  contact       text,
+  note          text,
+  is_active     boolean NOT NULL DEFAULT true
+);
+CREATE TYPE expense_status AS ENUM ('PAYE', 'EN_ATTENTE', 'ANNULE');
+-- Montant en Ariary entiers, toujours positif ; photo de la facture obligatoire au-delà de 100 000 Ar.
+-- Une dépense payée en espèces est liée à sa sortie de caisse (comptée une seule fois).
+CREATE TABLE expense (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id       uuid NOT NULL REFERENCES site(id),
+  supplier_id   uuid REFERENCES supplier(id),
+  category_code text NOT NULL REFERENCES expense_category(code),
+  label         text NOT NULL,
+  amount_mga    bigint NOT NULL CHECK (amount_mga > 0),
+  status        expense_status NOT NULL DEFAULT 'EN_ATTENTE',
+  paid_on       date,
+  due_on        date,
+  method        payment_method,
+  reference     text,
+  attachment_key text,                         -- photo ou PDF de la facture
+  cash_movement_id uuid REFERENCES cash_movement(id),
+  created_by    uuid NOT NULL REFERENCES app_user(id),
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  CHECK (status <> 'PAYE' OR (paid_on IS NOT NULL AND method IS NOT NULL)),
+  CHECK (status <> 'EN_ATTENTE' OR due_on IS NOT NULL),
+  CHECK (status <> 'PAYE' OR amount_mga <= 100000 OR attachment_key IS NOT NULL)
+);
+
+-- =====  AJUSTEMENTS DE L'ÉTABLISSEMENT (pilote Tamatave)  =====
+-- Matricule par année : code de la classe + numéro dans l'ordre des inscriptions définitives
+-- (TG-001, TSTMG-002…) ; jamais réattribué, même si l'élève part.
+ALTER TABLE enrollment ADD COLUMN matricule text CHECK (matricule ~ '^[0-9A-Z]+-[0-9]{3}$');
+CREATE UNIQUE INDEX enrollment_matricule ON enrollment (year_id, matricule);
+-- Nationalité « Autre » précisée ; prénom d'usage (élève qui a plusieurs prénoms)
+ALTER TABLE student ADD COLUMN other_nationality text, ADD COLUMN usual_first_name text;
+
+-- Téléphones : un avertissement (téléphone non pris) ou une confiscation de 24 h, 48 h ou 5 jours
+-- ouvrés ; le propriétaire peut être un autre élève que celui pris avec le téléphone.
+ALTER TABLE phone_confiscation ALTER COLUMN duration_code DROP NOT NULL;
+ALTER TABLE phone_confiscation DROP CONSTRAINT phone_confiscation_duration_code_check;
+ALTER TABLE phone_confiscation
+  ADD COLUMN action text NOT NULL DEFAULT 'CONFISCATION' CHECK (action IN ('AVERTISSEMENT', 'CONFISCATION')),
+  ADD COLUMN owner_enrollment_id uuid REFERENCES enrollment(id),
+  ADD CONSTRAINT phone_duration_by_action CHECK ((action = 'CONFISCATION') = (duration_code IS NOT NULL)),
+  ADD CONSTRAINT phone_duration_code CHECK (duration_code IN ('24H', '48H', '5J')),
+  ADD CONSTRAINT phone_received_only_if_kept CHECK (action = 'CONFISCATION' OR returned_at IS NULL);
+ALTER TABLE phone_confiscation ALTER COLUMN received_by DROP NOT NULL;
+ALTER TABLE phone_confiscation ADD CONSTRAINT phone_received_by CHECK (action = 'AVERTISSEMENT' OR received_by IS NOT NULL);
+
+-- Appréciation générale : tapée par le secrétariat ou la Direction, validée par la Direction seule
+ALTER TABLE report_card
+  ADD COLUMN general_comment_status comment_status NOT NULL DEFAULT 'BROUILLON',
+  ADD COLUMN general_comment_validated_by uuid REFERENCES app_user(id),
+  ADD CONSTRAINT general_comment_validated CHECK ((general_comment_status = 'VALIDE') = (general_comment_validated_by IS NOT NULL));
+
+-- Retrait des bulletins : disponibles à partir d'une date, délai de retrait ; passé le délai,
+-- le bulletin est archivé au dossier et remis sur rendez-vous (pas de destruction).
+CREATE TABLE bulletin_release (
+  period_id     uuid REFERENCES period(id),
+  class_id      uuid REFERENCES school_class(id),
+  available_from date NOT NULL,
+  pickup_days   smallint NOT NULL DEFAULT 14 CHECK (pickup_days BETWEEN 1 AND 60),
+  announced_at  timestamptz,
+  set_by        uuid NOT NULL REFERENCES app_user(id),
+  PRIMARY KEY (period_id, class_id)
+);
+
+-- Poursuite d'études : une piste par pays (la France en plan B conseillée), étapes cochées, clôture avec motif
+CREATE TABLE orientation_track (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  enrollment_id uuid NOT NULL REFERENCES enrollment(id),
+  destination   text NOT NULL CHECK (destination IN ('FRANCE', 'CANADA', 'BELGIQUE', 'MAURICE', 'MADAGASCAR', 'AFRIQUE_SUD', 'AUTRE')),
+  label         text,                          -- pays, si « Autre »
+  steps_done    jsonb NOT NULL DEFAULT '{}',
+  closed_on     date,
+  close_reason  text,
+  CHECK ((closed_on IS NULL) = (close_reason IS NULL)),
+  CHECK (destination <> 'AUTRE' OR label IS NOT NULL)
+);
+CREATE UNIQUE INDEX orientation_track_open ON orientation_track (enrollment_id, destination) WHERE closed_on IS NULL AND destination <> 'AUTRE';
+
+-- Agendas : événements de l'école (les cours viennent de l'emploi du temps, les devoirs du cahier de
+-- textes) ; un lien d'abonnement personnel par agenda pour Google Agenda / Apple Agenda.
+CREATE TABLE school_event (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id       uuid NOT NULL REFERENCES site(id),
+  title         text NOT NULL,
+  starts_at     timestamptz NOT NULL,
+  ends_at       timestamptz NOT NULL,
+  all_day       boolean NOT NULL DEFAULT false,
+  place         text,
+  class_id      uuid REFERENCES school_class(id),   -- NULL : toute l'école
+  staff_only    boolean NOT NULL DEFAULT false,
+  created_by    uuid NOT NULL REFERENCES app_user(id),
+  CHECK (ends_at >= starts_at)
+);
+CREATE TABLE calendar_feed (
+  user_id       uuid REFERENCES app_user(id) ON DELETE CASCADE,
+  agenda        text CHECK (agenda IN ('COURS', 'EVENEMENTS', 'DEVOIRS')),
+  token         text UNIQUE NOT NULL,          -- lien secret, révocable
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, agenda)
+);
+
+-- Campagne de pré-inscription en ligne : ouverte entre deux dates fixées par la Direction (ex. en mai)
+CREATE TABLE pre_registration_campaign (
+  site_id       uuid REFERENCES site(id),
+  school_year   text CHECK (school_year ~ '^[0-9]{4}-[0-9]{4}$'),
+  opens_on      date NOT NULL,
+  closes_on     date NOT NULL,
+  PRIMARY KEY (site_id, school_year),
+  CHECK (closes_on >= opens_on)
 );

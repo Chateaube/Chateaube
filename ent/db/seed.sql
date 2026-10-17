@@ -198,7 +198,7 @@ INSERT INTO council_flag_type (code, label, tone) VALUES
 INSERT INTO discipline_measure_type (code, label, kind) VALUES
   ('OBSERVATION', 'Observation écrite', 'PUNITION'), ('DEVOIR_SUPP', 'Devoir supplémentaire', 'PUNITION'),
   ('RETENUE', 'Retenue', 'PUNITION'), ('EXCLUSION_COURS', 'Exclusion ponctuelle de cours', 'PUNITION'),
-  ('AVERTISSEMENT', 'Avertissement', 'SANCTION'), ('BLAME', 'Blâme', 'SANCTION'),
+  ('AVERTISSEMENT', 'Avertissement', 'PUNITION'), ('BLAME', 'Blâme', 'SANCTION'),
   ('RESPONSABILISATION', 'Mesure de responsabilisation', 'SANCTION'), ('EXCLUSION_TEMP', 'Exclusion temporaire (8 jours max.)', 'SANCTION');
 
 INSERT INTO authorization_type (code, label, options) VALUES

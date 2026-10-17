@@ -5,7 +5,7 @@ import { referenceOf, setReference, ficheOf, saveFiche } from '../ficheStore.js'
 
 // Fiche signalétique de l'établissement, remplie en ligne par le parent depuis son compte
 // (plus de saisie à la main), puis signée au doigt. La signature de référence du compte sert
-// ensuite au bureau pour comparer une signature en cas de doute (mot d'absence, autorisation…).
+// ensuite au secrétariat pour comparer une signature en cas de doute (mot d'absence, autorisation…).
 
 export const FICHE_YEAR = '2026-2027';
 const LINKS = ['Mère', 'Père', 'Tuteur / tutrice'];
@@ -188,7 +188,7 @@ export function FicheForm({ studentKey, profile, account, accountName, onSigned 
         <p className="text-xs text-slate-500">Le {fmt(new Date().toISOString().slice(0, 10))} · {accountName}</p>
         {reference
           ? <p className="text-xs text-slate-500">Signez comme d'habitude : votre signature sera comparée à celle déposée dans votre compte.</p>
-          : <p className="rounded-lg bg-navy-50 p-2 text-xs text-navy-900">C'est votre première signature : elle devient la <strong>signature de référence</strong> de votre compte. Le bureau pourra la comparer avec vos mots et autorisations papier en cas de doute.</p>}
+          : <p className="rounded-lg bg-navy-50 p-2 text-xs text-navy-900">C'est votre première signature : elle devient la <strong>signature de référence</strong> de votre compte. Le secrétariat pourra la comparer avec vos mots et autorisations papier en cas de doute.</p>}
         <SignaturePad onChange={setSignature} label="Signez ici avec le doigt" />
         <p className="text-[11px] text-slate-500">L'autre responsable signe depuis son propre compte parent.</p>
       </Block>
@@ -211,7 +211,7 @@ export function FicheView({ fiche: f, compact = false }) {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <Badge tone="green">Fiche {FICHE_YEAR} signée le {fmt(f.signedAt.slice(0, 10))}</Badge>
-        {f.validatedAt && <Badge tone="navy">Validée par le bureau</Badge>}
+        {f.validatedAt && <Badge tone="navy">Validée par le secrétariat</Badge>}
       </div>
       <div className={`grid gap-3 ${compact ? '' : 'md:grid-cols-2'}`}>
         <div className="space-y-1">

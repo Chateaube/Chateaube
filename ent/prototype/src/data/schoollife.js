@@ -12,7 +12,7 @@ export const CLASSES = {
 };
 export const classOf = (student) => Object.keys(CLASSES).find((c) => CLASSES[c].includes(student));
 
-export const STAFF_NAMES = ['M. Be (vie scolaire)', 'Mme Ranaivo', 'M. Rasolo', 'Mme Hery', 'M. Tojo', 'Direction — Cheffe d\'établissement', 'Direction — Directrice adjointe'];
+export const STAFF_NAMES = ['M. Be (CPE)', 'Mme Hanta (secrétariat)', 'Mme Ranaivo', 'M. Rasolo', 'Mme Hery', 'M. Tojo', 'Direction — Cheffe d\'établissement', 'Direction — Directrice adjointe'];
 
 // Absences et retards (issus de l'appel) ; parentAck = « Je suis informé.e »
 export const ATTENDANCE = [
@@ -33,8 +33,10 @@ export const MEASURES_LOG = [
 ];
 
 // Téléphones confisqués : qui a confisqué, qui l'a reçu et signé, restitution
+// owner : propriétaire du téléphone quand ce n'est pas l'élève pris avec ; action AVERTISSEMENT : téléphone non pris
 export const PHONES = [
-  { id: 'p1', student: 'RANDRIAMAMPIANINA Hery', at: '2026-10-12T10:20', duration: '5J', confiscatedBy: 'M. Rasolo', receivedBy: 'M. Be (vie scolaire)', reason: 'Téléphone utilisé pendant le DS', returned: null },
-  { id: 'p2', student: 'RAVOAHANGY Mamitiana', at: '2026-10-13T08:05', duration: '24H', confiscatedBy: 'Direction — Directrice adjointe', receivedBy: 'Direction — Directrice adjointe', reason: 'Téléphone sorti dans la cour', returned: null },
-  { id: 'p3', student: 'RABEMANANJARA Lina', at: '2026-10-08T14:00', duration: '24H', confiscatedBy: 'Mme Ranaivo', receivedBy: 'M. Be (vie scolaire)', reason: 'Appel en classe', returned: { at: '2026-10-09T14:10', by: 'M. Be (vie scolaire)', to: 'Mme Rabemananjara (mère)' } },
+  { id: 'p0', action: 'AVERTISSEMENT', student: 'RAKOTOARISOA Toky', at: '2026-10-09T11:00', confiscatedBy: 'Mme Ranaivo', reason: 'Téléphone sorti en classe (premier avertissement)', returned: null },
+  { id: 'p1', student: 'RANDRIAMAMPIANINA Hery', at: '2026-10-12T10:20', duration: '5J', confiscatedBy: 'M. Rasolo', receivedBy: 'M. Be (CPE)', reason: 'Téléphone utilisé pendant le DS', returned: null },
+  { id: 'p2', student: 'RAVOAHANGY Mamitiana', owner: 'RASOA Lova', at: '2026-10-13T08:05', duration: '24H', confiscatedBy: 'Direction — Directrice adjointe', receivedBy: 'Direction — Directrice adjointe', reason: 'Téléphone sorti dans la cour', returned: null },
+  { id: 'p3', student: 'RABEMANANJARA Lina', at: '2026-10-08T14:00', duration: '24H', confiscatedBy: 'Mme Ranaivo', receivedBy: 'M. Be (CPE)', reason: 'Appel en classe', returned: { at: '2026-10-09T14:10', by: 'M. Be (CPE)', to: 'Mme Rabemananjara (mère)' } },
 ];

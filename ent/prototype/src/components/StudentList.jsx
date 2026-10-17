@@ -20,9 +20,20 @@ export default function StudentList({ role }) {
   const classes = useMemo(() => [...new Set(profiles.map((p) => p.cls))].sort(), [profiles]);
   const list = useMemo(() => filterStudents(profiles, { cls, query }), [profiles, cls, query]);
   const title = `Liste des élèves${cls ? ` — ${cls}` : ''} · 2026-2027 · Chateaubriand Tamatave`;
-  const canCodes = role !== 'VIE_SCOLAIRE';
+  // CPE : consultation seulement (appeler une famille), sans impression ni export
+  const readOnly = role === 'VIE_SCOLAIRE';
+  const canCodes = !readOnly;
   const slips = useMemo(() => accessSlips(list), [list]);
   const noPhoto = list.filter((p) => !p.photo).length;
+  // colonnes de la liste imprimée, au choix (ex. une colonne vide « Signature » pour un émargement)
+  const PRINT_COLS = {
+    num: ['N°', (p, i) => i + 1], matricule: ['Matricule', (p) => p.number ?? ''], last: ['Nom', (p) => p.lastName], first: ['Prénom', (p) => usualFirstName(p)],
+    cls: ['Classe', (p) => p.cls], birth: ['Né(e) le', (p) => fmt(p.birthDate)], nat: ['Nationalité(s)', (p) => nationalityLabels(p.nationalities ?? [], p.otherNationality).join(', ')],
+    guardian: ['Responsable', (p) => p.guardians?.[0]?.name ?? ''], phone: ['Téléphone', (p) => p.guardians?.[0]?.phone ?? ''], email: ['E-mail', (p) => p.guardians?.find((g) => g.email)?.email ?? ''],
+    sign: ['Signature', () => ''],
+  };
+  const [printCols, setPrintCols] = useState(['num', 'last', 'first', 'cls', 'birth', 'guardian', 'phone']);
+  const cols = Object.keys(PRINT_COLS).filter((k) => printCols.includes(k));
 
   return (
     <div className="space-y-5">
@@ -32,12 +43,12 @@ export default function StudentList({ role }) {
           <h1 className="text-2xl font-semibold text-navy-900">Liste des élèves</h1>
           <p className="text-sm text-slate-500">{list.length} élève{list.length > 1 ? 's' : ''}{noPhoto ? ` · ${noPhoto} sans photo d'identité` : ''}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        {readOnly ? <p className="text-xs text-slate-500">Consultation seulement : impression et export réservés au secrétariat et à la Direction.</p> : <div className="flex flex-wrap gap-2">
           <Button onClick={() => saveFile(`eleves${cls ? `-${cls.replace(/\s+/g, '-')}` : ''}.csv`, studentsCsv(list, title))}>Exporter (Excel)</Button>
-          <Button variant="secondary" onClick={() => printOnly('.students-print', 'size: A4 landscape; margin: 8mm;')}>Imprimer la liste</Button>
-          <Button variant="secondary" onClick={() => printOnly('.trombi-print', 'size: A4 portrait; margin: 8mm;')}>Trombinoscope</Button>
-          {canCodes && <Button variant="secondary" onClick={() => printOnly('.codes-print', 'size: A4 portrait; margin: 8mm;')}>Codes d'accès des parents</Button>}
-        </div>
+          <Button variant="secondary" onClick={() => printOnly('.students-print', 'size: A4 landscape;', title)}>Imprimer la liste</Button>
+          <Button variant="secondary" onClick={() => printOnly('.trombi-print', 'size: A4 portrait;', `Trombinoscope${cls ? ` — ${cls}` : ''}`)}>Trombinoscope</Button>
+          {canCodes && <Button variant="secondary" onClick={() => printOnly('.codes-print', 'size: A4 portrait;', 'Codes d\'accès des parents')}>Codes d'accès des parents</Button>}
+        </div>}
       </div>
 
       <Card>
@@ -47,6 +58,15 @@ export default function StudentList({ role }) {
           </select>
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nom, prénom ou n°…" className={`min-w-[200px] flex-1 ${inputCls}`} />
         </div>
+        {!readOnly && (
+          <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-slate-600">
+            <span className="font-semibold">Colonnes à imprimer :</span>
+            {Object.entries(PRINT_COLS).map(([k, [label]]) => (
+              <button key={k} type="button" aria-pressed={printCols.includes(k)} onClick={() => setPrintCols(printCols.includes(k) ? printCols.filter((x) => x !== k) : [...printCols, k])}
+                className={`rounded-full px-2.5 py-0.5 font-medium ring-1 ${printCols.includes(k) ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white ring-slate-300'}`}>{label}</button>
+            ))}
+          </div>
+        )}
         <div className="-mx-5 mt-3 overflow-x-auto">
           <table className="w-full min-w-[860px] text-sm">
             <thead>
@@ -64,7 +84,7 @@ export default function StudentList({ role }) {
                       <span><span className="font-medium text-slate-900">{p.lastName} {usualFirstName(p)}</span>{p.firstName !== usualFirstName(p) && <span className="block text-xs text-slate-500">{p.firstName}</span>}</span></span></td>
                     <td className="px-2">{p.cls}</td>
                     <td className="px-2 tabular-nums">{fmt(p.birthDate)}</td>
-                    <td className="px-2">{nationalityLabels(p.nationalities ?? []).join(', ') || '—'}</td>
+                    <td className="px-2">{nationalityLabels(p.nationalities ?? [], p.otherNationality).join(', ') || '—'}</td>
                     <td className="px-2 text-xs">{(p.guardians ?? []).map((g) => <span key={g.name} className="block">{g.name} · {g.phone}</span>)}{!p.guardians?.length && <Badge tone="amber">à compléter</Badge>}</td>
                     <td className="px-4">{missing.length ? <Badge tone="amber">{missing.length} pièce{missing.length > 1 ? 's' : ''} manquante{missing.length > 1 ? 's' : ''}</Badge> : <Badge tone="green">complet</Badge>}</td>
                   </tr>
@@ -82,11 +102,11 @@ export default function StudentList({ role }) {
           <div style={{ fontFamily: 'Poppins, sans-serif', fontSize: '10px', color: '#000' }}>
             <p style={{ fontSize: '13px', fontWeight: 700 }}>{title}</p>
             <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '6px' }}>
-              <thead><tr>{['N°', 'Nom', 'Prénom', 'Classe', 'Né(e) le', 'Nationalité(s)', 'Responsable', 'Téléphone'].map((h) => <th key={h} style={{ border: '1px solid #000', padding: '3px', textAlign: 'left' }}>{h}</th>)}</tr></thead>
+              <thead><tr>{cols.map((k) => <th key={k} style={{ border: '1px solid #000', padding: '3px', textAlign: 'left', minWidth: k === 'sign' ? '35mm' : undefined }}>{PRINT_COLS[k][0]}</th>)}</tr></thead>
               <tbody>
                 {list.map((p, i) => (
-                  <tr key={p.id}>
-                    {[i + 1, p.lastName, usualFirstName(p), p.cls, fmt(p.birthDate), nationalityLabels(p.nationalities ?? []).join(', '), p.guardians?.[0]?.name ?? '', p.guardians?.[0]?.phone ?? ''].map((v, k) => <td key={k} style={{ border: '1px solid #000', padding: '3px' }}>{v}</td>)}
+                  <tr key={p.id} style={{ breakInside: 'avoid' }}>
+                    {cols.map((k) => <td key={k} style={{ border: '1px solid #000', padding: k === 'sign' ? '7px 3px' : '3px' }}>{PRINT_COLS[k][1](p, i)}</td>)}
                   </tr>
                 ))}
               </tbody>

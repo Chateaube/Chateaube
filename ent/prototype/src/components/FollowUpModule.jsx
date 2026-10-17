@@ -4,7 +4,7 @@ import { Badge, Button, Card, Stat } from './ui.jsx';
 import { CLASSES } from '../data/schoollife.js';
 import { AUTHORIZATIONS, DOCUMENTS, REQUESTED, STAGE_TYPES } from '../data/family.js';
 import { TLE_STUDENTS, STEPS, EXPORT_WINDOW } from '../data/terminale.js';
-import { higherEdSteps, PROCEDURES, exportWindowOpen, campusFranceCsv } from '../rules/orientation.js';
+import { higherEdSteps, PROCEDURES, exportWindowOpen, campusFranceCsv, DESTINATIONS, trackSteps, addTrack, closeTrack, trackProgress } from '../rules/orientation.js';
 
 // Suivi côté établissement (Direction, Bureau, Vie scolaire) : autorisations, documents
 // envoyés et accusés de lecture, pièces manquantes, stages, orientation.
@@ -148,7 +148,7 @@ function StagesOrientation() {
           <li className="flex flex-wrap justify-between gap-2"><span><b>3e</b> — vœux d'orientation après la 3e (2de générale, lycée professionnel)</span><Badge tone="slate">Intentions au 2e trimestre</Badge></li>
           <li className="flex flex-wrap justify-between gap-2"><span><b>2de</b> — choix de la voie (générale / STMG) et des spécialités</span><Badge tone="slate">Intentions au 2e trimestre</Badge></li>
           <li className="flex flex-wrap justify-between gap-2"><span><b>1re STMG</b> — spécialité de Terminale (4 choix)</span><Badge tone="amber">Découverte en cours</Badge></li>
-          <li className="flex flex-wrap justify-between gap-2"><span><b>Terminale</b> — Parcoursup pour tous, puis Campus France et TLScontact (visa) si besoin</span><Badge tone="navy">Voir l'onglet Terminale</Badge></li>
+          <li className="flex flex-wrap justify-between gap-2"><span><b>Terminale</b> — une piste par pays visé ; la France (Parcoursup) conseillée en plan B</span><Badge tone="navy">Voir l'onglet Terminale</Badge></li>
         </ul>
       </Card>
     </div>
@@ -156,24 +156,28 @@ function StagesOrientation() {
 }
 
 function Terminale() {
-  const [students, setStudents] = useState(TLE_STUDENTS);
+  // pistes de chaque élève (France en plan B pour tous, autres pays au besoin)
+  const [students, setStudents] = useState(() => TLE_STUDENTS.map((st, i) => ({
+    ...st,
+    tracks: [
+      { id: 'FRANCE', dest: 'FRANCE', done: { account: st.parcoursup.account, confirmed: st.parcoursup.confirmed, campus: st.campus.file, tls: st.tls.appointment }, closed: null },
+      ...(i === 7 ? [{ id: 'CANADA-1', dest: 'CANADA', label: '', done: { dossier: true }, closed: null }] : []),
+    ],
+  })));
+  const [closing, setClosing] = useState(null); // { i, id, reason }
+  const [adding, setAdding] = useState({});
   const open = exportWindowOpen('2026-10-13', EXPORT_WINDOW);
-  const withVisa = students.filter((s) => higherEdSteps(s.nationalities).includes('TLS')).length;
-  const toggle = (i, step, field) => setStudents(students.map((x, j) => (j === i ? { ...x, [step]: { ...x[step], [field]: !x[step][field] } } : x)));
-  const exportCsv = () => {
-    saveFile('campus-france-terminales-TMV.csv', campusFranceCsv(students));
-  };
-  const Check = ({ i, step, field, label }) => (
-    <label className="flex items-center gap-1.5 text-xs text-slate-600">
-      <input type="checkbox" checked={students[i][step][field]} onChange={() => toggle(i, step, field)} />{label}
-    </label>
-  );
+  const setTracks = (i, fn) => setStudents(students.map((x, j) => (j === i ? { ...x, tracks: fn(x.tracks) } : x)));
+  const toggle = (i, id, k) => setTracks(i, (ts) => ts.map((t) => (t.id === id ? { ...t, done: { ...t.done, [k]: !t.done[k] } } : t)));
+  const franceOpen = students.filter((s) => s.tracks.some((t) => t.dest === 'FRANCE' && !t.closed));
+  const withVisa = franceOpen.filter((s) => higherEdSteps(s.nationalities).includes('TLS')).length;
+  const exportCsv = () => saveFile('campus-france-terminales-TMV.csv', campusFranceCsv(franceOpen));
   return (
     <div className="space-y-5">
       <div className="grid gap-5 lg:grid-cols-3">
         {Object.entries(STEPS).map(([p, steps]) => (
           <Card key={p} title={PROCEDURES[p].label}
-            subtitle={p === 'PARCOURSUP' ? `Obligatoire pour les ${students.length} élèves de Terminale` : `${withVisa} élève${withVisa > 1 ? 's' : ''} ayant besoin d'un visa`}>
+            subtitle={p === 'PARCOURSUP' ? `Conseillé à tous en plan B · ${franceOpen.length} élève${franceOpen.length > 1 ? 's' : ''} sur ${students.length} suivent la piste France` : `${withVisa} élève${withVisa > 1 ? 's' : ''} ayant besoin d'un visa`}>
             <ol className="relative space-y-2 border-l border-slate-200 pl-4">
               {steps.map(([when, label]) => (
                 <li key={label} className="relative text-sm">
@@ -187,8 +191,8 @@ function Terminale() {
       </div>
       <p className="text-[11px] text-slate-400">Dates indicatives : les calendriers officiels sont publiés chaque année.</p>
       <Card
-        title="Suivi des Terminales"
-        subtitle="Parcoursup pour tous ; puis Campus France et TLScontact pour les élèves ni français, ni d'un pays de l'UE / EEE / Suisse"
+        title="Suivi des Terminales : une piste par pays"
+        subtitle="La France (Parcoursup) n'est pas obligatoire mais conseillée en plan B ; ajoutez une piste si l'élève vise un autre pays, clôturez-la avec un motif s'il ne la suit pas"
         action={
           <div className="text-right">
             <Button variant="secondary" disabled={!open} onClick={exportCsv}>Exporter la liste Campus France</Button>
@@ -196,34 +200,55 @@ function Terminale() {
           </div>
         }
       >
-        <div className="-mx-5 overflow-x-auto">
-          <table className="w-full min-w-[860px] text-sm">
-            <thead><tr className="border-y border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
-              <th className="px-4 py-2 font-medium">Élève</th><th className="px-2 font-medium">Nationalité</th>
-              <th className="px-2 font-medium">Parcoursup</th><th className="px-2 font-medium">Campus France</th><th className="px-2 font-medium">TLScontact</th>
-            </tr></thead>
-            <tbody>
-              {students.map((s, i) => {
-                const visa = higherEdSteps(s.nationalities).includes('TLS');
-                return (
-                  <tr key={s.email} className="border-b border-slate-100 align-top">
-                    <td className="px-4 py-2"><p className="font-medium text-slate-800">{s.lastName} {s.firstName}</p><p className="text-xs text-slate-500">{s.cls}</p></td>
-                    <td className="px-2 py-2 text-slate-600">{s.nationalities.join(' · ')}</td>
-                    <td className="space-y-1 px-2 py-2"><Check i={i} step="parcoursup" field="account" label="Compte créé" /><Check i={i} step="parcoursup" field="confirmed" label="Vœux confirmés" /></td>
-                    <td className="px-2 py-2">{visa ? <Check i={i} step="campus" field="file" label="Dossier déposé" /> : <span className="text-xs text-slate-400">Non concerné.e</span>}</td>
-                    <td className="px-2 py-2">{visa ? <Check i={i} step="tls" field="appointment" label="Rendez-vous visa" /> : <span className="text-xs text-slate-400">Non concerné.e</span>}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <ul className="divide-y divide-slate-100">
+          {students.map((st, i) => (
+            <li key={st.email} className="py-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm"><span className="font-medium text-slate-900">{st.lastName} {st.firstName}</span> <span className="text-xs text-slate-500">· {st.cls} · {st.nationalities.join(' · ')}</span></p>
+                <span className="flex items-center gap-1.5">
+                  <select value={adding[i]?.dest ?? ''} onChange={(e) => setAdding({ ...adding, [i]: { dest: e.target.value, label: '' } })} className="rounded-md border border-slate-300 px-2 py-1 text-xs" aria-label={`Ajouter une piste — ${st.firstName}`}>
+                    <option value="">＋ Ajouter une piste…</option>
+                    {Object.entries(DESTINATIONS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                  </select>
+                  {adding[i]?.dest === 'AUTRE' && <input value={adding[i].label} onChange={(e) => setAdding({ ...adding, [i]: { ...adding[i], label: e.target.value } })} placeholder="Pays" className="w-28 rounded-md border border-slate-300 px-2 py-1 text-xs" />}
+                  {adding[i]?.dest && <Button className="!px-2 !py-0.5 text-xs" disabled={adding[i].dest === 'AUTRE' && !adding[i].label.trim()} onClick={() => { setTracks(i, (ts) => addTrack(ts, adding[i].dest, adding[i].label)); setAdding({ ...adding, [i]: null }); }}>Ajouter</Button>}
+                </span>
+              </div>
+              <div className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                {st.tracks.map((t) => {
+                  const pr = trackProgress(t, st.nationalities);
+                  return (
+                    <div key={t.id} className={`rounded-xl border p-2.5 text-xs ${t.closed ? 'border-slate-200 bg-slate-50 text-slate-400' : 'border-slate-200'}`}>
+                      <p className="flex items-center justify-between gap-2 text-sm font-medium text-slate-800">
+                        <span>{t.dest === 'AUTRE' ? t.label : DESTINATIONS[t.dest]}{t.dest === 'FRANCE' && <span className="ml-1 text-[11px] font-normal text-slate-500">(plan B conseillé)</span>}</span>
+                        {t.closed ? <Badge>clôturée</Badge> : <Badge tone={pr.done === pr.total ? 'green' : 'navy'}>{pr.done}/{pr.total}</Badge>}
+                      </p>
+                      {t.closed ? <p className="mt-1">Clôturée le {t.closed.on.split('-').reverse().join('/')} : {t.closed.reason}</p> : (
+                        <>
+                          <div className="mt-1.5 space-y-1">
+                            {trackSteps(t.dest, st.nationalities).map(([k, l]) => <label key={k} className="flex items-center gap-1.5 text-slate-600"><input type="checkbox" checked={!!t.done[k]} onChange={() => toggle(i, t.id, k)} />{l}</label>)}
+                          </div>
+                          {closing?.i === i && closing.id === t.id ? (
+                            <span className="mt-2 flex gap-1.5">
+                              <input autoFocus value={closing.reason} onChange={(e) => setClosing({ ...closing, reason: e.target.value })} placeholder="Motif (ex. ne part pas en France)" className="min-w-0 flex-1 rounded-md border border-slate-300 px-2 py-1" />
+                              <Button className="!px-2 !py-0.5 text-xs" disabled={!closing.reason.trim()} onClick={() => { setTracks(i, (ts) => ts.map((x) => (x.id === t.id ? closeTrack(x, closing.reason, new Date().toISOString().slice(0, 10)) : x))); setClosing(null); }}>Clôturer</Button>
+                            </span>
+                          ) : <button type="button" className="mt-2 text-[11px] font-medium text-slate-500 hover:text-red-700" onClick={() => setClosing({ i, id: t.id, reason: '' })}>Clôturer cette piste…</button>}
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </li>
+          ))}
+        </ul>
       </Card>
     </div>
   );
 }
 
-const TABS = [['auth', 'Autorisations'], ['docs', 'Documents envoyés'], ['pieces', 'Pièces demandées'], ['stages', 'Stages & orientation'], ['tle', 'Terminale : Parcoursup, Campus France, TLS']];
+const TABS = [['auth', 'Autorisations'], ['docs', 'Documents envoyés'], ['pieces', 'Pièces demandées'], ['stages', 'Stages & orientation'], ['tle', 'Terminale : poursuite d\'études']];
 
 export default function FollowUpModule() {
   const [tab, setTab] = useState('auth');

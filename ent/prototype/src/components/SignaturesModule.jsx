@@ -8,15 +8,15 @@ import { DOCUMENT_KINDS, DELIVERY, verificationCode, decisionErrors, validEmail 
 import { imageToDataUrl } from '../image.js';
 import { printOnly } from '../print.js';
 
-// Documents à signer : le bureau ou la vie scolaire demande, la Direction reçoit la demande
-// (même absente, sur son téléphone) et signe numériquement, puis le document revient au bureau :
+// Documents à signer : le secrétariat ou la vie scolaire demande, la Direction reçoit la demande
+// (même absente, sur son téléphone) et signe numériquement, puis le document revient au secrétariat :
 // imprimé et tamponné à la main, ou envoyé par e-mail avec le tampon numérique.
 
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
 const fmt = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('/') : '');
 const STATUS = { DEMANDEE: ['amber', 'à signer'], SIGNEE: ['green', 'signé'], REFUSEE: ['red', 'refusé'] };
 const signatoryOf = (id) => SIGNATORIES.find((s) => s.id === id) ?? SIGNATORIES[0];
-const WHO = { BUREAU: 'Bureau', VIE_SCOLAIRE: 'Vie scolaire', DIRECTION: 'Direction' };
+const WHO = { BUREAU: 'Secrétariat', VIE_SCOLAIRE: 'CPE', DIRECTION: 'Direction' };
 
 /** Aperçu du document, signé ou non. */
 function Sheet({ r, data, withStamp }) {
@@ -152,7 +152,7 @@ export default function SignaturesModule({ role, account }) {
       refresh();
     }, 50);
   };
-  const mailto = (r) => `mailto:${r.email}?subject=${encodeURIComponent(`Certificat de scolarité — ${profileKey(r.profile)}`)}&body=${encodeURIComponent(`Bonjour,\n\nVeuillez trouver ci-joint le certificat de scolarité de ${r.profile.firstName} ${r.profile.lastName}, signé et tamponné.\nCode de vérification : ${r.code}\n\nLe bureau — École Collège Lycée Chateaubriand, Tamatave`)}`;
+  const mailto = (r) => `mailto:${r.email}?subject=${encodeURIComponent(`Certificat de scolarité — ${profileKey(r.profile)}`)}&body=${encodeURIComponent(`Bonjour,\n\nVeuillez trouver ci-joint le certificat de scolarité de ${r.profile.firstName} ${r.profile.lastName}, signé et tamponné.\nCode de vérification : ${r.code}\n\nLe secrétariat — École Collège Lycée Chateaubriand, Tamatave`)}`;
   const printing = data.printing && data.requests.find((r) => r.id === data.printing.id);
 
   return (
@@ -160,7 +160,7 @@ export default function SignaturesModule({ role, account }) {
       <div>
         <p className="text-sm font-semibold text-navy-500">Certificats et attestations</p>
         <h1 className="text-2xl font-semibold text-navy-900">Documents à signer</h1>
-        <p className="text-sm text-slate-500">{isDirection ? 'Les demandes du bureau et de la vie scolaire arrivent ici ; vous êtes prévenue dès qu\'une demande arrive.' : 'Demandez la signature de la Direction, même absente ; le document signé revient ici pour être imprimé et tamponné, ou envoyé par e-mail.'}</p>
+        <p className="text-sm text-slate-500">{isDirection ? 'Les demandes du secrétariat et de la vie scolaire arrivent ici ; vous êtes prévenue dès qu\'une demande arrive.' : 'Demandez la signature de la Direction, même absente ; le document signé revient ici pour être imprimé et tamponné, ou envoyé par e-mail.'}</p>
       </div>
       {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
 

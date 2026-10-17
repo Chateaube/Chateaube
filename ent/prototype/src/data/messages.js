@@ -7,24 +7,24 @@ const T = (date, time) => `${date}T${time}`;
 
 export const THREADS = {
   PARENT: [
-    { id: 't1', with: 'Vie scolaire — M. Be', about: 'Retard d\'Aina', unread: 1, messages: [
+    { id: 't1', with: 'Vie scolaire — M. Be (CPE)', about: 'Retard d\'Aina', unread: 1, messages: [
       { from: 'them', at: T('2026-10-05', '08:12'), text: 'Bonjour Madame, Aina est arrivée avec 10 minutes de retard ce matin.' },
       { from: 'me', at: T('2026-10-05', '12:40'), text: 'Bonjour, le taxi-be est tombé en panne. Je joins le ticket.', photo: 'ticket' },
       { from: 'them', at: T('2026-10-13', '07:55'), text: 'Merci, le retard est justifié.' },
     ] },
     { id: 't2', with: 'Mme Ranaivo — Management (1re STMG)', about: 'Orientation', unread: 0, messages: [
       { from: 'me', at: T('2026-10-09', '18:20'), text: 'Bonjour, pourrions-nous parler de l\'orientation d\'Aina ?' },
-      { from: 'them', at: T('2026-10-10', '09:05'), text: 'Bien sûr, jeudi 15h30 au bureau des professeurs vous convient-il ?' },
+      { from: 'them', at: T('2026-10-10', '09:05'), text: 'Bien sûr, jeudi 15h30 au secrétariat des professeurs vous convient-il ?' },
     ] },
-    { id: 't3', with: 'Bureau — économat', about: 'Paiement d\'octobre', unread: 0, messages: [
-      { from: 'them', at: T('2026-10-06', '10:00'), text: 'Les frais de scolarité d\'octobre sont attendus. Vous pouvez payer au bureau ou par virement.' },
+    { id: 't3', with: 'Secrétariat — caisse', about: 'Paiement d\'octobre', unread: 0, messages: [
+      { from: 'them', at: T('2026-10-06', '10:00'), text: 'Les frais de scolarité d\'octobre sont attendus. Vous pouvez payer au secrétariat ou par virement.' },
     ] },
   ],
   ELEVE: [
     { id: 'e1', with: 'Mme Ranaivo — Management', about: 'Exposé', unread: 1, messages: [
       { from: 'them', at: T('2026-10-12', '16:10'), text: 'Aina, pense à envoyer le plan de ton exposé avant jeudi.' },
     ] },
-    { id: 'e2', with: 'Vie scolaire — M. Be', about: 'Carnet', unread: 0, messages: [] },
+    { id: 'e2', with: 'Vie scolaire — M. Be (CPE)', about: 'Carnet', unread: 0, messages: [] },
   ],
   // Enseignant : ses élèves, leurs parents, ses classes entières, ses collègues
   TEACHER: [
@@ -34,7 +34,7 @@ export const THREADS = {
     ] },
     { id: 'p2', with: 'Mme Rakotoarisoa Hanta (mère d\'Aina, 1re STMG)', about: 'Orientation', unread: 0, messages: [
       { from: 'them', at: T('2026-10-09', '18:20'), text: 'Bonjour, pourrions-nous parler de l\'orientation d\'Aina ?' },
-      { from: 'me', at: T('2026-10-10', '09:05'), text: 'Bien sûr, jeudi 15h30 au bureau des professeurs vous convient-il ?' },
+      { from: 'me', at: T('2026-10-10', '09:05'), text: 'Bien sûr, jeudi 15h30 au secrétariat des professeurs vous convient-il ?' },
     ] },
     { id: 'p3', with: '1re STMG — toute la classe (élèves)', about: 'Sortie du 22 octobre', unread: 0, broadcast: 8, messages: [
       { from: 'me', at: T('2026-10-11', '10:00'), text: 'Rappel : sortie au port le 22 octobre, rendez-vous à 7h45 devant l\'école.' },
@@ -64,7 +64,7 @@ const studentsOf = (cls) => (CLASSES[cls] ?? []).map((n) => `${n} (élève, ${cl
 const parentsOf = (cls) => (CLASSES[cls] ?? []).map((n) => `Parents de ${n} (${cls})`);
 const MY_CLASSES = ['1re STMG', 'Terminale STMG'];
 const ALL_CLASSES = Object.keys(CLASSES);
-const SERVICES_STAFF = ['Direction', 'Bureau — économat', 'Vie scolaire — M. Be', 'Salle d\'étude'];
+const SERVICES_STAFF = ['Direction', 'Secrétariat — caisse', 'Vie scolaire — M. Be (CPE)', 'Salle d\'étude'];
 const COLLEAGUES = ['M. Canusis (Physique-Chimie)', 'M. Hassanaly (Mathématiques)', 'Mme Pasimiry (Anglais)', 'Mme Felana (Histoire-Géographie)', 'Mme Karele (Économie, Droit)'];
 
 export const RECIPIENT_GROUPS = {
@@ -74,7 +74,7 @@ export const RECIPIENT_GROUPS = {
   ],
   ELEVE: [
     ['Mes professeurs', teachersOf('1re STMG')],
-    ['Établissement', ['Vie scolaire — M. Be', 'Salle d\'étude', 'Bureau — économat']],
+    ['Établissement', ['Vie scolaire — M. Be (CPE)', 'Salle d\'étude', 'Secrétariat — caisse']],
   ],
   TEACHER: [
     ...MY_CLASSES.map((c) => [`${c} — élèves`, [`${c} — toute la classe (élèves)`, ...studentsOf(c)]]),

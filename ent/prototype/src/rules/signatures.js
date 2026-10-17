@@ -1,13 +1,13 @@
 // Documents signés par la Direction : circuit et code de vérification.
 //  DEMANDEE (bureau / vie scolaire) → SIGNEE ou REFUSEE (Direction, avec motif)
-//  → le bureau imprime et tamponne, ou envoie par e-mail avec le tampon numérique.
+//  → le secrétariat imprime et tamponne, ou envoie par e-mail avec le tampon numérique.
 
 export const DOCUMENT_KINDS = {
   CERTIFICAT_SCOLARITE: 'Certificat de scolarité',
   ATTESTATION: 'Attestation',
 };
 export const DELIVERY = {
-  PAPIER: 'Imprimé et tamponné au bureau',
+  PAPIER: 'Imprimé et tamponné au secrétariat',
   EMAIL: 'Envoyé par e-mail (tampon numérique)',
 };
 
@@ -33,7 +33,7 @@ export function decisionErrors({ role, status, signature, note }) {
   return e;
 }
 
-/** Ce que le bureau peut faire d'une demande. */
+/** Ce que le secrétariat peut faire d'une demande. */
 export function nextActions(r) {
   if (r.status !== 'SIGNEE') return [];
   return r.delivery === 'EMAIL' ? ['EMAIL', 'PRINT'] : ['PRINT'];

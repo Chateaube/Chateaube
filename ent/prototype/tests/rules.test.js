@@ -362,12 +362,15 @@ test('mesures : motif obligatoire, sanction réservée à la Direction', () => {
   assert.deepEqual(validateMeasure({ measureId: 'RETENUE', authorRole: 'PROFESSEUR', reason: 'Travail non fait', student: 'X' }), []);
   assert.ok(validateMeasure({ measureId: 'RETENUE', authorRole: 'PROFESSEUR', reason: ' ', student: 'X' })[0].includes('motif'));
   assert.ok(validateMeasure({ measureId: 'BLAME', authorRole: 'VIE_SCOLAIRE', reason: 'Insolence', student: 'X' })[0].includes('Direction'));
+  for (const r of ['PROFESSEUR', 'VIE_SCOLAIRE', 'BUREAU']) assert.deepEqual(validateMeasure({ measureId: 'AVERTISSEMENT', authorRole: r, reason: 'Bavardages répétés', student: 'X' }), []);
   assert.deepEqual(validateMeasure({ measureId: 'BLAME', authorRole: 'DIRECTION', reason: 'Insolence', student: 'X' }), []);
 });
 
 test('téléphone : 24 h ou 5 jours ouvrés, vacances et week-ends exclus', () => {
   assert.equal(phoneReturnAt('2026-10-13T15:00', '24H', DEFAULT_SETTINGS), '2026-10-14T15:00');
   assert.equal(phoneReturnAt('2026-10-13T15:00', '5J', DEFAULT_SETTINGS), '2026-10-20T15:00');
+  assert.equal(phoneReturnAt('2026-10-16T15:00', '48H', DEFAULT_SETTINGS), '2026-10-20T15:00'); // vendredi → mardi
+  assert.deepEqual([0, 1, 2].map((n) => phoneDurationFor('A', Array.from({ length: n }, () => ({ student: 'A' }))).duration), ['24H', '48H', '5J']);
   assert.equal(phoneReturnAt('2026-10-22T10:00', '5J', DEFAULT_SETTINGS), '2026-11-05T10:00'); // vacances de la Toussaint
   assert.equal(phoneReturnAt('2026-12-18T09:00', '24H', DEFAULT_SETTINGS), '2027-01-04T09:00'); // vacances de Noël
   assert.equal(phoneReturnAt('2026-12-17T10:00', '5J', DEFAULT_SETTINGS), '2027-01-07T10:00');
@@ -402,7 +405,7 @@ test('portail parent : notes chronologiques avec moyenne, max et min de la class
 import { phoneDurationFor, validateReturn, ackReminderDue } from '../src/rules/discipline.js';
 test('téléphone : récidive → 5 jours ouvrés ; restitution à un parent pour 5 jours', () => {
   const phones = [{ student: 'A', duration: '24H' }];
-  assert.deepEqual(phoneDurationFor('A', phones), { duration: '5J', previous: 1 });
+  assert.deepEqual(phoneDurationFor('A', phones), { duration: '48H', previous: 1 });
   assert.deepEqual(phoneDurationFor('B', phones), { duration: '24H', previous: 0 });
   assert.deepEqual(validateReturn({ duration: '24H', toRole: 'ELEVE', toName: 'Lina' }), []);
   assert.equal(validateReturn({ duration: '5J', toRole: 'ELEVE', toName: 'Hery' }).length, 1);
@@ -523,7 +526,9 @@ test('inscriptions : pré-inscription, fiche élève, comptes', () => {
   assert.equal(acc[0].login, 'elea.rakoto@chateaubriand-tamatave.mg');
   assert.equal(acc[1].login, 'voahangy@gmail.com');
   assert.equal(acc[2].login, null); // pas d'e-mail : code d'activation
-  assert.equal(missingDocuments({ documents: ['ACTE', 'PHOTOS'] }, 'REINSCRIPTION').length, 2);
+  assert.equal(missingDocuments({ cls: '5e', documents: ['PHOTOS'] }, 'REINSCRIPTION').length, 1); // vaccins
+  assert.deepEqual(missingDocuments({ cls: 'Terminale STMG', documents: ['PHOTOS'] }, 'REINSCRIPTION').map((d) => d.id), ['ACTE', 'VACCINS']);
+  assert.deepEqual(missingDocuments({ cls: '6e', documents: [] }, 'INSCRIPTION').map((d) => d.id), ['ACTE', 'PHOTOS', 'BULLETINS', 'VACCINS']);
 });
 
 import { parseTable, normalizeClass, normalizePhones, analyzeStudents, parseAssignments, nationalityCode } from '../src/rules/importer.js';
@@ -784,17 +789,21 @@ test('grilles de notes : rangs, matières non suivies, export complet', async ()
   assert.equal(g.cellText(d.rows[1].cells[0]), 'ABS');
 });
 
-import { accessCode, guardianKey, nationalityLabels, toggleNationality, hasOtherNationality } from '../src/rules/enrollment.js';
+import { accessCode, guardianKey, nationalityLabels, toggleNationality, hasOtherNationality, nextMatricule } from '../src/rules/enrollment.js';
 test('un code personnel par responsable, nationalités proposées', () => {
   const p = { lastName: 'RAKOTO', firstName: 'Éléa', cls: '6e', guardians: [
     { name: 'Mme Rakoto Voahangy', relation: 'Mère', phone: '+261 34 12 345 67', email: 'voahangy@gmail.com' },
     { name: 'M. Rakoto Fidy', relation: 'Père', phone: '+261 32 11 222 33', email: '' }] };
   const [, mere, pere] = accountsFor(p);
-  assert.match(mere.code, /^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/);
+  assert.match(mere.code, /^\d{4} \d{4}$/);
   assert.notEqual(mere.code, pere.code); // deux parents, deux accès
   assert.equal(pere.login, null);
   assert.equal(accessCode(guardianKey(p.guardians[0])), mere.code); // même parent, même code pour ses autres enfants
   assert.deepEqual(nationalityLabels(['MG', 'FR', 'KM']), ['Malgache', 'Française', 'Autre (KM)']);
+  assert.deepEqual(nationalityLabels(['MG', 'XX'], 'Comorienne'), ['Malgache', 'Comorienne']);
+  assert.equal(nextMatricule('Terminale Générale', ['TG-001', 'TG-002', 'TSTMG-005']), 'TG-003');
+  assert.equal(nextMatricule('Terminale Générale', ['TG-001', 'TG-004']), 'TG-005'); // un départ ne fait pas reculer
+  assert.equal(nextMatricule('1re STMG', []), '1STMG-001');
   assert.ok(hasOtherNationality(['MG', 'KM']));
   assert.deepEqual(toggleNationality(['MG', 'KM'], 'XX'), ['MG']);
   assert.deepEqual(toggleNationality(['MG'], 'XX'), ['MG', 'XX']);
@@ -866,4 +875,110 @@ test('annonces : filtres par rôle, site, cycle, niveau, classe', () => {
   assert.equal(announcementErrors({ ...base, audience: all }, { role: 'ENSEIGNANT', myClasses: ['1re STMG'] }).length, 2);
   assert.deepEqual(announcementErrors({ ...base, audience: all }, { role: 'DIRECTION' }), []);
   assert.equal(announcementErrors({ ...base, audience: { ...base.audience, scope: 'LEVEL', values: [] } }).length, 1);
+});
+
+import { campaignOpen } from '../src/rules/enrollment.js';
+test('campagne de pré-inscription : ouverte entre les dates de la Direction', () => {
+  const c = { opens: '2027-05-03', closes: '2027-07-16' };
+  assert.ok(!campaignOpen(c, '2027-05-02'));
+  assert.ok(campaignOpen(c, '2027-05-03'));
+  assert.ok(campaignOpen(c, '2027-07-16'));
+  assert.ok(!campaignOpen(c, '2027-07-17'));
+  assert.ok(!campaignOpen({}, '2027-06-01'));
+});
+
+import { averagesRows } from '../src/rules/gradeSheet.js';
+import { buildXlsx } from '../src/xlsx.js';
+test('export Excel en couleurs : rouge sous 10, classeur valide', () => {
+  const subjects = [{ id: 'FR', label: 'Français', short: 'Fra', inAverage: true, coef: 1 }];
+  const sheet = { rows: [{ name: 'RABE Hery', avgs: { FR: 8.5 }, general: 8.5, rank: 1 }], stats: { FR: { avg: 8.5, min: 8.5, max: 8.5 } }, general: { avg: 8.5, min: 8.5, max: 8.5 } };
+  const { rows } = averagesRows({ title: 'Grille', subjects, sheet });
+  const line = rows.find((r) => r[0]?.v === 'RABE Hery');
+  assert.deepEqual(line[1], { v: 8.5, s: 'red' });
+  assert.equal(line[2].s, 'avgRed');
+  const bytes = buildXlsx([{ name: 'Moyennes', rows }]);
+  assert.deepEqual([...bytes.slice(0, 4)], [0x50, 0x4b, 0x03, 0x04]); // archive zip
+  const text = new TextDecoder().decode(bytes);
+  assert.match(text, /xl\/worksheets\/sheet1\.xml/);
+  assert.match(text, /<c r="B\d+" s="5"><v>8.5<\/v><\/c>/); // style « red »
+});
+
+import { saveText, submit, validate, sendBack, onBulletin } from '../src/rules/generalAppreciation.js';
+test('appréciation générale : saisie par le secrétariat, validée par la Direction', () => {
+  let e = saveText({}, 'Bon trimestre, continuez ainsi.', 'BUREAU');
+  assert.equal(e.status, 'BROUILLON');
+  assert.equal(onBulletin(e), ''); // pas encore sur le bulletin
+  e = submit(e, 'BUREAU');
+  assert.equal(e.status, 'A_VALIDER');
+  assert.throws(() => validate(e, 'BUREAU'));
+  assert.throws(() => sendBack(e, 'DIRECTION', ' '));
+  e = sendBack(e, 'DIRECTION', 'Ajouter un mot sur les absences.');
+  assert.equal(e.status, 'A_REVOIR');
+  e = submit(saveText(e, 'Bon trimestre ; attention aux absences.', 'BUREAU'), 'BUREAU');
+  e = validate(e, 'DIRECTION', 'Bon trimestre ; attention aux absences répétées.');
+  assert.equal(onBulletin(e), 'Bon trimestre ; attention aux absences répétées.');
+  assert.equal(saveText(e, 'Modifié après validation.', 'BUREAU').status, 'BROUILLON'); // à revalider
+  assert.equal(saveText({ status: 'A_VALIDER', text: 'a' }, 'b', 'DIRECTION').status, 'A_VALIDER');
+  assert.equal(validate(saveText({}, 'Excellent.', 'DIRECTION'), 'DIRECTION').status, 'VALIDEE');
+  assert.throws(() => saveText({}, 'x', 'ENSEIGNANT'));
+});
+
+import { pickupStatus, pickupUntil, familyMessage } from '../src/rules/bulletinPickup.js';
+test('retrait des bulletins : disponibles du …, délai, rappel, archivage', () => {
+  const w = { from: '2026-12-14', days: 14 };
+  assert.equal(pickupUntil(w), '2026-12-27');
+  assert.equal(pickupStatus('2026-12-10', w), 'A_VENIR');
+  assert.equal(pickupStatus('2026-12-14', w), 'A_RETIRER');
+  assert.equal(pickupStatus('2026-12-24', w), 'RAPPEL');
+  assert.equal(pickupStatus('2026-12-28', w), 'ARCHIVE');
+  assert.equal(pickupStatus('2026-12-28', w, { given: true }), 'REMIS');
+  assert.equal(pickupStatus('2026-12-15', w, { blocked: true }), 'BLOQUE');
+  assert.match(familyMessage('BLOQUE', w, '1er trimestre'), /régularisation/);
+  assert.match(familyMessage('A_RETIRER', w, '1er trimestre'), /jusqu'au 27\/12\/2026/);
+});
+
+import { trackSteps, defaultTracks, addTrack, closeTrack, trackProgress } from '../src/rules/orientation.js';
+test('orientation : pistes par pays, France en plan B, clôture avec motif', () => {
+  assert.equal(trackSteps('FRANCE', ['MG']).length, 4); // Parcoursup + Campus France + visa
+  assert.equal(trackSteps('FRANCE', ['FR']).length, 2);
+  let t = defaultTracks();
+  assert.equal(t[0].dest, 'FRANCE');
+  t = addTrack(t, 'CANADA');
+  assert.equal(addTrack(t, 'CANADA').length, 2); // pas deux fois la même piste ouverte
+  assert.throws(() => closeTrack(t[0], ' ', '2026-10-17'));
+  const closed = closeTrack(t[0], 'Ne part pas en France', '2026-10-17');
+  assert.equal(closed.closed.reason, 'Ne part pas en France');
+  assert.deepEqual(trackProgress({ dest: 'CANADA', done: { dossier: true } }, ['MG']), { done: 1, total: 4 });
+});
+
+import { agendaItems, toIcs } from '../src/rules/agenda.js';
+test('agendas : cours, événements, devoirs ; export iCalendar', () => {
+  const items = agendaItems({
+    sessions: [{ id: 's1', date: '2026-10-13', start: '07:00', end: '09:00', cls: '1re STMG', subject: 'Management', room: 'Salle 12' }],
+    events: [{ id: 'e1', date: '2026-10-24', allDay: true, end: '2026-11-02', title: 'Vacances', classes: [] }, { id: 'e2', date: '2026-10-16', start: '15:30', end: '16:30', title: 'Conseil péda', classes: [], staffOnly: true }],
+    homework: [{ id: 'h1', cls: '1re STMG', subject: 'Maths', todo: 'Ex. 12', due: '2026-10-15' }, { id: 'h2', cls: '5e', subject: 'HG', todo: 'Leçon', due: '2026-10-16' }],
+    cls: '1re STMG',
+  });
+  assert.deepEqual(items.map((i) => i.agenda), ['COURS', 'DEVOIRS', 'EVENEMENTS']); // conseil péda réservé au personnel
+  const ics = toIcs(items, 'Chateaubriand — 1re STMG');
+  assert.match(ics, /DTSTART;TZID=Indian\/Antananarivo:20261013T070000/);
+  assert.match(ics, /DTSTART;VALUE=DATE:20261024\r\nDTEND;VALUE=DATE:20261103/);
+  assert.match(ics, /SUMMARY:Maths \(1re STMG\) : Ex. 12/);
+  assert.equal((ics.match(/BEGIN:VEVENT/g) ?? []).length, 3);
+});
+
+import { toTransactions, treasuryKpis, monthlyFlows, byCategory, expenseErrors } from '../src/rules/treasury.js';
+test('trésorerie : transactions unifiées, trésorerie nette, reste à recouvrer, dépenses engagées', () => {
+  const tx = toTransactions({
+    cash: [{ id: 1, dir: 'IN', amount: 1_000_000, date: '2026-10-02' }, { id: 2, dir: 'OUT', nature: 'Dépense de fonctionnement', amount: 50_000, date: '2026-10-03' }, { id: 3, dir: 'OUT', nature: 'Dépôt en banque', amount: 500_000, date: '2026-10-04' }],
+    expenses: [{ id: 'a', category: 'Loyer', amount: 400_000, status: 'PAYE', date: '2026-10-05' }, { id: 'b', category: 'Électricité et eau', amount: 70_000, status: 'EN_ATTENTE', due: '2026-10-20' }, { id: 'c', category: 'Autre', amount: 9, status: 'ANNULE' }],
+    payroll: [{ staffId: 'p1', amount: 300_000, paid: null, due: '2026-10-30' }],
+    dues: [{ id: 'f1', amount: 420_000, due: '2026-10-05' }],
+  });
+  assert.deepEqual(treasuryKpis(tx, 100_000), { net: 650_000, toCollect: 420_000, committed: 370_000 });
+  assert.deepEqual(monthlyFlows(tx, ['2026-09', '2026-10']), [{ month: '2026-09', in: 0, out: 0 }, { month: '2026-10', in: 1_000_000, out: 450_000 }]);
+  assert.deepEqual(byCategory(tx, '2026-10-01', '2026-10-31')[0], ['Loyer', 400_000]);
+  assert.deepEqual(expenseErrors({ label: 'Encre', amount: 85_000, category: 'Fournitures', status: 'PAYE', date: '2026-10-13' }), []);
+  assert.equal(expenseErrors({ label: 'Loyer', amount: 2_500_000, category: 'Loyer', status: 'PAYE', date: '2026-10-05' }).length, 1); // photo
+  assert.equal(expenseErrors({ label: 'x', amount: 12.5, category: 'Autre', status: 'EN_ATTENTE' }).length, 2);
 });

@@ -24,6 +24,8 @@ export const cashSalariesPaid = (payroll, payments) => payroll.filter((p) => p.m
 
 export default function Salaries({ role, actor, settings, payroll, setPayroll, rates, setRates, payments, setPayments, validated, setValidated, movements, setMovements, setAudit, safe }) {
   const isDirection = role === 'DIRECTION';
+  // le secrétariat prépare et paie sans attendre la Direction ; seuls les taux horaires restent à la Direction
+  const canPrepare = isDirection || role === 'BUREAU';
   const [paying, setPaying] = useState(null);
   const [signature, setSignature] = useState(null);
   const [ref, setRef] = useState({ ref: '', bank: 'BOA Madagascar' });
@@ -66,11 +68,11 @@ export default function Salaries({ role, actor, settings, payroll, setPayroll, r
 
       <p className="rounded-2xl bg-navy-50 p-3 text-sm text-navy-900">
         <strong>Semaine des salaires :</strong> du lundi {fmt(win.start)} (dernière semaine de cours d'octobre, les vacances commençant après le {fmt(win.lastSchoolDay)}) jusqu'au paiement des salaires.
-        Pendant cette période, pas de rappel de versement : les espèces restent au bureau. Les rappels reprennent dès que les salaires en espèces sont payés.
+        Pendant cette période, pas de rappel de versement : les espèces restent au secrétariat. Les rappels reprennent dès que les salaires en espèces sont payés.
       </p>
 
-      <Card title="État de paie — octobre 2026" subtitle={validated ? `Validé par ${validated.by} le ${validated.at}` : 'Préparé par la Direction ; le Bureau paie une fois l\'état validé'}
-        action={isDirection && !validated ? <Button onClick={() => { setValidated({ by: actor, at: now() }); log({ at: now(), by: actor, action: 'État de paie validé', receipt: '—', detail: `Octobre 2026 · ${formatAr(total)}` }); }}>Valider l'état de paie</Button> : validated ? <Badge tone="green">Validé</Badge> : <Badge tone="amber">En attente de la Direction</Badge>}>
+      <Card title="État de paie — octobre 2026" subtitle={`Préparé et payé par le secrétariat ; la Direction voit chaque paiement et reçoit le récapitulatif${validated ? ` · vu par ${validated.by} le ${validated.at}` : ''}`}
+        action={<span className="flex items-center gap-2"><Badge tone={rows.every((p) => paidOf(p.staffId)) ? 'green' : 'amber'}>{rows.filter((p) => paidOf(p.staffId)).length} / {rows.length} payés</Badge>{isDirection && !validated && <Button variant="secondary" onClick={() => { setValidated({ by: actor, at: now() }); log({ at: now(), by: actor, action: 'État de paie vu par la Direction', receipt: '—', detail: `Octobre 2026 · ${formatAr(total)}` }); }}>Marquer comme vu</Button>}</span>}>
         <div className="-mx-5 overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
             <thead>
@@ -90,7 +92,7 @@ export default function Salaries({ role, actor, settings, payroll, setPayroll, r
                     <td className="px-2 py-2 text-right">
                       {p.hourly ? (
                         <div className="text-xs text-slate-600">
-                          {isDirection && !validated ? (
+                          {canPrepare && !done ? (
                             <span className="inline-flex items-center gap-1">
                               <input inputMode="numeric" value={p.hours} aria-label={`Heures — ${s.name}`} onChange={(e) => edit(p.staffId, { hours: num(e.target.value) })} className="w-14 rounded-md border border-slate-300 px-1.5 py-1 text-right tabular-nums" /> h ×
                               <span className="tabular-nums">{formatAr(p.hourly ?? 0)}</span>
@@ -98,20 +100,20 @@ export default function Salaries({ role, actor, settings, payroll, setPayroll, r
                           ) : <span className="tabular-nums">{p.hours} h × {formatAr(p.hourly)}</span>}
                           <span className={`block ${p.hours < p.plannedHours ? 'text-amber-700' : ''}`}>prévues à l'emploi du temps : {p.plannedHours} h{p.hours < p.plannedHours ? ` (${p.plannedHours - p.hours} h non faites)` : ''}</span>
                         </div>
-                      ) : isDirection && !validated ? (
+                      ) : canPrepare && !done ? (
                         <input inputMode="numeric" value={p.monthly} aria-label={`Salaire mensuel — ${s.name}`} onChange={(e) => edit(p.staffId, { monthly: num(e.target.value) })} className="w-28 rounded-md border border-slate-300 px-2 py-1 text-right tabular-nums" />
                       ) : <span className="text-xs text-slate-500">mensuel</span>}
                       <span className="block font-semibold tabular-nums">{formatAr(p.amount)}</span>
                     </td>
                     <td className="px-2 py-2">
-                      {isDirection && !validated
+                      {canPrepare && !done
                         ? <select value={p.method} aria-label={`Mode — ${s.name}`} onChange={(e) => edit(p.staffId, { method: e.target.value })} className="rounded-md border border-slate-300 px-1.5 py-1 text-xs"><option value="ESPECES">Espèces</option><option value="VIREMENT">Virement</option></select>
                         : <Badge tone={p.method === 'ESPECES' ? 'amber' : 'navy'}>{p.method === 'ESPECES' ? 'Espèces' : 'Virement'}</Badge>}
                     </td>
                     <td className="px-4 py-2">
                       {done ? (
                         <span className="flex items-center gap-2 text-xs text-emerald-700">Payé le {done.at}{done.signature && <img src={done.signature} alt={`Émargement de ${s.name}`} className="h-8 rounded border border-slate-200 bg-white" />}{done.ref && ` · ${done.ref}`}</span>
-                      ) : !validated ? <span className="text-xs text-slate-400">après validation</span> : paying === p.staffId ? (
+                      ) : paying === p.staffId ? (
                         <div className="space-y-2">
                           {p.method === 'ESPECES' ? (
                             <>
@@ -139,7 +141,7 @@ export default function Salaries({ role, actor, settings, payroll, setPayroll, r
           </table>
         </div>
         <p className="mt-3 text-xs text-slate-500">Professeurs vacataires : payés uniquement pour les heures de cours faites, rien pendant les vacances scolaires. Taux horaire : celui en vigueur au mois payé (voir l'historique ci-dessous).</p>
-        <p className="mt-1 text-xs text-slate-500">Chaque salaire payé en espèces crée une sortie « Salaires » dans la caisse, avec l'émargement du salarié. Les heures des professeurs sont proposées d'après les appels faits (cours effectivement assurés) et corrigées par la Direction avant validation.</p>
+        <p className="mt-1 text-xs text-slate-500">Chaque salaire payé en espèces crée une sortie « Salaires » dans la caisse, avec l'émargement du salarié. Les heures des professeurs sont proposées d'après les appels faits (cours effectivement assurés) et corrigées si besoin avant le paiement.</p>
       </Card>
 
       <Card title="Taux horaires des professeurs" subtitle={isDirection ? 'Historique des augmentations ; un nouveau taux s\'applique à partir de sa date d\'effet' : 'Consultation : seule la Direction fixe les taux'}>

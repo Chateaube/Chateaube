@@ -111,8 +111,8 @@ export const CASH_AUDIT = [
   { at: '12/10/2026 17:05', by: 'Mme Soa (bureau)', action: 'Clôture de caisse', receipt: '—', detail: 'Caisse juste : 2 950 000 Ar comptés' },
 ];
 
-// Espèces en caisse (coffre du bureau) à l'ouverture du 13 octobre, et clôtures précédentes
-// Versements : mercredi après-midi (pas de cours) et vendredi après les cours ; rappel au bureau
+// Espèces en caisse (coffre du secrétariat) à l'ouverture du 13 octobre, et clôtures précédentes
+// Versements : mercredi après-midi (pas de cours) et vendredi après les cours ; rappel au secrétariat
 export const CASH_SAFE = { morning: 2_950_000, lastDeposit: '2026-10-09', depositDays: [3, 5], depositSlots: { 3: 'après-midi', 5: 'après les cours' }, maxAmount: 2_500_000 };
 export const CASH_CLOSINGS = [
   { date: '2026-10-12', expected: 2_950_000, counted: 2_950_000, diff: 0, status: 'JUSTE', explanation: '', by: 'Mme Soa (bureau)', at: '12/10/2026 17:05' },
@@ -196,7 +196,7 @@ export const HOURLY_RATES = [
 // État de paie mensuel : préparé et validé par la Direction, payé par le Bureau.
 // Professeurs vacataires : heures de cours effectuées face aux élèves × taux en vigueur ; heures
 // proposées d'après les appels, corrigées par la Direction ; rien pendant les vacances scolaires.
-// Autres salariés : au mois. Espèces (le plus courant) : émargement du salarié au bureau.
+// Autres salariés : au mois. Espèces (le plus courant) : émargement du salarié au secrétariat.
 export const PAYROLL = [
   { staffId: 'p1', byHour: true, hours: 74, plannedHours: 76, method: 'ESPECES' },
   { staffId: 'p2', byHour: true, hours: 80, plannedHours: 80, method: 'VIREMENT' },

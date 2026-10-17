@@ -145,14 +145,14 @@ export default function CashControl({ role, actor, receipts, setReceipts, audit,
         <p className="rounded-2xl bg-red-50 p-3 text-sm text-red-800"><strong>Versement oublié :</strong> aucun versement depuis le {reminder.missedDay} {reminder.missed.split('-').reverse().join('/')}. La Direction est prévenue.</p>
       )}
       {win.active ? (
-        <p className="rounded-2xl bg-navy-50 p-3 text-sm text-navy-900"><strong>Semaine des salaires :</strong> pas de rappel de versement, les espèces restent au bureau pour payer le personnel. Les rappels reprennent après le paiement des salaires.</p>
+        <p className="rounded-2xl bg-navy-50 p-3 text-sm text-navy-900"><strong>Semaine des salaires :</strong> pas de rappel de versement, les espèces restent au secrétariat pour payer le personnel. Les rappels reprennent après le paiement des salaires.</p>
       ) : reminder.dueToday ? (
         <p className="rounded-2xl bg-amber-50 p-3 text-sm text-amber-900"><strong>Jour de versement :</strong> aujourd'hui {slot(TODAY)}, verser les espèces ({formatAr(cash)}) et saisir le bordereau.</p>
       ) : (
-        <p className="rounded-2xl bg-navy-50 p-3 text-sm text-navy-900">Prochain versement en banque : <strong>{reminder.nextDay} {reminder.next.split('-').reverse().join('/')} {slot(reminder.next)}</strong>. Un rappel est envoyé au bureau ce jour-là, et à la Direction si le versement n'est pas saisi. Pas de rappel pendant la semaine des salaires (à partir du lundi {win.start.split('-').reverse().join('/')}).</p>
+        <p className="rounded-2xl bg-navy-50 p-3 text-sm text-navy-900">Prochain versement en banque : <strong>{reminder.nextDay} {reminder.next.split('-').reverse().join('/')} {slot(reminder.next)}</strong>. Un rappel est envoyé au secrétariat ce jour-là, et à la Direction si le versement n'est pas saisi. Pas de rappel pendant la semaine des salaires (à partir du lundi {win.start.split('-').reverse().join('/')}).</p>
       )}
       {alert.alert && (
-        <p className="rounded-2xl bg-red-50 p-3 text-sm text-red-800"><strong>Beaucoup d'espèces au bureau :</strong> {alert.reasons.join(' et ')} (seuil fixé par la Direction : {formatAr(safe.maxAmount)}). Verser sans attendre le prochain jour prévu.</p>
+        <p className="rounded-2xl bg-red-50 p-3 text-sm text-red-800"><strong>Beaucoup d'espèces au secrétariat :</strong> {alert.reasons.join(' et ')} (seuil fixé par la Direction : {formatAr(safe.maxAmount)}). Verser sans attendre le prochain jour prévu.</p>
       )}
 
       {isDirection && pending.length > 0 && (
@@ -263,7 +263,7 @@ export default function CashControl({ role, actor, receipts, setReceipts, audit,
             </div>
             {depositTried && depositErrors.map((e) => <p key={e} className="text-xs text-red-700">{e}</p>)}
             <Button className="w-full" onClick={doDeposit}>Enregistrer le versement</Button>
-            <p className="text-xs text-slate-500">Le bordereau de la banque est conservé avec la clôture du jour. La Direction voit chaque versement et les espèces restant au bureau.</p>
+            <p className="text-xs text-slate-500">Le bordereau de la banque est conservé avec la clôture du jour. La Direction voit chaque versement et les espèces restant au secrétariat.</p>
           </div>
           <p className="mb-1 mt-4 text-xs font-semibold text-slate-500">Versements</p>
           <ul className="divide-y divide-slate-100 text-sm">

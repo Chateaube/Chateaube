@@ -21,7 +21,7 @@ const SITES = [
 ];
 
 // Avec signatureUrl : document signé numériquement par la Direction ; stampUrl : tampon numérique
-// (envoi par e-mail) ; sur papier, le bureau tamponne à la main. Le code permet de vérifier le document.
+// (envoi par e-mail) ; sur papier, le secrétariat tamponne à la main. Le code permet de vérifier le document.
 export function CertificateSheet({ profile: p, signatory = SIGNATORIES[0], signatureUrl, stampUrl, code, date = TODAY }) {
   const y = schoolYearOf(TODAY);
   return (

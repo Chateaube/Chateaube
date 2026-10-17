@@ -1,5 +1,5 @@
 // Bibliothèque de la salle d'étude / permanence : romans, annales (Annabrevet, Annabac), documentaires, ouvrages de référence.
-// Élèves : un mois ; pour garder le livre un mois de plus, l'élève repasse au bureau avec le livre.
+// Élèves : un mois ; pour garder le livre un mois de plus, l'élève repasse au secrétariat avec le livre.
 // Professeurs : pas de date limite. Chaque exemplaire porte une étiquette (cote) : ROM-0012…
 
 export const LOAN_DAYS = 30;
@@ -32,10 +32,10 @@ export function borrow(code, loans, { borrower, kind, cls, on }) {
   return { loan: { id: `b${Date.now()}${Math.round(Math.random() * 1e4)}`, code, borrower, kind, cls: cls ?? null, out: on, due: kind === 'PROF' ? null : addDays(on, LOAN_DAYS), renewals: 0 } };
 }
 
-/** Prolongation d'un mois : seulement si l'élève présente le livre au bureau. */
+/** Prolongation d'un mois : seulement si l'élève présente le livre au secrétariat. */
 export function renew(loan, { on, presented }) {
   if (loan.kind === 'PROF') return { error: 'Les professeurs n\'ont pas de date limite.' };
-  if (!presented) return { error: 'Le livre doit être présenté au bureau pour être prolongé.' };
+  if (!presented) return { error: 'Le livre doit être présenté au secrétariat pour être prolongé.' };
   return { loan: { ...loan, due: addDays(on, LOAN_DAYS), renewals: loan.renewals + 1, lastSeen: on } };
 }
 

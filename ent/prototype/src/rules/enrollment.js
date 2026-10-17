@@ -22,14 +22,23 @@ export function nextPreregStep(status) {
   return PREREG_STEPS[i + 1].id;
 }
 
-// Pièces du dossier d'inscription
+// Pièces du dossier. Les originaux se déposent toujours au secrétariat ; une famille peut les
+// envoyer en ligne avant, pour un premier aperçu (utile si elle n'est pas en ville).
+//  - acte de naissance : nouvel élève, et réinscription en 1re et en Terminale (inscription aux examens)
+//  - bulletins de l'année précédente : nouvel élève seulement (l'école a déjà ceux de ses élèves)
 export const REQUIRED_DOCUMENTS = [
-  { id: 'ACTE', label: 'Acte de naissance' },
-  { id: 'PHOTOS', label: 'Photos d\'identité' },
-  { id: 'BULLETINS', label: 'Bulletins de l\'année précédente' },
-  { id: 'RADIATION', label: 'Certificat de radiation (nouvel élève)', newOnly: true },
+  { id: 'ACTE', label: 'Acte de naissance', detail: 'en français, de moins de 3 mois', examOrNew: true },
+  { id: 'PHOTOS', label: '2 photos d\'identité récentes', detail: 'aux normes internationales : fond clair et uni, de face, visage dégagé, sans lunettes ni couvre-chef' },
+  { id: 'BULLETINS', label: 'Bulletins de l\'année précédente', newOnly: true },
   { id: 'VACCINS', label: 'Carnet de vaccination' },
 ];
+const EXAM_LEVELS = ['1re', 'Terminale'];
+/** Pièces exigées pour une inscription (nouvel élève) ou une réinscription dans la classe donnée. */
+export function documentsFor(kind, cls = '') {
+  const isNew = kind === 'INSCRIPTION';
+  const exam = EXAM_LEVELS.includes(cls.split(' ')[0]);
+  return REQUIRED_DOCUMENTS.filter((d) => (d.newOnly ? isNew : d.examOrNew ? isNew || exam : true));
+}
 
 // Classe suivante pour une réinscription (passage)
 const NEXT = { '6e': '5e', '5e': '4e', '4e': '3e', '3e': '2de', '2de': '1re' };
@@ -69,15 +78,23 @@ const slug = (t) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().rep
 // Code personnel d'un responsable : 8 caractères sans lettres ambiguës (0/O, 1/I/L).
 // Démonstration : calculé à partir de l'identité ; en production, tiré au hasard, stocké chiffré
 // (guardian_access_code) et valable pour une seule première connexion.
-const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 export function accessCode(seed) {
   let h = 2166136261;
   const out = [];
   for (let round = 0; round < 8; round += 1) {
     for (const c of `${seed}#${round}`) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0;
-    out.push(CODE_CHARS[h % CODE_CHARS.length]);
+    out.push(h % 10);
   }
-  return `${out.slice(0, 4).join('')}-${out.slice(4).join('')}`;
+  return `${out.slice(0, 4).join('')} ${out.slice(4).join('')}`; // 8 chiffres, faciles à taper sur un téléphone
+}
+
+// Matricule : par année, code de la classe + numéro dans l'ordre des inscriptions définitives
+// (TG-001, TSTMG-002…). Un numéro n'est jamais réattribué : si un élève part, on saute.
+export const CLASS_CODES = { '6e': '6E', '5e': '5E', '4e': '4E', '3e': '3E', '2de': '2DE', '1re Générale': '1G', '1re STMG': '1STMG', 'Terminale Générale': 'TG', 'Terminale STMG': 'TSTMG' };
+export function nextMatricule(cls, taken = []) {
+  const code = CLASS_CODES[cls] ?? cls.replace(/\s+/g, '').toUpperCase();
+  const used = taken.filter((n) => n?.startsWith(`${code}-`)).map((n) => Number(n.split('-').pop()) || 0);
+  return `${code}-${String((used.length ? Math.max(...used) : 0) + 1).padStart(3, '0')}`;
 }
 /** Identité d'un responsable : le même parent avec deux enfants garde un seul accès. */
 export const guardianKey = (g) => (g.email?.trim() || g.phone?.replace(/\s/g, '') || g.name).toLowerCase();
@@ -112,7 +129,7 @@ export const NATIONALITY_CHOICES = [['MG', 'Malgache'], ['FR', 'Française'], ['
 const KNOWN = ['MG', 'FR', 'CN'];
 export const hasOtherNationality = (codes = []) => codes.some((c) => !KNOWN.includes(c));
 /** Libellés lisibles (MG → Malgache ; un code non proposé → Autre (code)). */
-export const nationalityLabels = (codes = []) => codes.map((c) => NATIONALITY_CHOICES.find(([k]) => k === c)?.[1] ?? `Autre (${c})`);
+export const nationalityLabels = (codes = [], other = '') => codes.map((c) => (c === 'XX' && other.trim() ? other.trim() : NATIONALITY_CHOICES.find(([k]) => k === c)?.[1] ?? `Autre (${c})`));
 /** Coche ou décoche une nationalité ; décocher « Autre » retire toutes les nationalités non proposées. */
 export function toggleNationality(codes = [], code) {
   if (code === 'XX') return hasOtherNationality(codes) ? codes.filter((c) => KNOWN.includes(c)) : [...codes, 'XX'];
@@ -120,6 +137,9 @@ export function toggleNationality(codes = [], code) {
 }
 
 /** Pièces encore manquantes. */
-export const missingDocuments = (profile, kind) => REQUIRED_DOCUMENTS
-  .filter((d) => !(d.newOnly && kind === 'REINSCRIPTION'))
+export const missingDocuments = (profile, kind, cls = profile.cls) => documentsFor(kind, cls)
   .filter((d) => !profile.documents?.includes(d.id));
+
+// Campagne de pré-inscription en ligne : ouverte entre deux dates fixées par la Direction (ex. en mai).
+export const DEFAULT_CAMPAIGN = { year: '2027-2028', opens: '2027-05-03', closes: '2027-07-16' };
+export const campaignOpen = (c, today) => Boolean(c?.opens && c?.closes && today >= c.opens && today <= c.closes);

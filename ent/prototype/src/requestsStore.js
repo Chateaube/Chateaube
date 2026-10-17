@@ -33,3 +33,9 @@ export function decideRequest(id, status, by, note = '') {
 }
 export const requestsFor = (studentKey) => loadRequests().requests.filter((r) => r.studentKey === studentKey);
 export const pendingCount = () => { const d = loadRequests(); return d.requests.filter((r) => r.status === 'A_TRAITER').length + d.prereg.filter((p) => p.status === 'DEMANDE').length; };
+
+// Dates de la campagne de pré-inscription (Direction)
+import { DEFAULT_CAMPAIGN } from './rules/enrollment.js';
+const CAMPAIGN_KEY = 'ent-campagne-v1';
+export function loadCampaign() { try { return JSON.parse(localStorage.getItem(CAMPAIGN_KEY)) ?? DEFAULT_CAMPAIGN; } catch { return DEFAULT_CAMPAIGN; } }
+export function saveCampaign(c) { try { localStorage.setItem(CAMPAIGN_KEY, JSON.stringify(c)); } catch { /* stockage indisponible */ } }

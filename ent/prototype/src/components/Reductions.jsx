@@ -112,7 +112,7 @@ export default function Reductions({ canEdit, actor, types, setTypes, accounts, 
             }}>Accorder la réduction</Button>
             <p className="text-xs text-slate-500">Elle s'applique à ce qui n'est pas encore payé et figure sur le ticket : « Réduction redoublant en terminale −112 500 ».</p>
           </div>
-        ) : <p className="text-sm text-slate-500">Le Bureau voit les réductions et les applique à l'encaissement, mais ne peut ni en accorder ni modifier les taux.</p>}
+        ) : <p className="text-sm text-slate-500">Le secrétariat voit les réductions et les applique à l'encaissement, mais ne peut ni en accorder ni modifier les taux.</p>}
       </Card>
     </div>
   );

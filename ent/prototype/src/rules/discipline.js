@@ -1,23 +1,23 @@
 // Vie scolaire : punitions, sanctions et confiscations de téléphone.
 // Distinction du droit scolaire français, adaptée à l'établissement :
-//  - PUNITIONS scolaires : décidées par un enseignant ou la vie scolaire ;
+//  - PUNITIONS scolaires : décidées par un enseignant, la CPE ou le secrétariat (dont l'avertissement) ;
 //  - SANCTIONS disciplinaires : décidées par la Direction uniquement.
 // Toute mesure porte un motif et peut être confirmée par le parent (« Je suis informé.e »).
 
 import { addDays, isoWeekday } from './calendar.js';
 
 export const MEASURES = [
+  { id: 'AVERTISSEMENT', label: 'Avertissement', kind: 'PUNITION' },
   { id: 'OBSERVATION', label: 'Observation écrite', kind: 'PUNITION' },
   { id: 'DEVOIR_SUPP', label: 'Devoir supplémentaire', kind: 'PUNITION' },
   { id: 'RETENUE', label: 'Retenue', kind: 'PUNITION' },
   { id: 'EXCLUSION_COURS', label: 'Exclusion ponctuelle de cours', kind: 'PUNITION' },
-  { id: 'AVERTISSEMENT', label: 'Avertissement', kind: 'SANCTION' },
   { id: 'BLAME', label: 'Blâme', kind: 'SANCTION' },
   { id: 'RESPONSABILISATION', label: 'Mesure de responsabilisation', kind: 'SANCTION' },
   { id: 'EXCLUSION_TEMP', label: 'Exclusion temporaire (8 jours max.)', kind: 'SANCTION' },
 ];
 
-export const AUTHORS = { PROFESSEUR: 'Enseignant.e', VIE_SCOLAIRE: 'Vie scolaire', DIRECTION: 'Direction' };
+export const AUTHORS = { PROFESSEUR: 'Enseignant.e', VIE_SCOLAIRE: 'CPE', BUREAU: 'Secrétariat', DIRECTION: 'Direction' };
 
 /** Une sanction ne peut être décidée que par la Direction ; un motif est toujours obligatoire. */
 export function validateMeasure({ measureId, authorRole, reason, student }) {
@@ -49,8 +49,11 @@ export function addSchoolDays(iso, n, settings) {
 
 export const PHONE_DURATIONS = [
   { id: '24H', label: '24 heures', schoolDays: 1 },
+  { id: '48H', label: '48 heures', schoolDays: 2 },
   { id: '5J', label: '5 jours ouvrés', schoolDays: 5 },
 ];
+// Téléphone : un simple avertissement (le téléphone n'est pas pris), ou une confiscation
+export const PHONE_ACTIONS = { AVERTISSEMENT: 'Avertissement (téléphone non confisqué)', CONFISCATION: 'Confiscation' };
 
 /**
  * Date et heure de restitution d'un téléphone confisqué le `at` ('AAAA-MM-JJTHH:MM').
@@ -63,16 +66,17 @@ export function phoneReturnAt(at, durationId, settings) {
 }
 
 /**
- * Récidive : dès la 2e confiscation de l'année, la durée passe automatiquement à 5 jours ouvrés.
+ * Durée proposée selon les faits précédents de l'élève pris avec le téléphone (avertissements compris) :
+ * 1re fois 24 h, 2e fois 48 h, ensuite 5 jours ouvrés. La personne qui confisque peut la changer.
  */
 export function phoneDurationFor(student, phones) {
-  const previous = phones.filter((p) => p.student === student);
-  return { duration: previous.length > 0 ? '5J' : '24H', previous: previous.length };
+  const previous = phones.filter((p) => p.student === student).length;
+  return { duration: previous === 0 ? '24H' : previous === 1 ? '48H' : '5J', previous };
 }
 
 /**
- * Restitution : pour une confiscation de 5 jours ouvrés, le téléphone n'est rendu qu'à un
- * responsable légal ; pour 24 h, il peut être rendu à l'élève.
+ * Restitution : le téléphone revient à son propriétaire (parfois un autre élève que celui qui l'avait) ;
+ * pour une confiscation de 5 jours ouvrés, il n'est rendu qu'à un responsable légal du propriétaire.
  */
 export function validateReturn({ duration, toRole, toName }) {
   const errors = [];

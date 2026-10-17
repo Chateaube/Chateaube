@@ -8,6 +8,14 @@ import { formatAr } from '../rules/finance.js';
 import { loadManuals } from '../manualsStore.js';
 import { loadLibrary } from '../libraryStore.js';
 import { overdueLoans } from '../rules/library.js';
+import { pickupStatus, pickupUntil, PICKUP_LABEL } from '../rules/bulletinPickup.js';
+import { publishAnnouncement } from '../announcementsStore.js';
+
+// Fenêtre de retrait par trimestre et par classe (démonstration : gardée dans ce navigateur)
+const WKEY = 'ent-bulletin-dispo-v1';
+export const loadWindows = () => { try { return JSON.parse(localStorage.getItem(WKEY)) ?? {}; } catch { return {}; } };
+const saveWindows = (d) => { try { localStorage.setItem(WKEY, JSON.stringify(d)); } catch { /* stockage indisponible */ } };
+const fr = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
 
 // Remise des bulletins en main propre (avec le tampon) : jamais publiés dans l'application.
 // Un bulletin n'est pas remis tant que des frais échus restent impayés ou qu'un manuel est dû ;
@@ -41,14 +49,40 @@ export default function BulletinHandover({ cls, students, settings, role, term }
   const manualsData = useMemo(loadManuals, []);
   const [form, setForm] = useState({});
   const isDirection = role === 'DIRECTION';
-  const actor = isDirection ? 'Mme Sheena Lo (Direction)' : 'Mme Hanta (bureau)';
+  const actor = isDirection ? 'Mme Sheena Lo (Direction)' : 'Mme Hanta (secrétariat)';
   const key = (s) => `${term}|${cls}|${s}`;
   const rows = students.map((s) => ({ s, blocks: handoverBlocks(s, settings, manualsData), rec: records[key(s)] }));
   const given = rows.filter((r) => r.rec?.givenAt).length;
   const blocked = rows.filter((r) => r.blocks.length && !r.rec?.override && !r.rec?.givenAt).length;
   const set = (s, patch) => setForm({ ...form, [s]: { to: 'PARENT', name: '', motif: '', ...form[s], ...patch } });
+  const [windows, setWindows] = useState(loadWindows);
+  const wKey = `${term}|${cls}`;
+  const w = windows[wKey];
+  const [draftW, setDraftW] = useState({ from: w?.from ?? new Date().toISOString().slice(0, 10), days: w?.days ?? 14 });
+  const today = new Date().toISOString().slice(0, 10);
+  const statusOf = (r) => pickupStatus(today, w, { given: !!r.rec?.givenAt, blocked: r.blocks.length > 0 && !r.rec?.override });
+  const archived = rows.filter((r) => statusOf(r) === 'ARCHIVE');
+  const termLabel = { T1: '1er trimestre', T2: '2e trimestre', T3: '3e trimestre' }[term] ?? term;
+  const announce = (win) => publishAnnouncement({
+    title: `Bulletins du ${termLabel} — ${cls}`, author: 'Direction', pinned: false, ack: true, photos: [], email: true,
+    text: `Les bulletins du ${termLabel} sont à retirer au secrétariat, avec le tampon, du ${fr(win.from)} au ${fr(pickupUntil(win))}. Passé ce délai, le bulletin est archivé au dossier et remis sur rendez-vous. Si votre situation est à régulariser, merci de passer au secrétariat.`,
+    audience: { roles: ['PARENT'], site: 'TMV', scope: 'CLASS', values: [cls] },
+  });
 
   return (
+    <>
+    <Card title="Disponibilité des bulletins" subtitle={isDirection ? 'Fixez la date et le délai de retrait ; les familles sont prévenues dans l\'application' : 'Fixés par la Direction'} className="mb-4">
+      {w && <p className="mb-2 text-sm text-slate-700">Disponibles du <strong>{fr(w.from)}</strong> au <strong>{fr(pickupUntil(w))}</strong> ({w.days} jours){w.announcedAt ? ` · familles prévenues le ${fr(w.announcedAt)}` : ''}.</p>}
+      {isDirection && (
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="text-xs text-slate-600">À partir du<input type="date" value={draftW.from} onChange={(e) => setDraftW({ ...draftW, from: e.target.value })} className={`mt-1 block ${inputCls}`} /></label>
+          <label className="text-xs text-slate-600">Délai de retrait<select value={draftW.days} onChange={(e) => setDraftW({ ...draftW, days: Number(e.target.value) })} className={`mt-1 block ${inputCls}`}>{[7, 14, 21, 30].map((d) => <option key={d} value={d}>{d} jours</option>)}</select></label>
+          <Button onClick={() => { const win = { ...draftW, announcedAt: today }; announce(win); const next = { ...windows, [wKey]: win }; setWindows(next); saveWindows(next); }}>{w ? 'Modifier et prévenir les familles' : 'Rendre disponibles et prévenir les familles'}</Button>
+        </div>
+      )}
+      <p className="mt-2 text-xs text-slate-500">Un rappel part {3} jours avant la fin. Les familles dont la situation est à régulariser voient « en attente de régularisation, voir le secrétariat ». Passé le délai, le bulletin n'est pas détruit : il est archivé au dossier et remis sur rendez-vous.</p>
+      {archived.length > 0 && <p className="mt-2 text-sm text-slate-700">Non retirés, archivés au dossier : {archived.map((r) => r.s).join(', ')}.</p>}
+    </Card>
     <Card title={`Remise en main propre — ${cls}`} subtitle="Bulletin tamponné, remis au parent ou à l'élève ; il n'est jamais publié dans l'application"
       action={<span className="flex gap-2"><Badge tone="green">{given} remis</Badge>{blocked > 0 && <Badge tone="red">{blocked} bloqué{blocked > 1 ? 's' : ''}</Badge>}</span>}>
       <ul className="divide-y divide-slate-100">
@@ -59,7 +93,7 @@ export default function BulletinHandover({ cls, students, settings, role, term }
             <li key={s} className="py-3 text-sm">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="font-medium text-slate-800">{s}</p>
+                  <p className="font-medium text-slate-800">{s} {w && <Badge tone={PICKUP_LABEL[statusOf({ s, blocks, rec })][0]}>{PICKUP_LABEL[statusOf({ s, blocks, rec })][1]}</Badge>}</p>
                   {!rec?.givenAt && blocks.map((b) => <p key={b} className="text-xs text-red-700">{b}</p>)}
                   {rec?.override && <p className="text-xs text-amber-700">Blocage levé par {rec.override.by} : {rec.override.motif}</p>}
                   {rec?.givenAt && <p className="text-xs text-emerald-700">Remis le {rec.givenAt} à {rec.givenTo} · par {rec.givenBy}</p>}
@@ -85,5 +119,6 @@ export default function BulletinHandover({ cls, students, settings, role, term }
       </ul>
       <p className="mt-3 text-xs text-slate-500">Dès que la famille règle à la caisse, ou rend le manuel, le blocage disparaît. Les parents voient les notes dans l'application, jamais le bulletin.</p>
     </Card>
+    </>
   );
 }

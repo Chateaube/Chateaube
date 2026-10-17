@@ -71,7 +71,7 @@ const weekday = (iso) => new Date(`${iso}T12:00:00Z`).getUTCDay();
  * Renvoie le prochain jour prévu, si c'est aujourd'hui (rappel), et le dernier jour prévu manqué.
  */
 export function depositReminder(today, depositDates, days = [3, 5], skip = () => false) {
-  // skip : jours prévus sans rappel (semaine des salaires : les espèces restent au bureau)
+  // skip : jours prévus sans rappel (semaine des salaires : les espèces restent au secrétariat)
   const planned = (d) => days.includes(weekday(d)) && !skip(d);
   const dueToday = planned(today) && !depositDates.includes(today);
   let next = addDays(today, 1);
@@ -84,7 +84,7 @@ export function depositReminder(today, depositDates, days = [3, 5], skip = () =>
 
 /**
  * Semaine des salaires : de la dernière semaine de cours du mois (vacances comprises dans le calcul)
- * jusqu'au paiement des salaires. Pendant cette période, les espèces restent au bureau pour payer
+ * jusqu'au paiement des salaires. Pendant cette période, les espèces restent au secrétariat pour payer
  * le personnel : pas de rappel de versement.
  */
 export function lastSchoolDayOfMonth(iso, calendar = []) {

@@ -13,7 +13,7 @@ export function PhotoInput({ value, onChange, label = 'Photo d\'identité' }) {
       </button>
       <div className="text-xs text-slate-600">
         <p className="font-medium">{label}</p>
-        <p className="text-slate-500">Visage de face, fond clair.</p>
+        <p className="text-slate-500">Récente, aux normes internationales : fond clair uni, de face, visage dégagé, sans lunettes ni couvre-chef.</p>
         <div className="mt-1 flex gap-2">
           <button type="button" className="font-medium text-navy-500" onClick={() => ref.current.click()}>{value ? 'Changer' : 'Prendre ou choisir'}</button>
           {value && <button type="button" className="text-slate-500" onClick={() => onChange(null)}>Retirer</button>}

@@ -18,8 +18,12 @@ import { loadProfiles } from '../profilesStore.js';
 import { FamilyRequestForm, sendDocument } from './FamilyRequests.jsx';
 import { DocumentInput } from './PhotoInput.jsx';
 import { AnnouncementCard } from './AnnouncementsModule.jsx';
+import AgendaModule from './AgendaModule.jsx';
 import { loadAnnouncements } from '../announcementsStore.js';
 import { receives } from '../rules/announcements.js';
+import { loadWindows, handoverBlocks } from './BulletinHandover.jsx';
+import { pickupStatus, familyMessage } from '../rules/bulletinPickup.js';
+import { loadManuals } from '../manualsStore.js';
 import { nextClass } from '../rules/enrollment.js';
 import { FicheForm, FICHE_YEAR } from './FicheSignaletique.jsx';
 import SignaturePad from './SignaturePad.jsx';
@@ -62,7 +66,20 @@ function Announcements({ isParent }) {
   return <>{list.map((a) => <AnnouncementCard key={a.id} a={a} who={isParent ? ACCOUNT.id : 'aina'} compact />)}</>;
 }
 
-function Home({ child, isParent, openFiche, openReenrol }) {
+function BulletinPickup({ child, settings }) {
+  // bulletin du trimestre : à retirer au secrétariat, ou en attente de régularisation
+  const w = loadWindows()[`T1|${child.cls}`];
+  if (!w) return null;
+  const today = new Date().toISOString().slice(0, 10);
+  const blocked = handoverBlocks(fullName(child), settings, loadManuals()).length > 0;
+  const given = !!(() => { try { return JSON.parse(localStorage.getItem('ent-remise-v1'))?.[`T1|${child.cls}|${fullName(child)}`]?.givenAt; } catch { return false; } })();
+  const status = pickupStatus(today, w, { given, blocked });
+  const msg = familyMessage(status, w, '1er trimestre');
+  if (!msg) return null;
+  return <div className={`rounded-2xl p-4 text-sm ${status === 'BLOQUE' ? 'bg-red-50 text-red-900' : 'bg-navy-50 text-navy-900'}`}><p className="font-semibold">Bulletin — {child.name}</p><p>{msg}</p></div>;
+}
+
+function Home({ child, isParent, openFiche, openReenrol, settings }) {
   const due = HOMEWORK.filter((h) => h.cls === child.cls && h.due && h.due > TODAY).sort((a, b) => a.due.localeCompare(b.due)).slice(0, 2);
   return (
     <>
@@ -79,6 +96,7 @@ function Home({ child, isParent, openFiche, openReenrol }) {
           <Button className="mt-2 !py-1 text-xs" onClick={openFiche}>Remplir et signer</Button>
         </div>
       )}
+      {isParent && <BulletinPickup child={child} settings={settings} />}
       <Announcements isParent={isParent} />
       {isParent && profileOf(child) && (
         <div className="rounded-2xl bg-emerald-50 p-4">
@@ -208,7 +226,9 @@ function SchoolLife({ child, isParent, acks, setAcks, settings }) {
   const items = [
     ...ATTENDANCE.filter((a) => a.student === name).map((a) => ({ key: a.id, date: a.date, tone: a.kind === 'ABSENCE' ? 'red' : 'amber', title: a.kind === 'ABSENCE' ? 'Absence' : 'Retard', body: `${a.slot}${a.justified ? ` · justifié : ${a.reason}` : ' · à justifier'}`, ack: a.parentAck })),
     ...MEASURES_LOG.filter((m) => m.student === name).map((m) => ({ key: m.id, date: m.date, tone: MEASURE[m.measure].kind === 'SANCTION' ? 'red' : 'amber', title: `${MEASURE[m.measure].kind === 'SANCTION' ? 'Sanction' : 'Punition'} : ${MEASURE[m.measure].label}`, body: `Motif : ${m.reason}${m.when ? ` · ${m.when}` : ''} · décidée par ${m.author}`, ack: m.parentAck })),
-    ...PHONES.filter((p) => p.student === name).map((p) => ({ key: p.id, date: p.at.slice(0, 10), tone: 'slate', title: `Téléphone confisqué (${PHONE_DURATIONS.find((d) => d.id === p.duration).label})`, body: `${p.reason} · restitution ${shortDate(phoneReturnAt(p.at, p.duration, settings).slice(0, 10)).toLowerCase()}`, ack: null })),
+    ...PHONES.filter((p) => p.student === name || p.owner === name).map((p) => (p.action === 'AVERTISSEMENT'
+      ? { key: p.id, date: p.at.slice(0, 10), tone: 'amber', title: 'Avertissement : téléphone', body: `${p.reason} · donné par ${p.confiscatedBy}`, ack: null }
+      : { key: p.id, date: p.at.slice(0, 10), tone: 'slate', title: `Téléphone confisqué (${PHONE_DURATIONS.find((d) => d.id === p.duration).label})`, body: `${p.owner === name && p.student !== name ? `Téléphone de ${child.name}, pris avec ${p.student}. ` : ''}${p.reason} · restitution ${shortDate(phoneReturnAt(p.at, p.duration, settings).slice(0, 10)).toLowerCase()}`, ack: null })),
   ].sort((a, b) => b.date.localeCompare(a.date));
   return (
     <Section title={`Vie scolaire — ${child.name}`}>
@@ -366,7 +386,7 @@ function Payments() {
           ))}
         </div>
         <Button variant="secondary" className="mt-4 w-full" onClick={() => setInfo(!info)}>Comment payer ?</Button>
-        {info && <p className="mt-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">Au bureau : espèces ou chèque à l'ordre de l'École Chateaubriand. Par virement : RIB fourni par le bureau, nom de l'élève en référence, bordereau à conserver. Le reçu apparaît ici dès l'enregistrement.</p>}
+        {info && <p className="mt-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">Au secrétariat : espèces ou chèque à l'ordre de l'École Chateaubriand. Par virement : RIB fourni par le secrétariat, nom de l'élève en référence, bordereau à conserver. Le reçu apparaît ici dès l'enregistrement.</p>}
       </Section>
       <Section title="Historique">
         <ul className="divide-y divide-slate-100">
@@ -399,7 +419,7 @@ function LibraryLoans({ child }) {
           ))}
         </ul>
       )}
-      <p className="mt-2 text-xs text-slate-500">Un mois de prêt. Pour le garder un mois de plus, repasser au bureau avec le livre.</p>
+      <p className="mt-2 text-xs text-slate-500">Un mois de prêt. Pour le garder un mois de plus, repasser au secrétariat avec le livre.</p>
     </Section>
   );
 }
@@ -410,11 +430,11 @@ function MySignature() {
   const [draft, setDraft] = useState(null);
   return (
     <Section title="Ma signature">
-      <p className="mb-2 text-sm text-slate-600">Votre signature de référence. Elle signe vos documents dans l'ENT, et le bureau la compare en cas de doute avec un mot ou une autorisation papier.</p>
+      <p className="mb-2 text-sm text-slate-600">Votre signature de référence. Elle signe vos documents dans l'ENT, et le secrétariat la compare en cas de doute avec un mot ou une autorisation papier.</p>
       {ref ? (
         <>
           <img src={ref.dataUrl} alt="Ma signature de référence" className="h-24 w-full rounded-xl border border-slate-200 bg-white object-contain" />
-          <p className="mt-1 text-xs text-slate-500">Déposée le {ref.at.slice(0, 10).split('-').reverse().join('/')}. Pour la changer, adressez-vous au bureau (contrôle d'identité).</p>
+          <p className="mt-1 text-xs text-slate-500">Déposée le {ref.at.slice(0, 10).split('-').reverse().join('/')}. Pour la changer, adressez-vous au secrétariat (contrôle d'identité).</p>
         </>
       ) : (
         <>
@@ -433,7 +453,7 @@ const MORE = [
   ['homework', 'Devoirs & cahier de textes', 'calendar'], ['documents', 'Documents & autorisations', 'pen'], ['stages', 'Stages', 'cap'],
   ['orientation', 'Orientation', 'cap'], ['payments', 'Paiements', 'wallet', 'PARENT'],
   ['library', 'Livres empruntés', 'cap'], ['fiche', 'Fiche signalétique', 'pen', 'PARENT'], ['signature', 'Ma signature', 'pen', 'PARENT'],
-  ['reenrol', 'Réinscription 2027-2028', 'calendar', 'PARENT'], ['update', 'Mettre à jour nos informations', 'users', 'PARENT'],
+  ['agenda', 'Agendas', 'calendar'], ['reenrol', 'Réinscription 2027-2028', 'calendar', 'PARENT'], ['update', 'Mettre à jour nos informations', 'users', 'PARENT'],
 ];
 
 export default function FamilyPortal({ settings, audience = 'PARENT' }) {
@@ -465,7 +485,8 @@ export default function FamilyPortal({ settings, audience = 'PARENT' }) {
         </header>
         <div role="region" aria-label="Contenu du portail" className="flex-1 space-y-3 overflow-y-auto p-4">
           {tab === 'more' && sub && <button onClick={() => setSub(null)} className="text-sm font-medium text-navy-500">‹ Plus</button>}
-          {view === 'home' && <Home child={child} isParent={isParent} openFiche={() => { setTab('more'); setSub('fiche'); }} openReenrol={() => { setTab('more'); setSub('reenrol'); }} />}
+          {view === 'home' && <Home child={child} isParent={isParent} settings={settings} openFiche={() => { setTab('more'); setSub('fiche'); }} openReenrol={() => { setTab('more'); setSub('reenrol'); }} />}
+          {view === 'agenda' && <div className="-m-4 p-3"><AgendaModule role={audience} cls={child.cls} /></div>}
           {view === 'reenrol' && (profileOf(child) ? <FamilyRequestForm key={`r-${child.id}`} profile={profileOf(child)} kind="REINSCRIPTION" guardianName={ACCOUNT.name} /> : <Section><p className="text-sm text-slate-500">Fiche introuvable.</p></Section>)}
           {view === 'update' && (profileOf(child) ? <FamilyRequestForm key={`u-${child.id}`} profile={profileOf(child)} kind="MISE_A_JOUR" guardianName={ACCOUNT.name} /> : <Section><p className="text-sm text-slate-500">Fiche introuvable.</p></Section>)}
           {view === 'fiche' && <FicheForm key={child.id} studentKey={fullName(child)} profile={profileOf(child)} account={ACCOUNT.id} accountName={ACCOUNT.name} />}

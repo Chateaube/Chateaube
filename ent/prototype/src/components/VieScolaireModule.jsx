@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Badge, Button, Card, Icon, Stat } from './ui.jsx';
 import { CLASSES, classOf, STAFF_NAMES, ATTENDANCE, MEASURES_LOG, PHONES } from '../data/schoollife.js';
-import { MEASURES, AUTHORS, validateMeasure, phoneReturnAt, PHONE_DURATIONS, phoneDurationFor, validateReturn, ackReminderDue } from '../rules/discipline.js';
+import { MEASURES, AUTHORS, validateMeasure, phoneReturnAt, PHONE_DURATIONS, PHONE_ACTIONS, phoneDurationFor, validateReturn, ackReminderDue } from '../rules/discipline.js';
 import { formatDateFr } from '../rules/calendar.js';
 
 // Vie scolaire : absences / retards, punitions et sanctions, téléphones confisqués.
@@ -79,8 +79,8 @@ function AttendanceTab({ rows, setRows, toast }) {
 
 /* ---------- Punitions & sanctions ---------- */
 function MeasuresTab({ log, setLog, role, toast }) {
-  const authorRole = { DIRECTION: 'DIRECTION', ENSEIGNANT: 'PROFESSEUR' }[role] ?? 'VIE_SCOLAIRE';
-  const authors = { DIRECTION: ['Cheffe d\'établissement', 'Directrice adjointe'], PROFESSEUR: ['Mme Ranaivo'] }[authorRole] ?? STAFF_NAMES.filter((n) => !n.startsWith('Direction'));
+  const authorRole = { DIRECTION: 'DIRECTION', ENSEIGNANT: 'PROFESSEUR', BUREAU: 'BUREAU' }[role] ?? 'VIE_SCOLAIRE';
+  const authors = { DIRECTION: ['Cheffe d\'établissement', 'Directrice adjointe'], PROFESSEUR: ['Mme Ranaivo'], BUREAU: ['Mme Hanta (secrétariat)'], VIE_SCOLAIRE: ['M. Be (CPE)'] }[authorRole];
   const blank = { student: '', measureId: 'OBSERVATION', reason: '', when: '', author: authors[0] };
   const [draft, setDraft] = useState(blank);
   const errors = validateMeasure({ ...draft, authorRole });
@@ -111,7 +111,7 @@ function MeasuresTab({ log, setLog, role, toast }) {
           <label className="block text-xs text-slate-600">Mesure
             <select value={draft.measureId} onChange={(e) => setDraft({ ...draft, measureId: e.target.value })} className={`mt-1 w-full ${inputCls}`}>
               {['PUNITION', 'SANCTION'].map((k) => (
-                <optgroup key={k} label={k === 'PUNITION' ? 'Punitions (enseignant, vie scolaire)' : 'Sanctions (Direction)'}>
+                <optgroup key={k} label={k === 'PUNITION' ? 'Punitions et avertissement (enseignant, CPE, secrétariat)' : 'Sanctions (Direction)'}>
                   {MEASURES.filter((m) => m.kind === k).map((m) => <option key={m.id} value={m.id} disabled={k === 'SANCTION' && authorRole !== 'DIRECTION'}>{m.label}</option>)}
                 </optgroup>
               ))}
@@ -140,16 +140,27 @@ function MeasuresTab({ log, setLog, role, toast }) {
 
 /* ---------- Téléphones ---------- */
 function PhonesTab({ phones, setPhones, settings, toast }) {
-  const blank = { student: '', at: NOW, duration: '24H', confiscatedBy: STAFF_NAMES[1], receivedBy: STAFF_NAMES[0], reason: '' };
+  const blank = { action: 'CONFISCATION', student: '', owner: '', otherOwner: false, at: NOW, duration: '24H', confiscatedBy: STAFF_NAMES[2], receivedBy: STAFF_NAMES[0], reason: '' };
   const [draft, setDraft] = useState(blank);
   const [returning, setReturning] = useState(null);
-  const ok = draft.student && draft.at && draft.reason.trim();
+  const ok = draft.student && draft.at && draft.reason.trim() && (!draft.otherOwner || draft.owner);
+  const isWarning = draft.action === 'AVERTISSEMENT';
   const recidive = draft.student ? phoneDurationFor(draft.student, phones) : { previous: 0 };
   return (
     <div className="grid gap-5 xl:grid-cols-[1fr_380px] xl:items-start">
-      <Card title="Téléphones confisqués" subtitle="Restitution calculée sur les jours de classe (hors week-ends, fériés et vacances)">
+      <Card title="Téléphones : avertissements et confiscations" subtitle="Restitution calculée sur les jours de classe (hors week-ends, fériés et vacances)">
         <ul className="divide-y divide-slate-100">
           {phones.map((p) => {
+            if (p.action === 'AVERTISSEMENT') {
+              return (
+                <li key={p.id} className="py-3 text-sm">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div><p className="font-medium text-slate-900">{p.student} <span className="font-normal text-slate-500">· {classOf(p.student)}</span></p><p className="text-slate-700">{p.reason}</p><p className="text-xs text-slate-500">Le {fmtDT(p.at)} par {p.confiscatedBy}</p></div>
+                    <Badge tone="amber">Avertissement</Badge>
+                  </div>
+                </li>
+              );
+            }
             const due = phoneReturnAt(p.at, p.duration, settings);
             const ready = !p.returned && due <= NOW;
             return (
@@ -158,6 +169,7 @@ function PhonesTab({ phones, setPhones, settings, toast }) {
                   <div>
                     <p className="font-medium text-slate-900">{p.student} <span className="font-normal text-slate-500">· {classOf(p.student)}</span></p>
                     <p className="text-slate-700">{p.reason}</p>
+                    {p.owner && p.owner !== p.student && <p className="text-xs text-amber-800">Téléphone appartenant à {p.owner} ({classOf(p.owner)}) : rendu au propriétaire, les deux familles sont prévenues.</p>}
                     <p className="text-xs text-slate-500">Confisqué le {fmtDT(p.at)} par {p.confiscatedBy} · reçu et signé par {p.receivedBy}</p>
                   </div>
                   <div className="text-right">
@@ -173,10 +185,10 @@ function PhonesTab({ phones, setPhones, settings, toast }) {
                     <label className="text-xs text-slate-600">Rendu à
                       <select value={returning.toRole} onChange={(e) => setReturning({ ...returning, toRole: e.target.value })} className={`mt-1 w-full ${inputCls}`}>
                         <option value="PARENT">Responsable légal</option>
-                        <option value="ELEVE" disabled={p.duration === '5J'}>L'élève{p.duration === '5J' ? ' (non : 5 jours)' : ''}</option>
+                        <option value="ELEVE" disabled={p.duration === '5J'}>{p.owner && p.owner !== p.student ? 'L\'élève propriétaire' : 'L\'élève'}{p.duration === '5J' ? ' (non : 5 jours)' : ''}</option>
                       </select>
                     </label>
-                    <label className="text-xs text-slate-600">Nom<input value={returning.to} onChange={(e) => setReturning({ ...returning, to: e.target.value })} placeholder={returning.toRole === 'PARENT' ? 'ex. M. Randriamampianina (père)' : p.student} className={`mt-1 w-full ${inputCls}`} /></label>
+                    <label className="text-xs text-slate-600">Nom<input value={returning.to} onChange={(e) => setReturning({ ...returning, to: e.target.value })} placeholder={returning.toRole === 'PARENT' ? `Responsable de ${p.owner ?? p.student}` : p.owner ?? p.student} className={`mt-1 w-full ${inputCls}`} /></label>
                     <label className="text-xs text-slate-600">Rendu et signé par
                       <select value={returning.by} onChange={(e) => setReturning({ ...returning, by: e.target.value })} className={`mt-1 w-full ${inputCls}`}>{STAFF_NAMES.map((n) => <option key={n}>{n}</option>)}</select>
                     </label>
@@ -191,31 +203,39 @@ function PhonesTab({ phones, setPhones, settings, toast }) {
           })}
         </ul>
       </Card>
-      <Card title="Nouvelle confiscation">
+      <Card title="Nouveau : téléphone">
         <div className="space-y-2 text-sm">
+          <div className="flex gap-1.5">
+            {Object.entries(PHONE_ACTIONS).map(([k, l]) => <button key={k} type="button" aria-pressed={draft.action === k} onClick={() => setDraft({ ...draft, action: k })}
+              className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${draft.action === k ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-600 ring-slate-300'}`}>{k === 'AVERTISSEMENT' ? 'Avertissement' : l}</button>)}
+          </div>
+          <p className="text-xs font-semibold text-slate-500">Élève pris avec le téléphone</p>
           <ClassStudentPicker value={draft.student} onChange={(student) => setDraft({ ...draft, student, duration: student ? phoneDurationFor(student, phones).duration : '24H' })} />
           {recidive.previous > 0 && (
-            <p className="rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-900">Récidive ({recidive.previous} confiscation{recidive.previous > 1 ? 's' : ''} cette année) : 5 jours ouvrés appliqués automatiquement, restitution à un responsable légal uniquement.</p>
+            <p className="rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-900">Déjà {recidive.previous} fait{recidive.previous > 1 ? 's' : ''} cette année (avertissements compris) : durée proposée {PHONE_DURATIONS.find((d) => d.id === phoneDurationFor(draft.student, phones).duration).label}.</p>
           )}
+          {!isWarning && <label className="flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" checked={draft.otherOwner} onChange={(e) => setDraft({ ...draft, otherOwner: e.target.checked, owner: '' })} />Le téléphone appartient à un autre élève</label>}
+          {!isWarning && draft.otherOwner && (<><p className="text-xs font-semibold text-slate-500">Propriétaire du téléphone</p><ClassStudentPicker value={draft.owner} onChange={(owner) => setDraft({ ...draft, owner })} /></>)}
           <label className="block text-xs text-slate-600">Motif<input value={draft.reason} onChange={(e) => setDraft({ ...draft, reason: e.target.value })} placeholder="ex. Téléphone utilisé en cours" className={`mt-1 w-full ${inputCls}`} /></label>
           <div className="grid grid-cols-2 gap-2">
-            <label className="text-xs text-slate-600">Confisqué le<input type="datetime-local" value={draft.at} onChange={(e) => setDraft({ ...draft, at: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>
-            <label className="text-xs text-slate-600">Durée
-              <select value={draft.duration} disabled={recidive.previous > 0} onChange={(e) => setDraft({ ...draft, duration: e.target.value })} className={`mt-1 w-full ${inputCls} disabled:bg-slate-50`}>
+            <label className="text-xs text-slate-600">Le<input type="datetime-local" value={draft.at} onChange={(e) => setDraft({ ...draft, at: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>
+            {!isWarning && <label className="text-xs text-slate-600">Durée
+              <select value={draft.duration} onChange={(e) => setDraft({ ...draft, duration: e.target.value })} className={`mt-1 w-full ${inputCls}`}>
                 {PHONE_DURATIONS.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
               </select>
-            </label>
+            </label>}
           </div>
-          <label className="block text-xs text-slate-600">Confisqué par
+          <label className="block text-xs text-slate-600">{isWarning ? 'Donné par' : 'Confisqué par'}
             <select value={draft.confiscatedBy} onChange={(e) => setDraft({ ...draft, confiscatedBy: e.target.value })} className={`mt-1 w-full ${inputCls}`}>{STAFF_NAMES.map((n) => <option key={n}>{n}</option>)}</select>
           </label>
-          <label className="block text-xs text-slate-600">Reçu et signé par (garde du téléphone)
-            <select value={draft.receivedBy} onChange={(e) => setDraft({ ...draft, receivedBy: e.target.value })} className={`mt-1 w-full ${inputCls}`}>{STAFF_NAMES.filter((n) => n.startsWith('Direction') || n.includes('vie scolaire')).map((n) => <option key={n}>{n}</option>)}</select>
-          </label>
-          {draft.at && <p className="rounded-md bg-navy-50 px-2 py-1.5 text-xs text-navy-900">Restitution prévue : {fmtDT(phoneReturnAt(draft.at, draft.duration, settings))}</p>}
+          {!isWarning && <label className="block text-xs text-slate-600">Reçu et signé par (garde du téléphone)
+            <select value={draft.receivedBy} onChange={(e) => setDraft({ ...draft, receivedBy: e.target.value })} className={`mt-1 w-full ${inputCls}`}>{STAFF_NAMES.filter((n) => n.startsWith('Direction') || n.includes('CPE') || n.includes('secrétariat')).map((n) => <option key={n}>{n}</option>)}</select>
+          </label>}
+          {draft.at && !isWarning && <p className="rounded-md bg-navy-50 px-2 py-1.5 text-xs text-navy-900">Restitution prévue : {fmtDT(phoneReturnAt(draft.at, draft.duration, settings))}</p>}
           <Button className="w-full" disabled={!ok} onClick={() => {
-            setPhones([{ ...draft, id: `p${Date.now()}`, reason: draft.reason.trim(), returned: null }, ...phones]);
-            toast(`Confiscation enregistrée ; le parent de ${draft.student} est prévenu.`);
+            const { otherOwner, ...rest } = draft;
+            setPhones([{ ...rest, owner: otherOwner ? draft.owner : undefined, id: `p${Date.now()}`, reason: draft.reason.trim(), returned: null }, ...phones]);
+            toast(isWarning ? `Avertissement enregistré ; le parent de ${draft.student} est prévenu.` : `Confiscation enregistrée ; ${otherOwner ? `les parents de ${draft.student} et de ${draft.owner} sont prévenus` : `le parent de ${draft.student} est prévenu`}.`);
             setDraft(blank);
           }}>Enregistrer</Button>
         </div>
@@ -224,7 +244,7 @@ function PhonesTab({ phones, setPhones, settings, toast }) {
   );
 }
 
-const TABS = [['attendance', 'Absences & retards'], ['measures', 'Punitions & sanctions'], ['phones', 'Téléphones confisqués']];
+const TABS = [['attendance', 'Absences & retards'], ['measures', 'Punitions & sanctions'], ['phones', 'Téléphones']];
 
 export default function VieScolaireModule({ settings, role = 'VIE_SCOLAIRE' }) {
   // l'enseignant ne voit que ses outils : punitions et remise d'un téléphone confisqué
@@ -246,7 +266,7 @@ export default function VieScolaireModule({ settings, role = 'VIE_SCOLAIRE' }) {
         <Stat label="Absences aujourd'hui" value={today.filter((r) => r.kind === 'ABSENCE').length} tone="red" />
         <Stat label="Retards aujourd'hui" value={today.filter((r) => r.kind === 'RETARD').length} tone="amber" />
         <Stat label="Mesures non lues par le parent" value={log.filter((m) => !m.parentAck).length} tone="amber" />
-        <Stat label="Téléphones en garde" value={phones.filter((p) => !p.returned).length} />
+        <Stat label="Téléphones en garde" value={phones.filter((p) => p.action !== 'AVERTISSEMENT' && !p.returned).length} />
       </div>}
       {message && <p role="status" className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800"><Icon name="check" />{message}</p>}
       <div className="flex gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1" role="tablist">
