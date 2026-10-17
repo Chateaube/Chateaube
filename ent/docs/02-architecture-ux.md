@@ -278,3 +278,12 @@ espèces → un reçu par journal, envoyé au parent.
   ou la plus haute, ni légende des professeurs, ni appréciations générales), prénom d'usage seul, rang affiché
   automatiquement au conseil du 3e trimestre, colonnes « Avis des enseignants » et « Décision » en petits caractères.
   Pas de professeur principal.
+
+## Annonces
+
+Direction, Bureau et Vie scolaire publient pour tout l'établissement ; un professeur, pour les parents et les élèves
+de ses classes. Filtres : **pour qui** (parents, élèves, professeurs, personnel), **où** (Tamatave, Tana, les deux),
+**quelle partie de l'école** (toute l'école, collège ou lycée, des niveaux, des classes). Le nombre de destinataires
+s'affiche avant de publier. Texte et jusqu'à 6 photos, « J'ai lu » facultatif (suivi « lu par x / y »), épingler,
+e-mail en plus de la notification, « Copier pour WhatsApp » pour les groupes existants. Pas de SMS. Les familles
+voient les annonces sur l'accueil de leur portail. Base : `announcement` + `announcement_audience` (un cycle = ses niveaux).

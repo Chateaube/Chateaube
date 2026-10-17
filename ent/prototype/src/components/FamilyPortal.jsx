@@ -17,6 +17,9 @@ import { STUDENT_PROFILES } from '../data/enrollment.js';
 import { loadProfiles } from '../profilesStore.js';
 import { FamilyRequestForm, sendDocument } from './FamilyRequests.jsx';
 import { DocumentInput } from './PhotoInput.jsx';
+import { AnnouncementCard } from './AnnouncementsModule.jsx';
+import { loadAnnouncements } from '../announcementsStore.js';
+import { receives } from '../rules/announcements.js';
 import { nextClass } from '../rules/enrollment.js';
 import { FicheForm, FICHE_YEAR } from './FicheSignaletique.jsx';
 import SignaturePad from './SignaturePad.jsx';
@@ -51,6 +54,14 @@ function Section({ title, children, action }) {
 }
 
 /* ---------- Accueil ---------- */
+function Announcements({ isParent }) {
+  // annonces reçues : celles qui visent les parents (ou les élèves) d'au moins un des enfants
+  const me = isParent ? { role: 'PARENT', site: 'TMV', classes: PARENT.children.map((c) => c.cls) } : { role: 'ELEVE', site: 'TMV', classes: ['1re STMG'] };
+  const list = loadAnnouncements().list.filter((a) => receives(a, me)).sort((a, b) => (b.pinned - a.pinned) || b.at.localeCompare(a.at)).slice(0, 3);
+  if (!list.length) return null;
+  return <>{list.map((a) => <AnnouncementCard key={a.id} a={a} who={isParent ? ACCOUNT.id : 'aina'} compact />)}</>;
+}
+
 function Home({ child, isParent, openFiche, openReenrol }) {
   const due = HOMEWORK.filter((h) => h.cls === child.cls && h.due && h.due > TODAY).sort((a, b) => a.due.localeCompare(b.due)).slice(0, 2);
   return (
@@ -68,6 +79,7 @@ function Home({ child, isParent, openFiche, openReenrol }) {
           <Button className="mt-2 !py-1 text-xs" onClick={openFiche}>Remplir et signer</Button>
         </div>
       )}
+      <Announcements isParent={isParent} />
       {isParent && profileOf(child) && (
         <div className="rounded-2xl bg-emerald-50 p-4">
           <p className="text-sm font-semibold text-emerald-900">Réinscriptions 2027-2028 ouvertes</p>

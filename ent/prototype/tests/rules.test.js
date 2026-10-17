@@ -843,3 +843,27 @@ test('signature des documents : Direction seule, motif du refus, code de vérifi
   assert.deepEqual(nextActions({ status: 'SIGNEE', delivery: 'EMAIL' }), ['EMAIL', 'PRINT']);
   assert.deepEqual(nextActions({ status: 'DEMANDEE' }), []);
 });
+
+import { receives, recipientCount, audienceLabel, announcementErrors, classInScope } from '../src/rules/announcements.js';
+test('annonces : filtres par rôle, site, cycle, niveau, classe', () => {
+  const pop = {
+    TMV: { classes: { '6e': 20, '1re STMG': 8, 'Terminale STMG': 6 }, teachers: { all: 10, byClass: { 'Terminale STMG': 7 } }, staff: 3 },
+    TNR: { classes: { '6e': 25, 'Terminale STMG': 9 }, teachers: { all: 12, byClass: {} }, staff: 2 },
+  };
+  const all = { roles: ['PARENT', 'ELEVE', 'PROFESSEUR', 'PERSONNEL'], site: 'ALL', scope: 'ALL', values: [] };
+  assert.deepEqual(recipientCount(all, pop), { students: 68, families: 68, teachers: 22, staff: 5 });
+  const parentsTle = { roles: ['PARENT'], site: 'TMV', scope: 'LEVEL', values: ['Terminale'] };
+  assert.deepEqual(recipientCount(parentsTle, pop), { students: 0, families: 6, teachers: 0, staff: 0 });
+  assert.equal(recipientCount({ roles: ['ELEVE'], site: 'ALL', scope: 'CYCLE', values: ['LYCEE'] }, pop).students, 23);
+  assert.ok(classInScope('1re STMG', { scope: 'LEVEL', values: ['1re'] }));
+  assert.ok(receives({ audience: parentsTle }, { role: 'PARENT', site: 'TMV', classes: ['5e', 'Terminale STMG'] }));
+  assert.ok(!receives({ audience: parentsTle }, { role: 'PARENT', site: 'TNR', classes: ['Terminale STMG'] }));
+  assert.ok(!receives({ audience: parentsTle }, { role: 'ELEVE', site: 'TMV', classes: ['Terminale STMG'] }));
+  assert.ok(!receives({ audience: { ...parentsTle, roles: ['PERSONNEL'] } }, { role: 'PERSONNEL', site: 'TMV' }));
+  assert.equal(audienceLabel(parentsTle, { TMV: 'Tamatave' }), 'Parents · Tamatave · niveau Terminale');
+  const base = { title: 'Sortie', text: 'Jeudi', photos: [], audience: { roles: ['PARENT'], site: 'TMV', scope: 'CLASS', values: ['1re STMG'] } };
+  assert.deepEqual(announcementErrors(base, { role: 'ENSEIGNANT', myClasses: ['1re STMG'] }), []);
+  assert.equal(announcementErrors({ ...base, audience: all }, { role: 'ENSEIGNANT', myClasses: ['1re STMG'] }).length, 2);
+  assert.deepEqual(announcementErrors({ ...base, audience: all }, { role: 'DIRECTION' }), []);
+  assert.equal(announcementErrors({ ...base, audience: { ...base.audience, scope: 'LEVEL', values: [] } }).length, 1);
+});
