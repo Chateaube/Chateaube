@@ -67,3 +67,21 @@ export function manualBlocks(student, loans, manuals, today) {
     return [];
   });
 }
+
+/**
+ * Bilan d'un titre pour l'inventaire : exemplaires, en prêt, en état, abîmés, perdus, et ce qui manque
+ * pour l'effectif concerné (élèves des niveaux du titre ; spécialité : élèves qui la suivent).
+ * Manuel à rendre : il faut un exemplaire en état par élève. Cahier gardé : un par élève qui ne l'a pas encore.
+ */
+export function manualBalance(m, loans, effectif) {
+  const mine = loans.filter((l) => l.manualId === m.id);
+  const lent = lentCount(m, loans);
+  const damaged = m.stock.DECHIRE ?? 0;
+  const goodInStock = inStock(m) - damaged;
+  const lost = mine.filter((l) => l.stateIn === 'PERDU').length;
+  const sold = mine.filter((l) => l.sold).length;
+  const usableCopies = m.returnable ? goodInStock + lent : goodInStock;
+  const needed = effectif == null ? null : m.returnable ? effectif : Math.max(0, effectif - sold);
+  return { id: m.id, title: m.title, levels: m.levels, returnable: m.returnable, effectif, total: inStock(m) + lent, lent, goodInStock, damaged, lost, sold,
+    missing: needed == null ? null : Math.max(0, needed - usableCopies) };
+}

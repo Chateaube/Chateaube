@@ -371,3 +371,7 @@ recoder.
   **`inventory_item`** (mobilier, équipement, trousse de secours ; quantité, cassés, seuil, péremption) et
   **`inventory_movement`** (casse décrite, réparation, rebut, achat avec facture, utilisation), quantités mises à
   jour par déclencheur. Scénario **T51**.
+- **`school_event.calendar`** (`ECOLE` / `EXAMENS` / `EQUIPE`, remplace `staff_only`), fonction
+  **`event_visible`** (examens : niveaux à examen officiel, `level.official_exam`) ; vue **`v_textbook_balance`**
+  (manuels comparés à l'effectif de l'année : en état, en prêt, vendus, abîmés, perdus, à commander) ;
+  `inventory_item.category` accepte `FOURNITURE`. Scénario **T52**.

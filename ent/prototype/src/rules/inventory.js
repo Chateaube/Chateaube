@@ -1,7 +1,8 @@
-// Inventaire du matériel de l'école : mobilier, équipement, trousse de secours.
+// Inventaire du matériel de l'école : mobilier, équipement, fournitures (consommables), trousse de secours.
+// Les manuels ont leur propre gestion (prêts aux élèves) ; l'inventaire en montre le bilan.
 // Pour chaque article : quantité, combien sont cassés, où il se trouve, factures, seuil de réapprovisionnement.
 // Le matériel prêté aux professeurs (vidéoprojecteurs, TV…) y figure aussi ; il se réserve toujours dans « Réservations ».
-export const CATEGORIES = ['Mobilier', 'Équipement', 'Trousse de secours'];
+export const CATEGORIES = ['Mobilier', 'Équipement', 'Fournitures', 'Trousse de secours'];
 export const EXPIRY_WARNING_DAYS = 30;
 
 const days = (from, to) => Math.round((new Date(`${to}T12:00:00`) - new Date(`${from}T12:00:00`)) / 864e5);

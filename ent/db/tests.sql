@@ -1204,5 +1204,26 @@ DO $$ DECLARE site uuid; doli uuid; tab uuid; enr uuid := '30000000-0000-0000-00
   END;
 END $$;
 
+-- T52. Agendas école / examens / équipe ; manuels comparés à l'effectif ------------------------------
+DO $$ DECLARE site uuid; yr uuid; tle uuid; c5 uuid; ev_exam school_event; ev_team school_event; ev_all school_event; t uuid; b record; BEGIN
+  SELECT c.site_id, c.year_id, c.id INTO site, yr, tle FROM enrollment e JOIN school_class c ON c.id = e.class_id WHERE e.id = '30000000-0000-0000-0000-0000000000a1';
+  INSERT INTO school_class (year_id, site_id, level_code, name) VALUES (yr, site, '5E', '5e T52') RETURNING id INTO c5;
+  INSERT INTO school_event (site_id, title, starts_at, ends_at, all_day, calendar, created_by) VALUES (site, 'Bac blanc', '2027-02-08', '2027-02-12', true, 'EXAMENS', '00000000-0000-0000-0000-000000000001') RETURNING * INTO ev_exam;
+  INSERT INTO school_event (site_id, title, starts_at, ends_at, all_day, calendar, created_by) VALUES (site, 'Arrêt des notes', '2026-11-27', '2026-11-27', true, 'EQUIPE', '00000000-0000-0000-0000-000000000001') RETURNING * INTO ev_team;
+  INSERT INTO school_event (site_id, title, starts_at, ends_at, all_day, created_by) VALUES (site, 'Réunion de rentrée', '2026-09-10 16:00+03', '2026-09-10 17:00+03', false, '00000000-0000-0000-0000-000000000001') RETURNING * INTO ev_all;
+  IF NOT event_visible(ev_exam, false, tle) OR event_visible(ev_exam, false, c5) OR NOT event_visible(ev_exam, true, NULL) THEN RAISE EXCEPTION 'T52: agenda des examens'; END IF;
+  IF event_visible(ev_team, false, tle) OR NOT event_visible(ev_team, true, NULL) THEN RAISE EXCEPTION 'T52: agenda de l''équipe'; END IF;
+  IF NOT event_visible(ev_all, false, c5) THEN RAISE EXCEPTION 'T52: calendrier de l''école'; END IF;
+  -- manuel de Terminale : 2 en état, 1 abîmé ; effectif de Terminale du site
+  INSERT INTO textbook (site_id, title, subject, level_codes, category, is_returnable, is_photocopy, binding, price_mga, replacement_price_mga)
+  VALUES (site, 'HG Terminale T52', 'HG', '{TLE}', 'MANUEL', true, false, 'DOS_CARRE', 25000, 68000) RETURNING id INTO t;
+  INSERT INTO textbook_stock VALUES (t, 'BON', 2), (t, 'DECHIRE', 1);
+  INSERT INTO textbook_loan (textbook_id, enrollment_id, state_out, issued_on, due_back) VALUES (t, '30000000-0000-0000-0000-0000000000a1', 'BON', '2026-09-07', '2027-06-30');
+  SELECT * INTO b FROM v_textbook_balance WHERE textbook_id = t;
+  IF b.effectif < 1 OR b.lent <> 1 OR b.damaged <> 1 OR b.good_in_stock <> 2 OR b.to_order <> greatest(0, b.effectif - 3) THEN
+    RAISE EXCEPTION 'T52: bilan des manuels faux (%)', b;
+  END IF;
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T51 passent'
+\echo 'OK — tous les scénarios T1 à T52 passent'

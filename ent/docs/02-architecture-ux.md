@@ -416,3 +416,17 @@ d'explication.
   réserve toujours dans Réservations) et trousse de secours (dates de péremption). Casse décrite, réparée ou
   jetée ; achats avec la facture en photo ou PDF ; liste « à faire » (sous le seuil, cassé, bientôt périmé) ;
   export Excel et impression.
+
+## Agendas par public ; manuels et fournitures dans l'inventaire
+
+- **Agendas** : **Cours** ; **Calendrier de l'école**, ouvert à tous (vacances, jours fériés et fermetures
+  repris des Paramètres, réunions, sorties) ; **Classes d'examen** (3e, 1re, Terminale : brevet et bac blancs,
+  épreuves, Parcoursup), visible des élèves et parents de ces classes et de tous les professeurs ; **Équipe**
+  (arrêts des notes, conseils de classe, conseil pédagogique, portes ouvertes), réservé au personnel ;
+  **Devoirs**. Chaque agenda s'affiche ou non et s'exporte séparément (.ics). En ajoutant un événement, on choisit
+  l'agenda et la classe.
+- **Inventaire** : onglet **Fournitures** (consommables : papier, marqueurs, encre, craies, copies), séparé du
+  mobilier et de l'équipement. Onglet **Manuels** : bilan de chaque titre comparé à l'effectif de l'année
+  (élèves importés ; pour une spécialité, ceux qui la suivent) — exemplaires, en prêt ou vendus, en état au
+  stock, abîmés, perdus, **à commander** — exportable en Excel. Les prêts et les retours restent dans « Manuels
+  scolaires ».

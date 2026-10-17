@@ -1649,7 +1649,8 @@ CREATE TABLE school_event (
   all_day       boolean NOT NULL DEFAULT false,
   place         text,
   class_id      uuid REFERENCES school_class(id),   -- NULL : toute l'école
-  staff_only    boolean NOT NULL DEFAULT false,
+  -- ECOLE : tous ; EXAMENS : classes d'examen (3e, 1re, Terminale) et personnel ; EQUIPE : personnel seulement
+  calendar      text NOT NULL DEFAULT 'ECOLE' CHECK (calendar IN ('ECOLE', 'EXAMENS', 'EQUIPE')),
   created_by    uuid NOT NULL REFERENCES app_user(id),
   CHECK (ends_at >= starts_at)
 );
@@ -1847,7 +1848,7 @@ CREATE TABLE early_departure (
 CREATE TABLE inventory_item (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   site_id       uuid NOT NULL REFERENCES site(id),
-  category      text NOT NULL CHECK (category IN ('MOBILIER', 'EQUIPEMENT', 'SECOURS')),
+  category      text NOT NULL CHECK (category IN ('MOBILIER', 'EQUIPEMENT', 'FOURNITURE', 'SECOURS')),
   name          text NOT NULL,
   place         text,
   qty           integer NOT NULL CHECK (qty >= 0),
@@ -1891,3 +1892,31 @@ CREATE TABLE care_visit (
 CREATE VIEW v_frequent_care_visits AS
   SELECT enrollment_id, date_trunc('month', at)::date AS month, count(*) AS visits
   FROM care_visit GROUP BY 1, 2 HAVING count(*) >= 3;
+
+-- Manuels comparés à l'effectif de l'année : exemplaires, en prêt, abîmés, perdus, à commander.
+CREATE VIEW v_textbook_balance AS
+WITH eff AS (
+  SELECT t.id AS textbook_id, count(e.id) AS effectif
+  FROM textbook t
+  LEFT JOIN school_class c ON c.site_id = t.site_id AND c.level_code = ANY (t.level_codes)
+    AND c.year_id = (SELECT id FROM academic_year WHERE is_current LIMIT 1)
+  LEFT JOIN enrollment e ON e.class_id = c.id AND e.left_on IS NULL
+    AND (t.specialty IS NULL OR EXISTS (SELECT 1 FROM enrollment_specialty s WHERE s.enrollment_id = e.id AND s.specialty = t.specialty))
+  GROUP BY t.id
+), stock AS (
+  SELECT textbook_id, sum(quantity) FILTER (WHERE condition <> 'DECHIRE') AS good, coalesce(sum(quantity) FILTER (WHERE condition = 'DECHIRE'), 0) AS damaged
+  FROM textbook_stock GROUP BY textbook_id
+), loans AS (
+  SELECT textbook_id,
+    count(*) FILTER (WHERE due_back IS NOT NULL AND returned_on IS NULL AND lost_on IS NULL) AS lent,
+    count(*) FILTER (WHERE due_back IS NULL) AS sold,
+    count(*) FILTER (WHERE lost_on IS NOT NULL) AS lost
+  FROM textbook_loan GROUP BY textbook_id
+)
+SELECT t.id AS textbook_id, t.site_id, t.title, eff.effectif,
+  coalesce(stock.good, 0) AS good_in_stock, coalesce(stock.damaged, 0) AS damaged,
+  coalesce(loans.lent, 0) AS lent, coalesce(loans.sold, 0) AS sold, coalesce(loans.lost, 0) AS lost,
+  greatest(0, CASE WHEN t.is_returnable THEN eff.effectif - coalesce(stock.good, 0) - coalesce(loans.lent, 0)
+                   ELSE eff.effectif - coalesce(loans.sold, 0) - coalesce(stock.good, 0) END) AS to_order
+FROM textbook t JOIN eff ON eff.textbook_id = t.id
+LEFT JOIN stock ON stock.textbook_id = t.id LEFT JOIN loans ON loans.textbook_id = t.id;

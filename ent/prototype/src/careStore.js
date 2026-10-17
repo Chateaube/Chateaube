@@ -2,7 +2,7 @@
 import { INVENTORY, CARE_VISITS } from './data/inventory.js';
 
 const VISITS_KEY = 'ent-passages-v1';
-const INV_KEY = 'ent-inventaire-v1';
+const INV_KEY = 'ent-inventaire-v2'; // v2 : fournitures
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } };
 

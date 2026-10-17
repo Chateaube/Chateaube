@@ -6,6 +6,66 @@ import { CATEGORIES, inventoryAlerts, reportBroken, resolveBroken, addPurchase, 
 import { buildXlsx } from '../xlsx.js';
 import { saveFile } from '../download.js';
 import { printOnly } from '../print.js';
+import { loadManuals } from '../manualsStore.js';
+import { manualBalance } from '../rules/manuals.js';
+import { CLASSES } from '../data/schoollife.js';
+import { DEMO_SPECIALTIES } from '../data/manuals.js';
+import { loadImport } from '../importStore.js';
+
+/** Élèves par classe avec leurs spécialités : import de l'année s'il existe, sinon la démonstration. */
+function roster() {
+  const imp = loadImport()?.students;
+  if (imp?.length) return imp.map((s) => ({ cls: s.cls, specialties: s.specialties ?? [] }));
+  return Object.entries(CLASSES).flatMap(([cls, list]) => list.map((n) => ({ cls, specialties: DEMO_SPECIALTIES[n] ?? [] })));
+}
+const effectifOf = (m, students) => {
+  const inLevels = students.filter((s) => m.levels.includes(s.cls));
+  if (!inLevels.length) return null; // classe absente de l'effectif connu
+  return m.specialty ? inLevels.filter((s) => s.specialties.includes(m.specialty)).length : inLevels.length;
+};
+
+function ManualsBalance() {
+  const [onlyMissing, setOnlyMissing] = useState(false);
+  const { manuals, loans } = loadManuals();
+  const students = roster();
+  const rows = manuals.map((m) => manualBalance(m, loans, effectifOf(m, students)));
+  const list = onlyMissing ? rows.filter((r) => r.missing > 0 || r.damaged > 0 || r.lost > 0) : rows;
+  const exportXlsx = () => {
+    const head = ['Titre', 'Niveaux', 'Effectif', 'Exemplaires', 'En prêt / vendus', 'En état au stock', 'Abîmés', 'Perdus', 'À commander'];
+    const out = [[{ v: 'Manuels — bilan et commande', s: 'title' }], [], head.map((v) => ({ v, s: 'head' }))];
+    rows.forEach((r) => out.push([r.title, r.levels.join(', '), r.effectif ?? '', r.total, r.returnable ? r.lent : r.sold, r.goodInStock, r.damaged, r.lost, { v: r.missing ?? '', s: r.missing > 0 ? 'red' : 'cell' }].map((v) => (typeof v === 'object' && v ? v : { v, s: 'cell' }))));
+    saveFile('manuels-bilan.xlsx', buildXlsx([{ name: 'Manuels', rows: out, widths: [40, 26, 10, 12, 14, 14, 10, 10, 12], freeze: { row: 3, col: 1 } }]));
+  };
+  const toOrder = rows.reduce((s, r) => s + (r.missing ?? 0), 0);
+  return (
+    <Card title="Manuels" subtitle="Bilan comparé à l'effectif. Les prêts et les retours se font dans « Manuels scolaires »."
+      action={<Button variant="secondary" onClick={exportXlsx}>Exporter (Excel)</Button>}>
+      <div className="mb-3 flex flex-wrap items-center gap-3 text-sm">
+        <span className="rounded-md bg-amber-50 px-2 py-1 text-amber-900">{toOrder} exemplaire{toOrder > 1 ? 's' : ''} à commander</span>
+        <span className="text-slate-600">{rows.reduce((s, r) => s + r.damaged, 0)} abîmés au stock · {rows.reduce((s, r) => s + r.lost, 0)} perdus cette année</span>
+        <label className="ml-auto flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" checked={onlyMissing} onChange={(e) => setOnlyMissing(e.target.checked)} />Seulement ce qui manque, abîmé ou perdu</label>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[760px] text-sm">
+          <thead><tr className="border-b border-slate-200 text-left text-xs text-slate-500"><th className="py-2 pr-2">Titre</th><th className="px-2">Niveaux</th><th className="px-2 text-right">Effectif</th><th className="px-2 text-right">Exemplaires</th><th className="px-2 text-right">En prêt</th><th className="px-2 text-right">En état au stock</th><th className="px-2 text-right">Abîmés</th><th className="px-2 text-right">Perdus</th><th className="px-2 text-right">À commander</th></tr></thead>
+          <tbody>{list.map((r) => (
+            <tr key={r.id} className="border-b border-slate-100">
+              <td className="py-1.5 pr-2 text-slate-900">{r.title}{!r.returnable && <Badge className="ml-2">cahier gardé</Badge>}</td>
+              <td className="px-2 text-xs text-slate-500">{r.levels.join(', ')}</td>
+              <td className="px-2 text-right tabular-nums">{r.effectif ?? <span className="text-slate-400" title="Classe absente de l'effectif importé">—</span>}</td>
+              <td className="px-2 text-right tabular-nums">{r.total}</td>
+              <td className="px-2 text-right tabular-nums">{r.returnable ? r.lent : `${r.sold} vendus`}</td>
+              <td className="px-2 text-right tabular-nums">{r.goodInStock}</td>
+              <td className={`px-2 text-right tabular-nums ${r.damaged ? 'text-amber-700' : 'text-slate-400'}`}>{r.damaged}</td>
+              <td className={`px-2 text-right tabular-nums ${r.lost ? 'text-red-700' : 'text-slate-400'}`}>{r.lost}</td>
+              <td className={`px-2 text-right font-semibold tabular-nums ${r.missing ? 'text-red-700' : 'text-emerald-700'}`}>{r.missing ?? '—'}</td>
+            </tr>))}</tbody>
+        </table>
+      </div>
+      <p className="mt-2 text-xs text-slate-500">Effectif : élèves de l'année importés (sinon ceux de la démonstration) ; pour une spécialité, seuls les élèves qui la suivent. Un manuel abîmé ou perdu n'est plus compté comme disponible.</p>
+    </Card>
+  );
+}
 
 // Inventaire : mobilier (tables simples ou doubles, chaises, bureaux…), équipement (dont le matériel
 // prêté aux professeurs, qui se réserve dans « Réservations ») et trousse de secours.
@@ -19,6 +79,7 @@ export default function InventoryModule({ role = 'BUREAU' }) {
   const manage = role !== 'VIE_SCOLAIRE'; // la CPE signale la casse ; achats et factures : secrétariat et Direction
   const [items, setItems] = useState(loadInventory);
   const [cat, setCat] = useState('Mobilier');
+  const TABS = [...CATEGORIES, 'Manuels'];
   const [open, setOpen] = useState(null); // { id, mode: CASSE | ACHAT | REGLER }
   const [f, setF] = useState({});
   const [err, setErr] = useState('');
@@ -54,12 +115,12 @@ export default function InventoryModule({ role = 'BUREAU' }) {
         <div>
           <p className="text-sm font-semibold text-navy-500">Tamatave</p>
           <h1 className="text-2xl font-semibold text-navy-900">Inventaire du matériel</h1>
-          <p className="text-sm text-slate-500">Mobilier, équipement et trousse de secours : ce qui est cassé, les factures, ce qu'il faut recommander.</p>
+          <p className="text-sm text-slate-500">Mobilier, équipement, fournitures, trousse de secours et bilan des manuels : ce qui est cassé, les factures, ce qu'il faut recommander.</p>
         </div>
         <div className="flex gap-2"><Button variant="secondary" onClick={exportXlsx}>Exporter (Excel)</Button><Button variant="secondary" onClick={() => printOnly('.inventory-print', 'size: A4 portrait;', 'Inventaire')}>Imprimer</Button></div>
       </div>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {CATEGORIES.map((c) => <Stat key={c} label={c} value={items.filter((i) => i.cat === c).reduce((s, i) => s + i.qty, 0)} hint={`${items.filter((i) => i.cat === c).length} articles`} />)}
+        {CATEGORIES.filter((c) => c !== 'Trousse de secours').map((c) => <Stat key={c} label={c} value={items.filter((i) => i.cat === c).reduce((s, i) => s + i.qty, 0)} hint={`${items.filter((i) => i.cat === c).length} articles`} />)}
         <Stat label="Cassés" value={items.reduce((s, i) => s + (i.broken ?? 0), 0)} tone="amber" />
       </div>
       {alerts.length > 0 && (
@@ -69,9 +130,9 @@ export default function InventoryModule({ role = 'BUREAU' }) {
         </div>
       )}
       <div className="flex gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1" role="tablist">
-        {CATEGORIES.map((c) => <button key={c} type="button" role="tab" aria-selected={cat === c} onClick={() => { setCat(c); setOpen(null); }} className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ${cat === c ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>{c}</button>)}
+        {TABS.map((c) => <button key={c} type="button" role="tab" aria-selected={cat === c} onClick={() => { setCat(c); setOpen(null); }} className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ${cat === c ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>{c}</button>)}
       </div>
-      <Card title={cat} subtitle={cat === 'Équipement' ? 'Le matériel marqué « réservable » se réserve dans Réservations' : cat === 'Trousse de secours' ? 'Gardée au secrétariat ; chaque Doliprane donné est retiré du stock' : 'Tables simples ou doubles, chaises, bureaux…'}
+      {cat === 'Manuels' ? <ManualsBalance /> : <Card title={cat} subtitle={cat === 'Équipement' ? 'Le matériel marqué « réservable » se réserve dans Réservations' : cat === 'Trousse de secours' ? 'Gardée au secrétariat ; chaque Doliprane donné est retiré du stock' : cat === 'Fournitures' ? 'Consommables : papier, marqueurs, encre, craies… à recommander sous le seuil' : 'Tables simples ou doubles, chaises, bureaux…'}
         action={manage && <Button variant="secondary" onClick={() => setNewItem({ name: '', qty: '', place: '', min: '' })}>Ajouter un article</Button>}>
         {newItem && (
           <div className="mb-3 grid gap-2 rounded-lg bg-slate-50 p-3 sm:grid-cols-5">
@@ -126,7 +187,7 @@ export default function InventoryModule({ role = 'BUREAU' }) {
             </tbody>
           </table>
         </div>
-      </Card>
+      </Card>}
       <div className="inventory-print hidden print:block">
         <h1 className="mb-2 text-lg font-semibold">Inventaire du matériel — Tamatave</h1>
         <table className="w-full text-xs"><thead><tr className="border-b text-left"><th>Catégorie</th><th>Article</th><th>Lieu</th><th className="text-right">Qté</th><th className="text-right">Cassés</th><th className="text-right">En état</th></tr></thead>

@@ -1081,3 +1081,14 @@ DECLARE item uuid; BEGIN
   RETURN NEW;
 END $$ LANGUAGE plpgsql;
 CREATE TRIGGER care_visit_check BEFORE INSERT ON care_visit FOR EACH ROW EXECUTE FUNCTION care_visit_guard();
+
+-- Un événement est-il visible ? (personnel, ou élève / parent d'un élève de la classe donnée)
+CREATE FUNCTION event_visible(ev school_event, is_staff boolean, for_class uuid) RETURNS boolean AS $$
+  SELECT CASE ev.calendar
+    WHEN 'EQUIPE' THEN is_staff
+    WHEN 'EXAMENS' THEN is_staff OR (EXISTS (SELECT 1 FROM school_class c JOIN level l ON l.code = c.level_code
+                                             WHERE c.id = for_class AND l.official_exam IS NOT NULL)
+                                     AND (ev.class_id IS NULL OR ev.class_id = for_class))
+    ELSE is_staff OR ev.class_id IS NULL OR ev.class_id = for_class
+  END
+$$ LANGUAGE sql STABLE;

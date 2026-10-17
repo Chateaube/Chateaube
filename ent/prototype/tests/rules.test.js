@@ -959,7 +959,7 @@ test('agendas : cours, événements, devoirs ; export iCalendar', () => {
     homework: [{ id: 'h1', cls: '1re STMG', subject: 'Maths', todo: 'Ex. 12', due: '2026-10-15' }, { id: 'h2', cls: '5e', subject: 'HG', todo: 'Leçon', due: '2026-10-16' }],
     cls: '1re STMG',
   });
-  assert.deepEqual(items.map((i) => i.agenda), ['COURS', 'DEVOIRS', 'EVENEMENTS']); // conseil péda réservé au personnel
+  assert.deepEqual(items.map((i) => i.agenda), ['COURS', 'DEVOIRS', 'ECOLE']); // conseil péda réservé au personnel
   const ics = toIcs(items, 'Chateaubriand — 1re STMG');
   assert.match(ics, /DTSTART;TZID=Indian\/Antananarivo:20261013T070000/);
   assert.match(ics, /DTSTART;VALUE=DATE:20261024\r\nDTEND;VALUE=DATE:20261103/);
@@ -1144,4 +1144,32 @@ test('inventaire : casse, réparation, achat avec facture, stock et péremption'
   assert.equal(inventoryAlerts([d], '2026-11-02')[0].kind, 'PERIME');
   assert.equal(consume(d, 1, 'y', 'z').qty, 0);
   assert.throws(() => consume({ ...d, qty: 0 }, 1, 'y', 'z'));
+});
+
+import { agendasFor, closuresAsEvents, isExamClass } from '../src/rules/agenda.js';
+import { manualBalance } from '../src/rules/manuals.js';
+test('agendas : école pour tous, classes d\'examen, équipe réservée au personnel', () => {
+  const events = [
+    ...closuresAsEvents([{ id: 'f1', kind: 'FERIE', label: 'Toussaint', start: '2026-11-01', end: '2026-11-01' }]),
+    { id: 'x', agenda: 'EXAMENS', date: '2027-01-12', allDay: true, title: 'Brevet blanc', classes: ['3e'] },
+    { id: 'y', agenda: 'EQUIPE', date: '2026-11-27', allDay: true, title: 'Arrêt des notes', classes: [] },
+  ];
+  const titles = (o) => agendaItems({ events, ...o }).map((i) => i.title);
+  assert.deepEqual(titles({ cls: '5e' }), ['Jour férié — Toussaint']);
+  assert.deepEqual(titles({ cls: '3e' }), ['Jour férié — Toussaint', 'Brevet blanc']);
+  assert.deepEqual(titles({ cls: '1re STMG' }), ['Jour férié — Toussaint']); // brevet : 3e seulement
+  assert.deepEqual(titles({ staff: true }), ['Jour férié — Toussaint', 'Arrêt des notes', 'Brevet blanc']);
+  assert.deepEqual(agendasFor({ staff: false, cls: '4e' }), ['COURS', 'ECOLE', 'DEVOIRS']);
+  assert.deepEqual(agendasFor({ staff: false, cls: 'Terminale STMG' }), ['COURS', 'ECOLE', 'EXAMENS', 'DEVOIRS']);
+  assert.ok(isExamClass('1re Générale') && !isExamClass('2de'));
+});
+
+test('inventaire des manuels : effectif, en prêt, abîmés, perdus, à commander', () => {
+  const m = { id: 'm', title: 'Maths', levels: ['5e'], returnable: true, stock: { NEUF: 1, BON: 2, USE: 0, DECHIRE: 2 } };
+  const loans = [{ manualId: 'm', student: 'a' }, { manualId: 'm', student: 'b' }, { manualId: 'm', student: 'c', stateIn: 'PERDU' }];
+  const b = manualBalance(m, loans, 10);
+  assert.deepEqual([b.total, b.lent, b.goodInStock, b.damaged, b.lost, b.missing], [7, 2, 3, 2, 1, 5]);
+  const c = { id: 'c', title: 'Cahier', levels: ['5e'], returnable: false, stock: { NEUF: 3 } };
+  assert.equal(manualBalance(c, [{ manualId: 'c', sold: true }], 10).missing, 6);
+  assert.equal(manualBalance(c, [], null).missing, null);
 });
