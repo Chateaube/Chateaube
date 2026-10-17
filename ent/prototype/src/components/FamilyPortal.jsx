@@ -506,11 +506,17 @@ export default function FamilyPortal({ settings, audience = 'PARENT' }) {
           {view === 'messages' && <div className="-m-4 h-full bg-white p-3"><Messenger audience={audience} compact /></div>}
           {tab === 'more' && !shownSub && (
             <div className="grid grid-cols-2 gap-2">
-              {MORE.filter((m) => (!m[3] || m[3] === audience) && (menu[m[0]] ?? true)).map(([id, label, icon]) => (
-                <button key={id} onClick={() => setSub(id)} className="flex flex-col items-start gap-2 rounded-2xl bg-white p-4 text-left text-sm font-medium text-slate-800 shadow-soft">
-                  <Icon name={icon} className="h-5 w-5 text-navy-500" />{label}
-                </button>
-              ))}
+              {MORE.filter((m) => !m[3] || m[3] === audience).map(([id, label, icon]) => {
+                // ce qui ne concerne pas cet enfant reste visible, grisé et sans clic
+                const off = menu[id] === false;
+                return (
+                  <button key={id} disabled={off} onClick={() => setSub(id)}
+                    className={`flex flex-col items-start gap-2 rounded-2xl p-4 text-left text-sm font-medium ${off ? 'cursor-default bg-slate-100 text-slate-400' : 'bg-white text-slate-800 shadow-soft'}`}>
+                    <Icon name={icon} className={`h-5 w-5 ${off ? 'text-slate-300' : 'text-navy-500'}`} />
+                    <span>{label}{off && <span className="block text-[11px] font-normal">(ne concerne pas {isParent ? 'votre enfant' : 'ta classe'})</span>}</span>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>

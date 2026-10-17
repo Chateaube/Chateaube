@@ -328,4 +328,4 @@ voient les annonces sur l'accueil de leur portail. Base : `announcement` + `anno
 
 **Portail des familles selon la classe.** Le menu « Plus » dépend de l'enfant affiché : *Stages* en 3e et en 2de
 (ou s'il reste un stage passé à consulter), *Orientation* de la 3e à la Terminale, *Réinscription* dans toutes les
-classes sauf la Terminale. Un parent de plusieurs enfants voit le menu changer quand il change d'enfant.
+classes sauf la Terminale. Ce qui ne concerne pas l'enfant reste visible, grisé et sans clic, avec « (ne concerne pas votre enfant) » ; le menu suit l'enfant choisi en haut de l'écran.
