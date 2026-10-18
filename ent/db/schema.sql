@@ -1107,7 +1107,7 @@ CREATE TABLE orientation_wish (
 
 -- Circuit de publication (annonces, Vie de l'école) : seule la Direction publie.
 --   BROUILLON → EN_ATTENTE → PUBLIEE → RETIREE ; EN_ATTENTE → A_REVOIR (remarque) → EN_ATTENTE
-CREATE TYPE publication_status AS ENUM ('BROUILLON', 'EN_ATTENTE', 'A_REVOIR', 'PUBLIEE', 'RETIREE');
+CREATE TYPE publication_status AS ENUM ('BROUILLON', 'A_RELIRE', 'EN_ATTENTE', 'A_REVOIR', 'PUBLIEE', 'RETIREE'); -- A_RELIRE : relecture CPE (élèves mandatés)
 
 CREATE TABLE announcement (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -2136,15 +2136,23 @@ CREATE TABLE publication_event (
   id            bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   entity        text NOT NULL CHECK (entity IN ('ANNONCE', 'VIE_ECOLE', 'EVENEMENT')),
   entity_id     uuid NOT NULL,
-  action        text NOT NULL CHECK (action IN ('CREEE', 'ENVOYEE', 'CORRIGEE', 'RENVOYEE', 'PUBLIEE', 'RETIREE')),
+  action        text NOT NULL CHECK (action IN ('CREEE', 'ENVOYEE', 'RELUE', 'CORRIGEE', 'RENVOYEE', 'PUBLIEE', 'RETIREE')),
   by_user       uuid REFERENCES app_user(id),
   at            timestamptz NOT NULL DEFAULT now(),
   note          text
 );
+-- Annulation d'un cours le jour même : seule annonce publiée sans la Direction (secrétariat, CPE) ; la Direction
+-- la voit dans l'historique (publication_event, note « annulation du jour »).
+ALTER TABLE announcement
+  ADD COLUMN urgent text CHECK (urgent = 'ANNULATION_JOUR'),
+  ADD COLUMN concerns_date date,
+  ADD CONSTRAINT announcement_urgent_date CHECK (urgent IS NULL OR concerns_date IS NOT NULL);
 -- Ce que reçoivent élèves, parents et professeurs : uniquement le publié, avec la signature de service.
 CREATE VIEW v_public_announcement AS
 SELECT a.id, a.title, a.body_md, a.publish_at, a.is_pinned,
-  CASE WHEN a.author_service = 'Direction' THEN 'Direction' ELSE a.author_service || ' · validée par la Direction' END AS signature
+  CASE WHEN a.author_service = 'Direction' THEN 'Direction'
+       WHEN a.urgent = 'ANNULATION_JOUR' THEN a.author_service || ' · annulation du jour'
+       ELSE a.author_service || ' · validée par la Direction' END AS signature
 FROM announcement a WHERE a.status = 'PUBLIEE';
 
 -- =====  MANDATS D'ÉLÈVES : DÉLÉGUÉS DE CLASSE ET BUREAU DES ÉLÈVES (BDE)  =====
@@ -2163,7 +2171,7 @@ ALTER TABLE school_event
   ADD COLUMN review_note text,
   ADD CONSTRAINT school_event_review_note CHECK (status <> 'A_REVOIR' OR length(trim(coalesce(review_note, ''))) > 0);
 
--- Remontées des délégués pour le conseil de classe : lues par la Direction et la CPE, jamais publiées.
+-- Remontées des délégués pour le conseil de classe : lues par le secrétariat (et la Direction), jamais publiées.
 CREATE TABLE council_feedback (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   class_id      uuid NOT NULL REFERENCES school_class(id),

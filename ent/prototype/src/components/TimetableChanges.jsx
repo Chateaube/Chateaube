@@ -6,9 +6,10 @@ import { CHANGE_TYPES, changeErrors, changeNotice } from '../rules/timetableChan
 import { publishAnnouncement } from '../announcementsStore.js';
 import { formatDateFr } from '../rules/calendar.js';
 
-// Changements d'emploi du temps (Direction, secrétariat ; consultation pour la CPE et les professeurs) :
+// Changements d'emploi du temps (Direction, secrétariat ; la CPE : annulation du jour seulement) :
 // chaque changement apparaît dans les agendas ; l'avis aux élèves et aux parents de la classe est publié
-// par la Direction (celui du secrétariat attend sa validation).
+// par la Direction (celui du secrétariat attend sa validation), SAUF l'annulation d'un cours le jour même,
+// qui part tout de suite (secrétariat ou CPE) et dont la Direction est informée.
 
 const KEY = 'ent-changements-edt-v1';
 export const loadChanges = () => { try { return JSON.parse(localStorage.getItem(KEY)) ?? []; } catch { return []; } };
@@ -19,25 +20,32 @@ const CLASSES = Object.keys(POPULATION.TMV.classes);
 const TONE = { ANNULE: 'red', DEPLACE: 'amber', AJOUT: 'green', DEFINITIF: 'navy' };
 const DAYS = [[1, 'lundi'], [2, 'mardi'], [3, 'mercredi'], [4, 'jeudi'], [5, 'vendredi'], [6, 'samedi']];
 
+const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const ACTOR = { DIRECTION: { role: 'DIRECTION', name: 'Direction' }, BUREAU: { role: 'BUREAU', name: 'Mme Hanta' }, VIE_SCOLAIRE: { role: 'VIE_SCOLAIRE', name: 'M. Be' } };
+
 export default function TimetableChanges({ role }) {
-  const canEdit = ['DIRECTION', 'BUREAU'].includes(role);
+  const sameDayOnly = role === 'VIE_SCOLAIRE'; // la CPE annonce seulement l'annulation d'un cours du jour
+  const canEdit = ['DIRECTION', 'BUREAU'].includes(role) || sameDayOnly;
+  const today = localToday();
   const [list, setList] = useState(loadChanges);
-  const blank = { type: 'ANNULE', cls: '1re STMG', subject: '', date: '2026-10-20', start: '', end: '', newDate: '', newStart: '', newEnd: '', newWeekday: 1, room: '', note: '' };
+  const blank = { type: 'ANNULE', cls: '1re STMG', subject: '', date: sameDayOnly ? today : '2026-10-20', start: '', end: '', newDate: '', newStart: '', newEnd: '', newWeekday: 1, room: '', note: '' };
   const [c, setC] = useState(blank);
   const [tried, setTried] = useState(false);
   const wd = new Date(`${c.date}T12:00:00Z`).getUTCDay() || 7;
   // séances de la classe ce jour-là, d'après l'emploi du temps
   const daySlots = TIMETABLE.filter((s) => s.cls === c.cls && s.weekday === wd);
   const subjects = [...new Set(TIMETABLE.filter((s) => s.cls === c.cls).map((s) => s.subject))];
-  const errors = changeErrors(c);
+  const sameDay = c.type === 'ANNULE' && c.date === today;
+  const errors = [...changeErrors(c), ...(sameDayOnly && !sameDay ? ['La CPE annonce seulement l\'annulation d\'un cours aujourd\'hui.'] : [])];
   const save = () => {
     setTried(true);
     if (errors.length) return;
     const item = { ...c, id: `c${Date.now()}`, oldWeekday: wd, at: new Date().toISOString().slice(0, 10) };
     const next = [item, ...list]; setList(next); saveChanges(next);
     const n = changeNotice(item, dateLabel);
-    publishAnnouncement({ ...n, author: role === 'DIRECTION' ? 'Direction' : 'Secrétariat', photos: [], pinned: item.type === 'DEFINITIF', ack: item.type === 'DEFINITIF', email: true, audience: { roles: ['PARENT', 'ELEVE', 'PROFESSEUR'], site: 'TMV', scope: 'CLASS', values: [item.cls] } },
-      role === 'DIRECTION' ? { role: 'DIRECTION', name: 'Direction' } : { role: 'BUREAU', name: 'Mme Hanta' }); // secrétariat : l'avis attend la validation de la Direction
+    // annulation du jour : publiée tout de suite ; sinon l'avis du secrétariat attend la validation de la Direction
+    publishAnnouncement({ ...n, author: { DIRECTION: 'Direction', BUREAU: 'Secrétariat', VIE_SCOLAIRE: 'Vie scolaire (CPE)' }[role], ...(sameDay ? { urgent: 'ANNULATION_JOUR', date: item.date } : {}), photos: [], pinned: item.type === 'DEFINITIF', ack: item.type === 'DEFINITIF', email: true, audience: { roles: ['PARENT', 'ELEVE', 'PROFESSEUR'], site: 'TMV', scope: 'CLASS', values: [item.cls] } },
+      ACTOR[role]);
     setC({ ...blank, cls: c.cls }); setTried(false);
   };
   return (
@@ -49,13 +57,14 @@ export default function TimetableChanges({ role }) {
       </div>
       {canEdit && (
         <Card title="Nouveau changement">
-          <div className="flex flex-wrap gap-1.5">
+          {sameDayOnly && <p className="mb-2 text-sm text-slate-700">Annulation d'un cours <strong>aujourd'hui</strong> : l'avis part tout de suite aux élèves, aux parents et aux professeurs de la classe ; la Direction en est informée.</p>}
+          <div className={`flex flex-wrap gap-1.5 ${sameDayOnly ? 'hidden' : ''}`}>
             {Object.entries(CHANGE_TYPES).map(([k, l]) => <button key={k} type="button" aria-pressed={c.type === k} onClick={() => setC({ ...c, type: k })}
               className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${c.type === k ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-600 ring-slate-300'}`}>{l}</button>)}
           </div>
           <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <label className="text-xs text-slate-600">Classe<select value={c.cls} onChange={(e) => setC({ ...c, cls: e.target.value, subject: '', start: '', end: '' })} className={`mt-1 w-full ${inputCls}`}>{CLASSES.map((x) => <option key={x}>{x}</option>)}</select></label>
-            <label className="text-xs text-slate-600">{c.type === 'DEFINITIF' ? 'À partir du' : c.type === 'AJOUT' ? 'Date du cours ajouté' : 'Date du cours'}<input type="date" value={c.date} onChange={(e) => setC({ ...c, date: e.target.value, start: '', end: '' })} className={`mt-1 w-full ${inputCls}`} /></label>
+            <label className="text-xs text-slate-600">{c.type === 'DEFINITIF' ? 'À partir du' : c.type === 'AJOUT' ? 'Date du cours ajouté' : 'Date du cours'}<input type="date" value={c.date} readOnly={sameDayOnly} onChange={(e) => setC({ ...c, date: e.target.value, start: '', end: '' })} className={`mt-1 w-full ${inputCls}`} /></label>
             {c.type === 'AJOUT' ? (
               <>
                 <label className="text-xs text-slate-600">Matière<select value={c.subject} onChange={(e) => setC({ ...c, subject: e.target.value })} className={`mt-1 w-full ${inputCls}`}><option value="">Choisir…</option>{subjects.map((x) => <option key={x}>{x}</option>)}</select></label>
@@ -86,8 +95,8 @@ export default function TimetableChanges({ role }) {
           </div>
           {c.type && c.cls && (c.subject || c.type === 'AJOUT') && !errors.length && <p className="mt-3 rounded-lg bg-navy-50 p-2 text-sm text-navy-900">Message envoyé : {changeNotice({ ...c, oldWeekday: wd }, dateLabel).text}</p>}
           {tried && errors.length > 0 && <ul className="mt-2 text-sm text-red-700">{errors.map((e) => <li key={e}>· {e}</li>)}</ul>}
-          <Button className="mt-3" onClick={save}>{canEdit && role === 'DIRECTION' ? 'Enregistrer et prévenir la classe' : 'Enregistrer et envoyer l\'avis à la Direction'}</Button>
-          {role !== 'DIRECTION' && <p className="mt-1 text-xs text-slate-600">L'agenda est mis à jour tout de suite ; l'avis aux familles part dès que la Direction l'a validé (Annonces → À valider).</p>}
+          <Button className="mt-3" onClick={save}>{role === 'DIRECTION' || sameDay ? 'Enregistrer et prévenir la classe' : 'Enregistrer et envoyer l\'avis à la Direction'}</Button>
+          {role !== 'DIRECTION' && <p className="mt-1 text-xs text-slate-600">{sameDay ? 'Cours annulé aujourd\'hui : l\'avis part tout de suite, sans attendre la Direction (elle en est informée).' : 'L\'agenda est mis à jour tout de suite ; l\'avis aux familles part dès que la Direction l\'a validé (Annonces → À valider).'}</p>}
         </Card>
       )}
       <Card title={`Changements (${list.length})`}>

@@ -27,12 +27,11 @@ export function AmbianceCard({ ambiance, id, onClose, compact = false }) {
 export default function AmbianceBand({ ambiance }) {
   const uid = useId().replace(/:/g, '');
   const [prefs, setPrefs] = useState(loadAmbiancePrefs);
-  const hidden = !!prefs.closed?.[ambiance?.id];
-  const [open, setOpen] = useState(!hidden);
+  const [open, setOpen] = useState(!!prefs.opened?.[ambiance?.id]); // repliée par défaut
   if (!ambiance) return null;
   const toggle = (next) => {
     setOpen(next);
-    const p = { ...prefs, closed: { ...prefs.closed, [ambiance.id]: !next } };
+    const p = { ...prefs, opened: { ...prefs.opened, [ambiance.id]: next } };
     setPrefs(p); saveAmbiancePrefs(p);
   };
   const noteId = `amb-note-${uid}`;

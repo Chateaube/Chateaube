@@ -1476,7 +1476,12 @@ DO $$ DECLARE a uuid; b uuid; ev uuid; tmv uuid := (SELECT id FROM site WHERE co
   EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T58:%' THEN RAISE; END IF;
   END;
   INSERT INTO announcement (title, body_md, author_id, author_mandate, status, is_pinned) VALUES ('Réunion de classe', 'Vendredi midi, salle 4', '00000000-0000-0000-0000-0000000000e1', 'DELEGUE', 'EN_ATTENTE', true) RETURNING id INTO a;
-  IF (SELECT (author_service, is_pinned) FROM announcement WHERE id = a) <> ('Délégués de Tle STMG'::text, false) THEN RAISE EXCEPTION 'T58: service du délégué'; END IF;
+  IF (SELECT (author_service, is_pinned, status) FROM announcement WHERE id = a) <> ('Délégués de Tle STMG'::text, false, 'A_RELIRE'::publication_status) THEN RAISE EXCEPTION 'T58: service du délégué, relecture CPE'; END IF;
+  BEGIN
+    INSERT INTO announcement (title, body_md, author_id, author_mandate, status, urgent, concerns_date) VALUES ('Cours annulé', 'Maths', '00000000-0000-0000-0000-0000000000e1', 'DELEGUE', 'PUBLIEE', 'ANNULATION_JOUR', current_date);
+    RAISE EXCEPTION 'T58: annulation du jour par un délégué';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T58:%' THEN RAISE; END IF;
+  END;
   BEGIN
     INSERT INTO announcement_audience (announcement_id, role, class_id) VALUES (a, 'PARENT', '10000000-0000-0000-0000-000000000001');
     RAISE EXCEPTION 'T58: délégué écrit aux parents';
@@ -1517,7 +1522,7 @@ DO $$ DECLARE a uuid; b uuid; ev uuid; tmv uuid := (SELECT id FROM site WHERE co
   END;
   INSERT INTO announcement_audience (announcement_id, role, site_id) VALUES (b, 'ELEVE', tmv);
   INSERT INTO school_event (site_id, title, starts_at, ends_at, created_by, status) VALUES (tmv, 'Tournoi de basket', '2026-11-13 12:00+03', '2026-11-13 13:30+03', '00000000-0000-0000-0000-0000000000e2', 'PUBLIEE') RETURNING id INTO ev;
-  IF (SELECT (status, proposed_by_mandate) FROM school_event WHERE id = ev) <> ('EN_ATTENTE'::publication_status, 'BDE'::text) THEN RAISE EXCEPTION 'T58: événement du BDE en attente'; END IF;
+  IF (SELECT (status, proposed_by_mandate) FROM school_event WHERE id = ev) <> ('A_RELIRE'::publication_status, 'BDE'::text) THEN RAISE EXCEPTION 'T58: événement du BDE en relecture'; END IF;
   IF (SELECT event_visible(e, false, '10000000-0000-0000-0000-000000000001') FROM school_event e WHERE id = ev) THEN RAISE EXCEPTION 'T58: événement visible avant validation'; END IF;
   BEGIN
     INSERT INTO school_event (site_id, title, starts_at, ends_at, created_by, calendar) VALUES (tmv, 'Conseil', '2026-11-13', '2026-11-13', '00000000-0000-0000-0000-0000000000e2', 'EQUIPE');
@@ -1535,13 +1540,46 @@ DO $$ DECLARE a uuid; b uuid; ev uuid; tmv uuid := (SELECT id FROM site WHERE co
     RAISE EXCEPTION 'T58: événement par un élève sans mandat';
   EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T58:%' THEN RAISE; END IF;
   END;
+  -- la Direction ne voit rien avant la relecture de la CPE ; le secrétariat ne relit pas
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-000000000001', true);
+  BEGIN
+    UPDATE announcement SET status = 'PUBLIEE' WHERE id = a;
+    RAISE EXCEPTION 'T58: publiée sans relecture de la CPE';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T58:%' THEN RAISE; END IF;
+  END;
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-000000000008', true);
+  BEGIN
+    UPDATE announcement SET status = 'EN_ATTENTE' WHERE id = a;
+    RAISE EXCEPTION 'T58: relue par le secrétariat';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T58:%' THEN RAISE; END IF;
+  END;
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-00000000000c', true);   -- la CPE relit et transmet
+  UPDATE announcement SET status = 'EN_ATTENTE' WHERE id = a;
+  UPDATE school_event SET status = 'EN_ATTENTE' WHERE id = ev;
   -- la Direction publie l'annonce du délégué et l'événement du BDE
   PERFORM set_config('app.user_id', '00000000-0000-0000-0000-000000000001', true);
   UPDATE announcement SET status = 'PUBLIEE' WHERE id = a;
   IF (SELECT signature FROM v_public_announcement WHERE id = a) <> 'Délégués de Tle STMG · validée par la Direction' THEN RAISE EXCEPTION 'T58: signature du délégué'; END IF;
   UPDATE school_event SET status = 'PUBLIEE' WHERE id = ev;
   IF NOT (SELECT event_visible(e, false, '10000000-0000-0000-0000-000000000001') AND validated_by = '00000000-0000-0000-0000-000000000001' FROM school_event e WHERE id = ev) THEN RAISE EXCEPTION 'T58: événement publié'; END IF;
-  IF (SELECT string_agg(action, ',' ORDER BY id) FROM publication_event WHERE entity_id = ev) <> 'CREEE,ENVOYEE,PUBLIEE' THEN RAISE EXCEPTION 'T58: historique de l''événement'; END IF;
+  IF (SELECT string_agg(action, ',' ORDER BY id) FROM publication_event WHERE entity_id = ev) <> 'CREEE,ENVOYEE,RELUE,PUBLIEE' THEN RAISE EXCEPTION 'T58: historique de l''événement'; END IF;
+  IF (SELECT string_agg(action, ',' ORDER BY id) FROM publication_event WHERE entity_id = a) <> 'CREEE,ENVOYEE,RELUE,PUBLIEE' THEN RAISE EXCEPTION 'T58: historique de l''annonce'; END IF;
+  -- mandats attribués par la Direction seule
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-00000000000c', true);
+  BEGIN
+    INSERT INTO student_engagement SELECT e.id, 'BDE' FROM enrollment e WHERE e.student_id = '20000000-0000-0000-0000-000000000002';
+    RAISE EXCEPTION 'T58: mandat attribué par la CPE';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T58:%' THEN RAISE; END IF;
+  END;
+  -- annulation d'un cours aujourd'hui : publiée tout de suite par le secrétariat ou la CPE ; un autre jour, non
+  INSERT INTO announcement (title, body_md, author_id, status, urgent, concerns_date) VALUES ('Maths : cours annulé', 'Aujourd''hui 10h', '00000000-0000-0000-0000-00000000000c', 'PUBLIEE', 'ANNULATION_JOUR', current_date) RETURNING id INTO b;
+  IF (SELECT signature FROM v_public_announcement WHERE id = b) <> 'Vie scolaire (CPE) · annulation du jour' THEN RAISE EXCEPTION 'T58: annulation du jour (CPE)'; END IF;
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-000000000008', true);
+  BEGIN
+    INSERT INTO announcement (title, body_md, author_id, status, urgent, concerns_date) VALUES ('Maths : cours annulé', 'Demain', '00000000-0000-0000-0000-000000000008', 'PUBLIEE', 'ANNULATION_JOUR', current_date + 1);
+    RAISE EXCEPTION 'T58: annulation d''un autre jour publiée sans la Direction';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T58:%' THEN RAISE; END IF;
+  END;
   -- fin d'inscription : plus de mandat
   UPDATE enrollment SET left_on = '2026-12-01' WHERE student_id = '20000000-0000-0000-0000-0000000000b3';
   IF EXISTS (SELECT 1 FROM student_mandate('00000000-0000-0000-0000-0000000000e2')) THEN RAISE EXCEPTION 'T58: mandat après départ'; END IF;

@@ -523,7 +523,7 @@ const SECTIONS = [
 // Élève délégué ou membre du BDE : une rubrique de plus, seulement pour lui (cf. rules/mandates.js)
 const mandateSection = (mandates) => {
   const items = [];
-  if (mandates.some((m) => m.kind === 'DELEGUE')) items.push(['mandate-class', 'Écrire à ma classe', 'megaphone'], ['mandate-council', 'Préparer le conseil', 'cap'], ['messages', 'Contacter la CPE', 'bell']);
+  if (mandates.some((m) => m.kind === 'DELEGUE')) items.push(['mandate-class', 'Écrire à ma classe', 'megaphone'], ['mandate-council', 'Préparer le conseil', 'cap']);
   if (mandates.some((m) => m.kind === 'BDE')) items.push(['mandate-bde', 'BDE : annonces et événements', 'sparkles']);
   return items.length ? [['Mon mandat', items]] : [];
 };

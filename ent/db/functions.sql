@@ -807,6 +807,10 @@ CREATE TRIGGER payroll_validation_check BEFORE INSERT OR UPDATE ON payroll_month
 -- Au plus 2 délégués et 2 suppléants par classe.
 CREATE FUNCTION engagement_guard() RETURNS trigger AS $$
 BEGIN
+  -- mandats (délégués, BDE) : attribués par la Direction seule
+  IF NEW.code IN ('DELEGUE', 'SUPPLEANT', 'BDE', 'BDE_PRESIDENT') AND current_app_user() IS NOT NULL AND NOT has_role(current_app_user(), 'DIRECTION') THEN
+    RAISE EXCEPTION 'Les mandats de délégué et de BDE sont attribués par la Direction';
+  END IF;
   IF NEW.code IN ('DELEGUE', 'SUPPLEANT') AND (
        SELECT count(*) FROM student_engagement se JOIN enrollment e ON e.id = se.enrollment_id
         WHERE se.code = NEW.code AND e.class_id = (SELECT class_id FROM enrollment WHERE id = NEW.enrollment_id)) >= 2 THEN
@@ -1227,25 +1231,36 @@ CREATE FUNCTION student_mandate(u uuid) RETURNS TABLE (kind text, class_id uuid,
 $$ LANGUAGE sql STABLE;
 
 CREATE FUNCTION announcement_guard() RETURNS trigger AS $$
-DECLARE actor uuid := coalesce(current_app_user(), NEW.author_id); director boolean := has_role(actor, 'DIRECTION'); action text; BEGIN
+DECLARE actor uuid := coalesce(current_app_user(), NEW.author_id); director boolean := has_role(actor, 'DIRECTION');
+  cpe boolean := has_role(actor, 'VIE_SCOLAIRE'); action text; BEGIN
   IF TG_OP = 'INSERT' THEN
     IF NEW.author_mandate IS NOT NULL THEN
       -- élève mandaté : il faut le mandat en cours ; signature « Délégués de 1re STMG » ou « Bureau des élèves (BDE) »
       SELECT CASE m.kind WHEN 'DELEGUE' THEN 'Délégués de ' || m.class_name ELSE 'Bureau des élèves (BDE)' END INTO NEW.author_service
         FROM student_mandate(NEW.author_id) m WHERE m.kind = NEW.author_mandate;
       IF NEW.author_service IS NULL THEN RAISE EXCEPTION 'Mandat de délégué ou de BDE requis pour écrire une annonce'; END IF;
+      IF NEW.status = 'EN_ATTENTE' THEN NEW.status := 'A_RELIRE'; END IF;   -- relecture de la CPE d'abord
     ELSIF NOT (has_role(NEW.author_id, 'DIRECTION') OR has_role(NEW.author_id, 'BUREAU') OR has_role(NEW.author_id, 'VIE_SCOLAIRE')) THEN
       RAISE EXCEPTION 'Les annonces sont rédigées par la Direction, le secrétariat, la CPE, les délégués ou le BDE';
     ELSE
       NEW.author_service := CASE WHEN has_role(NEW.author_id, 'DIRECTION') THEN 'Direction' WHEN has_role(NEW.author_id, 'BUREAU') THEN 'Secrétariat' ELSE 'Vie scolaire (CPE)' END;
     END IF;
-    IF NEW.status = 'PUBLIEE' AND NOT has_role(NEW.author_id, 'DIRECTION') THEN
-      RAISE EXCEPTION 'Seule la Direction publie : envoyez l''annonce pour validation';
+    IF NEW.urgent IS NOT NULL AND (NEW.author_mandate IS NOT NULL OR NOT (has_role(NEW.author_id, 'BUREAU') OR has_role(NEW.author_id, 'VIE_SCOLAIRE') OR has_role(NEW.author_id, 'DIRECTION'))) THEN
+      RAISE EXCEPTION 'L''annulation d''un cours le jour même est réservée au secrétariat et à la CPE';
     END IF;
-    IF NEW.status = 'PUBLIEE' THEN NEW.validated_by := NEW.author_id; NEW.validated_at := now(); END IF;
+    IF NEW.status = 'PUBLIEE' AND NOT has_role(NEW.author_id, 'DIRECTION') THEN
+      -- seule exception : l'annulation d'un cours LE JOUR MÊME, par le secrétariat ou la CPE
+      IF NEW.urgent = 'ANNULATION_JOUR' AND NEW.concerns_date = current_date AND NEW.author_mandate IS NULL THEN
+        NEW.validated_by := NEW.author_id; NEW.validated_at := now();
+      ELSE
+        RAISE EXCEPTION 'Seule la Direction publie : envoyez l''annonce pour validation';
+      END IF;
+    ELSIF NEW.status = 'PUBLIEE' THEN NEW.validated_by := NEW.author_id; NEW.validated_at := now();
+    END IF;
+    IF NEW.status = 'A_RELIRE' AND NEW.author_mandate IS NULL THEN RAISE EXCEPTION 'La relecture de la CPE concerne les élèves mandatés'; END IF;
     IF NOT has_role(NEW.author_id, 'DIRECTION') THEN NEW.is_pinned := false; END IF; -- l'épinglage se demande
     INSERT INTO publication_event (entity, entity_id, action, by_user) VALUES ('ANNONCE', NEW.id, 'CREEE', NEW.author_id);
-    IF NEW.status <> 'BROUILLON' THEN INSERT INTO publication_event (entity, entity_id, action, by_user) VALUES ('ANNONCE', NEW.id, CASE NEW.status WHEN 'PUBLIEE' THEN 'PUBLIEE' ELSE 'ENVOYEE' END, NEW.author_id); END IF;
+    IF NEW.status <> 'BROUILLON' THEN INSERT INTO publication_event (entity, entity_id, action, by_user, note) VALUES ('ANNONCE', NEW.id, CASE NEW.status WHEN 'PUBLIEE' THEN 'PUBLIEE' ELSE 'ENVOYEE' END, NEW.author_id, CASE WHEN NEW.urgent IS NOT NULL AND NEW.status = 'PUBLIEE' AND NOT has_role(NEW.author_id, 'DIRECTION') THEN 'annulation du jour, sans attendre la Direction' END); END IF;
     RETURN NEW;
   END IF;
   -- contenu : l'auteur modifie son brouillon ou une annonce à revoir ; la Direction corrige à tout moment
@@ -1259,12 +1274,23 @@ DECLARE actor uuid := coalesce(current_app_user(), NEW.author_id); director bool
   END IF;
   IF NEW.is_pinned AND NOT OLD.is_pinned AND NOT director THEN RAISE EXCEPTION 'Seule la Direction épingle une annonce'; END IF;
   IF NEW.status <> OLD.status THEN
-    action := CASE NEW.status WHEN 'EN_ATTENTE' THEN 'ENVOYEE' WHEN 'A_REVOIR' THEN 'RENVOYEE' WHEN 'PUBLIEE' THEN 'PUBLIEE' WHEN 'RETIREE' THEN 'RETIREE' ELSE NULL END;
-    IF NEW.status IN ('PUBLIEE', 'A_REVOIR', 'RETIREE') AND NOT director THEN
-      RAISE EXCEPTION 'Seule la Direction publie, renvoie ou retire une annonce';
-    END IF;
-    IF NEW.status = 'EN_ATTENTE' AND (actor <> OLD.author_id OR OLD.status NOT IN ('BROUILLON', 'A_REVOIR')) THEN
-      RAISE EXCEPTION 'Seul l''auteur envoie son brouillon';
+    -- l'élève mandaté renvoie : retour à la relecture de la CPE
+    IF NEW.status = 'EN_ATTENTE' AND OLD.author_mandate IS NOT NULL AND actor = OLD.author_id THEN NEW.status := 'A_RELIRE'; END IF;
+    IF OLD.status = 'A_RELIRE' THEN
+      -- relecture : la CPE transmet à la Direction ou renvoie à l'élève ; personne d'autre
+      IF NOT cpe OR NEW.status NOT IN ('EN_ATTENTE', 'A_REVOIR') THEN RAISE EXCEPTION 'La CPE relit d''abord les annonces des élèves'; END IF;
+      action := CASE NEW.status WHEN 'EN_ATTENTE' THEN 'RELUE' ELSE 'RENVOYEE' END;
+    ELSE
+      action := CASE NEW.status WHEN 'EN_ATTENTE' THEN 'ENVOYEE' WHEN 'A_RELIRE' THEN 'ENVOYEE' WHEN 'A_REVOIR' THEN 'RENVOYEE' WHEN 'PUBLIEE' THEN 'PUBLIEE' WHEN 'RETIREE' THEN 'RETIREE' ELSE NULL END;
+      IF NEW.status IN ('PUBLIEE', 'A_REVOIR', 'RETIREE') AND NOT director THEN
+        RAISE EXCEPTION 'Seule la Direction publie, renvoie ou retire une annonce';
+      END IF;
+      IF NEW.status = 'PUBLIEE' AND OLD.status <> 'EN_ATTENTE' AND OLD.author_mandate IS NOT NULL THEN
+        RAISE EXCEPTION 'Annonce d''élève : relecture de la CPE d''abord';
+      END IF;
+      IF NEW.status IN ('EN_ATTENTE', 'A_RELIRE') AND (actor <> OLD.author_id OR OLD.status NOT IN ('BROUILLON', 'A_REVOIR')) THEN
+        RAISE EXCEPTION 'Seul l''auteur envoie son brouillon';
+      END IF;
     END IF;
     IF NEW.status = 'PUBLIEE' THEN NEW.validated_by := actor; NEW.validated_at := now(); NEW.review_note := NULL; END IF;
     IF action IS NOT NULL THEN INSERT INTO publication_event (entity, entity_id, action, by_user, note) VALUES ('ANNONCE', NEW.id, action, actor, NEW.review_note); END IF;
@@ -1303,18 +1329,27 @@ DECLARE actor uuid := coalesce(current_app_user(), NEW.created_by); director boo
     IF NEW.calendar <> 'ECOLE' OR NEW.class_id IS NOT NULL OR NEW.site_id <> m.site_id THEN
       RAISE EXCEPTION 'Le BDE propose au calendrier de l''école de son site';
     END IF;
-    IF NEW.status = 'PUBLIEE' THEN NEW.status := 'EN_ATTENTE'; END IF;   -- jamais publié sans la Direction
+    IF NEW.status IN ('PUBLIEE', 'EN_ATTENTE') THEN NEW.status := 'A_RELIRE'; END IF;   -- relu par la CPE, publié par la Direction
     NEW.proposed_by_mandate := 'BDE';
     INSERT INTO publication_event (entity, entity_id, action, by_user) VALUES ('EVENEMENT', NEW.id, 'CREEE', NEW.created_by);
-    IF NEW.status = 'EN_ATTENTE' THEN INSERT INTO publication_event (entity, entity_id, action, by_user) VALUES ('EVENEMENT', NEW.id, 'ENVOYEE', NEW.created_by); END IF;
+    IF NEW.status = 'A_RELIRE' THEN INSERT INTO publication_event (entity, entity_id, action, by_user) VALUES ('EVENEMENT', NEW.id, 'ENVOYEE', NEW.created_by); END IF;
     RETURN NEW;
   END IF;
   IF OLD.proposed_by_mandate IS NULL THEN RETURN NEW; END IF;
   IF NEW.status <> OLD.status THEN
-    IF NEW.status IN ('PUBLIEE', 'A_REVOIR', 'RETIREE') AND NOT director THEN RAISE EXCEPTION 'Seule la Direction publie un événement proposé'; END IF;
-    IF NEW.status = 'EN_ATTENTE' AND (actor <> OLD.created_by OR OLD.status NOT IN ('BROUILLON', 'A_REVOIR')) THEN RAISE EXCEPTION 'Seul l''auteur envoie sa proposition'; END IF;
+    IF OLD.status = 'A_RELIRE' THEN
+      IF NOT has_role(actor, 'VIE_SCOLAIRE') OR NEW.status NOT IN ('EN_ATTENTE', 'A_REVOIR') THEN RAISE EXCEPTION 'La CPE relit d''abord les propositions du BDE'; END IF;
+      act := CASE NEW.status WHEN 'EN_ATTENTE' THEN 'RELUE' ELSE 'RENVOYEE' END;
+    ELSE
+      IF NEW.status IN ('PUBLIEE', 'A_REVOIR', 'RETIREE') AND NOT director THEN RAISE EXCEPTION 'Seule la Direction publie un événement proposé'; END IF;
+      IF NEW.status = 'PUBLIEE' AND OLD.status <> 'EN_ATTENTE' THEN RAISE EXCEPTION 'Relecture de la CPE d''abord'; END IF;
+      IF NEW.status IN ('EN_ATTENTE', 'A_RELIRE') THEN
+        IF actor <> OLD.created_by OR OLD.status NOT IN ('BROUILLON', 'A_REVOIR') THEN RAISE EXCEPTION 'Seul l''auteur envoie sa proposition'; END IF;
+        NEW.status := 'A_RELIRE';
+      END IF;
+      act := CASE NEW.status WHEN 'A_RELIRE' THEN 'ENVOYEE' WHEN 'A_REVOIR' THEN 'RENVOYEE' WHEN 'PUBLIEE' THEN 'PUBLIEE' WHEN 'RETIREE' THEN 'RETIREE' END;
+    END IF;
     IF NEW.status = 'PUBLIEE' THEN NEW.validated_by := actor; NEW.review_note := NULL; END IF;
-    act := CASE NEW.status WHEN 'EN_ATTENTE' THEN 'ENVOYEE' WHEN 'A_REVOIR' THEN 'RENVOYEE' WHEN 'PUBLIEE' THEN 'PUBLIEE' WHEN 'RETIREE' THEN 'RETIREE' END;
     IF act IS NOT NULL THEN INSERT INTO publication_event (entity, entity_id, action, by_user, note) VALUES ('EVENEMENT', NEW.id, act, actor, NEW.review_note); END IF;
   ELSIF NOT director AND (actor <> OLD.created_by OR OLD.status NOT IN ('BROUILLON', 'A_REVOIR')) THEN
     RAISE EXCEPTION 'Proposition envoyée à la Direction : elle ne se modifie plus';

@@ -554,10 +554,14 @@ d'explication.
   ajoute des **capacités** précises, limitées à sa classe (délégué) ou à son site (BDE), qui s'éteignent avec
   l'année (`rules/mandates.js`).
 - **Délégué** (portail élève → Autres → Mon mandat) : « Écrire à ma classe » (élèves de sa classe seulement),
-  « Préparer le conseil » (remarques collectives lues par la Direction et la CPE), « Contacter la CPE ».
+  « Préparer le conseil » (remarques collectives lues par le secrétariat, dans Conseils de classe). La CPE se
+  contacte par la messagerie, comme pour tout élève.
 - **BDE** : « Proposer un événement » (au calendrier de l'école après validation, file « Événements proposés par
   le BDE » dans Agendas) et « Rédiger une annonce » aux élèves du site.
-- **Validation** : tout part en attente dans la file de la Direction (Annonces, Agendas) ; signature publique
+- **Validation** : la CPE relit d'abord (transmet à la Direction ou renvoie à l'élève avec une remarque), puis
+  la Direction valide (Annonces, Agendas) ; rien n'est publié avant. Les mandats sont attribués par la Direction
+  seule (écran « Délégués et BDE »).
+- **Signature** : signature publique
   « Délégués de 1re STMG · validée par la Direction » ou « Bureau des élèves (BDE) · validée par la Direction ».
 - **Jamais** : notes ou appréciations des autres, vie scolaire des autres, fiches élèves, caisse, paramètres,
   publier ou valider. Ni parents ni professeurs comme destinataires (la Direction peut élargir en validant).
@@ -586,3 +590,15 @@ d'explication.
 - **Paramètres** (Direction) : automatique, imposée ou désactivée ; note modifiable pour chaque ambiance ; ajout
   d'une ambiance (dates, palette et animation choisies dans les listes validées, note), par exemple un thème
   d'histoire étudié en classe.
+
+## Annulation d'un cours le jour même
+
+Seule exception au circuit de validation : un cours annulé **aujourd'hui** est annoncé tout de suite à la classe
+(élèves, parents, professeurs) par le secrétariat ou la CPE (« Changements d'emploi du temps » ; la CPE n'a que
+ce cas). Signature « Secrétariat · annulation du jour » ; la Direction en est informée (notification). Tout autre
+changement d'emploi du temps attend la validation de la Direction. Même règle en base (`announcement.urgent`,
+`concerns_date = current_date`).
+
+## Ambiances : bande repliée par défaut
+
+La bande « Le saviez-vous ? » du personnel est repliée par défaut ; chacun peut l'ouvrir (mémorisé par ambiance).

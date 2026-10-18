@@ -127,8 +127,8 @@ const PROFILES = {
     title: 'CPE — vie scolaire',
     home: 'vs',
     nav: [
-      { group: 'Aujourd\'hui', items: [VIE_SCOLAIRE, CARE, HOURS, ro(TT_CHANGES)] },
-      { group: 'Élèves', items: [ro(STUDENT_LIST), MANDATES] },
+      { group: 'Aujourd\'hui', items: [VIE_SCOLAIRE, CARE, HOURS, TT_CHANGES] }, // CPE : annulation du jour seulement
+      { group: 'Élèves', items: [ro(STUDENT_LIST)] },
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, ro(AGENDA), RESOURCES] },
       { group: 'Ressources', items: [ro(BOOKING), ro({ id: 'books-cpe', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who="M. Be" kind="CPE" /> }), ro(OVERSIGHT[1])] },
     ],

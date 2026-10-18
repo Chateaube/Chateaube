@@ -38,7 +38,7 @@ function AnnouncementForm({ mandate, me, scopeChoices }) {
     setErr(e); if (e.length) return;
     const a = create('ANNONCE', { title: d.title.trim(), text: d.text.trim(), photos: [], audience, ack: false, email: false, service: serviceLabel(mandate) }, { role: mandate.kind, name: me, at: now() }, { send: true });
     saveAnnouncement(a);
-    setList([a, ...list]); setD({ ...d, title: '', text: '' }); setMsg('Envoyée à la Direction : elle sera publiée après validation.');
+    setList([a, ...list]); setD({ ...d, title: '', text: '' }); setMsg('Envoyée : relue par la CPE puis validée par la Direction avant publication.');
   };
   return (
     <div className="space-y-2">
@@ -47,7 +47,7 @@ function AnnouncementForm({ mandate, me, scopeChoices }) {
       {scopeChoices.length > 1 && <select value={d.scope} onChange={(e) => setD({ ...d, scope: e.target.value })} aria-label="Destinataires" className={inputCls}>{scopeChoices.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>}
       {err.length > 0 && <ul className="rounded-md bg-red-50 p-2 text-xs text-red-800">{err.map((x) => <li key={x}>· {x}</li>)}</ul>}
       {msg && <p className="text-xs text-emerald-700">{msg}</p>}
-      <Button className="w-full" onClick={send}>Envoyer à la Direction</Button>
+      <Button className="w-full" onClick={send}>Envoyer pour relecture</Button>
       <MySubmissions items={list} />
     </div>
   );
@@ -74,8 +74,8 @@ function EventForm({ me }) {
       </div>
       <input value={d.place} onChange={(e) => setD({ ...d, place: e.target.value })} placeholder="Lieu" className={inputCls} />
       {err.length > 0 && <ul className="rounded-md bg-red-50 p-2 text-xs text-red-800">{err.map((x) => <li key={x}>· {x}</li>)}</ul>}
-      <Button className="w-full" onClick={send}>Proposer à la Direction</Button>
-      <p className="text-[11px] text-slate-600">Une fois validé, l'événement paraît dans le calendrier de l'école.</p>
+      <Button className="w-full" onClick={send}>Proposer l'événement</Button>
+      <p className="text-[11px] text-slate-600">Relu par la CPE, validé par la Direction, puis ajouté au calendrier de l'école.</p>
       <MySubmissions items={list} />
     </div>
   );
@@ -88,7 +88,7 @@ function CouncilPrep({ mandate, me }) {
     <div className="space-y-2">
       <p className="text-sm text-slate-700">Conseil de classe : <strong>{TERM.council}</strong>.</p>
       <textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} placeholder="Ce que la classe souhaite dire au conseil : ambiance, charge de travail, demandes… (pas de cas individuel)" className={inputCls} />
-      <Button className="w-full" disabled={!text.trim()} onClick={() => { const f = { cls: mandate.cls, by: me, at: now(), text: text.trim(), term: TERM.id }; addCouncilFeedback(f); setSent([f, ...sent]); setText(''); }}>Envoyer à la Direction et à la CPE</Button>
+      <Button className="w-full" disabled={!text.trim()} onClick={() => { const f = { cls: mandate.cls, by: me, at: now(), text: text.trim(), term: TERM.id }; addCouncilFeedback(f); setSent([f, ...sent]); setText(''); }}>Envoyer au secrétariat</Button>
       {sent.map((f, i) => <p key={i} className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700">Envoyé le {f.at.slice(8, 10)}/{f.at.slice(5, 7)} : {f.text}</p>)}
     </div>
   );
@@ -100,9 +100,9 @@ export default function StudentMandates({ student, me, view }) {
   const box = (title, sub, children) => <section className="rounded-2xl bg-white p-4 shadow-soft"><h2 className="font-display text-[15px] font-semibold text-slate-900">{title}</h2><p className="mb-3 text-xs text-slate-600">{sub}</p>{children}</section>;
   return (
     <div className="space-y-3">
-      {view === 'mandate-class' && delegate && can(student, 'ANNONCE_CLASSE') && box(`Écrire à ma classe — ${delegate.cls}`, 'Message aux élèves de la classe, publié après validation par la Direction.', <AnnouncementForm mandate={delegate} me={me} scopeChoices={[['CLASS', delegate.cls]]} />)}
-      {view === 'mandate-council' && delegate && can(student, 'LIAISON_CONSEIL') && box('Préparer le conseil de classe', 'Les remarques de la classe, lues par la Direction et la CPE avant le conseil.', <CouncilPrep mandate={delegate} me={me} />)}
-      {view === 'mandate-bde' && bde && box(`BDE${bde.president ? ' — présidence' : ''}`, 'Annonces aux élèves et événements, publiés après validation par la Direction.', <>
+      {view === 'mandate-class' && delegate && can(student, 'ANNONCE_CLASSE') && box(`Écrire à ma classe — ${delegate.cls}`, 'Message aux élèves de la classe : relu par la CPE, validé par la Direction.', <AnnouncementForm mandate={delegate} me={me} scopeChoices={[['CLASS', delegate.cls]]} />)}
+      {view === 'mandate-council' && delegate && can(student, 'LIAISON_CONSEIL') && box('Préparer le conseil de classe', 'Les remarques de la classe, transmises au secrétariat pour le conseil.', <CouncilPrep mandate={delegate} me={me} />)}
+      {view === 'mandate-bde' && bde && box(`BDE${bde.president ? ' — présidence' : ''}`, 'Annonces aux élèves et événements : relus par la CPE, validés par la Direction.', <>
         <h3 className="mb-1 text-sm font-semibold text-slate-800">Proposer un événement</h3>
         {can(student, 'EVENEMENT') && <EventForm me={me} />}
         <h3 className="mb-1 mt-4 text-sm font-semibold text-slate-800">Rédiger une annonce</h3>

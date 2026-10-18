@@ -4,7 +4,7 @@
 //  - INFO : annonces, publications (sans badge rouge).
 // Le rouge est réservé à l'urgent.
 import { ATTENDANCE, CLASSES } from './data/schoollife.js';
-import { loadEventProposals } from './studentInitiativesStore.js';
+import { loadEventProposals, loadCouncilFeedback } from './studentInitiativesStore.js';
 import { loadVisits } from './careStore.js';
 import { loadInventory } from './careStore.js';
 import { pendingSignatures } from './signatureStore.js';
@@ -63,6 +63,21 @@ export function notificationsFor(role, { account } = {}) {
   }
   if (role === 'VIE_SCOLAIRE') {
     add(collesToGive, { id: 'colles', to: 'vs', count: collesToGive, text: `${collesToGive} colle${collesToGive > 1 ? 's' : ''} à donner (oublis, retards)`, action: 'Donner' });
+  }
+  if (role === 'VIE_SCOLAIRE') {
+    const reread = news.filter((a) => a.status === 'A_RELIRE').length;
+    add(reread, { id: 'news-reread', to: 'news', count: reread, text: `${reread} annonce${reread > 1 ? 's' : ''} de délégués ou du BDE à relire`, action: 'Relire' });
+    const evReread = loadEventProposals().filter((e) => e.status === 'A_RELIRE').length;
+    add(evReread, { id: 'events-reread', to: 'agenda', count: evReread, text: `${evReread} événement${evReread > 1 ? 's' : ''} du BDE à relire`, action: 'Relire' });
+  }
+  if (role === 'BUREAU') {
+    const fb = loadCouncilFeedback().length;
+    if (fb) info.push({ id: 'council-feedback', level: 'INFO', to: 'council', text: `${fb} remarque${fb > 1 ? 's' : ''} des délégués pour le conseil` });
+  }
+  if (role === 'DIRECTION') {
+    // annulations du jour parties sans validation : la Direction en est informée
+    news.filter((a) => a.direct && a.publishedAt?.slice(0, 10) === new Date().toISOString().slice(0, 10))
+      .forEach((a) => info.push({ id: `direct-${a.id}`, level: 'INFO', to: 'news', text: `Annulation du jour envoyée par ${a.service ?? a.author} : ${a.title}` }));
   }
   if (['BUREAU', 'VIE_SCOLAIRE'].includes(role)) {
     const back = news.filter((a) => a.status === 'A_REVOIR' && a.authorRole === role).length;

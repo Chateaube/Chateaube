@@ -3,7 +3,7 @@ import { Badge, Button, Card, Icon } from './ui.jsx';
 import { ROLES, SCOPES, CYCLES, LEVELS, recipientCount, audienceLabel, announcementErrors, receives, whatsappText } from '../rules/announcements.js';
 import { SITES, POPULATION } from '../data/announcements.js';
 import { loadAnnouncements, saveAnnouncement, removeAnnouncement, acknowledge, acked } from '../announcementsStore.js';
-import { STATUS, canWrite, canPublish, create, edit, submit, approve, sendBack, withdraw, signature, trail, workView } from '../rules/publication.js';
+import { STATUS, canWrite, canPublish, create, edit, submit, approve, sendBack, withdraw, signature, trail, workView, forward, cpeSendBack, REVIEWER } from '../rules/publication.js';
 import { imageToDataUrl } from '../image.js';
 
 // Annonces : un message (texte et photos) à tous les parents, toute l'école, un cycle, des niveaux
@@ -70,6 +70,27 @@ function ReviewItem({ a, onDone }) {
   );
 }
 
+/** Relecture de la CPE : les annonces des délégués et du BDE passent par elle avant la Direction. */
+function CpeReviewItem({ a, onDone }) {
+  const [note, setNote] = useState('');
+  const [err, setErr] = useState('');
+  const actor = { role: 'VIE_SCOLAIRE', name: ACTOR_NAME.VIE_SCOLAIRE, at: now() };
+  const run = (fn, msg) => { try { saveAnnouncement(fn()); onDone(msg); } catch (e) { setErr(e.message); } };
+  return (
+    <li className="rounded-xl border border-amber-200 bg-amber-50/40 p-3">
+      <p className="text-xs text-slate-600">{trail(a)} · {audienceLabel(a.audience, SITES)}</p>
+      <p className="mt-1 text-sm font-semibold text-slate-900">{a.title}</p>
+      <p className="whitespace-pre-line text-sm text-slate-700">{a.text}</p>
+      {err && <p className="mt-1 text-xs text-red-700">{err}</p>}
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <Button className="!py-1 text-xs" onClick={() => run(() => forward(a, actor), `« ${a.title} » est transmise à la Direction.`)}>Transmettre à la Direction</Button>
+        <input value={note} onChange={(e) => setNote(e.target.value)} aria-label="Remarque pour l'élève" placeholder="Remarque pour l'élève" className="min-w-[12rem] flex-1 rounded-md border border-slate-300 px-2 py-1 text-xs" />
+        <Button variant="secondary" className="!py-1 text-xs" onClick={() => run(() => cpeSendBack(a, actor, note), `Renvoyée à ${a.authorName} avec votre remarque.`)}>Renvoyer à l'élève</Button>
+      </div>
+    </li>
+  );
+}
+
 export default function AnnouncementsModule({ role, account }) {
   const writer = canWrite('ANNONCE', role);
   const publisher = canPublish(role);
@@ -105,6 +126,7 @@ export default function AnnouncementsModule({ role, account }) {
 
   const mine = workView(data.list, { role, name: actorOf().name });
   const pending = publisher ? data.list.filter((a) => a.status === 'EN_ATTENTE') : [];
+  const toReread = role === REVIEWER ? data.list.filter((a) => a.status === 'A_RELIRE') : [];
   const myOpen = mine.filter((a) => !publisher && ['BROUILLON', 'EN_ATTENTE', 'A_REVOIR'].includes(a.status) && a.authorName === actorOf().name);
   const published = mine.filter((a) => a.status === 'PUBLIEE');
 
@@ -135,13 +157,18 @@ export default function AnnouncementsModule({ role, account }) {
       <div>
         <p className="text-sm font-semibold text-navy-500">Toute l'école, un site, un cycle, des niveaux ou des classes</p>
         <h1 className="text-2xl font-semibold text-navy-900">Annonces</h1>
-        <p className="text-sm text-slate-600">{publisher ? 'Vous publiez directement ; les annonces du secrétariat, de la CPE, des délégués et du BDE attendent votre validation.' : 'Vos annonces sont publiées après validation par la Direction, qui peut les corriger.'}</p>
+        <p className="text-sm text-slate-600">{publisher ? 'Vous publiez directement ; les annonces du secrétariat, de la CPE, des délégués et du BDE (relues d\'abord par la CPE) attendent votre validation. Seule l\'annulation d\'un cours le jour même part sans vous.' : 'Vos annonces sont publiées après validation par la Direction, qui peut les corriger.'}</p>
       </div>
       {msg && <p role="status" className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{msg}</p>}
 
       {publisher && pending.length > 0 && (
         <Card title={`À valider (${pending.length})`} subtitle="Corrigez si besoin, puis publiez ; ou renvoyez avec une remarque">
           <ul className="space-y-3">{pending.map((a) => <ReviewItem key={a.id} a={a} onDone={refresh} />)}</ul>
+        </Card>
+      )}
+      {toReread.length > 0 && (
+        <Card title={`À relire — délégués et BDE (${toReread.length})`} subtitle="Première relecture avant la Direction : transmettez, ou renvoyez à l'élève avec une remarque">
+          <ul className="space-y-3">{toReread.map((a) => <CpeReviewItem key={a.id} a={a} onDone={refresh} />)}</ul>
         </Card>
       )}
       {myOpen.length > 0 && (

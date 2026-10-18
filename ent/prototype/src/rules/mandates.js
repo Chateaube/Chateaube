@@ -6,7 +6,7 @@
 
 export const MANDATES = {
   DELEGUE: { label: 'Délégué(e) de classe', from: ['DELEGUE', 'SUPPLEANT'], scope: 'CLASS',
-    capabilities: ['ANNONCE_CLASSE', 'LIAISON_CONSEIL', 'CONTACT_CPE'] },
+    capabilities: ['ANNONCE_CLASSE', 'LIAISON_CONSEIL'] }, // la CPE : par la messagerie, comme tout élève
   BDE: { label: 'Bureau des élèves (BDE)', from: ['BDE', 'BDE_PRESIDENT'], scope: 'SITE',
     capabilities: ['ANNONCE_ELEVES', 'EVENEMENT', 'VIE_ECOLE'] },
 };

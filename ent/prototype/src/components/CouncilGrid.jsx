@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { loadCouncilFeedback } from '../studentInitiativesStore.js';
 import { saveFile } from '../download.js';
 import { printOnly } from '../print.js';
 import { AveragesSheet, classAverages } from './GradeSheets.jsx';
@@ -23,6 +24,18 @@ const SHORT = { FR: 'Fra', MATHS: 'Math', HG: 'H-G', LVA: 'Ang', LVB: 'Esp', EPS
 // Avancement des saisies par matière (démo)
 const ENTRY_STATUS = { LVB: 'En cours (3 / 4 notes)', MUS: 'En cours (2 / 4 notes)' };
 const tone = (v) => (v === null ? 'text-slate-400' : v < 10 ? 'text-red-700' : v >= 14 ? 'text-emerald-700' : 'text-slate-800');
+
+/** Ce que les délégués de la classe ont préparé pour le conseil (lu par le secrétariat, qui tient le conseil). */
+function DelegatesFeedback({ cls }) {
+  const list = loadCouncilFeedback().filter((f) => f.cls === cls);
+  return (
+    <section aria-labelledby="remontees-titre" className="rounded-2xl bg-white p-4 shadow-soft print:hidden">
+      <h2 id="remontees-titre" className="font-display text-base font-semibold text-slate-900">Remarques des délégués ({list.length})</h2>
+      {list.length === 0 ? <p className="text-sm text-slate-600">Les délégués n'ont rien envoyé pour ce conseil.</p>
+        : <ul className="mt-2 space-y-2 text-sm">{list.map((f) => <li key={f.id} className="rounded-lg bg-slate-50 p-2"><span className="block text-xs text-slate-600">{f.by} · {f.at.slice(8, 10)}/{f.at.slice(5, 7)}</span>{f.text}</li>)}</ul>}
+    </section>
+  );
+}
 
 export default function CouncilGrid({ settings, role, go }) {
   // appréciation générale : tapée par la Direction, ou par le secrétariat puis validée par la Direction
@@ -109,6 +122,7 @@ export default function CouncilGrid({ settings, role, go }) {
           <Button variant="secondary" onClick={() => go?.('bulletins')}>Bulletins</Button>
         </div>
       </div>
+      <DelegatesFeedback cls="1re STMG" />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 print:hidden">
         <Stat label="Moyenne générale de la classe" value={fmtAvg(generalStats.avg)} hint={`de ${fmtAvg(generalStats.min)} à ${fmtAvg(generalStats.max)}`} />

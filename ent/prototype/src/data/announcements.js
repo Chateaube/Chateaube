@@ -48,7 +48,7 @@ export const ANNOUNCEMENTS = [
   {
     id: 'n5', title: 'Sortie au port : rendez-vous à 7h45', at: '2026-10-15T18:10',
     text: 'Pour la sortie de jeudi, rendez-vous devant le portail à 7h45. Pensez à votre casquette et à une bouteille d\'eau.',
-    author: 'Délégués de 1re STMG', service: 'Délégués de 1re STMG', authorRole: 'DELEGUE', authorName: 'RAKOTOARISOA Aina', status: 'EN_ATTENTE',
+    author: 'Délégués de 1re STMG', service: 'Délégués de 1re STMG', authorRole: 'DELEGUE', authorName: 'RAKOTOARISOA Aina', status: 'A_RELIRE',
     history: [{ at: '2026-10-15T18:05', by: 'RAKOTOARISOA Aina', role: 'DELEGUE', action: 'CREEE' }, { at: '2026-10-15T18:10', by: 'RAKOTOARISOA Aina', role: 'DELEGUE', action: 'ENVOYEE' }],
     audience: { roles: ['ELEVE'], site: 'TMV', scope: 'CLASS', values: ['1re STMG'] },
     pinned: false, ack: false, photos: [], reads: 0,

@@ -1400,10 +1400,36 @@ test('mandats d\'élèves : délégué (sa classe), BDE (son site), jamais de no
   assert.equal(classMandateErrors({ a: ['DELEGUE'], b: ['DELEGUE'], c: ['DELEGUE'] }).length, 1);
   // le circuit de la Direction s'applique : jamais publié directement
   const a = pub.create('ANNONCE', { title: 'Sortie de classe', service: serviceLabel(m) }, { role: 'DELEGUE', name: 'Aina', at: '2026-10-13T12:00' }, { send: true });
-  assert.equal(a.status, 'EN_ATTENTE');
-  const ok = pub.approve(a, { role: 'DIRECTION', name: 'Direction', at: '2026-10-13T16:00' });
+  // relecture de la CPE d'abord : la Direction ne voit rien avant
+  assert.equal(a.status, 'A_RELIRE');
+  const dir = { role: 'DIRECTION', name: 'Direction', at: '2026-10-13T16:00' };
+  const cpe = { role: 'VIE_SCOLAIRE', name: 'M. Be', at: '2026-10-13T14:00' };
+  assert.throws(() => pub.approve(a, dir), /Rien à valider/);
+  assert.throws(() => pub.forward(a, { role: 'BUREAU', name: 'Mme Hanta', at: 'x' }), /CPE/);
+  assert.throws(() => pub.cpeSendBack(a, cpe, ''), /revoir/);
+  const back = pub.cpeSendBack(a, cpe, 'Préciser l\'heure');
+  assert.equal(back.status, 'A_REVOIR');
+  const again = pub.submit(back, { role: 'DELEGUE', name: 'Aina', at: '2026-10-13T15:00' });
+  assert.equal(again.status, 'A_RELIRE');
+  const relue = pub.forward(again, cpe);
+  assert.equal(relue.status, 'EN_ATTENTE');
+  const ok = pub.approve(relue, dir);
   assert.equal(pub.signature(ok), 'Délégués de 1re STMG · validée par la Direction');
+  assert.deepEqual(ok.history.map((h) => h.action), ['CREEE', 'ENVOYEE', 'RENVOYEE', 'ENVOYEE', 'RELUE', 'PUBLIEE']);
   const ev = pub.create('EVENEMENT', { title: 'Soirée de fin d\'année', service: 'Bureau des élèves (BDE)' }, { role: 'BDE', name: 'Mamy', at: '2026-10-13T12:00' }, { send: true });
-  assert.equal(ev.status, 'EN_ATTENTE');
+  assert.equal(ev.status, 'A_RELIRE');
   assert.throws(() => pub.create('EVENEMENT', { title: 'x' }, { role: 'DELEGUE', name: 'Aina', at: 'x' }), /proposer/);
+  assert.equal(can(delegue, 'CONTACT_CPE'), false); // la messagerie suffit
+});
+
+test('annulation d\'un cours le jour même : publiée tout de suite par le secrétariat ou la CPE, sinon validation', () => {
+  const at = '2026-10-20T07:15';
+  const notice = { title: 'Maths (1re STMG) : cours annulé', text: '…', urgent: 'ANNULATION_JOUR', date: '2026-10-20' };
+  const bureau = pub.create('ANNONCE', notice, { role: 'BUREAU', name: 'Mme Hanta', at }, { send: true });
+  assert.equal(bureau.status, 'PUBLIEE');
+  assert.equal(pub.signature(bureau), 'Secrétariat · annulation du jour');
+  assert.equal(pub.create('ANNONCE', notice, { role: 'VIE_SCOLAIRE', name: 'M. Be', at }, { send: true }).status, 'PUBLIEE');
+  // pas le jour même, ou un autre type d'avis : circuit normal
+  assert.equal(pub.create('ANNONCE', { ...notice, date: '2026-10-21' }, { role: 'BUREAU', name: 'Mme Hanta', at }, { send: true }).status, 'EN_ATTENTE');
+  assert.throws(() => pub.create('ANNONCE', notice, { role: 'DELEGUE', name: 'Aina', at }, { send: true }), /jour même/);
 });
