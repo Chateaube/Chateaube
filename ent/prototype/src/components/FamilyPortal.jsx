@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { AmbianceHomeCard } from './AmbianceNote.jsx';
 import StudentMandates from './StudentMandates.jsx';
 import { mandatesOf } from '../rules/mandates.js';
 import { loadEngagements } from '../engagementsStore.js';
@@ -141,13 +142,14 @@ function BulletinPickup({ child, settings }) {
   return <div className={`rounded-2xl p-4 text-sm ${status === 'BLOQUE' ? 'bg-red-50 text-red-900' : 'bg-navy-50 text-navy-900'}`}><p className="font-semibold">Bulletin — {child.name}</p><p>{msg}</p></div>;
 }
 
-function Home({ child, isParent, openFiche, openReenrol, settings, onSeen, openSchoolLife }) {
+function Home({ child, isParent, openFiche, openReenrol, settings, onSeen, openSchoolLife, ambiance }) {
   const due = HOMEWORK.filter((h) => h.cls === child.cls && h.due && h.due > TODAY).sort((a, b) => a.due.localeCompare(b.due)).slice(0, 2);
   return (
     <>
       {isParent && <UrgentBanner child={child} onSeen={onSeen} />}
       <Announcements isParent={isParent} />
       <SchoolLifePreview open={openSchoolLife} social={settings?.social} />
+      <AmbianceHomeCard key={ambiance?.id} ambiance={ambiance} />
       {isParent && PARENT.alerts.map((a) => (
         <div key={a.title} className={`rounded-2xl p-4 ${a.tone === 'red' ? 'bg-red-50' : 'bg-amber-50'}`}>
           <p className={`text-sm font-semibold ${a.tone === 'red' ? 'text-red-900' : 'text-amber-900'}`}>{a.title}</p>
@@ -556,7 +558,7 @@ function Others({ audience, menu, badges, open, mandates = [] }) {
   });
 }
 
-export default function FamilyPortal({ settings, audience = 'PARENT', season }) {
+export default function FamilyPortal({ settings, audience = 'PARENT', ambiance }) {
   const isParent = audience === 'PARENT';
   const [screen, setScreen] = useState('home');
   const [childId, setChildId] = useState(PARENT.children[0].id);
@@ -582,9 +584,8 @@ export default function FamilyPortal({ settings, audience = 'PARENT', season }) 
     <div className="mx-auto w-full max-w-[420px]">
       <p className="mb-2 text-center text-xs text-slate-500">Aperçu du portail {isParent ? 'parents' : 'élèves'} (application mobile)</p>
       <div className="flex h-[780px] max-h-[calc(100vh-6rem)] flex-col overflow-hidden rounded-[36px] border-[10px] border-slate-800 bg-paper shadow-2xl">
-        <header className="rounded-b-[28px] px-5 pb-4 pt-5 text-white" style={{ background: `linear-gradient(135deg, #003366, #00427f 55%, ${season?.accent ?? '#005baa'})` }}>
-          {season && <p className="mb-1 truncate text-center text-xs tracking-[0.4em]" aria-hidden="true">{season.garland}</p>}
-          <p className="text-xs text-navy-200">Chateaubriand · Tamatave{season ? ` · ${season.label}` : ''}</p>
+        <header className="rounded-b-[28px] px-5 pb-4 pt-5 text-white" style={{ background: 'linear-gradient(135deg, #003366, #00427f 55%, var(--amb-topbar-end))' }}>
+          <p className="text-xs text-white">Chateaubriand · Tamatave{ambiance ? <> · <span aria-hidden="true">{ambiance.symbol} </span>{ambiance.label}</> : ''}</p>
           <p className="mt-0.5 font-display text-xl font-semibold">{isParent ? `Bonjour ${PARENT.name}` : `Bonjour ${child.name} · ${child.cls}`}</p>
           {isParent && !['payments', 'messages'].includes(view) && (
             <div className="mt-3 flex gap-2">
@@ -600,7 +601,7 @@ export default function FamilyPortal({ settings, audience = 'PARENT', season }) 
         <div role="region" aria-label="Contenu du portail" className="flex-1 space-y-3 overflow-y-auto p-4">
           <TermsGate phone viewer={audience} account={isParent ? ACCOUNT.id : 'aina'}>
           {!isTab && <button onClick={() => go('more')} className="text-sm font-medium text-navy-500">‹ Autres</button>}
-          {view === 'home' && <Home child={child} isParent={isParent} settings={settings} openFiche={() => go('fiche')} openReenrol={() => go('reenrol')} onSeen={() => setTick((t) => t + 1)} openSchoolLife={() => go('schoollife')} />}
+          {view === 'home' && <Home child={child} isParent={isParent} settings={settings} openFiche={() => go('fiche')} openReenrol={() => go('reenrol')} onSeen={() => setTick((t) => t + 1)} openSchoolLife={() => go('schoollife')} ambiance={ambiance} />}
           {view === 'more' && <Others audience={audience} menu={menu} badges={badges} open={go} mandates={student.mandates} />}
           {view.startsWith('mandate-') && <StudentMandates student={student} me={fullName(child)} view={view} />}
           {view === 'schoollife' && <SchoolLifeModule compact role={audience} settings={settings} cls={child.cls} author={isParent ? 'Parent' : `${child.name} (${child.cls})`} />}

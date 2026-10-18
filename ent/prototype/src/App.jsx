@@ -39,7 +39,9 @@ import { PublicPreregistration } from './components/FamilyRequests.jsx';
 import SchoolLifeModule from './components/SchoolLifeModule.jsx';
 import MandatesAdmin from './components/MandatesAdmin.jsx';
 import { notificationsFor, countsByScreen, markSeen } from './notify.js';
-import { activeSeason } from './rules/seasons.js';
+import { useAmbiance } from './ambianceRuntime.js';
+import AmbianceBand from './components/AmbianceNote.jsx';
+import AmbianceEffects from './components/AmbianceEffects.jsx';
 import { featureVisible } from './features.js';
 import pillar from './assets/pilier.png';
 import { useScreenGuard } from './screenGuard.js';
@@ -231,7 +233,7 @@ export default function App() {
   const notes = staffProfile ? notificationsFor(profile, { account }) : { urgent: [], todo: [], info: [] };
   const counts = countsByScreen(notes.todo);
   const bellCount = notes.urgent.length + notes.todo.length;
-  const season = activeSeason(new Date().toISOString().slice(0, 10), settings.seasonal);
+  const { ambiance, animations } = useAmbiance(settings); // classe de palette posée sur <html>
   const currentItem = NAV.flatMap((g) => g.items).find((i) => i.id === screen);
   const activeGroup = NAV.find((g) => g.items.some((i) => i.id === screen))?.group;
   const screenLabel = currentItem?.label ?? screen;
@@ -293,8 +295,8 @@ export default function App() {
       </div>
 
       {/* Barre du haut : logo, site, action rapide, notifications, compte */}
-      <header className="print:hidden sticky top-0 z-30 shadow-[0_8px_24px_-16px_rgb(0_51_102/0.6)]"
-        style={{ background: season ? `linear-gradient(100deg, #002a55 0%, #005baa 60%, ${season.accent} 130%)` : 'var(--topbar)', color: 'var(--topbar-fg)' }}>
+      <header className="amb-topbar print:hidden sticky top-0 z-30 shadow-[0_8px_24px_-16px_rgb(0_51_102/0.6)]"
+        style={{ background: 'var(--topbar)', color: 'var(--topbar-fg)' }}>
         <div className="mx-auto flex h-16 max-w-[1500px] items-center gap-3 px-4 lg:px-8">
           {staffProfile && (
             <button className="rounded-full p-2 hover:bg-white/10 lg:hidden" aria-label="Menu" aria-expanded={mobileOpen} onClick={(e) => { e.stopPropagation(); setMobileOpen(!mobileOpen); }}>
@@ -315,7 +317,6 @@ export default function App() {
               <option value="TNR" disabled className="text-slate-500">Tana (bientôt)</option>
             </select>
           )}
-          {season && <span className="hidden rounded-full bg-white/15 px-3 py-1 text-xs xl:inline" title={season.greeting}>{season.garland.split(' ')[0]} {season.label}</span>}
 
           <div className="ml-auto flex items-center gap-2">
             {QUICK.length > 0 && (
@@ -372,13 +373,15 @@ export default function App() {
             </div>
           </div>
         </div>
-        {season && <div className="overflow-hidden whitespace-nowrap py-0.5 text-center text-[11px] tracking-[1.4em] opacity-80" aria-hidden="true">{Array(6).fill(season.garland).join('        ')}</div>}
         {mobileOpen && staffProfile && (
           <nav aria-label="Navigation principale (mobile)" className="max-h-[75vh] overflow-y-auto border-t border-white/10 bg-white px-3 py-3 text-slate-800 lg:hidden" onClick={(e) => e.stopPropagation()}>
             {sidebar}
           </nav>
         )}
       </header>
+      {/* Ambiance du moment : bande + « Le saviez-vous ? » (le portail familles a la sienne), effet bref et discret */}
+      {staffProfile && <AmbianceBand key={ambiance?.id ?? 'aucune'} ambiance={ambiance} />}
+      <AmbianceEffects ambiance={ambiance} enabled={animations} />
 
       {!online && (
         <p role="status" className="bg-amber-100 px-4 py-1.5 text-center text-xs font-medium text-amber-900">
@@ -403,7 +406,7 @@ export default function App() {
           {currentItem?.readOnly && <p className="mb-3 inline-block rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">Consultation seulement</p>}
           {profile === 'ENSEIGNANT'
             ? <TermsGate viewer="ENSEIGNANT" account="mme-ranaivo"><Current key={`${profile}-${screen}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={goTo} role={profile} site={site} /></TermsGate>
-            : <Current key={`${profile}-${screen}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={goTo} role={profile} site={site} season={season} />}
+            : <Current key={`${profile}-${screen}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={goTo} role={profile} site={site} ambiance={ambiance} />}
         </main>
       </div>
       {hidden && (

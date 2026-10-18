@@ -1360,11 +1360,22 @@ DO $$ DECLARE site uuid := (SELECT id FROM site WHERE code = 'TMV'); staff_post 
   IF (SELECT moderated_at FROM school_post WHERE id = prof_post) IS NULL THEN RAISE EXCEPTION 'T56: date de validation'; END IF;
   -- droit à l'image : l'élève de Tle STMG sans fiche signée est signalé
   IF NOT EXISTS (SELECT 1 FROM students_without_image_rights('10000000-0000-0000-0000-000000000001')) THEN RAISE EXCEPTION 'T56: élèves sans autorisation non signalés'; END IF;
-  -- ambiances : Octobre rose le 18, Halloween le 28 (la plus courte), Noël le 24 décembre, rien le 15 novembre
-  IF active_season(site, '2026-10-18') <> 'OCTOBRE_ROSE' OR active_season(site, '2026-10-28') <> 'HALLOWEEN' OR active_season(site, '2026-12-24') <> 'NOEL'
-     OR active_season(site, '2027-01-03') <> 'NOUVEL_AN' OR active_season(site, '2026-11-15') IS NOT NULL THEN
-    RAISE EXCEPTION 'T56: ambiances (%, %, %)', active_season(site, '2026-10-18'), active_season(site, '2026-10-28'), active_season(site, '2027-01-03');
+  -- ambiances (école laïque) : Octobre rose, Nouvel An à cheval sur deux années, Nouvel An lunaire à date variable,
+  -- la plus courte l'emporte (29 mars pendant l'automne), rien hors période ; un thème religieux est refusé ;
+  -- une ambiance ajoutée par la Direction passe d'abord
+  IF active_season(site, '2026-10-28') <> 'OCTOBRE_ROSE' OR active_season(site, '2027-01-03') <> 'NOUVEL_AN'
+     OR active_season(site, '2027-02-05') <> 'NOUVEL_AN_LUNAIRE' OR active_season(site, '2027-03-28') <> 'MEMOIRE_1947'
+     OR active_season(site, '2026-12-24') IS NOT NULL OR active_season(site, '2026-11-25') IS NOT NULL THEN
+    RAISE EXCEPTION 'T56: ambiances (%, %, %)', active_season(site, '2026-10-28'), active_season(site, '2027-02-05'), active_season(site, '2027-03-28');
   END IF;
+  BEGIN
+    INSERT INTO season (code, label, category, from_md, to_md, palette, greeting) VALUES ('NOEL', 'Noël', 'CULTUREL', '12-01', '12-25', 'rouge', 'Joyeux Noël');
+    RAISE EXCEPTION 'T56: thème religieux accepté';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO season (code, label, category, from_md, to_md, palette, greeting, note_title, note_body, added_by)
+    VALUES ('PERSO_1', 'Semaine de la Grande Guerre', 'HISTORIQUE', '11-02', '11-13', 'sobre', 'Projet des 3e', '1914-1918', 'Exposition en salle d''étude.', '00000000-0000-0000-0000-000000000001');
+  IF active_season(site, '2026-11-10') <> 'PERSO_1' THEN RAISE EXCEPTION 'T56: ambiance ajoutée'; END IF;
   INSERT INTO site_setting (site_id, seasonal_mode) VALUES (site, 'OFF');
   IF active_season(site, '2026-10-18') IS NOT NULL THEN RAISE EXCEPTION 'T56: ambiance désactivée'; END IF;
   BEGIN

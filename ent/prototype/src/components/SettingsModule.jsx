@@ -1,4 +1,4 @@
-import { SEASONS } from '../rules/seasons.js';
+import AmbianceSettings from './AmbianceSettings.jsx';
 import { FEATURES, MODES, featureMode } from '../features.js';
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, Icon } from './ui.jsx';
@@ -204,20 +204,9 @@ export default function SettingsModule({ settings, onChange, onReset }) {
       <div className="grid gap-5 xl:grid-cols-[1fr_360px] xl:items-start">
         <div className="min-w-0 space-y-5">
           {/* Ambiance saisonnière et réseaux de l'école */}
-          <Card title="Ambiance saisonnière et réseaux de l'école" subtitle="Une touche de couleur selon la période (Octobre rose, Halloween, Noël…) et les liens montrés aux familles">
+          <Card title="Ambiance saisonnière et réseaux de l'école" subtitle="Repères civiques, culturels, historiques et saisons (Octobre rose, Nouvel An lunaire, 26 juin…), avec une note explicative ; liens montrés aux familles">
             <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="block text-xs font-medium text-slate-600">Ambiance
-                  <select value={settings.seasonal?.mode ?? 'AUTO'} onChange={(e) => onChange({ ...settings, seasonal: { mode: e.target.value } })} className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
-                    <option value="AUTO">Automatique, selon les dates</option>
-                    <option value="OFF">Désactivée</option>
-                    {SEASONS.map((x) => <option key={x.id} value={x.id}>Toujours : {x.label}</option>)}
-                  </select>
-                </label>
-                <ul className="mt-2 space-y-0.5 text-xs text-slate-600">
-                  {SEASONS.map((x) => <li key={x.id}>{x.garland.split(' ')[0]} {x.label} : du {x.from.split('-').reverse().join('/')} au {x.to.split('-').reverse().join('/')}</li>)}
-                </ul>
-              </div>
+              <AmbianceSettings settings={settings} onChange={onChange} />
               <div className="space-y-2">
                 <label className="block text-xs font-medium text-slate-600">Page Facebook de l'école
                   <input type="url" value={settings.social?.facebook ?? ''} onChange={(e) => onChange({ ...settings, social: { ...settings.social, facebook: e.target.value.trim() } })} placeholder="https://www.facebook.com/…" className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />

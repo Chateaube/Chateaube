@@ -505,9 +505,7 @@ d'explication.
 
 ## Ambiances saisonnières, réseaux de l'école, Vie de l'école
 
-- **Ambiances** (Paramètres) : Rentrée, Octobre rose, Halloween, Noël, Nouvel an, 8 mars, Fête de
-  l'Indépendance, Grandes vacances ; automatiques selon les dates (la plus courte l'emporte), désactivables ou
-  imposées. Une touche de couleur dans la barre du haut et une guirlande discrète, sans toucher à la lisibilité.
+- **Ambiances** : voir « Ambiances saisonnières et événementielles (école laïque) » plus bas.
 - **Réseaux** : liens vers la page Facebook de l'école et l'Instagram de l'association des élèves, saisis dans
   les Paramètres ; affichés dans « Vie de l'école » et sur l'accueil des familles.
 - **Vie de l'école** : albums de photos (Octobre rose, sorties, fêtes) visibles par tous. L'équipe publie ;
@@ -564,3 +562,27 @@ d'explication.
 - **Jamais** : notes ou appréciations des autres, vie scolaire des autres, fiches élèves, caisse, paramètres,
   publier ou valider. Ni parents ni professeurs comme destinataires (la Direction peut élargir en validant).
 - **Limites** : 2 délégués et 2 suppléants par classe, un seul président du BDE.
+
+## Ambiances saisonnières et événementielles (école laïque)
+
+- **Catalogue** (`rules/ambiances.js`) : uniquement des repères civiques, culturels, historiques, scolaires ou de
+  saison, jamais religieux (Noël et Halloween retirés ; un nom ou une note religieuse est refusé, côté interface
+  comme en base). Saisons de l'**hémisphère sud** (printemps en septembre, automne en mars). Rentrée, Printemps,
+  Octobre rose, 11 novembre, Droits de l'enfant, Nouvel An, Nouvel An lunaire (date variable, table par année),
+  8 mars, Francophonie, Automne, 29 mars 1947, Environnement, 26 juin, Grandes vacances. Les commémorations sont
+  sobres (palette « sobre », pas d'animation).
+- **CSS** (`styles/ambiances.css`) : chaque palette est une classe sur `<html>` (`ambiance--rose`…) qui
+  redéfinit les variables `--amb-*` ; les composants ne lisent que ces variables. Les tests lisent ce fichier et
+  vérifient les contrastes : texte de la bande et de l'encart ≥ 7:1 (AAA), blanc sur la fin du dégradé de la
+  barre ≥ 4,5:1 (AA). Mode à contraste forcé respecté, rien à l'impression.
+- **Logique** (`ambianceRuntime.js`) : l'ambiance du jour est calculée selon la date (ajoutée par la Direction
+  d'abord, puis la période la plus courte), la classe est posée sur `<html>` et recalculée à minuit.
+- **Note contextuelle** : bande sous la barre du haut (message du jour, bouton « Le saviez-vous ? » avec
+  `aria-expanded`) et encart `<aside>` titré ; sur l'accueil des familles, un encart masquable. Masquer est
+  mémorisé par ambiance dans le navigateur.
+- **Animation** (`AmbianceEffects`) : une vingtaine de particules sur un canvas décoratif (`aria-hidden`, jamais
+  devant un clic), arrêt automatique en moins de 5 s (WCAG 2.2.2), pause onglet caché, **rien** si
+  `prefers-reduced-motion: reduce` ; désactivable par la Direction.
+- **Paramètres** (Direction) : automatique, imposée ou désactivée ; note modifiable pour chaque ambiance ; ajout
+  d'une ambiance (dates, palette et animation choisies dans les listes validées, note), par exemple un thème
+  d'histoire étudié en classe.

@@ -9,7 +9,7 @@ import { mergeCompetencySets } from '../rules/grading.js';
 export const DEFAULT_SETTINGS = {
   siteId: 'TMV',
   // Ambiance saisonnière (Octobre rose, Halloween, Noël…) : automatique selon les dates, désactivée, ou imposée
-  seasonal: { mode: 'AUTO' },
+  ambiance: { mode: 'AUTO', animations: true, notes: {}, custom: [] }, // ambiances saisonnières (rules/ambiances.js)
   // Réseaux de l'école : liens affichés aux familles (laisser vide pour ne rien afficher)
   social: { facebook: '', instagram: '', instagramLabel: 'Association des élèves' },
   schoolYear: { start: '2026-09-01', end: '2027-07-04' },

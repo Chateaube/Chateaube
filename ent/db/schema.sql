@@ -2055,13 +2055,34 @@ ALTER TABLE direct_notification
   ADD COLUMN acknowledged_at timestamptz;
 
 -- Réglages du site : ambiance saisonnière et liens vers les réseaux de l'école.
+-- Ambiances (école laïque) : repères civiques, culturels, historiques, scolaires ou de saison, jamais religieux.
+-- Une ambiance choisit une palette de la liste fermée (contrastes vérifiés côté interface) et peut porter une
+-- note « Le saviez-vous ? ». Dates fixes (MM-JJ) ou, pour les fêtes à date variable (Nouvel An lunaire),
+-- une ligne par année dans season_date.
 CREATE TABLE season (
-  code          text PRIMARY KEY,                     -- OCTOBRE_ROSE, HALLOWEEN, NOEL…
+  code          text PRIMARY KEY,                     -- OCTOBRE_ROSE, NOUVEL_AN_LUNAIRE, PERSO_…
   label         text NOT NULL,
-  from_md       char(5) NOT NULL CHECK (from_md ~ '^[01][0-9]-[0-3][0-9]$'),   -- MM-JJ
-  to_md         char(5) NOT NULL CHECK (to_md ~ '^[01][0-9]-[0-3][0-9]$'),
-  accent        text NOT NULL,                        -- couleur d'accent (#rrggbb)
-  garland       text NOT NULL                         -- émojis de la guirlande
+  category      text NOT NULL CHECK (category IN ('SCOLAIRE', 'CIVIQUE', 'CULTUREL', 'HISTORIQUE', 'SAISON')),
+  from_md       char(5) CHECK (from_md ~ '^[01][0-9]-[0-3][0-9]$'),   -- MM-JJ ; NULL : dates dans season_date
+  to_md         char(5) CHECK (to_md ~ '^[01][0-9]-[0-3][0-9]$'),
+  palette       text NOT NULL CHECK (palette IN ('ciel', 'vert', 'rose', 'violet', 'or', 'rouge', 'ambre', 'sobre')),
+  motif         text NOT NULL DEFAULT 'aucun' CHECK (motif IN ('confettis', 'petales', 'feuilles', 'etoiles', 'aucun')),
+  symbol        text,                                 -- symbole décoratif (non lu par les lecteurs d'écran)
+  greeting      text NOT NULL,
+  note_title    text,
+  note_body     text,
+  added_by      uuid REFERENCES app_user(id),         -- NULL : ambiance prévue ; sinon ajoutée par la Direction
+  CHECK ((from_md IS NULL) = (to_md IS NULL)),
+  CHECK ((note_title IS NULL) = (note_body IS NULL)),
+  CHECK (concat_ws(' ', label, greeting, note_title, note_body)
+         !~* '(no[eë]l|halloween|toussaint|p[aâ]ques|ramadan|a[iï]d\M|hanouk|diwali|car[eê]me|nativit|saint|religi)')
+);
+CREATE TABLE season_date (
+  code          text REFERENCES season(code) ON DELETE CASCADE,
+  year          smallint,
+  from_date     date NOT NULL,
+  to_date       date NOT NULL CHECK (to_date >= from_date),
+  PRIMARY KEY (code, year)
 );
 CREATE TABLE site_setting (
   site_id       uuid PRIMARY KEY REFERENCES site(id),

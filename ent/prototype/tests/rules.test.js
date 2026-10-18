@@ -1259,15 +1259,64 @@ test('modèle Excel : élèves, responsables, professeurs, notes officielles de 
   assert.deepEqual([s.usualName, s.sex, s.health.allergies, s.guardians.length], ['Luc', 'M', 'Paracétamol', 1]);
 });
 
-import { activeSeason } from '../src/rules/seasons.js';
-test('ambiances saisonnières : dates, chevauchement, désactivation', () => {
-  assert.equal(activeSeason('2026-10-18').id, 'OCTOBRE_ROSE');
-  assert.equal(activeSeason('2026-10-28').id, 'HALLOWEEN'); // la plus courte l'emporte
-  assert.equal(activeSeason('2027-01-03').id, 'NOUVEL_AN');
-  assert.equal(activeSeason('2026-12-24').id, 'NOEL');
-  assert.equal(activeSeason('2026-11-15'), null);
-  assert.equal(activeSeason('2026-10-18', { mode: 'OFF' }), null);
-  assert.equal(activeSeason('2026-11-15', { mode: 'NOEL' }).id, 'NOEL');
+import { AMBIANCES, PALETTES, MOTIFS, NOT_SECULAR, activeAmbiance, ambianceErrors, catalog, ambianceConfig } from '../src/rules/ambiances.js';
+test('ambiances : dates (hémisphère sud), Nouvel An lunaire, chevauchements, réglages', () => {
+  assert.equal(activeAmbiance('2026-10-18').id, 'OCTOBRE_ROSE');
+  assert.equal(activeAmbiance('2026-10-28').id, 'OCTOBRE_ROSE'); // plus d'Halloween
+  assert.equal(activeAmbiance('2026-12-24'), null); // plus de Noël
+  assert.equal(activeAmbiance('2027-01-03').id, 'NOUVEL_AN'); // décembre → janvier
+  assert.equal(activeAmbiance('2026-09-25').id, 'PRINTEMPS'); // printemps austral
+  assert.equal(activeAmbiance('2027-03-28').id, 'MEMOIRE_1947'); // la plus courte l'emporte sur l'automne
+  assert.equal(activeAmbiance('2027-03-24').id, 'AUTOMNE');
+  // Nouvel An lunaire : 6 février 2027 (Chèvre), de 3 jours avant à 4 jours après ; date inconnue → rien
+  assert.equal(activeAmbiance('2027-02-03').id, 'NOUVEL_AN_LUNAIRE');
+  assert.equal(activeAmbiance('2027-02-06').greeting, 'Bonne année de la Chèvre !');
+  assert.equal(activeAmbiance('2027-02-11'), null);
+  assert.equal(activeAmbiance('2035-02-08'), null);
+  assert.equal(activeAmbiance('2026-11-25'), null);
+  assert.equal(activeAmbiance('2026-10-18', { mode: 'OFF' }), null);
+  assert.equal(activeAmbiance('2026-11-25', { mode: 'INDEPENDANCE' }).id, 'INDEPENDANCE');
+  assert.equal(activeAmbiance('2026-10-18', { mode: 'NOEL' }).id, 'OCTOBRE_ROSE'); // ancienne valeur : automatique
+  // anciens réglages (settings.seasonal) repris
+  assert.equal(ambianceConfig({ seasonal: { mode: 'OFF' } }).mode, 'OFF');
+  // une ambiance ajoutée par la Direction l'emporte sur les ambiances prévues aux mêmes dates
+  const custom = { id: 'PERSO_1', label: 'Semaine de la Grande Guerre', from: '11-02', to: '11-13', palette: 'sobre', motif: 'aucun', note: { title: '1914-1918', text: 'Projet des 3e.' } };
+  assert.equal(activeAmbiance('2026-11-10', { custom: [custom] }).id, 'PERSO_1');
+  // note corrigée par la Direction
+  assert.equal(activeAmbiance('2026-10-18', { notes: { OCTOBRE_ROSE: { title: 'T', text: 'X' } } }).note.title, 'T');
+});
+
+test('ambiances : école laïque, palettes et motifs connus', () => {
+  AMBIANCES.forEach((a) => {
+    assert.ok(!NOT_SECULAR.test(`${a.id} ${a.label} ${a.greeting} ${a.note?.title ?? ''} ${a.note?.text ?? ''}`), `${a.id} : connotation religieuse`);
+    assert.ok(PALETTES[a.palette] && MOTIFS[a.motif], `${a.id} : palette ou motif inconnu`);
+  });
+  assert.ok(ambianceErrors({ label: 'Noël à l\'école', from: '12-01', to: '12-20', palette: 'rouge', motif: 'etoiles' }).some((e) => e.includes('laïque')));
+  assert.ok(ambianceErrors({ label: 'Thème libre', from: '12-01', to: '12-20', palette: 'fluo', motif: 'etoiles' }).some((e) => e.includes('palette')));
+  // une ambiance invalide n'entre pas au catalogue
+  assert.equal(catalog({ custom: [{ id: 'X', label: 'Halloween', from: '10-31', to: '10-31', palette: 'ambre', motif: 'aucun' }] }).length, AMBIANCES.length);
+  // les commémorations restent sobres : pas d'animation
+  ['ARMISTICE', 'MEMOIRE_1947'].forEach((id) => assert.equal(AMBIANCES.find((a) => a.id === id).motif, 'aucun'));
+});
+
+test('ambiances : contrastes WCAG lus dans styles/ambiances.css (AAA pour le texte, AA pour la barre)', () => {
+  const css = readFileSync(new URL('../src/styles/ambiances.css', import.meta.url), 'utf8');
+  const lum = (hex) => { const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+  const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+  const vars = (block) => Object.fromEntries([...block.matchAll(/--amb-([\w-]+):\s*(#[0-9a-f]{6})/gi)].map((m) => [m[1], m[2]]));
+  const blocks = { defaut: vars(css.match(/:root \{([^}]*)\}/)[1]) };
+  Object.keys(PALETTES).forEach((p) => {
+    const m = css.match(new RegExp(`:root\\.ambiance--${p}\\s*\\{([^}]*)\\}`));
+    assert.ok(m, `palette ${p} absente du CSS`);
+    blocks[p] = vars(m[1]);
+  });
+  Object.entries(blocks).forEach(([p, v]) => {
+    ['accent', 'topbar-end', 'band-bg', 'band-fg', 'note-bg', 'note-fg', 'note-border', 'link'].forEach((k) => assert.ok(v[k], `${p} : --amb-${k} manquant`));
+    assert.ok(ratio(v['band-fg'], v['band-bg']) >= 7, `${p} : bande ${ratio(v['band-fg'], v['band-bg']).toFixed(2)} < 7`);
+    assert.ok(ratio(v['note-fg'], v['note-bg']) >= 7, `${p} : encart ${ratio(v['note-fg'], v['note-bg']).toFixed(2)} < 7`);
+    assert.ok(ratio(v.link, v['note-bg']) >= 7, `${p} : lien < 7`);
+    assert.ok(ratio('#ffffff', v['topbar-end']) >= 4.5, `${p} : barre du haut ${ratio('#ffffff', v['topbar-end']).toFixed(2)} < 4,5`);
+  });
 });
 
 import { newPost, moderate, visiblePosts, postErrors, withoutImageRights } from '../src/rules/schoolLife.js';

@@ -410,3 +410,7 @@ recoder.
   **`school_event_guard`** (le BDE propose au calendrier de l'école de son site, jamais publié sans la Direction ;
   `event_visible` ne montre que le publié). **`council_feedback`** (remontées des délégués de la classe pour le
   conseil, lues par la Direction et la CPE). Scénario **T58**.
+- **Ambiances laïques** : `season` (catégorie SCOLAIRE/CIVIQUE/CULTUREL/HISTORIQUE/SAISON, palette de la
+  liste fermée, motif d'animation, message, note « Le saviez-vous ? », `added_by` pour une ambiance ajoutée par la
+  Direction ; contrainte qui refuse un thème religieux) et **`season_date`** (dates variables par année : Nouvel
+  An lunaire). `active_season` : ambiance ajoutée d'abord, puis la plus courte. Scénario **T56** mis à jour.

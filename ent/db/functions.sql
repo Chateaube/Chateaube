@@ -1185,17 +1185,23 @@ CREATE FUNCTION students_without_image_rights(cls uuid) RETURNS TABLE (student_i
   WHERE e.class_id = cls AND e.left_on IS NULL AND NOT coalesce(f.auth_image, false)
 $$ LANGUAGE sql STABLE;
 
--- Ambiance du jour : imposée, désactivée, ou la période la plus courte qui contient la date.
+-- Ambiance du jour : imposée, désactivée, ou la période qui contient la date — une ambiance ajoutée par la
+-- Direction d'abord, puis la plus courte (Commémoration du 29 mars pendant l'automne).
 CREATE FUNCTION active_season(site uuid, d date) RETURNS text AS $$
+  WITH windows AS (
+    SELECT code, added_by,
+           CASE WHEN from_md <= to_md THEN to_char(d, 'MM-DD') BETWEEN from_md AND to_md
+                ELSE to_char(d, 'MM-DD') >= from_md OR to_char(d, 'MM-DD') <= to_md END AS hit,
+           CASE WHEN from_md <= to_md THEN to_date(to_md, 'MM-DD') - to_date(from_md, 'MM-DD')
+                ELSE 365 - (to_date(from_md, 'MM-DD') - to_date(to_md, 'MM-DD')) END AS span
+    FROM season WHERE from_md IS NOT NULL
+    UNION ALL
+    SELECT s.code, s.added_by, d BETWEEN sd.from_date AND sd.to_date, sd.to_date - sd.from_date
+    FROM season s JOIN season_date sd ON sd.code = s.code AND sd.year = extract(year FROM d)
+  )
   SELECT CASE coalesce((SELECT seasonal_mode FROM site_setting WHERE site_id = site), 'AUTO')
     WHEN 'OFF' THEN NULL
-    WHEN 'AUTO' THEN (
-      SELECT code FROM season
-      WHERE CASE WHEN from_md <= to_md THEN to_char(d, 'MM-DD') BETWEEN from_md AND to_md
-                 ELSE to_char(d, 'MM-DD') >= from_md OR to_char(d, 'MM-DD') <= to_md END
-      ORDER BY CASE WHEN from_md <= to_md THEN to_date(to_md, 'MM-DD') - to_date(from_md, 'MM-DD')
-                    ELSE 365 - (to_date(from_md, 'MM-DD') - to_date(to_md, 'MM-DD')) END
-      LIMIT 1)
+    WHEN 'AUTO' THEN (SELECT code FROM windows WHERE hit ORDER BY added_by IS NULL, span LIMIT 1)
     ELSE (SELECT seasonal_mode FROM site_setting WHERE site_id = site) END
 $$ LANGUAGE sql STABLE;
 
