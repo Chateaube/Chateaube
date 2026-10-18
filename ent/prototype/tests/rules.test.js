@@ -1295,7 +1295,7 @@ test('publication : seule la Direction publie, le secrétariat et la CPE passent
   const hanta = { role: 'BUREAU', name: 'Mme Hanta', at: '2026-10-12T09:00' };
   const dir = { role: 'DIRECTION', name: 'Cheffe d\'établissement', at: '2026-10-13T08:00' };
   const prof = { role: 'ENSEIGNANT', name: 'Mme Ranaivo', at: '2026-10-12T10:00' };
-  assert.throws(() => pub.create('ANNONCE', { title: 'x' }, prof), /Direction, le secrétariat ou la CPE/);
+  assert.throws(() => pub.create('ANNONCE', { title: 'x' }, prof), /Direction, le secrétariat, la CPE, les délégués ou le BDE/);
   let a = pub.create('ANNONCE', { title: 'Réunion', text: 'Mardi' }, hanta);
   assert.equal(a.status, 'BROUILLON');
   assert.throws(() => pub.approve(a, dir), /Rien à valider/);
@@ -1333,4 +1333,28 @@ test('rubriques modulaires : visibles, Direction seulement ou masquées ; décis
   const e = saveDecision({ text: 'Bon trimestre', status: 'VALIDEE' }, 'ENCOURAGEMENTS', 'BUREAU');
   assert.deepEqual([e.decision, e.status], ['ENCOURAGEMENTS', 'BROUILLON']); // à revalider par la Direction
   assert.throws(() => saveDecision({}, 'X', 'ENSEIGNANT'));
+});
+
+import { mandatesOf, can, audienceErrors, classMandateErrors, NEVER, serviceLabel } from '../src/rules/mandates.js';
+test('mandats d\'élèves : délégué (sa classe), BDE (son site), jamais de notes ni de paramètres, validation obligatoire', () => {
+  const delegue = { role: 'ELEVE', mandates: mandatesOf(['DELEGUE'], { cls: '1re STMG' }) };
+  const bde = { role: 'ELEVE', mandates: mandatesOf(['BDE_PRESIDENT'], { cls: 'Terminale STMG' }) };
+  const eleve = { role: 'ELEVE', mandates: mandatesOf(['ECO_DELEGUE'], { cls: '1re STMG' }) };
+  assert.deepEqual([can(delegue, 'ANNONCE_CLASSE'), can(delegue, 'EVENEMENT'), can(bde, 'EVENEMENT'), can(eleve, 'ANNONCE_CLASSE')], [true, false, true, false]);
+  assert.equal(bde.mandates[0].president, true);
+  NEVER.forEach((c) => assert.equal(can({ mandates: [...delegue.mandates, ...bde.mandates] }, c), false, c));
+  const m = delegue.mandates[0];
+  assert.deepEqual(audienceErrors(m, { roles: ['ELEVE'], site: 'TMV', scope: 'CLASS', values: ['1re STMG'] }), []);
+  assert.equal(audienceErrors(m, { roles: ['ELEVE', 'PARENT'], site: 'TMV', scope: 'CLASS', values: ['1re STMG'] }).length, 1);
+  assert.equal(audienceErrors(m, { roles: ['ELEVE'], site: 'TMV', scope: 'CLASS', values: ['2de'] }).length, 1);
+  assert.deepEqual(audienceErrors(bde.mandates[0], { roles: ['ELEVE'], site: 'TMV', scope: 'ALL', values: [] }), []);
+  assert.equal(classMandateErrors({ a: ['DELEGUE'], b: ['DELEGUE'], c: ['DELEGUE'] }).length, 1);
+  // le circuit de la Direction s'applique : jamais publié directement
+  const a = pub.create('ANNONCE', { title: 'Sortie de classe', service: serviceLabel(m) }, { role: 'DELEGUE', name: 'Aina', at: '2026-10-13T12:00' }, { send: true });
+  assert.equal(a.status, 'EN_ATTENTE');
+  const ok = pub.approve(a, { role: 'DIRECTION', name: 'Direction', at: '2026-10-13T16:00' });
+  assert.equal(pub.signature(ok), 'Délégués de 1re STMG · validée par la Direction');
+  const ev = pub.create('EVENEMENT', { title: 'Soirée de fin d\'année', service: 'Bureau des élèves (BDE)' }, { role: 'BDE', name: 'Mamy', at: '2026-10-13T12:00' }, { send: true });
+  assert.equal(ev.status, 'EN_ATTENTE');
+  assert.throws(() => pub.create('EVENEMENT', { title: 'x' }, { role: 'DELEGUE', name: 'Aina', at: 'x' }), /proposer/);
 });

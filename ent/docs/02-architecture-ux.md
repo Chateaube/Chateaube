@@ -548,3 +548,19 @@ d'explication.
 - **Décision du conseil** : saisie avec l'appréciation générale (« Avis du conseil : décision et appréciation
   générale »), par le secrétariat pendant le conseil, validée avec elle par la Direction. La grille l'affiche en
   lecture seule (proposition calculée tant qu'elle n'est pas saisie).
+
+## Délégués de classe et BDE (mandats d'élèves)
+
+- **Principe** : un délégué ou un membre du BDE reste un **élève** (son compte, ses notes, son agenda). Son mandat,
+  tiré des engagements de l'année (écran « Délégués et BDE », Direction et CPE ; repris sur le bulletin), lui
+  ajoute des **capacités** précises, limitées à sa classe (délégué) ou à son site (BDE), qui s'éteignent avec
+  l'année (`rules/mandates.js`).
+- **Délégué** (portail élève → Autres → Mon mandat) : « Écrire à ma classe » (élèves de sa classe seulement),
+  « Préparer le conseil » (remarques collectives lues par la Direction et la CPE), « Contacter la CPE ».
+- **BDE** : « Proposer un événement » (au calendrier de l'école après validation, file « Événements proposés par
+  le BDE » dans Agendas) et « Rédiger une annonce » aux élèves du site.
+- **Validation** : tout part en attente dans la file de la Direction (Annonces, Agendas) ; signature publique
+  « Délégués de 1re STMG · validée par la Direction » ou « Bureau des élèves (BDE) · validée par la Direction ».
+- **Jamais** : notes ou appréciations des autres, vie scolaire des autres, fiches élèves, caisse, paramètres,
+  publier ou valider. Ni parents ni professeurs comme destinataires (la Direction peut élargir en validant).
+- **Limites** : 2 délégués et 2 suppléants par classe, un seul président du BDE.

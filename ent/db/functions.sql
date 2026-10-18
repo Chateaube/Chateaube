@@ -1084,7 +1084,7 @@ CREATE TRIGGER care_visit_check BEFORE INSERT ON care_visit FOR EACH ROW EXECUTE
 
 -- Un événement est-il visible ? (personnel, ou élève / parent d'un élève de la classe donnée)
 CREATE FUNCTION event_visible(ev school_event, is_staff boolean, for_class uuid) RETURNS boolean AS $$
-  SELECT CASE ev.calendar
+  SELECT ev.status = 'PUBLIEE' AND CASE ev.calendar
     WHEN 'EQUIPE' THEN is_staff
     WHEN 'EXAMENS' THEN is_staff OR (EXISTS (SELECT 1 FROM school_class c JOIN level l ON l.code = c.level_code
                                              WHERE c.id = for_class AND l.official_exam IS NOT NULL)
@@ -1208,13 +1208,31 @@ CREATE FUNCTION has_role(u uuid, r role_code) RETURNS boolean AS $$
   SELECT EXISTS (SELECT 1 FROM user_role WHERE user_id = u AND role = r)
 $$ LANGUAGE sql STABLE;
 
+-- Mandats en cours d'un compte élève (inscription de l'année courante, non quittée).
+CREATE FUNCTION student_mandate(u uuid) RETURNS TABLE (kind text, class_id uuid, class_name text, site_id uuid, president boolean) AS $$
+  SELECT CASE WHEN g.code IN ('DELEGUE', 'SUPPLEANT') THEN 'DELEGUE' ELSE 'BDE' END, c.id, c.name, c.site_id, bool_or(g.code = 'BDE_PRESIDENT')
+  FROM student s
+  JOIN enrollment e ON e.student_id = s.id AND e.left_on IS NULL
+  JOIN academic_year y ON y.id = e.year_id AND y.is_current
+  JOIN school_class c ON c.id = e.class_id
+  JOIN student_engagement g ON g.enrollment_id = e.id AND g.code IN ('DELEGUE', 'SUPPLEANT', 'BDE', 'BDE_PRESIDENT')
+  WHERE s.user_id = u
+  GROUP BY 1, c.id, c.name, c.site_id
+$$ LANGUAGE sql STABLE;
+
 CREATE FUNCTION announcement_guard() RETURNS trigger AS $$
 DECLARE actor uuid := coalesce(current_app_user(), NEW.author_id); director boolean := has_role(actor, 'DIRECTION'); action text; BEGIN
   IF TG_OP = 'INSERT' THEN
-    IF NOT (has_role(NEW.author_id, 'DIRECTION') OR has_role(NEW.author_id, 'BUREAU') OR has_role(NEW.author_id, 'VIE_SCOLAIRE')) THEN
-      RAISE EXCEPTION 'Les annonces sont rédigées par la Direction, le secrétariat ou la CPE';
+    IF NEW.author_mandate IS NOT NULL THEN
+      -- élève mandaté : il faut le mandat en cours ; signature « Délégués de 1re STMG » ou « Bureau des élèves (BDE) »
+      SELECT CASE m.kind WHEN 'DELEGUE' THEN 'Délégués de ' || m.class_name ELSE 'Bureau des élèves (BDE)' END INTO NEW.author_service
+        FROM student_mandate(NEW.author_id) m WHERE m.kind = NEW.author_mandate;
+      IF NEW.author_service IS NULL THEN RAISE EXCEPTION 'Mandat de délégué ou de BDE requis pour écrire une annonce'; END IF;
+    ELSIF NOT (has_role(NEW.author_id, 'DIRECTION') OR has_role(NEW.author_id, 'BUREAU') OR has_role(NEW.author_id, 'VIE_SCOLAIRE')) THEN
+      RAISE EXCEPTION 'Les annonces sont rédigées par la Direction, le secrétariat, la CPE, les délégués ou le BDE';
+    ELSE
+      NEW.author_service := CASE WHEN has_role(NEW.author_id, 'DIRECTION') THEN 'Direction' WHEN has_role(NEW.author_id, 'BUREAU') THEN 'Secrétariat' ELSE 'Vie scolaire (CPE)' END;
     END IF;
-    NEW.author_service := CASE WHEN has_role(NEW.author_id, 'DIRECTION') THEN 'Direction' WHEN has_role(NEW.author_id, 'BUREAU') THEN 'Secrétariat' ELSE 'Vie scolaire (CPE)' END;
     IF NEW.status = 'PUBLIEE' AND NOT has_role(NEW.author_id, 'DIRECTION') THEN
       RAISE EXCEPTION 'Seule la Direction publie : envoyez l''annonce pour validation';
     END IF;
@@ -1248,3 +1266,62 @@ DECLARE actor uuid := coalesce(current_app_user(), NEW.author_id); director bool
   RETURN NEW;
 END $$ LANGUAGE plpgsql;
 CREATE TRIGGER announcement_check BEFORE INSERT OR UPDATE ON announcement FOR EACH ROW EXECUTE FUNCTION announcement_guard();
+
+-- Destinataires d'une annonce d'élève mandaté : des élèves seulement ; un délégué, sa classe seulement ;
+-- le BDE, son site (toute l'école, un niveau ou une classe du site). La Direction peut élargir en validant.
+CREATE FUNCTION mandate_audience_guard() RETURNS trigger AS $$
+DECLARE a announcement; m record; actor uuid := current_app_user(); BEGIN
+  SELECT * INTO a FROM announcement WHERE id = NEW.announcement_id;
+  IF a.author_mandate IS NULL OR has_role(actor, 'DIRECTION') THEN RETURN NEW; END IF;
+  SELECT * INTO m FROM student_mandate(a.author_id) sm WHERE sm.kind = a.author_mandate;
+  IF NEW.role <> 'ELEVE' THEN RAISE EXCEPTION 'Un mandat d''élève s''adresse aux élèves seulement'; END IF;
+  IF a.author_mandate = 'DELEGUE' AND NEW.class_id IS DISTINCT FROM m.class_id THEN
+    RAISE EXCEPTION 'Un délégué écrit seulement à sa classe (%)', m.class_name;
+  END IF;
+  IF a.author_mandate = 'BDE' AND (NEW.site_id IS DISTINCT FROM m.site_id
+      OR (NEW.class_id IS NOT NULL AND (SELECT site_id FROM school_class WHERE id = NEW.class_id) <> m.site_id)) THEN
+    RAISE EXCEPTION 'Le BDE écrit aux élèves de son site';
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER mandate_audience_check BEFORE INSERT OR UPDATE ON announcement_audience FOR EACH ROW EXECUTE FUNCTION mandate_audience_guard();
+
+-- Événements : le personnel (Direction, secrétariat) publie ; le BDE propose au calendrier de l'école de son
+-- site, la Direction publie ou renvoie avec une remarque. Toute autre personne ne crée pas d'événement.
+CREATE FUNCTION school_event_guard() RETURNS trigger AS $$
+DECLARE actor uuid := coalesce(current_app_user(), NEW.created_by); director boolean := has_role(actor, 'DIRECTION'); m record; act text; BEGIN
+  IF TG_OP = 'INSERT' THEN
+    IF has_role(NEW.created_by, 'DIRECTION') OR has_role(NEW.created_by, 'BUREAU') THEN NEW.proposed_by_mandate := NULL; RETURN NEW; END IF;
+    SELECT * INTO m FROM student_mandate(NEW.created_by) sm WHERE sm.kind = 'BDE';
+    IF m.kind IS NULL THEN RAISE EXCEPTION 'Seuls la Direction, le secrétariat et le BDE (en proposition) créent un événement'; END IF;
+    IF NEW.calendar <> 'ECOLE' OR NEW.class_id IS NOT NULL OR NEW.site_id <> m.site_id THEN
+      RAISE EXCEPTION 'Le BDE propose au calendrier de l''école de son site';
+    END IF;
+    IF NEW.status = 'PUBLIEE' THEN NEW.status := 'EN_ATTENTE'; END IF;   -- jamais publié sans la Direction
+    NEW.proposed_by_mandate := 'BDE';
+    INSERT INTO publication_event (entity, entity_id, action, by_user) VALUES ('EVENEMENT', NEW.id, 'CREEE', NEW.created_by);
+    IF NEW.status = 'EN_ATTENTE' THEN INSERT INTO publication_event (entity, entity_id, action, by_user) VALUES ('EVENEMENT', NEW.id, 'ENVOYEE', NEW.created_by); END IF;
+    RETURN NEW;
+  END IF;
+  IF OLD.proposed_by_mandate IS NULL THEN RETURN NEW; END IF;
+  IF NEW.status <> OLD.status THEN
+    IF NEW.status IN ('PUBLIEE', 'A_REVOIR', 'RETIREE') AND NOT director THEN RAISE EXCEPTION 'Seule la Direction publie un événement proposé'; END IF;
+    IF NEW.status = 'EN_ATTENTE' AND (actor <> OLD.created_by OR OLD.status NOT IN ('BROUILLON', 'A_REVOIR')) THEN RAISE EXCEPTION 'Seul l''auteur envoie sa proposition'; END IF;
+    IF NEW.status = 'PUBLIEE' THEN NEW.validated_by := actor; NEW.review_note := NULL; END IF;
+    act := CASE NEW.status WHEN 'EN_ATTENTE' THEN 'ENVOYEE' WHEN 'A_REVOIR' THEN 'RENVOYEE' WHEN 'PUBLIEE' THEN 'PUBLIEE' WHEN 'RETIREE' THEN 'RETIREE' END;
+    IF act IS NOT NULL THEN INSERT INTO publication_event (entity, entity_id, action, by_user, note) VALUES ('EVENEMENT', NEW.id, act, actor, NEW.review_note); END IF;
+  ELSIF NOT director AND (actor <> OLD.created_by OR OLD.status NOT IN ('BROUILLON', 'A_REVOIR')) THEN
+    RAISE EXCEPTION 'Proposition envoyée à la Direction : elle ne se modifie plus';
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER school_event_check BEFORE INSERT OR UPDATE ON school_event FOR EACH ROW EXECUTE FUNCTION school_event_guard();
+
+-- Remontées pour le conseil : seul un délégué de la classe les écrit.
+CREATE FUNCTION council_feedback_guard() RETURNS trigger AS $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM student_mandate(NEW.author_id) m WHERE m.kind = 'DELEGUE' AND m.class_id = NEW.class_id) THEN
+    RAISE EXCEPTION 'Seuls les délégués de la classe préparent le conseil';
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER council_feedback_check BEFORE INSERT ON council_feedback FOR EACH ROW EXECUTE FUNCTION council_feedback_guard();

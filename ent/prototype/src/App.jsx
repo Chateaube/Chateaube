@@ -37,6 +37,7 @@ import InternalResources from './components/InternalResources.jsx';
 import SignaturesModule from './components/SignaturesModule.jsx';
 import { PublicPreregistration } from './components/FamilyRequests.jsx';
 import SchoolLifeModule from './components/SchoolLifeModule.jsx';
+import MandatesAdmin from './components/MandatesAdmin.jsx';
 import { notificationsFor, countsByScreen, markSeen } from './notify.js';
 import { activeSeason } from './rules/seasons.js';
 import { featureVisible } from './features.js';
@@ -85,6 +86,7 @@ const STUDENT_LIST = { id: 'students-list', label: 'Liste des élèves', icon: '
 const SIGNATURES = { id: 'signatures', label: 'Documents à signer', icon: 'pen', screen: SignaturesModule };
 const FOLLOW_UP = { id: 'followup', label: 'Documents, stages et orientation', icon: 'pen', screen: FollowUpModule };
 const ACCOUNTING = { id: 'accounting', label: 'Caisse et comptabilité', icon: 'wallet', screen: AccountingModule };
+const MANDATES = { id: 'mandates', label: 'Délégués et BDE', icon: 'users', screen: MandatesAdmin };
 const ro = (item, label) => ({ ...item, ...(label ? { label } : {}), readOnly: true }); // consultation seulement
 
 // Menu latéral par profil : mêmes noms et même place pour une fonction partagée entre rôles.
@@ -97,7 +99,7 @@ const PROFILES = {
       { group: 'Aujourd\'hui', items: [{ id: 'dashboard', label: 'Mes décisions', icon: 'home', screen: DirectionDashboard }, SIGNATURES, FEEDBACK] },
       { group: 'Élèves', items: [INSCRIPTIONS, STUDENT_LIST, { id: 'students', label: 'Mobilité Tamatave → Tana', icon: 'swap' }] },
       { group: 'Pédagogie', items: [COUNCIL, BULLETINS, MOCK_EXAMS, GRADE_SHEETS, ...OVERSIGHT, { id: 'timetable', label: 'Emplois du temps', icon: 'clock' }, { id: 'exams', label: 'Examens & Campus France', icon: 'cap' }] },
-      { group: 'Vie scolaire', items: [VIE_SCOLAIRE, CARE, HOURS, TT_CHANGES, FOLLOW_UP] },
+      { group: 'Vie scolaire', items: [VIE_SCOLAIRE, CARE, HOURS, TT_CHANGES, FOLLOW_UP, MANDATES] },
       { group: 'Finances', items: [ACCOUNTING] },
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, AGENDA] },
       { group: 'Équipe et matériel', items: [{ id: 'staff', label: 'Gestion des agents', icon: 'users', screen: StaffModule }, RESOURCES, INVENTORY, MANUALS, LIBRARY, BOOKING] },
@@ -124,7 +126,7 @@ const PROFILES = {
     home: 'vs',
     nav: [
       { group: 'Aujourd\'hui', items: [VIE_SCOLAIRE, CARE, HOURS, ro(TT_CHANGES)] },
-      { group: 'Élèves', items: [ro(STUDENT_LIST)] },
+      { group: 'Élèves', items: [ro(STUDENT_LIST), MANDATES] },
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, ro(AGENDA), RESOURCES] },
       { group: 'Ressources', items: [ro(BOOKING), ro({ id: 'books-cpe', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who="M. Be" kind="CPE" /> }), ro(OVERSIGHT[1])] },
     ],

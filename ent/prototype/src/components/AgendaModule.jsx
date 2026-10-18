@@ -10,6 +10,38 @@ import { saveFile } from '../download.js';
 import { formatDateFr } from '../rules/calendar.js';
 import { applyChanges } from '../rules/timetableChanges.js';
 import { loadChanges } from './TimetableChanges.jsx';
+import { loadEventProposals, saveEventProposal } from '../studentInitiativesStore.js';
+import { approve, sendBack, trail } from '../rules/publication.js';
+
+// Événements proposés par le BDE : ils n'entrent au calendrier de l'école qu'une fois publiés par la Direction.
+const publishedProposals = () => loadEventProposals().filter((e) => e.status === 'PUBLIEE').map((e) => ({ id: e.id, agenda: 'ECOLE', date: e.date, start: e.start, end: e.end, title: `${e.title} (BDE)`, place: e.place, classes: [] }));
+
+function ProposalReview({ onChange }) {
+  const [list, setList] = useState(() => loadEventProposals().filter((e) => e.status === 'EN_ATTENTE'));
+  const [notes, setNotes] = useState({});
+  const [err, setErr] = useState('');
+  if (!list.length) return null;
+  const actor = { role: 'DIRECTION', name: 'Direction', at: new Date().toISOString().slice(0, 16) };
+  const run = (e, fn) => { try { saveEventProposal(fn(e)); setList(list.filter((x) => x.id !== e.id)); onChange(); } catch (x) { setErr(x.message); } };
+  return (
+    <Card title="Événements proposés par le BDE — à valider">
+      {err && <p className="mb-2 text-sm text-red-700">{err}</p>}
+      <ul className="space-y-2">{list.map((e) => (
+        <li key={e.id} className="rounded-xl border border-amber-200 bg-amber-50/40 p-3 text-sm">
+          <p className="font-semibold text-slate-900">{e.title}</p>
+          <p className="text-slate-700">{e.date.split('-').reverse().join('/')} · {e.start.replace(':', 'h')}–{e.end.replace(':', 'h')}{e.place && ` · ${e.place}`}</p>
+          {e.text && <p className="text-slate-600">{e.text}</p>}
+          <p className="mt-1 text-xs text-slate-500">{trail(e)}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Button onClick={() => run(e, (x) => approve(x, actor))}>Publier au calendrier</Button>
+            <input value={notes[e.id] ?? ''} onChange={(ev) => setNotes({ ...notes, [e.id]: ev.target.value })} placeholder="Remarque pour le BDE" aria-label="Remarque pour le BDE" className="min-w-0 flex-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
+            <Button variant="secondary" disabled={!(notes[e.id] ?? '').trim()} onClick={() => run(e, (x) => sendBack(x, actor, notes[e.id].trim()))}>Renvoyer</Button>
+          </div>
+        </li>
+      ))}</ul>
+    </Card>
+  );
+}
 
 // Agendas : cours, calendrier de l'école, classes d'examen, équipe, devoirs — séparés, à afficher ensemble ou non, et à
 // ajouter dans Google Agenda ou Apple Agenda (.ics ; avec le serveur, lien d'abonnement).
@@ -66,7 +98,7 @@ export default function AgendaModule({ role, cls: fixedCls, settings, compact = 
   const [cls, setCls] = useState(fixedCls ?? '');
   const available = agendasFor({ staff, cls: cls || null });
   const [shown, setShown] = useState(Object.keys(AGENDAS));
-  const [events, setEvents] = useState(SCHOOL_EVENTS);
+  const [events, setEvents] = useState(() => [...SCHOOL_EVENTS, ...publishedProposals()]);
   const [draft, setDraft] = useState(null);
   // cours des prochaines semaines, d'après l'emploi du temps (jours de classe), puis les changements
   const courses = useMemo(() => plannedSessions(role === 'ENSEIGNANT' ? TIMETABLE.filter((x) => x.teacherId === 'p1') : TIMETABLE, '2026-10-12', '2026-11-06', settings ?? DEFAULT_SETTINGS)
@@ -116,6 +148,7 @@ export default function AgendaModule({ role, cls: fixedCls, settings, compact = 
         )}
       </Card>
 
+      {role === 'DIRECTION' && <ProposalReview onChange={() => setEvents([...SCHOOL_EVENTS, ...publishedProposals()])} />}
       <div className="grid gap-5 xl:grid-cols-[1fr_320px] xl:items-start">
         <Card title="Prochains jours">
           {days.length === 0 && <p className="text-sm text-slate-500">Rien à afficher.</p>}

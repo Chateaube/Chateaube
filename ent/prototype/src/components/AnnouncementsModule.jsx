@@ -135,7 +135,7 @@ export default function AnnouncementsModule({ role, account }) {
       <div>
         <p className="text-sm font-semibold text-navy-500">Toute l'école, un site, un cycle, des niveaux ou des classes</p>
         <h1 className="text-2xl font-semibold text-navy-900">Annonces</h1>
-        <p className="text-sm text-slate-600">{publisher ? 'Vous publiez directement ; les annonces du secrétariat et de la CPE attendent votre validation.' : 'Vos annonces sont publiées après validation par la Direction, qui peut les corriger.'}</p>
+        <p className="text-sm text-slate-600">{publisher ? 'Vous publiez directement ; les annonces du secrétariat, de la CPE, des délégués et du BDE attendent votre validation.' : 'Vos annonces sont publiées après validation par la Direction, qui peut les corriger.'}</p>
       </div>
       {msg && <p role="status" className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{msg}</p>}
 

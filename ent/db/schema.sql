@@ -2113,7 +2113,7 @@ ALTER TABLE announcement
   ADD CONSTRAINT announcement_review_note CHECK (status <> 'A_REVOIR' OR length(trim(coalesce(review_note, ''))) > 0);
 CREATE TABLE publication_event (
   id            bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  entity        text NOT NULL CHECK (entity IN ('ANNONCE', 'VIE_ECOLE')),
+  entity        text NOT NULL CHECK (entity IN ('ANNONCE', 'VIE_ECOLE', 'EVENEMENT')),
   entity_id     uuid NOT NULL,
   action        text NOT NULL CHECK (action IN ('CREEE', 'ENVOYEE', 'CORRIGEE', 'RENVOYEE', 'PUBLIEE', 'RETIREE')),
   by_user       uuid REFERENCES app_user(id),
@@ -2125,3 +2125,29 @@ CREATE VIEW v_public_announcement AS
 SELECT a.id, a.title, a.body_md, a.publish_at, a.is_pinned,
   CASE WHEN a.author_service = 'Direction' THEN 'Direction' ELSE a.author_service || ' · validée par la Direction' END AS signature
 FROM announcement a WHERE a.status = 'PUBLIEE';
+
+-- =====  MANDATS D'ÉLÈVES : DÉLÉGUÉS DE CLASSE ET BUREAU DES ÉLÈVES (BDE)  =====
+-- Pas de rôle à part : l'élève garde son compte ELEVE ; ses engagements de l'année en cours (DELEGUE ou
+-- SUPPLEANT → mandat DELEGUE sur sa classe ; BDE ou BDE_PRESIDENT → mandat BDE sur son site) lui ouvrent
+-- quelques capacités, contrôlées par student_mandate() (functions.sql). Le mandat s'éteint avec l'inscription.
+-- Ce qu'il écrit passe par la validation de la Direction ; il n'ouvre ni notes, ni fiches, ni paramètres.
+ALTER TABLE announcement ADD COLUMN author_mandate text CHECK (author_mandate IN ('DELEGUE', 'BDE'));
+
+-- Événements : ceux du personnel sont publiés d'emblée ; ceux proposés par le BDE attendent la Direction.
+ALTER TABLE school_event
+  ADD COLUMN status publication_status NOT NULL DEFAULT 'PUBLIEE',
+  ADD COLUMN description text,
+  ADD COLUMN proposed_by_mandate text CHECK (proposed_by_mandate = 'BDE'),
+  ADD COLUMN validated_by uuid REFERENCES app_user(id),
+  ADD COLUMN review_note text,
+  ADD CONSTRAINT school_event_review_note CHECK (status <> 'A_REVOIR' OR length(trim(coalesce(review_note, ''))) > 0);
+
+-- Remontées des délégués pour le conseil de classe : lues par la Direction et la CPE, jamais publiées.
+CREATE TABLE council_feedback (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  class_id      uuid NOT NULL REFERENCES school_class(id),
+  period_id     uuid NOT NULL REFERENCES period(id),
+  author_id     uuid NOT NULL REFERENCES app_user(id),
+  body          text NOT NULL CHECK (length(trim(body)) > 0),
+  created_at    timestamptz NOT NULL DEFAULT now()
+);

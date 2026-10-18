@@ -17,9 +17,11 @@ export const STATUS = {
 };
 
 /** Qui peut rédiger quoi. Les enseignants n'ont aucun accès à la rédaction d'annonces. */
+// DELEGUE et BDE : élèves agissant au titre de leur mandat (rules/mandates.js).
 export const AUTHORS = {
-  ANNONCE: ['DIRECTION', 'BUREAU', 'VIE_SCOLAIRE'],
-  VIE_ECOLE: ['DIRECTION', 'BUREAU', 'VIE_SCOLAIRE', 'ENSEIGNANT', 'ELEVE'],
+  ANNONCE: ['DIRECTION', 'BUREAU', 'VIE_SCOLAIRE', 'DELEGUE', 'BDE'],
+  VIE_ECOLE: ['DIRECTION', 'BUREAU', 'VIE_SCOLAIRE', 'ENSEIGNANT', 'ELEVE', 'BDE'],
+  EVENEMENT: ['DIRECTION', 'BUREAU', 'VIE_SCOLAIRE', 'BDE'],
 };
 export const PUBLISHER = 'DIRECTION';
 export const canWrite = (kind, role) => AUTHORS[kind].includes(role);
@@ -27,14 +29,14 @@ export const canPublish = (role) => role === PUBLISHER;
 export const isPublic = (p) => (p.status ?? 'PUBLIEE') === 'PUBLIEE'; // anciennes données sans statut : publiées
 
 /** Service affiché au public (jamais le nom d'un membre du personnel). */
-export const SERVICE = { DIRECTION: 'Direction', BUREAU: 'Secrétariat', VIE_SCOLAIRE: 'Vie scolaire (CPE)', ENSEIGNANT: 'Équipe pédagogique', ELEVE: 'Élèves' };
+export const SERVICE = { DIRECTION: 'Direction', BUREAU: 'Secrétariat', VIE_SCOLAIRE: 'Vie scolaire (CPE)', ENSEIGNANT: 'Équipe pédagogique', ELEVE: 'Élèves', DELEGUE: 'Délégués de classe', BDE: 'Bureau des élèves (BDE)' };
 
 const step = (p, actor, action, note) => ({ ...p, history: [...(p.history ?? []), { at: actor.at, by: actor.name, role: actor.role, action, ...(note ? { note } : {}) }] });
 
 /** Création : publiée d'emblée si la Direction l'écrit et le demande ; sinon brouillon ou envoyée. */
 export function create(kind, content, actor, { send = false } = {}) {
-  if (!canWrite(kind, actor.role)) throw new Error(kind === 'ANNONCE' ? 'Les annonces sont rédigées par la Direction, le secrétariat ou la CPE.' : 'Vous ne pouvez pas proposer de publication.');
-  const base = { ...content, kind, authorRole: actor.role, authorName: actor.name, service: SERVICE[actor.role], createdAt: actor.at, history: [] };
+  if (!canWrite(kind, actor.role)) throw new Error(kind === 'ANNONCE' ? 'Les annonces sont rédigées par la Direction, le secrétariat, la CPE, les délégués ou le BDE.' : 'Vous ne pouvez pas proposer de publication.');
+  const base = { ...content, kind, authorRole: actor.role, authorName: actor.name, service: content.service ?? SERVICE[actor.role], createdAt: actor.at, history: [] };
   const created = step(base, actor, 'CREEE');
   if (canPublish(actor.role) && send) return step({ ...created, status: 'PUBLIEE', publishedAt: actor.at, validatedBy: actor.name }, actor, 'PUBLIEE');
   return send ? step({ ...created, status: 'EN_ATTENTE' }, actor, 'ENVOYEE') : { ...created, status: 'BROUILLON' };
@@ -84,14 +86,14 @@ export function signature(p) {
   const role = p.authorRole ?? (p.author === 'Direction' ? 'DIRECTION' : null);
   if (!role || role === PUBLISHER) return p.service ?? p.author ?? 'Direction';
   if (role === 'ELEVE' || role === 'ENSEIGNANT') return `Proposée par ${p.authorDisplay ?? SERVICE[role]} · publiée par la Direction`;
-  return `${SERVICE[role]} · validée par la Direction`;
+  return `${p.service ?? SERVICE[role]} · validée par la Direction`;
 }
 
 /** Trace complète pour l'équipe : « Rédigée par Mme Hanta (Secrétariat) le 12/10, corrigée et publiée par la Direction le 13/10. » */
 export function trail(p) {
   const fr = (iso) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : '');
   const created = (p.history ?? []).find((h) => h.action === 'CREEE');
-  const parts = [`Rédigée par ${p.authorName ?? p.author} (${SERVICE[p.authorRole] ?? p.service ?? ''}) le ${fr(created?.at ?? p.createdAt ?? p.at)}`];
+  const parts = [`Rédigée par ${p.authorName ?? p.author} (${p.service ?? SERVICE[p.authorRole] ?? ''}) le ${fr(created?.at ?? p.createdAt ?? p.at)}`];
   if (p.editedByDirection) parts.push('corrigée par la Direction');
   if (p.status === 'PUBLIEE') parts.push(`publiée par ${p.validatedBy ?? 'la Direction'} le ${fr(p.publishedAt ?? p.at)}`);
   return `${parts.join(', ')}.`;

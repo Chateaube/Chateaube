@@ -1,4 +1,7 @@
 import React, { useMemo, useState } from 'react';
+import StudentMandates from './StudentMandates.jsx';
+import { mandatesOf } from '../rules/mandates.js';
+import { loadEngagements } from '../engagementsStore.js';
 import { Badge, Button, Icon } from './ui.jsx';
 import Messenger, { unreadCount } from './Messenger.jsx';
 import { PARENT } from '../data/people.js';
@@ -515,9 +518,17 @@ const SECTIONS = [
   ['Démarches', [['documents', 'Documents et autorisations', 'pen'], ['payments', 'Paiements', 'wallet', 'PARENT'], ['fiche', 'Fiche signalétique', 'pen', 'PARENT'], ['reenrol', 'Réinscription', 'calendar', 'PARENT'], ['update', 'Mettre à jour nos informations', 'users', 'PARENT'], ['signature', 'Ma signature', 'pen', 'PARENT']]],
 ];
 
-function Others({ audience, menu, badges, open }) {
+// Élève délégué ou membre du BDE : une rubrique de plus, seulement pour lui (cf. rules/mandates.js)
+const mandateSection = (mandates) => {
+  const items = [];
+  if (mandates.some((m) => m.kind === 'DELEGUE')) items.push(['mandate-class', 'Écrire à ma classe', 'megaphone'], ['mandate-council', 'Préparer le conseil', 'cap'], ['messages', 'Contacter la CPE', 'bell']);
+  if (mandates.some((m) => m.kind === 'BDE')) items.push(['mandate-bde', 'BDE : annonces et événements', 'sparkles']);
+  return items.length ? [['Mon mandat', items]] : [];
+};
+
+function Others({ audience, menu, badges, open, mandates = [] }) {
   const isParent = audience === 'PARENT';
-  return SECTIONS.map(([title, items]) => {
+  return [...mandateSection(mandates), ...SECTIONS].map(([title, items]) => {
     const list = items.filter((m) => !m[3] || m[3] === audience);
     if (!list.length) return null;
     const count = list.reduce((t, [id]) => t + (menu[id] === false ? 0 : badges[id] ?? 0), 0);
@@ -564,6 +575,8 @@ export default function FamilyPortal({ settings, audience = 'PARENT', season }) 
   const badges = { life: pendingAcks, messages: unread, fiche: isParent && !ficheOf(fullName(child))?.signedAt ? 1 : 0 };
   const moreBadge = unread + badges.fiche;
   const isTab = TABS.some(([id]) => id === view);
+  // mandats de l'élève connecté (jamais côté parent) : délégué de sa classe, BDE de son site
+  const student = { mandates: isParent ? [] : mandatesOf(loadEngagements()[fullName(child)] ?? [], { cls: child.cls, site: 'TMV' }) };
 
   return (
     <div className="mx-auto w-full max-w-[420px]">
@@ -588,7 +601,8 @@ export default function FamilyPortal({ settings, audience = 'PARENT', season }) 
           <TermsGate phone viewer={audience} account={isParent ? ACCOUNT.id : 'aina'}>
           {!isTab && <button onClick={() => go('more')} className="text-sm font-medium text-navy-500">‹ Autres</button>}
           {view === 'home' && <Home child={child} isParent={isParent} settings={settings} openFiche={() => go('fiche')} openReenrol={() => go('reenrol')} onSeen={() => setTick((t) => t + 1)} openSchoolLife={() => go('schoollife')} />}
-          {view === 'more' && <Others audience={audience} menu={menu} badges={badges} open={go} />}
+          {view === 'more' && <Others audience={audience} menu={menu} badges={badges} open={go} mandates={student.mandates} />}
+          {view.startsWith('mandate-') && <StudentMandates student={student} me={fullName(child)} view={view} />}
           {view === 'schoollife' && <SchoolLifeModule compact role={audience} settings={settings} cls={child.cls} author={isParent ? 'Parent' : `${child.name} (${child.cls})`} />}
           {view === 'schooldocs' && <FamilyDocuments audience={audience} />}
           {view === 'agenda' && <AgendaModule key={child.id} compact role={audience} cls={child.cls} settings={settings} today={TODAY} />}

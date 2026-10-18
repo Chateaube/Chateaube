@@ -71,7 +71,7 @@ export function audienceLabel(au, sites) {
 
 /** Erreurs avant envoi ou publication ; un professeur n'écrit pas d'annonce. */
 export function announcementErrors(a, { role } = {}) {
-  if (role === 'ENSEIGNANT') return ['Les annonces sont rédigées par la Direction, le secrétariat ou la CPE.'];
+  if (role === 'ENSEIGNANT') return ['Les annonces sont rédigées par la Direction, le secrétariat, la CPE, les délégués ou le BDE.'];
   const e = [];
   if (!a.title?.trim()) e.push('Titre obligatoire.');
   if (!a.text?.trim() && !a.photos?.length) e.push('Texte ou photo obligatoire.');

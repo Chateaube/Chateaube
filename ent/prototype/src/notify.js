@@ -4,6 +4,7 @@
 //  - INFO : annonces, publications (sans badge rouge).
 // Le rouge est réservé à l'urgent.
 import { ATTENDANCE, CLASSES } from './data/schoollife.js';
+import { loadEventProposals } from './studentInitiativesStore.js';
 import { loadVisits } from './careStore.js';
 import { loadInventory } from './careStore.js';
 import { pendingSignatures } from './signatureStore.js';
@@ -40,7 +41,9 @@ export function notificationsFor(role, { account } = {}) {
   const news = loadAnnouncements().list;
   if (role === 'DIRECTION') {
     const toValidate = news.filter((a) => a.status === 'EN_ATTENTE').length;
-    add(toValidate, { id: 'news', to: 'news', count: toValidate, text: `${toValidate} annonce${toValidate > 1 ? 's' : ''} du secrétariat ou de la CPE à valider`, action: 'Valider' });
+    add(toValidate, { id: 'news', to: 'news', count: toValidate, text: `${toValidate} annonce${toValidate > 1 ? 's' : ''} à valider (secrétariat, CPE, délégués, BDE)`, action: 'Valider' });
+    const events = loadEventProposals().filter((e) => e.status === 'EN_ATTENTE').length;
+    add(events, { id: 'events', to: 'agenda', count: events, text: `${events} événement${events > 1 ? 's' : ''} proposé${events > 1 ? 's' : ''} par le BDE à valider`, action: 'Valider' });
     const toSign = pendingSignatures().filter((r) => r.signatory === (account?.id === 'u2' ? 'ADJOINTE' : 'CHEFFE')).length;
     add(toSign, { id: 'sign', to: 'signatures', count: toSign, text: `${toSign} document${toSign > 1 ? 's' : ''} à signer`, action: 'Signer' });
     add(pendingPosts, { id: 'posts', to: 'school-life', count: pendingPosts, text: `${pendingPosts} publication${pendingPosts > 1 ? 's' : ''} proposée${pendingPosts > 1 ? 's' : ''} à valider (droit à l'image)`, action: 'Valider' });

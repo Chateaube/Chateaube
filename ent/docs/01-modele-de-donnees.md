@@ -401,3 +401,12 @@ recoder.
   **`current_app_user`** (personne connectée lue dans la session) et **`has_role`** ; déclencheur
   **`announcement_guard`** (pas de professeur, publication par la Direction seule). Scénarios **T56** (Vie de
   l'école : Direction seule) et **T57**.
+- **Mandats d'élèves** (délégués, BDE) : pas de nouveau rôle ; fonction **`student_mandate(user)`** tirée de
+  `student_engagement` sur l'inscription de l'année en cours (DELEGUE/SUPPLEANT → mandat DELEGUE sur la classe ;
+  BDE/BDE_PRESIDENT → mandat BDE sur le site ; fin automatique au départ). **`announcement.author_mandate`** : le
+  déclencheur exige le mandat et signe « Délégués de 1re STMG » ou « Bureau des élèves (BDE) » ;
+  **`mandate_audience_guard`** limite les destinataires (élèves seulement ; sa classe pour un délégué ; son site pour
+  le BDE). **`school_event`** : `status`, `description`, `proposed_by_mandate`, `validated_by`, `review_note` ;
+  **`school_event_guard`** (le BDE propose au calendrier de l'école de son site, jamais publié sans la Direction ;
+  `event_visible` ne montre que le publié). **`council_feedback`** (remontées des délégués de la classe pour le
+  conseil, lues par la Direction et la CPE). Scénario **T58**.

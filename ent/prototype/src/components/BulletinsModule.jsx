@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Badge, Button, Card, StudentSelect } from './ui.jsx';
 import { BulletinSheet } from './Bulletin.jsx';
 import { TERM, EVALUATIONS, GRADES, CLASS_SUBJECTS, OTHER_AVERAGES, ABSENCES, TEACHER_COMPETENCIES } from '../data/grades.js';
@@ -14,13 +14,9 @@ import { demoAppreciation, accord } from '../rules/documents.js';
 import { formatDateFr } from '../rules/calendar.js';
 import { printOnly } from '../print.js';
 import BulletinHandover from './BulletinHandover.jsx';
+import { loadEngagements, saveEngagements } from '../engagementsStore.js';
 import { ENGAGEMENTS, ATTESTATIONS, engagementLabels, attestationLabels, engagementErrors } from '../rules/engagements.js';
 
-// Engagements de démonstration (délégués, suppléants…)
-const DEMO_ENGAGEMENTS = {
-  'RAKOTOARISOA Aina': ['DELEGUE'], 'RAZAFY Kanto': ['SUPPLEANT'], 'RAMAROSON Fitia': ['ECO_DELEGUE'],
-  'RANDRIA Mamy': ['DELEGUE', 'BDE_PRESIDENT', 'NUMERIQUE'], 'RAZAFINDRATSIMA Volana': ['SUPPLEANT'], 'RABEMANANTSOA Fitia': ['PSC1'],
-};
 
 // Bulletins du trimestre (Direction, Bureau) : une page A4 par élève, selon la matrice de l'établissement.
 // Chaque bulletin ne contient que les matières de l'élève (spécialités en Terminale générale).
@@ -146,7 +142,8 @@ export default function BulletinsModule({ settings, role }) {
   const [duplex, setDuplex] = useState(true);
   const [pages, setPages] = useState({}); // élève → nombre de pages imprimées (mesuré)
   const measureRef = useRef(null);
-  const [engagements, setEngagements] = useState(DEMO_ENGAGEMENTS);
+  const [engagements, setEngagements] = useState(loadEngagements);
+  useEffect(() => saveEngagements(engagements), [engagements]); // mêmes engagements que l'écran « Délégués et BDE »
   const enrich = (x) => ({ ...x, showGeneral, compact: pages[x.student]?.useCompact ?? false, generalAppreciation: general[`${cls}:${x.student}`] ?? '', engagements: engagementLabels(engagements[x.student], x.sex), attestations: attestationLabels(engagements[x.student]) });
   const classEngagements = Object.fromEntries(bulletins.map((x) => [x.student, engagements[x.student] ?? []]));
   const toggleEngagement = (id) => {
