@@ -173,3 +173,15 @@ main .bulletin thead th { color: #000; }
 
 /* Ressources internes : jamais imprimées */
 @media print { .protected-view { display: none !important; } }
+
+/* Focus clavier visible partout (RGAA 10.7 / WCAG 2.4.7) : contour épais, contrasté ; blanc sur les fonds
+   sombres (barre du haut, bandeau du prototype). Le focus à la souris n'est pas affiché (:focus-visible). */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--color-navy-700);
+  outline-offset: 2px;
+}
+.amb-topbar :focus-visible, [aria-label="Bandeau du prototype"] :focus-visible { outline-color: #ffffff; }
+
+/* Petits écrans : un champ ou une liste ne dépasse jamais sa colonne (une option longue élargissait la page). */
+main select, main input, main textarea { max-width: 100%; }
+main label { min-width: 0; max-width: 100%; }

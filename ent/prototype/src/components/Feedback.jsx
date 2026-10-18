@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Badge, Button, Card, Icon, Stat } from './ui.jsx';
 import { loadFeedback, saveFeedback } from '../feedbackStore.js';
+import { useModal } from '../a11y.js';
 
 // « Donner mon avis » : sur chaque écran, pour le pilote (classes de Terminale). L'avis part avec
 // l'écran et le profil, sans rien avoir à décrire ; la Direction les suit dans « Avis du pilote ».
@@ -13,6 +14,7 @@ const inputCls = 'w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5
 /** « Signaler un problème ou une idée » : dans le menu du compte (variant « menu »), ou bouton flottant. */
 export function FeedbackButton({ profile, who, screen, variant = 'floating' }) {
   const [open, setOpen] = useState(false);
+  const dialogRef = useModal(open, () => setOpen(false));
   const [draft, setDraft] = useState({ type: 'PROBLEME', text: '', photo: null });
   const [sent, setSent] = useState(false);
   const send = () => {
@@ -33,8 +35,8 @@ export function FeedbackButton({ profile, who, screen, variant = 'floating' }) {
         </button>
       )}
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-4 sm:items-center" role="dialog" aria-label="Donner mon avis" onClick={() => setOpen(false)}>
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-4 sm:items-center" role="dialog" aria-modal="true" aria-label="Signaler un problème ou une idée" onClick={() => setOpen(false)}>
+          <div ref={dialogRef} tabIndex={-1} className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             {sent ? (
               <div className="space-y-3 text-center">
                 <p className="text-lg font-semibold text-navy-900">Merci !</p>

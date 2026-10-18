@@ -1,6 +1,7 @@
 // Grilles de notes imprimables et exportables (Excel) : moyennes par matière pour une classe,
 // ou détail des évaluations d'une matière. Mêmes données à l'écran, sur papier et dans Excel.
 import { cellValue, studentAverage, classStats, generalAverage, round2 } from './grading.js';
+import { csvCell } from './csv.js';
 
 const fr = (n) => (n === null || n === undefined ? '' : String(round2(n)).replace('.', ','));
 
@@ -45,11 +46,8 @@ export function detailSheet({ evaluations, students, grades }) {
 const SHORT_STATUS = { ABSENT: 'ABS', DISPENSE: 'DISP', NON_NOTE: 'NN' };
 export const cellText = (c) => (c.status === 'NOTE' ? fr(c.value) : c.status === 'VIDE' ? '' : c.status === 'A_CORRIGER' ? `${c.raw} (à corriger)` : SHORT_STATUS[c.status] ?? c.raw);
 
-const csvCell = (v) => {
-  const t = v === null || v === undefined ? '' : typeof v === 'number' ? fr(v) : String(v);
-  return /[;"\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
-};
-export const csv = (lines) => `﻿${lines.map((l) => l.map(csvCell).join(';')).join('\r\n')}\r\n`;
+const cellOf = (v) => csvCell(typeof v === 'number' ? fr(v) : v);
+export const csv = (lines) => `﻿${lines.map((l) => l.map(cellOf).join(';')).join('\r\n')}\r\n`;
 
 /** Export Excel complet de la grille des moyennes (en-tête, élèves, repères de classe, légende). */
 export function averagesCsv({ title, info = [], subjects, sheet, extra = [] }) {

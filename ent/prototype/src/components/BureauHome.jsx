@@ -24,7 +24,7 @@ export default function BureauHome({ go }) {
         </div>
         <Button onClick={() => go('accounting')}><Icon name="wallet" />Nouvel encaissement</Button>
       </div>
-      <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <Card title={`À traiter aujourd'hui (${todo.length})`}>
           <ul className="space-y-3">
             {todo.map((t) => (

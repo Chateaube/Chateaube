@@ -42,7 +42,8 @@ export function DocumentInput({ onAdd, label = 'Ajouter', className = '' }) {
 
 /** Vignette d'une pièce déposée (ouvre le document en grand). */
 export function DocumentThumb({ doc, title }) {
-  const open = () => { const w = window.open(); if (w) w.document.write(doc.kind === 'pdf' ? `<iframe src="${doc.dataUrl}" style="border:0;width:100%;height:100%"></iframe>` : `<img src="${doc.dataUrl}" style="max-width:100%">`); };
+  // ouverture dans un nouvel onglet par une adresse blob: (pas de HTML construit à la main)
+  const open = async () => { const blob = await (await fetch(doc.dataUrl)).blob(); if (!/^(image\/(jpeg|png|webp)|application\/pdf)$/.test(blob.type)) return; const url = URL.createObjectURL(blob); window.open(url, '_blank', 'noopener'); setTimeout(() => URL.revokeObjectURL(url), 60000); };
   return (
     <button type="button" onClick={open} title={title} className="flex h-14 w-11 items-center justify-center overflow-hidden rounded border border-slate-200 bg-white text-[10px] font-semibold text-slate-500">
       {doc.kind === 'pdf' ? 'PDF' : <img src={doc.dataUrl} alt={title} className="h-full w-full object-cover" />}

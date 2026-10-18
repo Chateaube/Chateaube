@@ -1433,3 +1433,27 @@ test('annulation d\'un cours le jour même : publiée tout de suite par le secr�
   assert.equal(pub.create('ANNONCE', { ...notice, date: '2026-10-21' }, { role: 'BUREAU', name: 'Mme Hanta', at }, { send: true }).status, 'EN_ATTENTE');
   assert.throws(() => pub.create('ANNONCE', notice, { role: 'DELEGUE', name: 'Aina', at }, { send: true }), /jour même/);
 });
+
+import { csvCell } from '../src/rules/csv.js';
+test('exports CSV : une formule n\'est jamais exécutée par Excel, les nombres restent des nombres', () => {
+  assert.equal(csvCell('=HYPERLINK("http://x","clic")'), '"\'=HYPERLINK(""http://x"",""clic"")"');
+  assert.equal(csvCell('+33 6 12'), '+33 6 12'); // numéro : reste tel quel
+  assert.equal(csvCell('@SUM(A1)'), '\'@SUM(A1)');
+  assert.equal(csvCell('-cmd|calc'), '\'-cmd|calc');
+  assert.equal(csvCell('-5 000'), '-5 000');
+  assert.equal(csvCell(-12.5), '-12.5');
+  assert.equal(csvCell('Très bon trimestre ; continuez'), '"Très bon trimestre ; continuez"');
+  assert.equal(csvCell(null), '');
+});
+
+import { isExpired, wipeLocalData, REAL_DATA_TTL_HOURS } from '../src/privacy.js';
+test('données réelles : expiration et effacement de ce navigateur (réglages gardés)', () => {
+  const now = Date.parse('2026-10-18T20:00:00Z');
+  assert.equal(isExpired('2026-10-18T09:00:00Z', now), REAL_DATA_TTL_HOURS < 11);
+  assert.equal(isExpired('2026-10-17T07:00:00Z', now), true);
+  assert.equal(isExpired(undefined, now), false);
+  const data = { 'ent-import-v1': '{}', 'ent-fiche-v1': '{}', 'ent-chateaubriand-settings-v3': '{}', 'ent-ambiance-prefs-v1': '{}', autre: 'x' };
+  const store = { get length() { return Object.keys(data).length; }, key: (i) => Object.keys(data)[i], removeItem: (k) => { delete data[k]; } };
+  assert.equal(wipeLocalData(store), 2);
+  assert.deepEqual(Object.keys(data).sort(), ['autre', 'ent-ambiance-prefs-v1', 'ent-chateaubriand-settings-v3']);
+});

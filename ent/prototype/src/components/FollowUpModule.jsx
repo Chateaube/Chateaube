@@ -29,7 +29,7 @@ function Authorizations() {
       subtitle="Avant une photo de classe ou une sortie : qui n'est pas autorisé, qui n'a pas répondu"
       action={
         <div className="flex flex-wrap items-center gap-2">
-          <select value={cls} onChange={(e) => setCls(e.target.value)} className={inputCls}>{Object.keys(CLASSES).map((c) => <option key={c}>{c}</option>)}</select>
+          <select value={cls} onChange={(e) => setCls(e.target.value)} aria-label="Classe" className={inputCls}>{Object.keys(CLASSES).map((c) => <option key={c}>{c}</option>)}</select>
           <label className="flex items-center gap-1.5 text-sm text-slate-600"><input type="checkbox" checked={onlyIssues} onChange={(e) => setOnlyIssues(e.target.checked)} />Refus et sans réponse</label>
         </div>
       }

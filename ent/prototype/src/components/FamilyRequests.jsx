@@ -147,7 +147,7 @@ export function PublicPreregistration() {
     return (
       <div className="mx-auto max-w-[520px] rounded-2xl bg-white p-6 text-center shadow-soft">
         <p className="text-xs font-semibold text-navy-500">École Collège Lycée Chateaubriand · Tamatave</p>
-        <p className="mt-1 font-display text-lg font-semibold text-navy-900">Pré-inscriptions {campaign.year}</p>
+        <h1 className="mt-1 font-display text-lg font-semibold text-navy-900">Pré-inscriptions {campaign.year}</h1>
         <p className="mt-2 text-sm text-slate-600">{today < campaign.opens ? `Ouverture le ${fmt(campaign.opens)}, jusqu'au ${fmt(campaign.closes)}.` : 'La campagne est terminée. Contactez le secrétariat.'}</p>
         <p className="mt-3 text-xs text-slate-400">Démonstration : la Direction règle ces dates dans Inscriptions → Pré-inscriptions.</p>
       </div>
@@ -167,7 +167,7 @@ function PublicForm() {
   if (done) {
     return (
       <div className="mx-auto max-w-[520px] rounded-2xl bg-white p-6 text-center shadow-soft">
-        <p className="font-display text-lg font-semibold text-navy-900">Demande envoyée</p>
+        <h1 className="font-display text-lg font-semibold text-navy-900">Demande envoyée</h1>
         <p className="mt-2 text-sm text-slate-600">Merci. Le secrétariat vous rappelle sur WhatsApp ou par téléphone pour la suite : dossier, entretien, inscription.</p>
         <Button variant="secondary" className="mt-4" onClick={() => { setF(empty); setDocs([]); setDone(false); }}>Nouvelle demande</Button>
       </div>

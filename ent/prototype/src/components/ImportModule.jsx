@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
+import { csvCell } from '../rules/csv.js';
 import { Badge, Button, Card, Stat } from './ui.jsx';
 import { parseTable, analyzeStudents, parseAssignments } from '../rules/importer.js';
 import { loadImport, saveImport, clearImport } from '../importStore.js';
@@ -106,7 +107,7 @@ export default function ImportModule() {
     setDone(`${data.students.length} élèves et ${data.assignments.length} professeurs importés.${more} Ils apparaissent dans Inscriptions & fiches élèves, Encaisser et la consultation des professeurs.`);
   };
   const exportToComplete = () => {
-    const cell = (v) => (/[;"\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+    const cell = csvCell;
     const lines = [['N°', 'Classe', 'Nom', 'Prénom', 'À compléter ou corriger'],
       ...analysis.students.filter((s) => s.issues.length).map((s) => [s.student.number, s.student.cls, s.student.lastName, s.student.firstName, s.issues.map((i) => i.text).join(' · ')])];
     saveFile('eleves-a-completer.csv', `﻿${lines.map((l) => l.map((v) => cell(String(v ?? ''))).join(';')).join('\r\n')}\r\n`);

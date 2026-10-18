@@ -32,7 +32,7 @@ export function AnnouncementCard({ a, who, compact = false }) {
   return (
     <article className={`rounded-2xl bg-white p-4 shadow-soft ${a.pinned ? 'ring-1 ring-amber-300' : ''}`}>
       <p className="text-[11px] text-slate-500">{a.pinned && <Badge tone="amber">épinglée</Badge>} {signature(a)} · {fmt(a.publishedAt ?? a.at)}</p>
-      <h3 className="mt-0.5 font-display text-[15px] font-semibold text-slate-900">{a.title}</h3>
+      <h2 className="mt-0.5 font-display text-[15px] font-semibold text-slate-900">{a.title}</h2>
       {a.text && <p className={`mt-1 whitespace-pre-line text-sm text-slate-700 ${compact ? 'line-clamp-4' : ''}`}>{a.text}</p>}
       {a.photos?.length > 0 && (
         <div className={`mt-2 grid gap-1.5 ${a.photos.length > 1 ? 'grid-cols-2' : ''}`}>

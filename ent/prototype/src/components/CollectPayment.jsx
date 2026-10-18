@@ -277,7 +277,7 @@ export default function CollectPayment({ settings, articles = [], accounts: shar
           )}
           <fieldset className="mt-4 space-y-2">
             <legend className="text-xs font-medium text-slate-600">Paiement remis par</legend>
-            <select value={bearer.role} onChange={(e) => setBearer({ role: e.target.value, name: '' })} className={`w-full ${inputCls}`}>
+            <select value={bearer.role} onChange={(e) => setBearer({ role: e.target.value, name: '' })} aria-label="Paiement remis par" className={`w-full ${inputCls}`}>
               {BEARERS.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
             </select>
             {bearer.role !== 'ELEVE' && (

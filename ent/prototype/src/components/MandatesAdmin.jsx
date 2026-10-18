@@ -35,7 +35,8 @@ export default function MandatesAdmin() {
       <div className="grid gap-5 xl:grid-cols-[1fr_340px] xl:items-start">
         <Card title="Mandats par classe" action={<select value={cls} onChange={(e) => { setCls(e.target.value); setErr([]); }} aria-label="Classe" className="rounded-md border border-slate-300 px-2 py-1.5 text-sm">{Object.keys(CLASSES).map((c) => <option key={c}>{c}</option>)}</select>}>
           {err.length > 0 && <p role="alert" className="mb-2 rounded-md bg-red-50 p-2 text-sm text-red-800">{err.join(' ')}</p>}
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Mandats de la classe">
+          <table className="w-full min-w-[480px] text-sm">
             <thead><tr className="text-left text-xs text-slate-500"><th className="py-1">Élève</th>{CODES.map(([, l]) => <th key={l} className="px-1 text-center">{l}</th>)}</tr></thead>
             <tbody>{CLASSES[cls].map((s) => (
               <tr key={s} className="border-t border-slate-100">
@@ -44,6 +45,7 @@ export default function MandatesAdmin() {
               </tr>
             ))}</tbody>
           </table>
+          </div>
           <p className="mt-2 text-xs text-slate-600">Au plus 2 délégués et 2 suppléants par classe ; un seul président du BDE. Le mandat prend fin avec l'année scolaire.</p>
         </Card>
         <div className="space-y-5">

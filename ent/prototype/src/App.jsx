@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { hasRealData, purgeExpired, wipeLocalData, REAL_DATA_TTL_HOURS } from './privacy.js';
 import { Icon, Avatar } from './components/ui.jsx';
 import DirectionDashboard from './components/DirectionDashboard.jsx';
 import BookingModule from './components/BookingModule.jsx';
@@ -225,6 +226,9 @@ export default function App() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
+  const [purged] = useState(purgeExpired); // données réelles expirées : effacées au chargement
+  const realData = hasRealData();
+  const quickRef = useRef(null); const bellRef = useRef(null); const accountRef = useRef(null);
   const [quickOpen, setQuickOpen] = useState(false);
   const [collapsed, setCollapsed] = useState({});
   const [tick, setTick] = useState(0); // recalcul des notifications après « J'ai vu »
@@ -238,6 +242,24 @@ export default function App() {
   const activeGroup = NAV.find((g) => g.items.some((i) => i.id === screen))?.group;
   const screenLabel = currentItem?.label ?? screen;
   void tick;
+
+  // Titre de l'onglet = écran affiché (repère pour les lecteurs d'écran et l'historique)
+  useEffect(() => { document.title = `${screenLabel} — ENT Chateaubriand`; }, [screenLabel]);
+  // Échap ferme le menu ouvert et rend le focus à son bouton
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return;
+      if (quickOpen) { setQuickOpen(false); quickRef.current?.focus(); }
+      if (bellOpen) { setBellOpen(false); bellRef.current?.focus(); }
+      if (accountOpen) { setAccountOpen(false); accountRef.current?.focus(); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [quickOpen, bellOpen, accountOpen]);
+  const wipe = () => {
+    if (!window.confirm('Effacer de cet ordinateur toutes les données de l\'ENT (import, fiches, saisies) ? Les réglages sont gardés.')) return;
+    wipeLocalData(); window.location.reload();
+  };
 
   const navItem = (item) => {
     const enabled = Boolean(item.screen);
@@ -264,7 +286,7 @@ export default function App() {
         return (
           <div key={g.group}>
             <button type="button" onClick={() => setCollapsed({ ...collapsed, [g.group]: isOpen })} aria-expanded={isOpen}
-              className="flex w-full items-center justify-between px-2.5 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500 hover:text-navy-900">
+              className="flex min-h-6 w-full items-center justify-between px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600 hover:text-navy-900">
               <span>{g.group}{!isOpen && n > 0 && <span className="ml-1.5 rounded-full bg-amber-500 px-1.5 text-[10px] text-white">{n}</span>}</span>
               <span className={`transition ${isOpen ? '' : '-rotate-90'}`}>▾</span>
             </button>
@@ -279,25 +301,29 @@ export default function App() {
   return (
     <div className={`min-h-screen ${protectedProfile ? 'screen-guard' : ''}`} onClick={() => { setAccountOpen(false); setBellOpen(false); setQuickOpen(false); }}>
       {/* Bandeau du prototype : changer de profil, protection d'écran */}
-      <div className="print:hidden bg-slate-900 px-4 py-1.5 text-[11px] text-slate-300 lg:px-8">
+      <a href="#contenu" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[60] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-navy-900 focus:shadow-lg">Aller au contenu</a>
+      <div role="region" aria-label="Bandeau du prototype" className="print:hidden bg-slate-900 px-4 py-1.5 text-[11px] text-slate-300 lg:px-8">
         <div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-x-4 gap-y-1.5">
           <span className="rounded-full bg-amber-400/90 px-2 py-0.5 font-semibold text-slate-900">Prototype · données fictives</span>
           <span className="flex min-w-0 flex-wrap items-center gap-1.5">Voir l'ENT en tant que
             <span className="flex max-w-[calc(100vw-2rem)] gap-0.5 overflow-x-auto rounded-full bg-white/10 p-0.5" role="tablist" aria-label="Profil">
               {Object.entries(PROFILES).map(([k, p]) => (
-                <button key={k} role="tab" aria-selected={profile === k} onClick={() => switchProfile(k)}
+                <button key={k} role="tab" aria-selected={profile === k} onClick={() => switchProfile(k)} disabled={realData && profile !== k}
                   className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 font-medium ${profile === k ? 'bg-white text-slate-900' : 'text-white hover:bg-white/10'}`}>{p.label}</button>
               ))}
             </span>
           </span>
           <label className="flex items-center gap-1.5"><input type="checkbox" checked={protection} onChange={(e) => setProtection(e.target.checked)} />Protection d'écran (sauf Direction et Secrétariat)</label>
+          {realData && <span className="flex items-center gap-2 text-amber-200">Données réelles sur cet ordinateur : changement de profil bloqué, effacement automatique après {REAL_DATA_TTL_HOURS} h.
+            <button type="button" onClick={wipe} className="rounded-full bg-amber-400 px-2.5 py-0.5 font-semibold text-slate-900">Effacer maintenant</button></span>}
+          {purged && <span role="status" className="text-emerald-300">Données importées de plus de {REAL_DATA_TTL_HOURS} h effacées de cet ordinateur.</span>}
         </div>
       </div>
 
       {/* Barre du haut : logo, site, action rapide, notifications, compte */}
       <header className="amb-topbar print:hidden sticky top-0 z-30 shadow-[0_8px_24px_-16px_rgb(0_51_102/0.6)]"
         style={{ background: 'var(--topbar)', color: 'var(--topbar-fg)' }}>
-        <div className="mx-auto flex h-16 max-w-[1500px] items-center gap-3 px-4 lg:px-8">
+        <div className="mx-auto flex h-16 max-w-[1500px] items-center gap-2 px-3 sm:gap-3 sm:px-4 lg:px-8">
           {staffProfile && (
             <button className="rounded-full p-2 hover:bg-white/10 lg:hidden" aria-label="Menu" aria-expanded={mobileOpen} onClick={(e) => { e.stopPropagation(); setMobileOpen(!mobileOpen); }}>
               <Icon name="menu" className="h-6 w-6" />
@@ -312,17 +338,17 @@ export default function App() {
           </button>
           {staffProfile && (
             <select value={site} onChange={(e) => setSite(e.target.value)} aria-label="Site" onClick={(e) => e.stopPropagation()} disabled={profile !== 'DIRECTION'}
-              className="ml-2 rounded-full border-0 bg-white/15 px-3 py-1 text-xs font-medium text-white disabled:opacity-100">
+              className="min-w-0 max-w-[7.5rem] rounded-full border-0 bg-white/15 px-3 py-1 text-xs font-medium text-white disabled:opacity-100 sm:ml-2 sm:max-w-none">
               <option value="TMV" className="text-slate-900">Tamatave</option>
               <option value="TNR" disabled className="text-slate-500">Tana (bientôt)</option>
             </select>
           )}
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
             {QUICK.length > 0 && (
               <div className="relative" onClick={(e) => e.stopPropagation()}>
-                <button onClick={() => { setQuickOpen(!quickOpen); setBellOpen(false); }} aria-expanded={quickOpen}
-                  className="flex items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 text-sm font-semibold text-navy-900 shadow-sm hover:bg-navy-50">＋ Action rapide</button>
+                <button ref={quickRef} onClick={() => { setQuickOpen(!quickOpen); setBellOpen(false); }} aria-expanded={quickOpen}
+                  aria-label="Action rapide" className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-navy-900 shadow-sm hover:bg-navy-50"><span aria-hidden="true">＋</span><span className="hidden sm:inline">Action rapide</span></button>
                 {quickOpen && (
                   <div className="absolute right-0 top-full z-40 mt-2 w-64 rounded-2xl bg-white p-2 text-slate-800 shadow-2xl ring-1 ring-slate-200">
                     {QUICK.map(([id, label]) => <button key={id} onClick={() => goTo(id)} className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100">{label}</button>)}
@@ -332,7 +358,7 @@ export default function App() {
             )}
             {staffProfile && (
               <div className="relative" onClick={(e) => e.stopPropagation()}>
-                <button onClick={() => { setBellOpen(!bellOpen); setQuickOpen(false); }} aria-expanded={bellOpen} aria-label={`Notifications : ${notes.urgent.length} urgentes, ${notes.todo.length} à faire`}
+                <button ref={bellRef} onClick={() => { setBellOpen(!bellOpen); setQuickOpen(false); }} aria-expanded={bellOpen} aria-label={`Notifications : ${notes.urgent.length} urgentes, ${notes.todo.length} à faire`}
                   className="relative flex h-9 w-9 items-center justify-center rounded-full bg-white/15 hover:bg-white/25">
                   <Icon name="bell" className="h-[18px] w-[18px]" />
                   {bellCount > 0 && <span className={`absolute -right-1 -top-1 rounded-full px-1.5 text-[10px] font-bold text-white ${notes.urgent.length ? 'bg-red-600' : 'bg-amber-500'}`}>{bellCount}</span>}
@@ -351,7 +377,7 @@ export default function App() {
               </div>
             )}
             <div className="relative" onClick={(e) => e.stopPropagation()}>
-              <button onClick={() => { setAccountOpen(!accountOpen); setBellOpen(false); }} className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 hover:bg-white/10" aria-label="Mon compte">
+              <button ref={accountRef} onClick={() => { setAccountOpen(!accountOpen); setBellOpen(false); }} aria-expanded={accountOpen} className="flex items-center gap-2 rounded-full py-1 pl-1 pr-1 hover:bg-white/10 md:pr-3" aria-label="Mon compte">
                 <Avatar name={persona.name} className="h-8 w-8 text-[11px] ring-2 ring-white/60" />
                 <span className="hidden text-left text-xs leading-tight md:block"><span className="block font-semibold">{persona.short ?? persona.name}</span><span style={{ color: 'var(--topbar-muted)' }}>{persona.detail}</span></span>
               </button>
@@ -366,6 +392,7 @@ export default function App() {
                       </select>
                     </label>
                   )}
+                  <button type="button" onClick={wipe} className="mt-3 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-left text-sm text-red-700 hover:bg-red-50">Effacer les données de cet ordinateur</button>
                   {profile !== 'VISITEUR' && <div className="mt-3 border-t border-slate-100 pt-2"><FeedbackButton variant="menu" profile={profile} who={persona.detail ?? persona.name} screen={screenLabel} /></div>}
                   <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-600"><span className="flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-navy-900 ring-1 ring-slate-200">G</span>Connexion Google · même compte sur ordinateur et téléphone</p>
                 </div>
@@ -394,7 +421,7 @@ export default function App() {
             <nav aria-label="Navigation principale">{sidebar}</nav>
           </aside>
         )}
-        <main className="min-w-0 flex-1">
+        <main id="contenu" tabIndex={-1} className="min-w-0 flex-1 focus:outline-none">
           {notes.urgent.length > 0 && (
             <div role="alert" className="print:hidden mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
               <span className="font-bold">⚠ Urgent</span>

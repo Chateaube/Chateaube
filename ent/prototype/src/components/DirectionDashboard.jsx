@@ -208,8 +208,8 @@ export default function DirectionDashboard({ account, settings, go, site: header
               return (
                 <button
                   key={s.id}
-                  onClick={() => setSite(site === s.id ? 'ALL' : s.id)}
-                  className={`block w-full rounded-lg border p-3 text-left transition ${dim ? 'border-slate-100 opacity-50' : 'border-slate-200 hover:border-navy-200'}`}
+                  onClick={() => setSite(site === s.id ? 'ALL' : s.id)} aria-pressed={site === s.id}
+                  className={`block w-full rounded-lg border p-3 text-left transition ${dim ? 'border-dashed border-slate-300 bg-slate-50' : 'border-slate-200 hover:border-navy-200'}`}
                 >
                   <div className="flex items-center justify-between">
                     <p className="flex items-center gap-1.5 font-semibold text-slate-900"><Icon name="pin" className="h-4 w-4 text-navy-500" />{s.name}</p>
@@ -221,7 +221,7 @@ export default function DirectionDashboard({ account, settings, go, site: header
                   <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
                     <span>Frais de scolarité encaissés</span><span className="tabular-nums">{fmtPct(rate)}</span>
                   </div>
-                  <Progress value={rate} tone={rate >= 90 ? 'green' : 'amber'} />
+                  <Progress value={rate} tone={rate >= 90 ? 'green' : 'amber'} label={`Frais de scolarité encaissés — ${s.name}`} />
                   <p className="mt-2 text-xs text-slate-500">{k.openCases} dossiers d'impayés · {k.absencesToday} absences aujourd'hui</p>
                 </button>
               );
@@ -309,7 +309,7 @@ export default function DirectionDashboard({ account, settings, go, site: header
               <span>Dossiers DNB / Bac déposés</span>
               <span className="tabular-nums">{CANDIDATE_FILES.complete} complets · {CANDIDATE_FILES.incomplete} incomplets · {CANDIDATE_FILES.toBuild} à constituer</span>
             </div>
-            <Progress value={pct(CANDIDATE_FILES.complete, CANDIDATE_FILES.total)} tone="amber" />
+            <Progress value={pct(CANDIDATE_FILES.complete, CANDIDATE_FILES.total)} tone="amber" label="Dossiers d'examen complets" />
           </div>
           <ol className="relative space-y-3 border-l border-slate-200 pl-4">
             {YEAR_MILESTONES.map((m) => (

@@ -1,3 +1,4 @@
+import { csvCell } from './csv.js';
 // Terminale : poursuite d'études. Chaque élève a une ou plusieurs PISTES (un pays chacune).
 //  - la piste France (Parcoursup) n'est pas obligatoire, mais conseillée à tous en plan B, même à
 //    ceux qui visent un autre pays ; elle se clôture avec un motif si l'élève ne la suit pas ;
@@ -25,7 +26,7 @@ export const exportWindowOpen = (today, { opensOn, closesOn }) => today >= opens
 
 /** Liste des Terminales pour Campus France (CSV lisible par Excel). */
 export function campusFranceCsv(rows) {
-  const cell = (v) => { const t = v ?? ''; return /[;"\n]/.test(t) ? `"${String(t).replace(/"/g, '""')}"` : String(t); };
+  const cell = csvCell;
   const header = ['Nom', 'Prénom', 'Date de naissance', 'Nationalité', 'Classe', 'Résultat du Bac', 'Mention', 'Démarches', 'E-mail'];
   const lines = rows.map((r) => [r.lastName, r.firstName, r.birthDate.split('-').reverse().join('/'), r.nationalities.join(', '), r.cls, r.bac ?? '', r.mention ?? '',
     higherEdSteps(r.nationalities).map((k) => PROCEDURES[k].label).join(' + '), r.email]);

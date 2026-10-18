@@ -22,7 +22,7 @@ const h = (hhmm) => hhmm.replace(':', 'h');
 function Timeline({ resources, bookings, date, onPick, draft }) {
   const closesAt = SCHOOL_HOURS[weekdayOf(date)]?.[1] ?? '07:00';
   return (
-    <div className="-mx-5 overflow-x-auto px-5">
+    <div className="-mx-5 overflow-x-auto px-5" tabIndex={0} role="region" aria-label="Planning de la journée (défilement horizontal)">
       <div className="min-w-[720px]">
         {/* Échelle horaire */}
         <div className="ml-48 flex border-b border-slate-200 pb-1 text-[11px] text-slate-500">
@@ -156,7 +156,7 @@ export default function BookingModule({ role }) {
               {DAYS.map((d) => (
                 <button key={d.date} onClick={() => { setDate(d.date); setConfirmation(null); }}
                   className={`rounded-md px-2.5 py-1 text-sm ${date === d.date ? 'bg-navy-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>
-                  {d.label}{weekdayOf(d.date) === 3 && <span className="ml-1 text-[10px] opacity-70">→12h</span>}
+                  {d.label}{weekdayOf(d.date) === 3 && <span className="ml-1 text-[10px]">→12h</span>}
                 </button>
               ))}
             </div>

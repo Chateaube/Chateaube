@@ -3,6 +3,7 @@
 // (un versement de frais de scolarité ne peut pas solder des droits d'examen).
 
 import { planMonths } from './calendar.js';
+import { csvCell } from './csv.js';
 
 /** Lignes triées avec, pour chaque ligne, le solde progressif de SON journal ; soldes séparés par journal. */
 export function accountStatement(lines) {
@@ -68,10 +69,7 @@ export function monthlyCashReport(openingOfYear, history, month /* 'AAAA-MM' */,
 
 /** Export Excel (CSV ; séparateur « ; », compatible Excel en français). */
 export function cashMonthCsv(report, { site, journalLabels }) {
-  const cell = (v) => {
-    const t = v === null || v === undefined ? '' : String(v);
-    return /[;"\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
-  };
+  const cell = csvCell;
   const fr = (iso) => iso.split('-').reverse().join('/');
   const lines = [
     [`Caisse ${site} — ${report.month.split('-').reverse().join('/')}`],

@@ -7,7 +7,7 @@ export function loadImport() {
   try { return JSON.parse(localStorage.getItem(KEY)) ?? null; } catch { return null; }
 }
 export function saveImport(data) {
-  try { localStorage.setItem(KEY, JSON.stringify({ ...data, importedAt: new Date().toISOString() })); return true; } catch { return false; }
+  try { localStorage.setItem(KEY, JSON.stringify({ ...data, importedAt: data.importedAt ?? new Date().toISOString() }) /* l'heure du 1er import fixe l'expiration */); return true; } catch { return false; }
 }
 export function clearImport() {
   try { localStorage.removeItem(KEY); } catch { /* stockage indisponible */ }

@@ -112,7 +112,7 @@ function SchoolLifePreview({ open, social }) {
   return (
     <Section title="Vie de l'école" action={<button type="button" onClick={open} className="text-xs font-medium text-navy-500">Tout voir ›</button>}>
       {last && <><p className="mb-1.5 text-sm font-medium text-slate-800">{last.title}</p>
-        <div className="flex gap-1.5 overflow-x-auto">{last.photos.slice(0, 3).map((src, i) => <img key={i} src={src} alt="" className="h-20 w-28 shrink-0 rounded-lg object-cover" />)}</div></>}
+        <div className="flex gap-1.5 overflow-x-auto" tabIndex={0} role="region" aria-label="Photos du dernier album">{last.photos.slice(0, 3).map((src, i) => <img key={i} src={src} alt="" className="h-20 w-28 shrink-0 rounded-lg object-cover" />)}</div></>}
       <SocialLinks social={social} />
     </Section>
   );
@@ -586,7 +586,7 @@ export default function FamilyPortal({ settings, audience = 'PARENT', ambiance }
       <div className="flex h-[780px] max-h-[calc(100vh-6rem)] flex-col overflow-hidden rounded-[36px] border-[10px] border-slate-800 bg-paper shadow-2xl">
         <header className="rounded-b-[28px] px-5 pb-4 pt-5 text-white" style={{ background: 'linear-gradient(135deg, #003366, #00427f 55%, var(--amb-topbar-end))' }}>
           <p className="text-xs text-white">Chateaubriand · Tamatave{ambiance ? <> · <span aria-hidden="true">{ambiance.symbol} </span>{ambiance.label}</> : ''}</p>
-          <p className="mt-0.5 font-display text-xl font-semibold">{isParent ? `Bonjour ${PARENT.name}` : `Bonjour ${child.name} · ${child.cls}`}</p>
+          <h1 className="mt-0.5 font-display text-xl font-semibold">{isParent ? `Bonjour ${PARENT.name}` : `Bonjour ${child.name} · ${child.cls}`}</h1>
           {isParent && !['payments', 'messages'].includes(view) && (
             <div className="mt-3 flex gap-2">
               {PARENT.children.map((c) => (

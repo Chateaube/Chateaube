@@ -113,10 +113,10 @@ export default function InternalResources({ role }) {
           {visible.map((r) => (
             <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
               <span className="min-w-0"><span className="font-medium text-slate-900">{r.title}</span><span className="block text-xs text-slate-500">{{ LINK: 'Lien', TEXT: 'Texte', pdf: 'PDF', image: 'Photo' }[r.kind] ?? 'Document'} · {r.by} · {fmt(r.at)}</span></span>
-              <span className="flex items-center gap-2">
+              <span className="flex flex-wrap items-center gap-2">
                 {forOf(r).map((a) => <Badge key={a} tone={['PROFS', 'PERSONNEL'].includes(a) ? 'navy' : 'violet'}>{AUDIENCES[a].split(' (')[0]}</Badge>)}
                 <Button variant="secondary" className="!py-1 text-xs" onClick={() => setOpen(r)}>Consulter</Button>
-                {canShare && <button type="button" className="text-xs text-slate-400 hover:text-red-700" onClick={() => { const next = list.filter((x) => x.id !== r.id); setList(next); save(next); }}>Retirer</button>}
+                {canShare && <button type="button" className="text-xs text-slate-600 hover:text-red-700" onClick={() => { const next = list.filter((x) => x.id !== r.id); setList(next); save(next); }}>Retirer</button>}
               </span>
             </li>
           ))}

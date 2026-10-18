@@ -119,21 +119,28 @@ d'`autocomplete` sur les champs d'identité (nom, e-mail, téléphone, adresse) 
 
 ## Checklist par priorité
 
-### P0 — à corriger sur le prototype, avant d'y mettre des données réelles (pilote)
+### P0 — à corriger sur le prototype, avant d'y mettre des données réelles (pilote) — FAIT le 18/10
 
-- [ ] **S1/S2** — Ne plus garder de données réelles en clair : effacement à la fermeture (ou `sessionStorage`),
-      bouton « Effacer les données de cet ordinateur », et **désactiver le changeur de profil** dès qu'un import
-      réel est présent (sinon : pilote uniquement avec données fictives, comme aujourd'hui).
-- [ ] **S6** — Neutraliser les formules dans tous les exports CSV/Excel (préfixer `'` devant `= + - @` et
-      tabulation).
-- [ ] **S7** — Ouvrir les pièces jointes via `URL.createObjectURL(blob)` au lieu de `document.write`.
-- [ ] **A11y bloquants** — étiqueter les 16 listes et 14 champs (`aria-label` ou `<label>`), nommer les barres
-      de progression, corriger les 14 contrastes (pas d'`opacity` sur du texte), rendre les zones défilantes
-      focusables (`tabIndex=0` + nom).
-- [ ] **Clavier** — lien d'évitement, style `:focus-visible` global (contour 3 px contrasté), Échap + retour du
-      focus sur les menus déroulants, `aria-modal` + piège du focus sur la fenêtre d'avis.
-- [ ] **Responsive** — barre du haut du secrétariat à 375 px ; tableaux des Examens blancs et Grilles de notes
-      dans un conteneur défilant.
+- [x] **S1/S2** — Données réelles : effacées seules après 12 h (`privacy.js`, au chargement), bouton « Effacer les
+      données de cet ordinateur » (menu du compte et bandeau), **changement de profil bloqué** tant qu'un import
+      réel est présent. Réglages gardés. Testé (unitaire + navigateur).
+- [x] **S6** — `rules/csv.js` : tout texte commençant par `= + - @` (ou tabulation) est neutralisé dans les 4
+      exports CSV (grilles de notes, caisse, Campus France, élèves à compléter) ; les nombres négatifs restent
+      des nombres. Testé.
+- [x] **S7** — Pièces jointes ouvertes par `blob:` (types image et PDF seulement), plus de `document.write`.
+- [x] **A11y bloquants** — 16 listes et 14 champs étiquetés, barres de progression nommées, contrastes corrigés
+      (plus d'`opacity` sur du texte), zones défilantes focusables et nommées, en-tête de tableau vide nommé,
+      titres hiérarchisés (cartes en h2, h1 dans le portail familles et la pré-inscription), repères (bandeau du
+      prototype, ambiance), cibles du menu ≥ 24 px.
+- [x] **Clavier** — lien « Aller au contenu », contour de focus 3 px (blanc sur fond sombre), Échap ferme les
+      menus et rend le focus au bouton, fenêtre d'avis modale (`aria-modal`, focus piégé, Échap), titre de
+      l'onglet = écran affiché.
+- [x] **Responsive** — barre du haut compacte sur mobile, champs limités à leur colonne : **0 écran ne déborde à
+      375 px** (31 avant).
+
+**Contre-mesure après corrections** : axe-core sur les 95 écrans → **0 violation** (11 règles en échec avant) ;
+Playwright : clavier, Échap, modale, verrouillage et expiration des données réelles vérifiés ; 107 tests unitaires,
+T1 à T58 en base.
 
 ### P1 — avant la mise en production (serveur, base, hébergement)
 

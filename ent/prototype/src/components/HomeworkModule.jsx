@@ -28,7 +28,7 @@ export default function HomeworkModule() {
         <Card
           title={`${service.cls} · ${service.subject}`}
           action={
-            <select value={serviceId} onChange={(e) => setServiceId(e.target.value)} className={inputCls}>
+            <select value={serviceId} onChange={(e) => setServiceId(e.target.value)} aria-label="Classe et matière" className={inputCls}>
               {services.map((s) => <option key={s.id} value={s.id}>{s.cls} · {s.subject}</option>)}
             </select>
           }

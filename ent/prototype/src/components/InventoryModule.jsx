@@ -147,7 +147,7 @@ export default function InventoryModule({ role = 'BUREAU' }) {
         {err && <p className="mb-2 rounded-md bg-red-50 p-2 text-xs text-red-800">{err}</p>}
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">
-            <thead><tr className="border-b border-slate-200 text-left text-xs text-slate-500"><th className="py-2 pr-2">Article</th><th className="px-2">Lieu</th><th className="px-2 text-right">Quantité</th><th className="px-2 text-right">Cassés</th><th className="px-2 text-right">En état</th><th className="px-2">Factures</th><th /></tr></thead>
+            <thead><tr className="border-b border-slate-200 text-left text-xs text-slate-500"><th className="py-2 pr-2">Article</th><th className="px-2">Lieu</th><th className="px-2 text-right">Quantité</th><th className="px-2 text-right">Cassés</th><th className="px-2 text-right">En état</th><th className="px-2">Factures</th><th className="relative"><span className="sr-only">Actions</span></th></tr></thead>
             <tbody>
               {list.map((it) => (
                 <React.Fragment key={it.id}>

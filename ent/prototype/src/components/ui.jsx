@@ -6,7 +6,7 @@ export function Card({ title, subtitle, action, children, className = '' }) {
       {(title || action) && (
         <header className="flex flex-wrap items-start justify-between gap-2 px-5 pt-4 pb-1">
           <div>
-            <h3 className="font-display text-[1.05rem] font-semibold tracking-tight text-slate-900">{title}</h3>
+            {title && <h2 className="font-display text-[1.05rem] font-semibold tracking-tight text-slate-900">{title}</h2>}
             {subtitle && <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>}
           </div>
           {action}
@@ -47,10 +47,10 @@ export function Stat({ label, value, hint, tone = 'slate' }) {
   );
 }
 
-export function Progress({ value, tone = 'navy' }) {
+export function Progress({ value, tone = 'navy', label = 'Progression' }) {
   const bar = { navy: 'bg-navy-500', green: 'bg-emerald-500', amber: 'bg-amber-500', red: 'bg-red-500' }[tone];
   return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-valuenow={Math.round(value)} aria-valuemin={0} aria-valuemax={100}>
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label={label} aria-valuenow={Math.round(value)} aria-valuemin={0} aria-valuemax={100}>
       <div className={`h-full rounded-full ${bar} transition-[width] duration-500`} style={{ width: `${Math.min(100, value)}%` }} />
     </div>
   );
