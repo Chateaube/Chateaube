@@ -83,7 +83,8 @@ function Timeline({ resources, bookings, date, onPick, draft }) {
   );
 }
 
-export default function BookingModule() {
+export default function BookingModule({ role }) {
+  const readOnly = role === 'VIE_SCOLAIRE'; // la CPE consulte le planning
   const [siteId, setSiteId] = useState('TMV');
   const [type, setType] = useState('ALL');
   const [date, setDate] = useState('2026-10-15');
@@ -171,7 +172,7 @@ export default function BookingModule() {
           <Timeline resources={visible} bookings={bookings} date={date} onPick={pick} draft={req} />
         </Card>
 
-        <Card title="Nouvelle réservation" subtitle="Vérification des conflits en temps réel">
+        {readOnly ? <Card title="Consultation"><p className="text-sm text-slate-500">Le planning du matériel et des salles est consultable ; les réservations se font par les professeurs, le secrétariat ou la Direction.</p></Card> : <Card title="Nouvelle réservation" subtitle="Vérification des conflits en temps réel">
           <div className="space-y-3 text-sm">
             <label className="block">
               <span className="text-xs font-medium text-slate-600">Équipement</span>
@@ -262,7 +263,7 @@ export default function BookingModule() {
             <Button className="w-full" disabled={!canBook} onClick={book}>Réserver</Button>
             {confirmation && <p role="status" className="text-center text-xs text-emerald-700">{confirmation}</p>}
           </div>
-        </Card>
+        </Card>}
       </div>
 
       <Card title="Règles de gestion" subtitle="Appliquées dans l'interface et garanties par la base de données">

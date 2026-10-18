@@ -1921,49 +1921,125 @@ SELECT t.id AS textbook_id, t.site_id, t.title, eff.effectif,
 FROM textbook t JOIN eff ON eff.textbook_id = t.id
 LEFT JOIN stock ON stock.textbook_id = t.id LEFT JOIN loans ON loans.textbook_id = t.id;
 
--- Examens blancs (3e, 1re, Terminale) : épreuves notées sur 20 avec les coefficients de l'examen.
+-- Examens blancs (3e, 1re, Terminale), candidats libres : pas de contrôle continu, toutes les épreuves
+-- de l'examen, notées sur 20 avec leurs coefficients (session 2027 ; total du bac : 100 sur 1re + Tle).
 CREATE TABLE mock_exam (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   class_id      uuid NOT NULL REFERENCES school_class(id),
-  kind          text NOT NULL CHECK (kind IN ('DNB', 'EAF', 'BAC_G', 'BAC_STMG')),
+  kind          text NOT NULL CHECK (kind IN ('DNB', 'PREMIERE_G', 'PREMIERE_STMG', 'BAC_G', 'BAC_STMG')),
   title         text NOT NULL,
   held_on       date NOT NULL,
   created_by    uuid NOT NULL REFERENCES app_user(id)
 );
+-- Épreuve ; une épreuve « à sous-notes » (sciences du brevet) garde ses meilleures notes (best_of).
 CREATE TABLE mock_exam_part (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   mock_exam_id  uuid NOT NULL REFERENCES mock_exam(id) ON DELETE CASCADE,
-  code          text NOT NULL,                          -- PHI, SPE1, GO, FR_E…
+  parent_id     uuid REFERENCES mock_exam_part(id) ON DELETE CASCADE,   -- sous-note (physique-chimie, SVT…)
+  code          text NOT NULL,                          -- PHI, SPE1, GO, FR_E, SCI, PC…
   label         text NOT NULL,
-  coef          numeric(4,1) NOT NULL CHECK (coef > 0),
-  UNIQUE (mock_exam_id, code)
+  subject_id    uuid REFERENCES subject(id),            -- le professeur de la matière saisit l'épreuve
+  coef          numeric(4,1) CHECK (coef > 0),
+  best_of       smallint CHECK (best_of > 0),
+  -- le professeur peut compter l'épreuve dans son carnet de notes (bulletin), avec son coefficient
+  gradebook_evaluation_id uuid REFERENCES evaluation(id),
+  UNIQUE (mock_exam_id, code),
+  CHECK ((parent_id IS NULL) = (coef IS NOT NULL)),
+  CHECK (parent_id IS NULL OR best_of IS NULL)
 );
 CREATE TABLE mock_exam_mark (
   part_id       uuid REFERENCES mock_exam_part(id) ON DELETE CASCADE,
   enrollment_id uuid REFERENCES enrollment(id),
   mark          numeric(4,2) CHECK (mark BETWEEN 0 AND 20),
   absent        boolean NOT NULL DEFAULT false,         -- absent : compté 0
+  entered_by    uuid REFERENCES app_user(id),
   PRIMARY KEY (part_id, enrollment_id),
   CHECK (absent = (mark IS NULL))
 );
--- Notes OFFICIELLES (épreuves anticipées de français passées en 1re) : base de la projection au bac.
+-- Notes OFFICIELLES de 1re (épreuves anticipées et épreuves de fin de 1re) : base de la projection au bac.
 CREATE TABLE official_exam_mark (
   student_id    uuid REFERENCES student(id),
   session_year  smallint NOT NULL,
-  code          text NOT NULL CHECK (code IN ('FR_E', 'FR_O')),
+  code          text NOT NULL CHECK (code IN ('FR_E', 'FR_O', 'MA_EA', 'SPE_AB', 'SGN', 'HG', 'ES', 'MA', 'LVA', 'LVB')),
+  coef          numeric(4,1) NOT NULL CHECK (coef > 0),
   mark          numeric(4,2) NOT NULL CHECK (mark BETWEEN 0 AND 20),
   PRIMARY KEY (student_id, code)
 );
--- Relevé : points, coefficients notés et total, moyenne (absent = 0), complet ou non.
+-- Note de chaque épreuve : saisie directe, ou, une fois toutes les sous-notes saisies, moyenne des `best_of`
+-- meilleures (absent = 0).
+CREATE VIEW v_mock_exam_part_mark AS
+WITH sub AS (
+  SELECT c.parent_id, m.enrollment_id, coalesce(m.mark, 0) AS v,
+         row_number() OVER (PARTITION BY c.parent_id, m.enrollment_id ORDER BY coalesce(m.mark, 0) DESC) AS rk,
+         count(*) OVER (PARTITION BY c.parent_id, m.enrollment_id) AS entered,
+         (SELECT count(*) FROM mock_exam_part k WHERE k.parent_id = c.parent_id) AS expected
+  FROM mock_exam_part c JOIN mock_exam_mark m ON m.part_id = c.id WHERE c.parent_id IS NOT NULL
+)
+SELECT p.id AS part_id, m.enrollment_id, coalesce(m.mark, 0) AS mark
+FROM mock_exam_part p JOIN mock_exam_mark m ON m.part_id = p.id WHERE p.parent_id IS NULL AND p.best_of IS NULL
+UNION ALL
+SELECT p.id, s.enrollment_id, round(avg(s.v), 2)
+FROM mock_exam_part p JOIN sub s ON s.parent_id = p.id AND s.rk <= p.best_of AND s.entered = s.expected   -- toutes les sous-notes saisies
+WHERE p.best_of IS NOT NULL GROUP BY p.id, s.enrollment_id, p.best_of HAVING count(*) = p.best_of;
+-- Relevé : points, coefficients notés et total, moyenne, complet ou non.
 CREATE VIEW v_mock_exam_result AS
 SELECT x.id AS mock_exam_id, e.id AS enrollment_id,
-  sum(coalesce(m.mark, 0) * p.coef) FILTER (WHERE m.part_id IS NOT NULL) AS points,
-  sum(p.coef) FILTER (WHERE m.part_id IS NOT NULL) AS coef_marked,
+  sum(pm.mark * p.coef) AS points,
+  coalesce(sum(p.coef) FILTER (WHERE pm.part_id IS NOT NULL), 0) AS coef_marked,
   sum(p.coef) AS coef_total,
-  round(sum(coalesce(m.mark, 0) * p.coef) FILTER (WHERE m.part_id IS NOT NULL) / nullif(sum(p.coef) FILTER (WHERE m.part_id IS NOT NULL), 0), 2) AS average,
-  count(m.part_id) = count(*) AS complete
+  round(sum(pm.mark * p.coef) / nullif(sum(p.coef) FILTER (WHERE pm.part_id IS NOT NULL), 0), 2) AS average,
+  count(pm.part_id) = count(*) AS complete
 FROM mock_exam x
-JOIN mock_exam_part p ON p.mock_exam_id = x.id
+JOIN mock_exam_part p ON p.mock_exam_id = x.id AND p.parent_id IS NULL
 JOIN enrollment e ON e.class_id = x.class_id AND e.left_on IS NULL
-LEFT JOIN mock_exam_mark m ON m.part_id = p.id AND m.enrollment_id = e.id
+LEFT JOIN v_mock_exam_part_mark pm ON pm.part_id = p.id AND pm.enrollment_id = e.id
 GROUP BY x.id, e.id;
+
+-- Passeport de vie scolaire : oublis (une heure de colle chacun), colles (1 ou 2 h, suivies jusqu'à ce
+-- qu'elles soient effectuées) et TIG ; trois retards donnent une colle.
+CREATE TABLE school_forget (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  enrollment_id uuid NOT NULL REFERENCES enrollment(id),
+  on_date       date NOT NULL,
+  kind          text NOT NULL CHECK (kind IN ('MATERIEL', 'DEVOIR', 'CARNET', 'TENUE', 'AUTRE')),
+  note          text,
+  reported_by   uuid NOT NULL REFERENCES app_user(id)
+);
+CREATE TABLE detention (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  enrollment_id uuid NOT NULL REFERENCES enrollment(id),
+  kind          text NOT NULL CHECK (kind IN ('COLLE', 'TIG')),
+  cause         text NOT NULL CHECK (cause IN ('OUBLI', 'RETARDS', 'AUTRE')),
+  forget_id     uuid UNIQUE REFERENCES school_forget(id),        -- un oubli = une colle, pas plus
+  hours         smallint CHECK (hours IN (1, 2)),
+  scheduled_at  timestamptz NOT NULL,
+  reason        text NOT NULL CHECK (length(trim(reason)) > 0),
+  status        text NOT NULL DEFAULT 'A_FAIRE' CHECK (status IN ('A_FAIRE', 'FAITE', 'NON_FAITE')),
+  given_by      uuid NOT NULL REFERENCES app_user(id),
+  given_at      timestamptz NOT NULL DEFAULT now(),
+  CHECK (kind = 'TIG' OR hours IS NOT NULL),
+  CHECK ((cause = 'OUBLI') = (forget_id IS NOT NULL)),
+  CHECK (cause <> 'OUBLI' OR hours = 1)
+);
+CREATE VIEW v_passport AS
+SELECT e.id AS enrollment_id,
+  (SELECT count(*) FROM attendance_event a WHERE a.enrollment_id = e.id AND a.kind = 'RETARD') AS lates,
+  (SELECT count(*) FROM school_forget f WHERE f.enrollment_id = e.id) AS forgets,
+  (SELECT count(*) FROM detention d WHERE d.enrollment_id = e.id AND d.cause = 'RETARDS') AS colles_for_lates,
+  (SELECT coalesce(sum(hours), 0) FROM detention d WHERE d.enrollment_id = e.id AND d.kind = 'COLLE' AND d.status <> 'FAITE') AS hours_due,
+  (SELECT coalesce(sum(hours), 0) FROM detention d WHERE d.enrollment_id = e.id AND d.kind = 'COLLE' AND d.status = 'FAITE') AS hours_done,
+  (SELECT count(*) FROM detention d WHERE d.enrollment_id = e.id AND d.kind = 'TIG') AS tig
+FROM enrollment e;
+
+-- Conditions acceptées à la première connexion (règlement, chartes) : un document nouveau ou remplacé
+-- est redemandé. internal_resource.must_accept marque les documents concernés.
+ALTER TABLE internal_resource ADD COLUMN must_accept boolean NOT NULL DEFAULT false;
+CREATE TABLE document_acceptance (
+  user_id       uuid REFERENCES app_user(id) ON DELETE CASCADE,
+  resource_id   uuid REFERENCES internal_resource(id) ON DELETE CASCADE,
+  version_at    timestamptz NOT NULL,                   -- internal_resource.shared_at au moment de l'acceptation
+  opened_at     timestamptz NOT NULL,                   -- le document a été ouvert avant d'être accepté
+  accepted_at   timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, resource_id, version_at),
+  CHECK (opened_at <= accepted_at)
+);

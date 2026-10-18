@@ -19,7 +19,7 @@ import { FamilyRequestForm, sendDocument } from './FamilyRequests.jsx';
 import { DocumentInput } from './PhotoInput.jsx';
 import { AnnouncementCard } from './AnnouncementsModule.jsx';
 import AgendaModule from './AgendaModule.jsx';
-import { FamilyDocuments } from './InternalResources.jsx';
+import { FamilyDocuments, TermsGate } from './InternalResources.jsx';
 import BookCatalog from './BookCatalog.jsx';
 import { loadAnnouncements } from '../announcementsStore.js';
 import { receives } from '../rules/announcements.js';
@@ -35,6 +35,8 @@ import { loadLibrary } from '../libraryStore.js';
 import { designation, dueSoonLoans, daysLeft, gamesOut } from '../rules/library.js';
 import { GAMES, GAME_LOG } from '../data/games.js';
 import { loadVisits } from '../careStore.js';
+import { loadPassport } from './PassportTab.jsx';
+import { passport, COLLE_STATUS } from '../rules/discipline.js';
 import { parentNotice } from '../rules/care.js';
 
 // Portail famille : PARENT (toutes les actions) ou ELEVE (presque la même chose, en lecture,
@@ -67,7 +69,7 @@ function Section({ title, children, action }) {
 function Announcements({ isParent }) {
   // annonces reçues : celles qui visent les parents (ou les élèves) d'au moins un des enfants
   const me = isParent ? { role: 'PARENT', site: 'TMV', classes: PARENT.children.map((c) => c.cls) } : { role: 'ELEVE', site: 'TMV', classes: ['1re STMG'] };
-  const list = loadAnnouncements().list.filter((a) => receives(a, me)).sort((a, b) => (b.pinned - a.pinned) || b.at.localeCompare(a.at)).slice(0, 3);
+  const list = loadAnnouncements().list.filter((a) => receives(a, me)).sort((a, b) => (b.pinned - a.pinned) || b.at.localeCompare(a.at)).slice(0, 2);
   if (!list.length) return null;
   return <>{list.map((a) => <AnnouncementCard key={a.id} a={a} who={isParent ? ACCOUNT.id : 'aina'} compact />)}</>;
 }
@@ -92,7 +94,7 @@ function GamesAvailable() {
   const games = d.games ?? GAMES; const log = d.gameLog ?? GAME_LOG;
   return (
     <Section title="Jeux de société (salle d'étude)">
-      <ul className="space-y-1 text-sm">{games.map((g) => { const free = g.copies - gamesOut(g.id, log).length; return <li key={g.id} className="flex justify-between gap-2"><span>{g.name}</span><span className={free ? 'text-emerald-700' : 'text-slate-400'}>{free ? `${free} libre${free > 1 ? 's' : ''}` : 'tous sortis'}</span></li>; })}</ul>
+      <ul className="space-y-1 text-sm">{games.map((g) => { const free = g.copies - gamesOut(g.id, log).length; return <li key={g.id} className="flex justify-between gap-2"><span>{g.name}</span><span className={free ? 'text-emerald-700' : 'text-slate-400'}>{free ? 'libre' : 'sorti'}</span></li>; })}</ul>
       <p className="mt-2 text-xs text-slate-500">À demander à la vie scolaire pendant les pauses. Range le jeu complet.</p>
     </Section>
   );
@@ -111,12 +113,11 @@ function BulletinPickup({ child, settings }) {
   return <div className={`rounded-2xl p-4 text-sm ${status === 'BLOQUE' ? 'bg-red-50 text-red-900' : 'bg-navy-50 text-navy-900'}`}><p className="font-semibold">Bulletin — {child.name}</p><p>{msg}</p></div>;
 }
 
-function Home({ child, isParent, openFiche, openReenrol, settings, features }) {
+function Home({ child, isParent, openFiche, openReenrol, settings }) {
   const due = HOMEWORK.filter((h) => h.cls === child.cls && h.due && h.due > TODAY).sort((a, b) => a.due.localeCompare(b.due)).slice(0, 2);
   return (
     <>
-      {features}
-      <h2 className="px-1 pt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">À faire et à savoir</h2>
+      <Announcements isParent={isParent} />
       {isParent && PARENT.alerts.map((a) => (
         <div key={a.title} className={`rounded-2xl p-4 ${a.tone === 'red' ? 'bg-red-50' : 'bg-amber-50'}`}>
           <p className={`text-sm font-semibold ${a.tone === 'red' ? 'text-red-900' : 'text-amber-900'}`}>{a.title}</p>
@@ -133,7 +134,6 @@ function Home({ child, isParent, openFiche, openReenrol, settings, features }) {
       {isParent && <BulletinPickup child={child} settings={settings} />}
       {isParent && <CareNotice child={child} />}
       <BookDueSoon child={child} />
-      <Announcements isParent={isParent} />
       {isParent && profileOf(child) && nextClass(child.cls) && (
         <div className="rounded-2xl bg-emerald-50 p-4">
           <p className="text-sm font-semibold text-emerald-900">Réinscriptions 2027-2028 ouvertes</p>
@@ -151,11 +151,6 @@ function Home({ child, isParent, openFiche, openReenrol, settings, features }) {
           {due.map((h) => <p key={h.id} className="text-sm text-slate-700"><span className="font-medium">{shortDate(h.due)} · {h.subject} :</span> {h.todo}</p>)}
         </Section>
       )}
-      <Section title="Actualités">
-        <ul className="space-y-3">
-          {PARENT.news.map((n) => <li key={n.title}><p className="text-xs text-slate-500">{n.date}</p><p className="text-sm font-medium text-slate-800">{n.title}</p><p className="text-sm text-slate-600">{n.body}</p></li>)}
-        </ul>
-      </Section>
     </>
   );
 }
@@ -204,12 +199,6 @@ function Notes({ child, audience, settings }) {
           <button key={t} onClick={() => setTerm(t)} className={`rounded-md py-1.5 text-sm font-medium ${term === t ? 'bg-navy-500 text-white' : 'text-slate-600'}`}>{t.replace('T', '')}{t === 'T1' ? 'er' : 'e'} trimestre</button>
         ))}
       </div>
-      <p className="px-1 text-xs text-slate-500">
-        {audience === 'PARENT'
-          ? `Chaque note est visible ${settings.grading.parentDelayDays} jour${settings.grading.parentDelayDays > 1 ? 's' : ''} après sa publication aux élèves, avec la moyenne de la classe sur le devoir.`
-          : 'Chaque note est visible à sa date de publication, avec la moyenne de la classe sur le devoir.'}
-        {' '}Pas de moyenne par matière : le bulletin, tamponné, est remis en main propre après le conseil de classe.
-      </p>
       {term !== 'T1' ? <Section><p className="text-sm text-slate-500">Aucune note pour ce trimestre pour l'instant.</p></Section> : bySubject.map(([subject, notes]) => (
         <Section key={subject}>
           <button onClick={() => setOpen(open === subject ? null : subject)} className="flex w-full items-center justify-between text-left">
@@ -259,15 +248,22 @@ function Homework({ child, isParent }) {
 /* ---------- Vie scolaire : absences, retards, punitions, sanctions, téléphones ---------- */
 function SchoolLife({ child, isParent, acks, setAcks, settings }) {
   const name = fullName(child);
+  const pp = passport(name, { attendance: ATTENDANCE, ...loadPassport() });
   const items = [
     ...ATTENDANCE.filter((a) => a.student === name).map((a) => ({ key: a.id, date: a.date, tone: a.kind === 'ABSENCE' ? 'red' : 'amber', title: a.kind === 'ABSENCE' ? 'Absence' : 'Retard', body: `${a.slot}${a.justified ? ` · justifié : ${a.reason}` : ' · à justifier'}`, ack: a.parentAck })),
     ...MEASURES_LOG.filter((m) => m.student === name).map((m) => ({ key: m.id, date: m.date, tone: MEASURE[m.measure].kind === 'SANCTION' ? 'red' : 'amber', title: `${MEASURE[m.measure].kind === 'SANCTION' ? 'Sanction' : 'Punition'} : ${MEASURE[m.measure].label}`, body: `Motif : ${m.reason}${m.when ? ` · ${m.when}` : ''} · décidée par ${m.author}`, ack: m.parentAck })),
+    ...pp.entries.map((c) => ({ key: c.id, date: c.date, tone: c.kind === 'TIG' ? 'red' : 'amber', title: c.kind === 'TIG' ? 'Travail d\'intérêt général (TIG)' : `Colle de ${c.hours} h`, body: `${c.reason} · le ${c.when.slice(8, 10)}/${c.when.slice(5, 7)} à ${c.when.slice(11, 16).replace(':', 'h')} · ${COLLE_STATUS[c.status].toLowerCase()}`, ack: null })),
     ...PHONES.filter((p) => p.student === name || p.owner === name).map((p) => (p.action === 'AVERTISSEMENT'
       ? { key: p.id, date: p.at.slice(0, 10), tone: 'amber', title: 'Avertissement : téléphone', body: `${p.reason} · donné par ${p.confiscatedBy}`, ack: null }
       : { key: p.id, date: p.at.slice(0, 10), tone: 'slate', title: `Téléphone confisqué (${PHONE_DURATIONS.find((d) => d.id === p.duration).label})`, body: `${p.owner === name && p.student !== name ? `Téléphone de ${child.name}, pris avec ${p.student}. ` : ''}${p.reason} · restitution ${shortDate(phoneReturnAt(p.at, p.duration, settings).slice(0, 10)).toLowerCase()}`, ack: null })),
   ].sort((a, b) => b.date.localeCompare(a.date));
   return (
     <Section title={`Vie scolaire — ${child.name}`}>
+      <div className="mb-3 grid grid-cols-3 gap-2 text-center">
+        <div className="rounded-xl bg-slate-50 p-2"><p className="text-lg font-semibold text-navy-900">{pp.lates}</p><p className="text-[11px] text-slate-500">retard{pp.lates > 1 ? 's' : ''}</p></div>
+        <div className="rounded-xl bg-slate-50 p-2"><p className="text-lg font-semibold text-navy-900">{pp.forgets}</p><p className="text-[11px] text-slate-500">oubli{pp.forgets > 1 ? 's' : ''}</p></div>
+        <div className="rounded-xl bg-amber-50 p-2"><p className="text-lg font-semibold text-amber-800">{pp.collesDue} h</p><p className="text-[11px] text-amber-800">de colle à faire</p></div>
+      </div>
       {items.length === 0 ? <p className="text-sm text-slate-500">Aucune absence, aucun retard ni aucune mesure ce trimestre.</p> : (
         <ul className="space-y-3">
           {items.map((it) => {
@@ -483,25 +479,29 @@ function MySignature() {
 }
 
 /* ---------- Coquille ---------- */
-// En bas d'écran : Vie scolaire, Notes et Messages mis en avant ; Devoirs passe dans « Plus »
-// Barre du bas : les écrans de tous les jours. Tout le reste est visible d'un coup d'œil sur l'accueil,
-// rangé par thème (plus de menu « Plus » caché).
-const TABS = [['home', 'Accueil', 'home'], ['notes', 'Notes', 'pen'], ['homework', 'Devoirs', 'calendar'], ['life', 'Vie scol.', 'users'], ['messages', 'Messages', 'bell']];
+// Barre du bas : Accueil, Vie scolaire, Notes, Agenda (cours, devoirs, événements) et Autres.
+// « Autres » range tout le reste par thème, en rubriques qui se déroulent et se replient ;
+// ce qui ne concerne pas l'enfant reste grisé.
+const TABS = [['home', 'Accueil', 'home'], ['life', 'Vie scol.', 'users'], ['notes', 'Notes', 'pen'], ['agenda', 'Agenda', 'calendar'], ['more', 'Autres', 'menu']];
 const SECTIONS = [
-  ['Scolarité', [['notes', 'Notes', 'pen'], ['homework', 'Devoirs', 'calendar'], ['life', 'Vie scolaire', 'users'], ['agenda', 'Agendas', 'calendar'], ['library', 'Bibliothèque', 'cap'], ['stages', 'Stages', 'cap'], ['orientation', 'Orientation', 'cap']]],
-  ['Démarches', [['schooldocs', 'Règlement et chartes', 'pen'], ['documents', 'Documents et autorisations', 'pen'], ['payments', 'Paiements', 'wallet', 'PARENT'], ['fiche', 'Fiche signalétique', 'pen', 'PARENT'], ['reenrol', 'Réinscription', 'calendar', 'PARENT'], ['update', 'Mettre à jour nos informations', 'users', 'PARENT'], ['signature', 'Ma signature', 'pen', 'PARENT']]],
+  ['Échanges', [['messages', 'Messages', 'bell'], ['schooldocs', 'Règlement et chartes', 'pen']]],
+  ['Scolarité', [['library', 'Bibliothèque', 'cap'], ['stages', 'Stages', 'cap'], ['orientation', 'Orientation', 'cap']]],
+  ['Démarches', [['documents', 'Documents et autorisations', 'pen'], ['payments', 'Paiements', 'wallet', 'PARENT'], ['fiche', 'Fiche signalétique', 'pen', 'PARENT'], ['reenrol', 'Réinscription', 'calendar', 'PARENT'], ['update', 'Mettre à jour nos informations', 'users', 'PARENT'], ['signature', 'Ma signature', 'pen', 'PARENT']]],
 ];
 
-/** Toutes les fonctions, par thème, sur l'accueil ; ce qui ne concerne pas l'enfant reste grisé. */
-function AllFeatures({ audience, menu, badges, open }) {
+function Others({ audience, menu, badges, open }) {
   const isParent = audience === 'PARENT';
   return SECTIONS.map(([title, items]) => {
     const list = items.filter((m) => !m[3] || m[3] === audience);
     if (!list.length) return null;
+    const count = list.reduce((t, [id]) => t + (menu[id] === false ? 0 : badges[id] ?? 0), 0);
     return (
-      <section key={title}>
-        <h2 className="mb-1.5 px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</h2>
-        <div className="grid grid-cols-3 gap-2">
+      <details key={title} open className="group rounded-2xl bg-white/70 p-2 shadow-soft">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-2 py-1.5 text-sm font-semibold text-slate-800">
+          <span>{title}{count > 0 && <span className="ml-2 rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white">{count}</span>}</span>
+          <span className="text-slate-400 transition group-open:rotate-180">▾</span>
+        </summary>
+        <div className="mt-1 grid grid-cols-3 gap-2">
           {list.map(([id, label, icon]) => {
             const off = menu[id] === false;
             return (
@@ -514,11 +514,10 @@ function AllFeatures({ audience, menu, badges, open }) {
             );
           })}
         </div>
-      </section>
+      </details>
     );
   });
 }
-
 
 export default function FamilyPortal({ settings, audience = 'PARENT' }) {
   const isParent = audience === 'PARENT';
@@ -533,14 +532,15 @@ export default function FamilyPortal({ settings, audience = 'PARENT' }) {
   const view = menu[screen] === false ? 'home' : screen;
   const unread = view === 'messages' ? 0 : unreadCount(audience);
   const go = (t) => setScreen(t);
-  const badges = { life: pendingAcks, fiche: isParent && !ficheOf(fullName(child))?.signedAt ? 1 : 0 };
+  const badges = { life: pendingAcks, messages: unread, fiche: isParent && !ficheOf(fullName(child))?.signedAt ? 1 : 0 };
+  const moreBadge = unread + badges.fiche;
   const isTab = TABS.some(([id]) => id === view);
 
   return (
     <div className="mx-auto w-full max-w-[420px]">
       <p className="mb-2 text-center text-xs text-slate-500">Aperçu du portail {isParent ? 'parents' : 'élèves'} (application mobile)</p>
       <div className="flex h-[780px] max-h-[calc(100vh-6rem)] flex-col overflow-hidden rounded-[36px] border-[10px] border-slate-800 bg-paper shadow-2xl">
-        <header className="rounded-b-[28px] bg-navy-900 px-5 pb-4 pt-5 text-white">
+        <header className="rounded-b-[28px] bg-gradient-to-br from-navy-900 via-navy-700 to-navy-500 px-5 pb-4 pt-5 text-white">
           <p className="text-xs text-navy-200">Chateaubriand · Tamatave</p>
           <p className="mt-0.5 font-display text-xl font-semibold">{isParent ? `Bonjour ${PARENT.name}` : `Bonjour ${child.name} · ${child.cls}`}</p>
           {isParent && !['payments', 'messages'].includes(view) && (
@@ -552,11 +552,12 @@ export default function FamilyPortal({ settings, audience = 'PARENT' }) {
           )}
         </header>
         <div role="region" aria-label="Contenu du portail" className="flex-1 space-y-3 overflow-y-auto p-4">
-          {view !== 'home' && !isTab && <button onClick={() => go('home')} className="text-sm font-medium text-navy-500">‹ Accueil</button>}
-          {view === 'home' && <Home child={child} isParent={isParent} settings={settings} openFiche={() => go('fiche')} openReenrol={() => go('reenrol')}
-            features={<AllFeatures audience={audience} menu={menu} badges={badges} open={go} />} />}
+          <TermsGate phone viewer={audience} account={isParent ? ACCOUNT.id : 'aina'}>
+          {!isTab && <button onClick={() => go('more')} className="text-sm font-medium text-navy-500">‹ Autres</button>}
+          {view === 'home' && <Home child={child} isParent={isParent} settings={settings} openFiche={() => go('fiche')} openReenrol={() => go('reenrol')} />}
+          {view === 'more' && <Others audience={audience} menu={menu} badges={badges} open={go} />}
           {view === 'schooldocs' && <FamilyDocuments audience={audience} />}
-          {view === 'agenda' && <div className="-m-4 p-3"><AgendaModule role={audience} cls={child.cls} /></div>}
+          {view === 'agenda' && <AgendaModule key={child.id} compact role={audience} cls={child.cls} settings={settings} today={TODAY} />}
           {view === 'reenrol' && (profileOf(child) ? <FamilyRequestForm key={`r-${child.id}`} profile={profileOf(child)} kind="REINSCRIPTION" guardianName={ACCOUNT.name} /> : <Section><p className="text-sm text-slate-500">Fiche introuvable.</p></Section>)}
           {view === 'update' && (profileOf(child) ? <FamilyRequestForm key={`u-${child.id}`} profile={profileOf(child)} kind="MISE_A_JOUR" guardianName={ACCOUNT.name} /> : <Section><p className="text-sm text-slate-500">Fiche introuvable.</p></Section>)}
           {view === 'fiche' && <FicheForm key={child.id} studentKey={fullName(child)} profile={profileOf(child)} account={ACCOUNT.id} accountName={ACCOUNT.name} />}
@@ -575,6 +576,7 @@ export default function FamilyPortal({ settings, audience = 'PARENT' }) {
           {view === 'orientation' && <Orientation key={child.id} child={child} isParent={isParent} />}
           {view === 'payments' && <Payments />}
           {view === 'messages' && <div className="-m-4 h-full bg-white p-3"><Messenger audience={audience} compact /></div>}
+          </TermsGate>
         </div>
         <nav className="grid grid-cols-5 border-t border-slate-100 bg-white px-1 pb-1" aria-label="Navigation du portail">
           {TABS.map(([id, label, icon]) => (
@@ -582,7 +584,7 @@ export default function FamilyPortal({ settings, audience = 'PARENT' }) {
               className={`relative flex flex-col items-center gap-0.5 py-2 text-[11px] ${view === id ? 'font-semibold text-navy-900' : 'text-slate-400'}`}>
               <Icon name={icon} className="h-5 w-5" />{label}
               {id === 'life' && pendingAcks > 0 && <span className="absolute right-3 top-1 rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white">{pendingAcks}</span>}
-              {id === 'messages' && unread > 0 && <span className="absolute right-3 top-1 rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white">{unread}</span>}
+              {id === 'more' && moreBadge > 0 && <span className="absolute right-3 top-1 rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white">{moreBadge}</span>}
             </button>
           ))}
         </nav>

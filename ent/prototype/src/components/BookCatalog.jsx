@@ -68,12 +68,12 @@ export default function BookCatalog({ who, kind, cls, compact = false }) {
       <ul className="space-y-2">
         {results.map((r) => {
           if (r.source === 'MANUEL') {
-            const n = inStock(r.manual);
+            const n = inStock(r.manual); // jamais le nombre d'exemplaires : disponible ou non
             return (
               <li key={`m-${r.id}`} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0"><p className="font-medium text-slate-900">{r.title}</p><p className="text-xs text-slate-500">{r.type} · {r.detail}</p></div>
-                  <Badge tone={n ? 'green' : 'slate'}>{n ? `${n} en stock` : 'plus en stock'}</Badge>
+                  <Badge tone={n ? 'green' : 'slate'}>{n ? 'disponible' : 'plus disponible'}</Badge>
                 </div>
                 <p className="mt-1 text-[11px] text-slate-500">Les manuels se prennent avec le lot de la classe, au secrétariat.</p>
               </li>
@@ -84,7 +84,7 @@ export default function BookCatalog({ who, kind, cls, compact = false }) {
             <li key={`b-${r.id}`} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0"><p className="font-medium text-slate-900">{r.title}</p><p className="text-xs text-slate-500">{r.type}{r.detail ? ` · ${r.detail.replace(/^ — /, '')}` : ''}</p></div>
-                <Badge tone={a.available ? 'green' : 'amber'}>{a.available ? `${a.available} disponible${a.available > 1 ? 's' : ''} sur ${a.total}` : `tous empruntés${a.nextReturn ? ` · retour prévu le ${fmt(a.nextReturn)}` : ''}`}</Badge>
+                <Badge tone={a.available ? 'green' : 'amber'}>{a.available ? 'disponible' : `déjà emprunté${a.nextReturn ? ` · retour prévu le ${fmt(a.nextReturn)}` : ''}`}</Badge>
               </div>
               {canReserve(kind) && (picking?.id === r.id ? (
                 <div className="mt-2 flex flex-wrap items-center gap-2">

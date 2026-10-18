@@ -20,6 +20,8 @@ export const ATTENDANCE = [
   { id: 'a2', date: '2026-10-13', student: 'RAMAROSON Fitia', kind: 'RETARD', slot: '07h00 (+15 min)', by: 'Mme Ranaivo', justified: false, notified: false, parentAck: null },
   { id: 'a3', date: '2026-10-13', student: 'RAVELO Hasina', kind: 'ABSENCE', slot: 'Journée', by: 'M. Rasolo', justified: true, reason: 'Certificat médical', notified: true, parentAck: '2026-10-13T08:12' },
   { id: 'a4', date: '2026-10-13', student: 'RASOA Lova', kind: 'RETARD', slot: '09h45 (+5 min)', by: 'Mme Hery', justified: false, notified: false, parentAck: null },
+  { id: 'a6', date: '2026-10-06', student: 'RAMAROSON Fitia', kind: 'RETARD', slot: '07h00 (+10 min)', by: 'Mme Ranaivo', justified: false, notified: true, parentAck: '2026-10-06T18:20' },
+  { id: 'a7', date: '2026-10-09', student: 'RAMAROSON Fitia', kind: 'RETARD', slot: '07h00 (+5 min)', by: 'M. Rasolo', justified: false, notified: true, parentAck: '2026-10-09T19:02' },
   { id: 'a5', date: '2026-10-05', student: 'RAKOTOARISOA Aina', kind: 'RETARD', slot: '07h00 (+10 min)', by: 'M. Be', justified: true, reason: 'Transport', notified: true, parentAck: '2026-10-05T12:40' },
 ];
 

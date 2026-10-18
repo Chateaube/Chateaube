@@ -18,9 +18,51 @@ const CLASSES = ['5e', '4e', '3e', '2de', '1re STMG', '1re Générale', 'Termina
 const START = '2026-10-12';
 const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 
-export default function AgendaModule({ role, cls: fixedCls, settings }) {
+/** Version téléphone (parents, élèves) : une bande de dates, puis le programme du jour choisi. */
+function DayAgenda({ visible, shown, setShown, available, today }) {
+  const dates = [...new Set(visible.filter((i) => i.date >= today).map((i) => i.date))].slice(0, 30);
+  const [day, setDay] = useState(dates[0]);
+  const list = visible.filter((i) => i.date === day);
+  const short = (iso) => formatDateFr(iso).split(' ');
+  return (
+    <div className="space-y-3">
+      <h1 className="px-1 font-display text-lg font-semibold text-navy-900">Agenda</h1>
+      <div className="flex flex-wrap gap-1.5">
+        {available.map((k) => (
+          <button key={k} type="button" aria-pressed={shown.includes(k)} onClick={() => setShown(shown.includes(k) ? shown.filter((x) => x !== k) : [...shown, k])}
+            className={`rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ${shown.includes(k) ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-600 ring-slate-300'}`}>{AGENDAS[k].label}</button>
+        ))}
+      </div>
+      <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1" role="tablist" aria-label="Jours">
+        {dates.map((d) => {
+          const [wd, n, m] = short(d);
+          return (
+            <button key={d} type="button" role="tab" aria-selected={d === day} onClick={() => setDay(d)}
+              className={`flex w-14 shrink-0 flex-col items-center rounded-xl py-1.5 text-[11px] ${d === day ? 'bg-navy-900 text-white' : 'bg-white text-slate-600 shadow-soft'}`}>
+              <span>{wd.slice(0, 3)}.</span><span className="text-base font-semibold">{n}</span><span>{m.slice(0, 4)}</span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="rounded-2xl bg-white p-3 shadow-soft">
+        <p className="mb-2 text-xs font-semibold text-slate-500">{day ? cap(formatDateFr(day)) : 'Rien de prévu'}</p>
+        <ul className="space-y-1.5">
+          {list.map((i) => (
+            <li key={i.id} className="flex items-start gap-2 rounded-lg border border-slate-100 px-2.5 py-2 text-sm">
+              <span className="w-[86px] shrink-0 whitespace-nowrap text-xs tabular-nums text-slate-600">{i.allDay ? 'journée' : `${i.start.replace(':', 'h')}–${(i.end ?? '').replace(':', 'h')}`}</span>
+              <span className={`min-w-0 flex-1 ${i.status === 'ANNULE' ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{i.title}{i.place && <span className="block text-xs text-slate-500">{i.place}</span>}</span>
+              <Badge tone={AGENDAS[i.agenda].tone}>{AGENDAS[i.agenda].label}</Badge>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+export default function AgendaModule({ role, cls: fixedCls, settings, compact = false, today = '2026-10-13' }) {
   const staff = ['DIRECTION', 'BUREAU', 'VIE_SCOLAIRE', 'ENSEIGNANT'].includes(role);
-  const canAdd = ['DIRECTION', 'BUREAU', 'VIE_SCOLAIRE'].includes(role);
+  const canAdd = ['DIRECTION', 'BUREAU'].includes(role); // la CPE consulte
   const [cls, setCls] = useState(fixedCls ?? '');
   const available = agendasFor({ staff, cls: cls || null });
   const [shown, setShown] = useState(Object.keys(AGENDAS));
@@ -37,6 +79,7 @@ export default function AgendaModule({ role, cls: fixedCls, settings }) {
   const exportIcs = (agenda) => saveFile(`agenda-${agenda.toLowerCase()}${cls ? `-${cls.replace(/\s+/g, '-')}` : ''}.ics`,
     toIcs(items.filter((i) => i.agenda === agenda), `Chateaubriand — ${AGENDAS[agenda].label}${cls ? ` — ${cls}` : ''}`));
 
+  if (compact) return <DayAgenda visible={visible} shown={shown} setShown={setShown} available={available} today={today} />;
   return (
     <div className="space-y-5">
       <div>

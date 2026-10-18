@@ -1093,20 +1093,66 @@ CREATE FUNCTION event_visible(ev school_event, is_staff boolean, for_class uuid)
   END
 $$ LANGUAGE sql STABLE;
 
--- Un examen blanc correspond au niveau de la classe : brevet en 3e, épreuves anticipées en 1re, bac en Terminale.
+-- Un examen blanc correspond au niveau de la classe : brevet en 3e, épreuves de 1re en 1re, bac en Terminale.
 CREATE FUNCTION mock_exam_guard() RETURNS trigger AS $$
 DECLARE lvl text := (SELECT level_code FROM school_class WHERE id = NEW.class_id); BEGIN
-  IF (NEW.kind = 'DNB' AND lvl <> '3E') OR (NEW.kind = 'EAF' AND lvl <> '1RE') OR (NEW.kind IN ('BAC_G', 'BAC_STMG') AND lvl <> 'TLE') THEN
+  IF (NEW.kind = 'DNB' AND lvl <> '3E') OR (NEW.kind LIKE 'PREMIERE%' AND lvl <> '1RE') OR (NEW.kind LIKE 'BAC%' AND lvl <> 'TLE') THEN
     RAISE EXCEPTION 'Examen blanc % impossible en %', NEW.kind, lvl;
   END IF;
   RETURN NEW;
 END $$ LANGUAGE plpgsql;
 CREATE TRIGGER mock_exam_level BEFORE INSERT OR UPDATE ON mock_exam FOR EACH ROW EXECUTE FUNCTION mock_exam_guard();
 
--- Projection au bac (sur 100) : épreuves anticipées officielles (10) + contrôle continu (40) + moyenne à
--- obtenir aux épreuves de Terminale (50) pour atteindre une moyenne visée ; NULL si hors d'atteinte.
-CREATE FUNCTION bac_needed(student uuid, cc numeric, target numeric) RETURNS numeric AS $$
+-- Saisie : la Direction et le secrétariat saisissent tout ; un professeur, seulement l'épreuve de sa matière
+-- dans une classe où il l'enseigne.
+CREATE FUNCTION mock_exam_mark_guard() RETURNS trigger AS $$
+BEGIN
+  IF NEW.entered_by IS NULL OR EXISTS (SELECT 1 FROM user_role WHERE user_id = NEW.entered_by AND role IN ('DIRECTION', 'BUREAU')) THEN RETURN NEW; END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM mock_exam_part p LEFT JOIN mock_exam_part par ON par.id = p.parent_id JOIN mock_exam x ON x.id = p.mock_exam_id
+    JOIN teaching_assignment t ON t.class_id = x.class_id AND t.subject_id = coalesce(p.subject_id, par.subject_id) AND t.teacher_id = NEW.entered_by
+    WHERE p.id = NEW.part_id) THEN
+    RAISE EXCEPTION 'Un professeur saisit seulement l''épreuve de sa matière, dans ses classes';
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER mock_exam_mark_check BEFORE INSERT OR UPDATE ON mock_exam_mark FOR EACH ROW EXECUTE FUNCTION mock_exam_mark_guard();
+
+-- Le professeur compte son épreuve dans son carnet : une évaluation « Examen blanc » avec le coefficient
+-- choisi, et les notes recopiées (absent : ABSENT). Renvoie l'évaluation créée.
+CREATE FUNCTION count_mock_part_in_gradebook(part uuid, teacher uuid, coef numeric, term uuid) RETURNS uuid AS $$
+DECLARE p record; ev uuid; asg uuid; BEGIN
+  SELECT mp.*, x.class_id, x.title AS exam_title, x.held_on INTO p FROM mock_exam_part mp JOIN mock_exam x ON x.id = mp.mock_exam_id WHERE mp.id = part AND mp.parent_id IS NULL;
+  SELECT id INTO asg FROM teaching_assignment WHERE class_id = p.class_id AND subject_id = p.subject_id AND teacher_id = teacher;
+  IF asg IS NULL THEN RAISE EXCEPTION 'Épreuve d''une autre matière ou d''une autre classe'; END IF;
+  INSERT INTO evaluation (assignment_id, period_id, eval_type, title, held_on, publish_on, coefficient)
+  VALUES (asg, term, 'EXAMEN_BLANC', p.exam_title || ' — ' || p.label, p.held_on, p.held_on, coef) RETURNING id INTO ev;
+  INSERT INTO grade (evaluation_id, enrollment_id, status, value, entered_by)
+  SELECT ev, pm.enrollment_id, CASE WHEN m.absent THEN 'ABSENT'::grade_status ELSE 'NOTE'::grade_status END, CASE WHEN m.absent THEN NULL ELSE pm.mark END, teacher
+  FROM v_mock_exam_part_mark pm LEFT JOIN mock_exam_mark m ON m.part_id = pm.part_id AND m.enrollment_id = pm.enrollment_id WHERE pm.part_id = part;
+  UPDATE mock_exam_part SET gradebook_evaluation_id = ev WHERE id = part;
+  RETURN ev;
+END $$ LANGUAGE plpgsql;
+
+-- Projection au bac (sur 100) : notes officielles de 1re (avec leurs coefficients) ; moyenne à obtenir
+-- aux épreuves de Terminale pour une moyenne visée ; NULL si hors d'atteinte.
+CREATE FUNCTION bac_needed(student uuid, target numeric) RETURNS numeric AS $$
   SELECT CASE WHEN v > 20 THEN NULL ELSE greatest(0, round(v, 2)) END FROM (
-    SELECT (target * 100 - coalesce(sum(mark * 5), 0) - cc * 40) / (100 - 40 - 5 * count(*)) AS v
+    SELECT (target * 100 - coalesce(sum(mark * coef), 0)) / (100 - coalesce(sum(coef), 0)) AS v
     FROM official_exam_mark WHERE student_id = student) q
+$$ LANGUAGE sql STABLE;
+
+-- Passeport : un TIG est donné par la CPE, le secrétariat ou la Direction (pas par un professeur).
+CREATE FUNCTION detention_guard() RETURNS trigger AS $$
+BEGIN
+  IF NEW.kind = 'TIG' AND NOT EXISTS (SELECT 1 FROM user_role WHERE user_id = NEW.given_by AND role IN ('VIE_SCOLAIRE', 'BUREAU', 'DIRECTION')) THEN
+    RAISE EXCEPTION 'Un TIG est donné par la CPE, le secrétariat ou la Direction';
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER detention_check BEFORE INSERT OR UPDATE ON detention FOR EACH ROW EXECUTE FUNCTION detention_guard();
+
+-- Colles dues pour retards : une par tranche de trois retards, moins celles déjà données.
+CREATE FUNCTION colles_due_for_lates(enr uuid) RETURNS integer AS $$
+  SELECT (lates / 3)::int - colles_for_lates::int FROM v_passport WHERE enrollment_id = enr
 $$ LANGUAGE sql STABLE;

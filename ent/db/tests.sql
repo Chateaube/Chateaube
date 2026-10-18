@@ -1225,34 +1225,105 @@ DO $$ DECLARE site uuid; yr uuid; tle uuid; c5 uuid; ev_exam school_event; ev_te
   END IF;
 END $$;
 
--- T53. Examens blancs : relevé, niveau contrôlé, projection au bac ---------------------------------
-DO $$ DECLARE tle uuid; site uuid; yr uuid; c5 uuid; x uuid; st uuid; e uuid := '30000000-0000-0000-0000-0000000000a1'; r record; BEGIN
-  SELECT c.id, c.site_id, c.year_id, en.student_id INTO tle, site, yr, st FROM enrollment en JOIN school_class c ON c.id = en.class_id WHERE en.id = e;
+-- T53. Examens blancs (candidats libres) : relevé, sciences du brevet, saisie par le prof, carnet, projection --
+DO $$ DECLARE tle uuid := '10000000-0000-0000-0000-000000000001'; c5 uuid; c3 uuid; x uuid; b uuid; sci uuid; st uuid; ev uuid;
+  e uuid := '30000000-0000-0000-0000-000000000001'; e3 uuid; mgmt uuid; r record; BEGIN
+  SELECT student_id INTO st FROM enrollment WHERE id = e;
+  SELECT id INTO mgmt FROM subject WHERE code = 'MANAGEMENT';
   SELECT id INTO c5 FROM school_class WHERE name = '5e T52';
   BEGIN
     INSERT INTO mock_exam (class_id, kind, title, held_on, created_by) VALUES (c5, 'DNB', 'Brevet blanc en 5e', '2026-10-08', '00000000-0000-0000-0000-000000000001');
     RAISE EXCEPTION 'T53: brevet blanc en 5e';
   EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T53:%' THEN RAISE; END IF;
   END;
+  -- bac blanc STMG (épreuves de Terminale, 67 coefficients)
   INSERT INTO mock_exam (class_id, kind, title, held_on, created_by) VALUES (tle, 'BAC_STMG', 'Bac blanc n°1', '2026-10-05', '00000000-0000-0000-0000-000000000001') RETURNING id INTO x;
-  INSERT INTO mock_exam_part (mock_exam_id, code, label, coef) VALUES (x, 'PHI', 'Philosophie', 4), (x, 'MSGN', 'Management, SGN', 16), (x, 'DE', 'Droit et économie', 16), (x, 'GO', 'Grand oral', 14);
-  INSERT INTO mock_exam_mark SELECT p.id, e, v.m, v.m IS NULL FROM mock_exam_part p JOIN (VALUES ('PHI', 11.0), ('MSGN', 13.5), ('DE', 12.0)) v(code, m) ON v.code = p.code WHERE p.mock_exam_id = x;
-  SELECT * INTO r FROM v_mock_exam_result WHERE mock_exam_id = x AND enrollment_id = e;
-  IF r.complete OR r.coef_marked <> 36 OR r.average <> round((44 + 216 + 192) / 36.0, 2) THEN RAISE EXCEPTION 'T53: relevé incomplet faux (%)', r; END IF;
-  INSERT INTO mock_exam_mark SELECT id, e, NULL, true FROM mock_exam_part WHERE mock_exam_id = x AND code = 'GO'; -- absent au grand oral
-  SELECT * INTO r FROM v_mock_exam_result WHERE mock_exam_id = x AND enrollment_id = e;
-  IF NOT r.complete OR r.average <> round(452 / 50.0, 2) THEN RAISE EXCEPTION 'T53: absent non compté 0 (%)', r; END IF;
+  INSERT INTO mock_exam_part (mock_exam_id, code, label, coef, subject_id) VALUES (x, 'PHI', 'Philosophie', 4, NULL), (x, 'MSGN', 'Management, SGN', 16, mgmt), (x, 'DE', 'Droit et économie', 16, NULL),
+    (x, 'GO', 'Grand oral', 12, NULL), (x, 'HG', 'Histoire-géographie et EMC', 4, NULL), (x, 'MA', 'Mathématiques', 3, NULL), (x, 'LVA', 'Anglais', 3, NULL), (x, 'LVB', 'Espagnol', 3, NULL), (x, 'EPS', 'EPS', 6, NULL);
+  -- le professeur de management saisit son épreuve, pas la philosophie
+  INSERT INTO mock_exam_mark (part_id, enrollment_id, mark, entered_by) SELECT id, e, 13.5, '00000000-0000-0000-0000-000000000003' FROM mock_exam_part WHERE mock_exam_id = x AND code = 'MSGN';
   BEGIN
-    INSERT INTO mock_exam_mark SELECT id, e, 21, false FROM mock_exam_part WHERE mock_exam_id = x AND code = 'PHI' ON CONFLICT (part_id, enrollment_id) DO UPDATE SET mark = 21;
-    RAISE EXCEPTION 'T53: note sur plus de 20';
+    INSERT INTO mock_exam_mark (part_id, enrollment_id, mark, entered_by) SELECT id, e, 11, '00000000-0000-0000-0000-000000000003' FROM mock_exam_part WHERE mock_exam_id = x AND code = 'PHI';
+    RAISE EXCEPTION 'T53: un prof saisit une autre matière';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T53:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO mock_exam_mark (part_id, enrollment_id, mark, absent, entered_by) SELECT p.id, e, v.m, v.m IS NULL, '00000000-0000-0000-0000-000000000001'
+  FROM mock_exam_part p JOIN (VALUES ('PHI', 11.0), ('DE', 12.0), ('GO', 14.0), ('HG', 10.0), ('MA', 9.0), ('LVA', 15.0), ('LVB', 12.0)) v(code, m) ON v.code = p.code WHERE p.mock_exam_id = x;
+  SELECT * INTO r FROM v_mock_exam_result WHERE mock_exam_id = x AND enrollment_id = e;
+  IF r.complete OR r.coef_marked <> 61 THEN RAISE EXCEPTION 'T53: relevé incomplet faux (%)', r; END IF;
+  INSERT INTO mock_exam_mark (part_id, enrollment_id, mark, absent) SELECT id, e, NULL, true FROM mock_exam_part WHERE mock_exam_id = x AND code = 'EPS'; -- absent : 0
+  SELECT * INTO r FROM v_mock_exam_result WHERE mock_exam_id = x AND enrollment_id = e;
+  IF NOT r.complete OR r.average <> round((44 + 216 + 192 + 168 + 40 + 27 + 45 + 36) / 67.0, 2) THEN RAISE EXCEPTION 'T53: moyenne fausse (%)', r; END IF;
+  -- le professeur compte son épreuve dans son carnet, coefficient 3
+  ev := count_mock_part_in_gradebook((SELECT id FROM mock_exam_part WHERE mock_exam_id = x AND code = 'MSGN'), '00000000-0000-0000-0000-000000000003', 3, (SELECT id FROM period ORDER BY rank DESC LIMIT 1)); -- trimestre encore ouvert
+  IF (SELECT (coefficient, eval_type) FROM evaluation WHERE id = ev) <> (3.00, 'EXAMEN_BLANC'::text) OR (SELECT value FROM grade WHERE evaluation_id = ev AND enrollment_id = e) <> 13.5 THEN
+    RAISE EXCEPTION 'T53: épreuve non reprise dans le carnet';
+  END IF;
+  -- brevet blanc : sciences, les 2 meilleures notes sur 3
+  INSERT INTO school_class (year_id, site_id, level_code, name) SELECT year_id, site_id, '3E', '3e T53' FROM school_class WHERE id = tle RETURNING id INTO c3;
+  INSERT INTO student (id, first_name, last_name, birth_date) VALUES ('20000000-0000-0000-0000-0000000005e3', 'Toky', 'RAVELO', '2012-05-02');
+  INSERT INTO enrollment (student_id, year_id, class_id, enrolled_on) SELECT '20000000-0000-0000-0000-0000000005e3', year_id, c3, '2026-09-01' FROM school_class WHERE id = c3 RETURNING id INTO e3;
+  INSERT INTO mock_exam (class_id, kind, title, held_on, created_by) VALUES (c3, 'DNB', 'Brevet blanc', '2026-10-08', '00000000-0000-0000-0000-000000000001') RETURNING id INTO b;
+  INSERT INTO mock_exam_part (mock_exam_id, code, label, coef, best_of) VALUES (b, 'SCI', 'Sciences', 2, 2) RETURNING id INTO sci;
+  INSERT INTO mock_exam_part (mock_exam_id, parent_id, code, label) VALUES (b, sci, 'PC', 'Physique-chimie'), (b, sci, 'SVT', 'SVT'), (b, sci, 'TECH', 'Technologie');
+  INSERT INTO mock_exam_mark (part_id, enrollment_id, mark) SELECT p.id, e3, v.m FROM mock_exam_part p JOIN (VALUES ('PC', 8.0), ('SVT', 14.0)) v(code, m) ON v.code = p.code WHERE p.mock_exam_id = b;
+  IF (SELECT complete FROM v_mock_exam_result WHERE mock_exam_id = b AND enrollment_id = e3) THEN RAISE EXCEPTION 'T53: sciences notées sur 2 matières seulement'; END IF;
+  INSERT INTO mock_exam_mark (part_id, enrollment_id, mark) SELECT id, e3, 12 FROM mock_exam_part WHERE mock_exam_id = b AND code = 'TECH';
+  IF (SELECT average FROM v_mock_exam_result WHERE mock_exam_id = b AND enrollment_id = e3) <> 13 THEN RAISE EXCEPTION 'T53: sciences = (14 + 12) / 2'; END IF;
+  -- projection : notes officielles de 1re (33 coefficients) → moyenne à obtenir en Terminale
+  INSERT INTO official_exam_mark VALUES (st, 2026, 'FR_E', 5, 10), (st, 2026, 'FR_O', 5, 13), (st, 2026, 'MA_EA', 2, 12), (st, 2026, 'SGN', 8, 11),
+    (st, 2026, 'HG', 4, 12), (st, 2026, 'MA', 3, 9), (st, 2026, 'LVA', 3, 14), (st, 2026, 'LVB', 3, 12);
+  IF bac_needed(st, 10) <> 9.25 OR bac_needed(st, 12) <> 12.24 OR bac_needed(st, 18) IS NOT NULL THEN
+    RAISE EXCEPTION 'T53: projection au bac fausse (%, %)', bac_needed(st, 10), bac_needed(st, 12);
+  END IF;
+END $$;
+
+-- T54. Passeport de vie scolaire : oubli = 1 h de colle, 3 retards = une colle, TIG par la CPE -------
+DO $$ DECLARE e uuid := '30000000-0000-0000-0000-000000000001'; f uuid; BEGIN
+  INSERT INTO app_user (id, email, first_name, last_name) VALUES ('00000000-0000-0000-0000-00000000000c', 'cpe@exemple.mg', 'Conseiller', 'CPE');
+  INSERT INTO user_role (user_id, role) VALUES ('00000000-0000-0000-0000-00000000000c', 'VIE_SCOLAIRE');
+  DELETE FROM attendance_event WHERE enrollment_id = e AND kind = 'RETARD';
+  INSERT INTO attendance_event (enrollment_id, kind, occurred_at, minutes_late, recorded_by)
+  SELECT e, 'RETARD', d, 10, '00000000-0000-0000-0000-00000000000c' FROM unnest(ARRAY['2026-10-01 07:10+03', '2026-10-05 07:10+03', '2026-10-08 07:05+03']::timestamptz[]) d;
+  IF colles_due_for_lates(e) <> 1 THEN RAISE EXCEPTION 'T54: 3 retards = une colle'; END IF;
+  INSERT INTO detention (enrollment_id, kind, cause, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'RETARDS', 2, '2026-10-14 13:00+03', '3 retards', '00000000-0000-0000-0000-00000000000c');
+  IF colles_due_for_lates(e) <> 0 THEN RAISE EXCEPTION 'T54: colle des retards déjà donnée'; END IF;
+  INSERT INTO school_forget (enrollment_id, on_date, kind, note, reported_by) VALUES (e, '2026-10-07', 'MATERIEL', 'calculatrice', '00000000-0000-0000-0000-000000000003') RETURNING id INTO f;
+  BEGIN
+    INSERT INTO detention (enrollment_id, kind, cause, forget_id, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'OUBLI', f, 2, '2026-10-14 13:00+03', 'oubli', '00000000-0000-0000-0000-00000000000c');
+    RAISE EXCEPTION 'T54: deux heures pour un oubli';
   EXCEPTION WHEN check_violation THEN NULL;
   END;
-  -- projection : français officiel 10 et 13, contrôle continu 12,4 → 7,78 de moyenne pour 10, 11,78 pour 12
-  INSERT INTO official_exam_mark VALUES (st, 2026, 'FR_E', 10), (st, 2026, 'FR_O', 13);
-  IF bac_needed(st, 12.4, 10) <> 7.78 OR bac_needed(st, 12.4, 12) <> 11.78 OR bac_needed(st, 4, 16) IS NOT NULL THEN
-    RAISE EXCEPTION 'T53: projection au bac fausse';
+  INSERT INTO detention (enrollment_id, kind, cause, forget_id, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'OUBLI', f, 1, '2026-10-21 13:00+03', 'oubli', '00000000-0000-0000-0000-00000000000c');
+  BEGIN
+    INSERT INTO detention (enrollment_id, kind, cause, forget_id, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'OUBLI', f, 1, '2026-10-28 13:00+03', 'oubli', '00000000-0000-0000-0000-00000000000c');
+    RAISE EXCEPTION 'T54: deux colles pour un même oubli';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO detention (enrollment_id, kind, cause, scheduled_at, reason, given_by) VALUES (e, 'TIG', 'AUTRE', '2026-10-16 12:00+03', 'Nettoyage', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T54: TIG donné par un professeur';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T54:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO detention (enrollment_id, kind, cause, scheduled_at, reason, given_by) VALUES (e, 'TIG', 'AUTRE', '2026-10-16 12:00+03', 'Nettoyage d''une table', '00000000-0000-0000-0000-00000000000c');
+  UPDATE detention SET status = 'FAITE' WHERE enrollment_id = e AND cause = 'RETARDS';
+  IF (SELECT (hours_due, hours_done, tig) FROM v_passport WHERE enrollment_id = e) <> (1::bigint, 2::bigint, 1::bigint) THEN RAISE EXCEPTION 'T54: passeport faux'; END IF;
+END $$;
+
+-- T55. Conditions acceptées à la première connexion ; document remplacé = redemandé ------------------
+DO $$ DECLARE d uuid; v timestamptz; BEGIN
+  INSERT INTO internal_resource (site_id, title, audiences, body, shared_by, must_accept) SELECT id, 'Règlement intérieur', '{PARENTS,ELEVES}', 'Texte', '00000000-0000-0000-0000-000000000001', true FROM site WHERE code = 'TMV' RETURNING id, shared_at INTO d, v;
+  BEGIN
+    INSERT INTO document_acceptance (user_id, resource_id, version_at, opened_at, accepted_at) VALUES ('00000000-0000-0000-0000-000000000003', d, v, '2026-10-18 10:05+03', '2026-10-18 10:00+03');
+    RAISE EXCEPTION 'T55: accepté sans avoir été ouvert';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO document_acceptance (user_id, resource_id, version_at, opened_at, accepted_at) VALUES ('00000000-0000-0000-0000-000000000003', d, v, '2026-10-18 10:00+03', '2026-10-18 10:02+03');
+  UPDATE internal_resource SET shared_at = v + interval '30 days', body = 'Texte modifié' WHERE id = d;
+  IF EXISTS (SELECT 1 FROM document_acceptance a JOIN internal_resource r ON r.id = a.resource_id WHERE a.user_id = '00000000-0000-0000-0000-000000000003' AND a.resource_id = d AND a.version_at = r.shared_at) THEN
+    RAISE EXCEPTION 'T55: nouvelle version déjà acceptée';
   END IF;
 END $$;
 
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T53 passent'
+\echo 'OK — tous les scénarios T1 à T55 passent'

@@ -375,8 +375,17 @@ recoder.
   **`event_visible`** (examens : niveaux à examen officiel, `level.official_exam`) ; vue **`v_textbook_balance`**
   (manuels comparés à l'effectif de l'année : en état, en prêt, vendus, abîmés, perdus, à commander) ;
   `inventory_item.category` accepte `FOURNITURE`. Scénario **T52**.
-- **`mock_exam`** (examen blanc d'une classe : `DNB`, `EAF`, `BAC_G`, `BAC_STMG`, niveau contrôlé),
-  **`mock_exam_part`** (épreuve, coefficient), **`mock_exam_mark`** (note sur 20 ou absent, compté 0), vue
-  **`v_mock_exam_result`** (points, moyenne, complet) ; **`official_exam_mark`** (notes officielles des épreuves
-  anticipées), fonction **`bac_needed`** (moyenne à obtenir aux épreuves de Terminale pour une moyenne visée).
-  Scénario **T53**.
+- **`mock_exam`** (examen blanc d'une classe : `DNB`, `PREMIERE_G`, `PREMIERE_STMG`, `BAC_G`, `BAC_STMG`, niveau
+  contrôlé), **`mock_exam_part`** (épreuve, matière, coefficient ; sous-notes `parent_id` avec `best_of` pour les
+  sciences du brevet ; `gradebook_evaluation_id` quand le professeur la compte dans son carnet),
+  **`mock_exam_mark`** (note sur 20 ou absent, compté 0 ; un professeur ne saisit que sa matière dans ses
+  classes), vues **`v_mock_exam_part_mark`** et **`v_mock_exam_result`** ; fonction
+  **`count_mock_part_in_gradebook`** (évaluation « Examen blanc » avec le coefficient choisi, notes recopiées) ;
+  **`official_exam_mark`** (notes officielles de 1re avec leurs coefficients), fonction **`bac_needed`** (moyenne à
+  obtenir aux épreuves de Terminale, sans contrôle continu). Scénario **T53**.
+- **`school_forget`** (oubli) et **`detention`** (colle d'une ou deux heures ou TIG, cause : oubli, retards,
+  autre ; un oubli = une colle d'une heure, une seule ; statut à faire / effectuée / non effectuée ; TIG par la
+  CPE, le secrétariat ou la Direction), vue **`v_passport`**, fonction **`colles_due_for_lates`** (une colle par
+  tranche de trois retards). Scénario **T54**.
+- **`internal_resource.must_accept`** et **`document_acceptance`** (document ouvert puis accepté, par version ;
+  une nouvelle version est redemandée). Scénario **T55**.

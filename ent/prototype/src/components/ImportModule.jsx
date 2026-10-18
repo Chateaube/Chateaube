@@ -3,6 +3,43 @@ import { Badge, Button, Card, Stat } from './ui.jsx';
 import { parseTable, analyzeStudents, parseAssignments } from '../rules/importer.js';
 import { loadImport, saveImport, clearImport } from '../importStore.js';
 import { saveFile } from '../download.js';
+import { readXlsx } from '../xlsxRead.js';
+import { bookToImport, withExtras, SHEET_NAMES } from '../rules/templateImport.js';
+import { loadMockExams, saveMockExams } from '../mockExamStore.js';
+import { saveInventory } from '../careStore.js';
+
+// Onglets du modèle pris en compte dès maintenant ; les autres seront repris par la version serveur
+const USED = { '1 Élèves': 'fiches élèves', '2 Responsables': 'responsables des élèves', '3 Personnel': 'professeurs et enseignements', '6 Notes officielles 1re': 'projection au bac', '10 Inventaire': 'inventaire' };
+
+function TemplateZone({ onBook, extras }) {
+  const file = useRef(null);
+  const [err, setErr] = useState('');
+  return (
+    <Card title="Importer le modèle Excel" subtitle="Le classeur « modele-import-chateaubriand.xlsx » rempli (onglets 1 à 10). Les lignes « Exemple » sont ignorées.">
+      <input ref={file} type="file" accept=".xlsx" className="hidden" onChange={async (e) => {
+        const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+        try { setErr(''); onBook(bookToImport(await readXlsx(await f.arrayBuffer()))); } catch (x) { setErr(x.message); }
+      }} />
+      <div className="flex flex-wrap items-center gap-3">
+        <Button onClick={() => file.current.click()}>Choisir le fichier Excel (.xlsx)</Button>
+        <a href="https://chateaube.github.io/Chateaube/ent/modeles/modele-import-chateaubriand.xlsx" target="_blank" rel="noreferrer" className="text-sm font-medium text-navy-500 underline">Télécharger le modèle vide</a>
+      </div>
+      {err && <p className="mt-2 text-sm text-red-700">{err}</p>}
+      {extras && (
+        <ul className="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-200 text-sm">
+          {SHEET_NAMES.map((n) => (
+            <li key={n} className="flex items-center justify-between gap-2 px-3 py-1.5">
+              <span>{n} <span className="text-slate-500">· {extras.counts[n] ?? 0} ligne{(extras.counts[n] ?? 0) > 1 ? 's' : ''}</span></span>
+              {!extras.counts[n] ? <Badge>vide</Badge> : USED[n] ? <Badge tone="green">{USED[n]}</Badge> : <Badge tone="slate">gardé pour la version en ligne</Badge>}
+            </li>
+          ))}
+        </ul>
+      )}
+      {extras?.officialErrors?.length > 0 && <p className="mt-2 text-xs text-red-700">{extras.officialErrors.slice(0, 5).join(' ')}</p>}
+      {extras && <p className="mt-2 text-xs text-slate-500">Vérifiez ci-dessous les élèves et les professeurs, puis cliquez sur « Importer ».</p>}
+    </Card>
+  );
+}
 
 // Import des données existantes (Direction, Bureau) : coller le tableau Excel des élèves de
 // l'année en cours et celui des enseignements, vérifier, puis importer.
@@ -36,6 +73,8 @@ export default function ImportModule() {
   const [filter, setFilter] = useState('issues');
   const [done, setDone] = useState(null);
   const [renumber, setRenumber] = useState(true);
+  const [extras, setExtras] = useState(null);
+  const onBook = (res) => { setExtras(res); if (res.studentsTsv) setStudentsText(res.studentsTsv); if (res.staffTsv) setStaffText(res.staffTsv); setDone(null); };
 
   const analysis = useMemo(() => (studentsText.trim() ? analyzeStudents(parseTable(studentsText).rows) : null), [studentsText]);
   const assignments = useMemo(() => (staffText.trim() ? parseAssignments(parseTable(staffText).rows) : null), [staffText]);
@@ -50,12 +89,21 @@ export default function ImportModule() {
 
   const doImport = () => {
     const data = {
-      students: analysis ? analysis.students.map((s) => (renumber && s.student.suggestedNumber ? { ...s.student, number: s.student.suggestedNumber } : s.student)) : current?.students ?? [],
+      students: analysis ? withExtras(analysis.students.map((s) => (renumber && s.student.suggestedNumber ? { ...s.student, number: s.student.suggestedNumber } : s.student)), extras ?? {}) : current?.students ?? [],
       assignments: assignments ?? current?.assignments ?? [],
     };
     saveImport(data);
     setCurrent(loadImport());
-    setDone(`${data.students.length} élèves et ${data.assignments.length} professeurs importés. Ils apparaissent dans Inscriptions & fiches élèves, Encaisser et la consultation des professeurs.`);
+    let more = '';
+    if (extras && Object.keys(extras.official).length) {
+      // notes rangées sous le nom de l'élève tel qu'il apparaît dans l'ENT (« NOM Prénom »)
+      const nameOf = Object.fromEntries(data.students.map((x) => [`${x.lastName} ${x.firstName}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase(), `${x.lastName} ${x.firstName}`]));
+      const m = loadMockExams();
+      saveMockExams({ ...m, official: { ...m.official, ...Object.fromEntries(Object.entries(extras.official).map(([k, v]) => [nameOf[k] ?? k, v])) } });
+      more += ` Notes officielles de 1re : ${Object.keys(extras.official).length} élèves.`;
+    }
+    if (extras?.inventory.length) { saveInventory(extras.inventory); more += ` Inventaire : ${extras.inventory.length} articles.`; }
+    setDone(`${data.students.length} élèves et ${data.assignments.length} professeurs importés.${more} Ils apparaissent dans Inscriptions & fiches élèves, Encaisser et la consultation des professeurs.`);
   };
   const exportToComplete = () => {
     const cell = (v) => (/[;"\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
@@ -69,7 +117,7 @@ export default function ImportModule() {
       <div>
         <p className="text-sm font-semibold text-navy-500">Reprise des données existantes · année 2026-2027</p>
         <h1 className="text-2xl font-semibold text-navy-900">Importer des données</h1>
-        <p className="text-sm text-slate-500">Copiez le tableau dans Excel (ligne de titres comprise) et collez-le ici, ou ouvrez un fichier CSV.</p>
+        <p className="text-sm text-slate-500">Importez le modèle Excel de l'école, ou copiez un tableau Excel (ligne de titres comprise) et collez-le plus bas.</p>
       </div>
       <p className="rounded-2xl bg-amber-50 p-3 text-sm text-amber-900">
         Confidentialité : les données importées restent <strong>dans ce navigateur</strong> (cet ordinateur ou ce téléphone).
@@ -83,6 +131,7 @@ export default function ImportModule() {
         </Card>
       )}
       {done && <p className="rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-800">{done} Rechargez la page si un écran était déjà ouvert.</p>}
+      <TemplateZone onBook={onBook} extras={extras} />
 
       <div className="grid gap-5 xl:grid-cols-2">
         <Card title="1. Élèves de l'année en cours" subtitle="Colonnes reconnues : N°, Classe, Nom, Prénom, Née le, Lieu de naissance, Nationalité, Examen, Adresse @, Contact">

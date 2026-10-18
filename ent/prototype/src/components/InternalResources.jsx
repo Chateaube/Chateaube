@@ -188,3 +188,49 @@ export function FamilyDocuments({ audience }) {
     </section>
   );
 }
+
+/* ---------- Conditions à lire et accepter à la première connexion ----------
+ * Règlement intérieur, charte informatique et IA, réseaux sociaux (élèves, parents) ; règlement des
+ * professeurs (enseignants). Chaque document s'ouvre avant d'être accepté ; un document nouveau ou
+ * remplacé est redemandé à la connexion suivante. L'acceptation est datée (en base : document_acceptance). */
+const ACCEPT_KEY = 'ent-conditions-v1';
+const loadAcc = () => { try { return JSON.parse(localStorage.getItem(ACCEPT_KEY)) ?? {}; } catch { return {}; } };
+export const toAccept = (viewer, account) => {
+  const done = loadAcc()[account] ?? {};
+  return visibleFor(load(), viewer).filter((r) => r.accept && done[r.id] !== r.at);
+};
+
+export function TermsGate({ viewer, account, children, phone = false }) {
+  const [pending, setPending] = useState(() => toAccept(viewer, account));
+  const [read, setRead] = useState({});
+  const [open, setOpen] = useState(null);
+  if (!pending.length) return children;
+  const all = pending.every((r) => read[r.id]);
+  const accept = () => {
+    const acc = loadAcc();
+    acc[account] = { ...(acc[account] ?? {}), ...Object.fromEntries(pending.map((r) => [r.id, r.at])), acceptedAt: new Date().toISOString() };
+    try { localStorage.setItem(ACCEPT_KEY, JSON.stringify(acc)); } catch { /* stockage indisponible */ }
+    setPending([]);
+  };
+  return (
+    <div className={phone ? 'space-y-3' : 'mx-auto max-w-xl space-y-4 py-6'}>
+      <div className={phone ? 'px-1' : ''}>
+        <h1 className="font-display text-lg font-semibold text-navy-900">Bienvenue sur l'ENT de Chateaubriand</h1>
+        <p className="text-sm text-slate-600">Avant de commencer, lisez {pending.length > 1 ? 'ces documents' : 'ce document'} de l'école et acceptez-{pending.length > 1 ? 'les' : 'le'}.</p>
+      </div>
+      <ul className="space-y-2">
+        {pending.map((r) => (
+          <li key={r.id} className="rounded-xl bg-white p-3 shadow-soft">
+            <p className="text-sm font-medium text-slate-800">{r.title}</p>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <Button variant="secondary" className="!px-2.5 !py-1 text-xs" onClick={() => { setOpen(r); setRead({ ...read, [r.id]: true }); }}>Lire</Button>
+              <span className={`text-xs ${read[r.id] ? 'text-emerald-700' : 'text-slate-400'}`}>{read[r.id] ? '✓ lu' : 'à lire'}</span>
+            </div>
+          </li>
+        ))}
+      </ul>
+      <Button className="w-full" disabled={!all} onClick={accept}>{all ? 'J\'ai lu et j\'accepte' : 'Lisez chaque document pour continuer'}</Button>
+      {open && <Viewer r={open} onClose={() => setOpen(null)} />}
+    </div>
+  );
+}

@@ -1,4 +1,5 @@
 import { test } from 'node:test';
+import { buildXlsx } from '../src/xlsx.js';
 import assert from 'node:assert/strict';
 import { normalizeGrade } from '../src/rules/gradeInput.js';
 import { checkAppreciation, autoFix, decisionText } from '../src/rules/appreciation.js';
@@ -888,7 +889,7 @@ test('campagne de pré-inscription : ouverte entre les dates de la Direction', (
 });
 
 import { averagesRows } from '../src/rules/gradeSheet.js';
-import { buildXlsx } from '../src/xlsx.js';
+
 test('export Excel en couleurs : rouge sous 10, classeur valide', () => {
   const subjects = [{ id: 'FR', label: 'Français', short: 'Fra', inAverage: true, coef: 1 }];
   const sheet = { rows: [{ name: 'RABE Hery', avgs: { FR: 8.5 }, general: 8.5, rank: 1 }], stats: { FR: { avg: 8.5, min: 8.5, max: 8.5 } }, general: { avg: 8.5, min: 8.5, max: 8.5 } };
@@ -1174,27 +1175,86 @@ test('inventaire des manuels : effectif, en prêt, abîmés, perdus, à commande
   assert.equal(manualBalance(c, [], null).missing, null);
 });
 
-import { EXAMS, examResult, bacProjection, examsForClass, mention, decision } from '../src/rules/mockExam.js';
-test('examens blancs : relevé avec coefficients, mention, résultat indicatif', () => {
-  const r = examResult(EXAMS.BAC_STMG.parts, { PHI: 11, MSGN: 13.5, DE: 12, GO: 14 });
-  assert.deepEqual([r.points, r.totalCoef, r.average, r.complete], [648, 50, 12.96, true]);
-  assert.equal(mention(r.average), 'Assez bien');
-  assert.equal(examResult(EXAMS.BAC_STMG.parts, { PHI: 6.5, MSGN: 8, DE: 7, GO: 'ABS' }).average, 5.32); // absent compté 0
-  assert.deepEqual(examResult(EXAMS.DNB.parts, { FR: 11 }).missing.length, 4);
+import { EXAMS, examResult, bacProjection, examsForClass, mention, decision, partMark, suggestedCoef } from '../src/rules/mockExam.js';
+test('examens blancs : candidats libres, coefficients sur 100, sciences du brevet (2 meilleures sur 3)', () => {
+  const sum = (k) => EXAMS[k].parts.reduce((t, p) => t + p.coef, 0);
+  assert.equal(sum('PREMIERE_G') + sum('BAC_G'), 100);
+  assert.equal(sum('PREMIERE_STMG') + sum('BAC_STMG'), 100);
+  assert.equal(sum('DNB'), 10);
+  const sci = EXAMS.DNB.parts.find((p) => p.id === 'SCI');
+  assert.equal(partMark(sci, { PC: 8, SVT: 14, TECH: 12 }), 13); // PC écartée
+  assert.equal(partMark(sci, { PC: 8 }), null);
+  const r = examResult(EXAMS.DNB.parts, { FR: 12, MA: 10, HG: 14, PC: 8, SVT: 14, TECH: 12, ANG: 16 });
+  assert.deepEqual([r.points, r.average, r.complete], [130, 13, true]);
+  assert.equal(examResult(EXAMS.DNB.parts, { FR: 12, MA: 'ABS', HG: 14, PC: 8, SVT: 14, TECH: 'ABS', ANG: 16 }).average, 10.6); // absent compté 0 ; sciences : 14 et 8 (techno absent : 0)
+  assert.equal(mention(13), 'Assez bien');
   assert.deepEqual([decision(9, 'BAC_G'), decision(9, 'DNB'), decision(7.9, 'BAC_G')], ['Second groupe', 'Non admis', 'Non admis']);
-  assert.deepEqual([examsForClass('3e'), examsForClass('1re STMG'), examsForClass('Terminale STMG'), examsForClass('2de')], [['DNB'], ['EAF'], ['BAC_STMG'], []]);
+  assert.deepEqual([examsForClass('3e'), examsForClass('1re STMG'), examsForClass('1re Générale'), examsForClass('Terminale STMG'), examsForClass('2de')], [['DNB'], ['PREMIERE_STMG'], ['PREMIERE_G'], ['BAC_STMG'], []]);
+  assert.equal(suggestedCoef([{ coef: 2 }, { coef: 1 }]), 3);
 });
 
-test('projection au bac : notes officielles des épreuves anticipées + contrôle continu + bac blanc', () => {
-  const p = bacProjection('BAC_STMG', { eaf: { FR_E: 10, FR_O: 13 }, cc: 12.4, blanc: { PHI: 11, MSGN: 13.5, DE: 12, GO: 14 } });
+test('projection au bac : notes officielles de 1re + bac blanc, sans contrôle continu', () => {
+  const official = { FR_E: 10, FR_O: 13, MA_EA: 12, SGN: 11, HG: 12, MA: 9, LVA: 14, LVB: 12 }; // 33 coef.
+  const p = bacProjection('BAC_STMG', { official });
   assert.equal(p.total, 100);
-  assert.equal(p.acquired, 611); // 10×5 + 13×5 + 12,4×40
-  assert.equal(p.remainingCoef, 50);
-  assert.deepEqual([p.needed[10], p.needed[12], p.needed[14]], [7.78, 11.78, 15.78]);
-  assert.equal(p.blancAverage, 12.96);
-  assert.equal(p.projected, 12.59); // (611 + 648) / 100
-  assert.equal(p.mention, 'Assez bien');
-  const q = bacProjection('BAC_G', { eaf: { FR_E: 4, FR_O: 5 }, cc: 6 });
-  assert.equal(q.needed[16], null); // hors d'atteinte
-  assert.equal(q.complete, false);
+  assert.deepEqual([p.acquired, p.acquiredCoef, p.remainingCoef], [380, 33, 67]);
+  assert.deepEqual([p.needed[10], p.needed[12], p.needed[16]], [9.25, 12.24, 18.21]);
+  const blanc = Object.fromEntries(EXAMS.BAC_STMG.parts.map((x) => [x.id, 12]));
+  const q = bacProjection('BAC_STMG', { official, blanc });
+  assert.equal(q.blancAverage, 12);
+  assert.equal(q.projected, 11.84); // (380 + 12 × 67) / 100
+  assert.ok(q.complete);
+  assert.equal(bacProjection('BAC_G', { official: { FR_E: 3, FR_O: 4 } }).needed[16], 17.39);
+  assert.equal(bacProjection('BAC_G', { official: { FR_E: 2, FR_O: 2, MA_EA: 2, SPE_AB: 2, HG: 2, ES: 2, LVA: 2, LVB: 2 } }).needed[16], null);
+});
+
+import { passport, colleErrors, validateMeasure as vm2 } from '../src/rules/discipline.js';
+test('passeport de vie scolaire : oubli = 1 h de colle, 3 retards = une colle, suivi des colles', () => {
+  const attendance = ['2026-10-01', '2026-10-05', '2026-10-08', '2026-10-12'].map((date) => ({ student: 'A', kind: 'RETARD', date }));
+  const forgets = [{ id: 'o1', student: 'A', date: '2026-10-07', kind: 'Matériel', note: 'calculatrice' }];
+  let p = passport('A', { attendance, forgets, colles: [] });
+  assert.equal(p.toGive.length, 2);
+  assert.match(p.toGive[0].reason, /3 retards \(01\/10, 05\/10, 08\/10\)/);
+  assert.deepEqual(p.toGive[0].choices, [1, 2]);
+  assert.equal(p.toGive[1].hours, 1);
+  assert.equal(p.latesInCycle, 1);
+  const colles = [{ student: 'A', kind: 'COLLE', cause: 'RETARDS', hours: 2, status: 'FAITE', date: '2026-10-09' }, { student: 'A', kind: 'COLLE', cause: 'OUBLI', forgetId: 'o1', hours: 1, status: 'A_FAIRE', date: '2026-10-08' }, { student: 'A', kind: 'TIG', hours: 1, status: 'A_FAIRE', date: '2026-10-10' }];
+  p = passport('A', { attendance, forgets, colles });
+  assert.deepEqual([p.toGive.length, p.collesDue, p.collesDone, p.tig], [0, 1, 2, 1]);
+  assert.equal(colleErrors({ kind: 'COLLE', hours: 3, when: 'x' }).length, 1);
+  assert.equal(vm2({ measureId: 'TIG', authorRole: 'PROFESSEUR', reason: 'x', student: 'A' }).length, 1); // TIG : CPE, secrétariat ou Direction
+  assert.deepEqual(vm2({ measureId: 'TIG', authorRole: 'VIE_SCOLAIRE', reason: 'x', student: 'A' }), []);
+});
+
+import { readFileSync } from 'node:fs';
+import { readXlsx, sheetRows, excelDate } from '../src/xlsxRead.js';
+import { bookToImport, withExtras } from '../src/rules/templateImport.js';
+
+test('modèle Excel : lecture du classeur, ligne « Exemple » ignorée', async () => {
+  const book = await readXlsx(readFileSync(new URL('../../modeles/modele-import-chateaubriand.xlsx', import.meta.url)));
+  assert.equal(Object.keys(book).length, 11);
+  assert.equal(book['1 Élèves'][0][1], 'Nom');
+  assert.equal(sheetRows(book['1 Élèves']).length, 0);
+  assert.equal(excelDate(46300), '05/10/2026');
+});
+
+test('modèle Excel : élèves, responsables, professeurs, notes officielles de 1re, inventaire (données fictives)', async () => {
+  const sheet = (name, rows) => ({ name, rows });
+  const bytes = buildXlsx([
+    sheet('1 Élèves', [['N° (matricule)', 'Nom', 'Prénom(s)', 'Prénom d\'usage', 'Sexe', 'Née le', 'Classe', 'Allergies'], ['Exemple', 'X', 'Y'], ['TS-001', 'RABE', 'Jean Luc', 'Luc', 'M', '01/02/2008', 'Terminale STMG', 'Paracétamol']]),
+    sheet('2 Responsables', [['N° élève (matricule)', 'Nom de l\'élève', 'Lien', 'Nom', 'Prénom', 'Téléphone', 'E-mail', 'À appeler en urgence'], ['TS-001', '', 'Mère', 'RABE', 'Lalao', '034 11 222 33', 'L@EX.MG', 'Oui']]),
+    sheet('3 Personnel', [['Nom', 'Prénom', 'Fonction', 'Matière(s)', 'Classe(s)'], ['RAKOTO', 'Mia', 'Professeur', 'Management, Droit', '1re STMG, Terminale STMG'], ['BE', 'Paul', 'CPE', '', '']]),
+    sheet('6 Notes officielles 1re', [['N° élève (matricule)', 'Nom de l\'élève', 'Français écrit', 'Français oral', 'Mathématiques (anticipée)', 'Spécialité abandonnée (ou SGN)', 'Histoire-géo et EMC', 'Ens. scientifique (ou maths STMG)', 'LVA', 'LVB'], ['TS-001', 'RABE Jean Luc', '11', '13,5', '12', '9', '10', '8', 'abs', '25']]),
+    sheet('10 Inventaire', [['Catégorie', 'Article', 'Quantité', 'Dont cassés', 'Lieu', 'Seuil de recommande', 'Péremption'], ['Trousse de secours', 'Doliprane 500 mg', '10', '0', 'Secrétariat', '5', '30/06/2027']]),
+  ]);
+  const r = bookToImport(await readXlsx(bytes));
+  assert.match(r.studentsTsv, /^N° \(matricule\)\tNom/);
+  assert.ok(!r.studentsTsv.includes('Exemple'));
+  assert.equal(r.staffTsv, 'Nom\tMatière\tClasse\nRAKOTO Mia\tManagement, Droit\t1re STMG, Terminale STMG'); // la CPE n'est pas un enseignement
+  assert.equal(r.guardians['RABE JEAN LUC'][0].email, 'l@ex.mg');
+  assert.deepEqual(r.official['RABE JEAN LUC'], { FR_E: 11, FR_O: 13.5, MA_EA: 12, SGN: 9, HG: 10, MA: 8, LVA: 'ABS' }); // STMG : SGN et maths
+  assert.equal(r.officialErrors.length, 1); // 25 / 20
+  assert.deepEqual([r.inventory[0].cat, r.inventory[0].expires, r.inventory[0].min], ['Trousse de secours', '2027-06-30', 5]);
+  const [s] = withExtras([{ lastName: 'RABE', firstName: 'Jean Luc', guardians: [] }], r);
+  assert.deepEqual([s.usualName, s.sex, s.health.allergies, s.guardians.length], ['Luc', 'M', 'Paracétamol', 1]);
 });

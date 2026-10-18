@@ -7,9 +7,9 @@ import { loadImport, saveImport } from './importStore.js';
 const KEY = 'ent-profiles-v1';
 
 export const fromImport = (s) => ({
-  id: s.id, number: s.number, lastName: s.lastName, firstName: s.firstName, sex: '', birthDate: s.birthDate, birthPlace: s.birthPlace,
-  nationalities: s.nationalities, cls: s.cls, lv1: 'Anglais', lv2: 'Espagnol', enteredOn: s.enteredOn ?? '', previousSchool: '', exam: s.exam, email: s.email, phones: s.phones, specialties: s.specialties ?? [],
-  guardians: [], health: { allergies: '', emergency: '' }, authorizations: { image: false, exit: '' }, documents: [],
+  id: s.id, number: s.number, lastName: s.lastName, firstName: s.firstName, usualName: s.usualName ?? '', sex: s.sex ?? '', birthDate: s.birthDate, birthPlace: s.birthPlace,
+  nationalities: s.nationalities, cls: s.cls, lv1: 'Anglais', lv2: 'Espagnol', enteredOn: s.enteredOn ?? '', previousSchool: s.previousSchool ?? '', exam: s.exam, email: s.email, phones: s.phones, specialties: s.specialties ?? [],
+  guardians: s.guardians ?? [], health: { allergies: s.health?.allergies ?? '', treatment: s.health?.treatment ?? '', emergency: '' }, authorizations: { image: false, exit: '' }, documents: [],
 });
 
 export function loadProfiles() {

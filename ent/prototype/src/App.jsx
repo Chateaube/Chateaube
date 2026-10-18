@@ -12,6 +12,7 @@ import SettingsModule from './components/SettingsModule.jsx';
 import AccountingModule from './components/AccountingModule.jsx';
 import StaffModule from './components/StaffModule.jsx';
 import TeacherPortal from './components/TeacherPortal.jsx';
+import { TermsGate } from './components/InternalResources.jsx';
 import FamilyPortal from './components/FamilyPortal.jsx';
 import InscriptionsModule from './components/InscriptionsModule.jsx';
 import ManualsModule from './components/ManualsModule.jsx';
@@ -145,8 +146,9 @@ const PROFILES = {
     title: 'CPE — vie scolaire',
     home: 'vs',
     nav: [
-      { group: 'Au quotidien', items: [VIE_SCOLAIRE, CARE, { ...HOURS, label: 'Absences des profs' }, TT_CHANGES, AGENDA, FOLLOW_UP, STUDENT_LIST, SIGNATURES] },
-      { group: 'Ressources', items: [BOOKING, LIBRARY, MANUALS, OVERSIGHT[1], INVENTORY] },
+      { group: 'Au quotidien', items: [VIE_SCOLAIRE, CARE, { ...HOURS, label: 'Absences des profs' }, TT_CHANGES, AGENDA, STUDENT_LIST] },
+      // consultation seulement : réservations, bibliothèque et manuels, cahier de textes
+      { group: 'Ressources', items: [BOOKING, { id: 'books-cpe', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who="M. Be" kind="CPE" /> }, OVERSIGHT[1]] },
       { group: 'Communication', items: [MESSAGES, NEWS, RESOURCES] },
     ],
   },
@@ -162,6 +164,7 @@ const PROFILES = {
         AGENDA,
         { id: 'grades', label: 'Notes & appréciations', icon: 'pen', screen: GradebookModule },
         { id: 'homework', label: 'Cahier de textes', icon: 'calendar', screen: HomeworkModule },
+        MOCK_EXAMS,
         GRADE_SHEETS,
         { id: 'discipline', label: 'Punitions & téléphones', icon: 'alert', screen: VieScolaireModule },
         BOOKING,
@@ -367,7 +370,9 @@ export default function App() {
         </p>
       )}
       <main className="mx-auto w-full max-w-[1400px] px-4 py-6 lg:px-8">
-        <Current key={`${profile}-${screen}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={setScreen} role={profile} site={site} />
+        {profile === 'ENSEIGNANT'
+          ? <TermsGate viewer="ENSEIGNANT" account="mme-ranaivo"><Current key={`${profile}-${screen}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={setScreen} role={profile} site={site} /></TermsGate>
+          : <Current key={`${profile}-${screen}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={setScreen} role={profile} site={site} />}
       </main>
 
       {profile !== 'VISITEUR' && <FeedbackButton profile={profile} who={persona.detail ?? persona.name} screen={NAV.flatMap((g) => g.items).find((i) => i.id === screen)?.label ?? screen} />}

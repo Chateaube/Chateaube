@@ -188,7 +188,7 @@ INSERT INTO role_permission (role, permission) VALUES
 INSERT INTO grading_policy (year_id, site_id) SELECT y.id, s.id FROM academic_year y, site s WHERE s.code = 'TMV';
 INSERT INTO evaluation_type (code, label) VALUES
   ('DS', 'Devoir surveillé'), ('INTERRO', 'Interrogation'), ('ORAL', 'Oral'), ('EXPOSE', 'Exposé'),
-  ('DM', 'Devoir maison'), ('TP', 'Travaux pratiques'), ('PROJET', 'Projet'), ('AUTRE', 'Autre');
+  ('DM', 'Devoir maison'), ('TP', 'Travaux pratiques'), ('PROJET', 'Projet'), ('EXAMEN_BLANC', 'Examen blanc'), ('AUTRE', 'Autre');
 INSERT INTO council_flag_type (code, label, tone) VALUES
   ('EXEMPLAIRE', 'Élève exemplaire', 'POSITIF'), ('ENCOURAGEMENTS', 'Encouragements', 'POSITIF'),
   ('BAVARD', 'Élève bavard.e', 'VIGILANCE'), ('MANQUE_TRAVAIL', 'Manque de travail personnel', 'VIGILANCE'),

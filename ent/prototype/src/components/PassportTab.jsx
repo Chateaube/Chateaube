@@ -1,0 +1,124 @@
+import React, { useState } from 'react';
+import { Badge, Button, Card } from './ui.jsx';
+import { ClassStudentPicker } from './VieScolaireModule.jsx';
+import { ATTENDANCE } from '../data/schoollife.js';
+import { passport, colleErrors, FORGET_KINDS, COLLE_STATUS, LATES_PER_COLLE } from '../rules/discipline.js';
+
+// Passeport de vie scolaire : oublis, retards, colles et TIG d'un élève.
+// Un oubli = une heure de colle ; trois retards = une colle d'une ou deux heures ; chaque colle est
+// suivie jusqu'à ce qu'elle soit effectuée. Les professeurs signalent les oublis.
+
+const KEY = 'ent-passeport-v1';
+const DEMO = {
+  forgets: [
+    { id: 'o1', student: 'RAJAONARIVELO Tsiry', date: '2026-10-07', kind: 'Matériel', note: 'calculatrice', by: 'M. Rasolo' },
+    { id: 'o2', student: 'RAJAONARIVELO Tsiry', date: '2026-10-12', kind: 'Devoir non fait', note: 'DM de management', by: 'Mme Ranaivo' },
+  ],
+  colles: [
+    { id: 'c1', student: 'RAJAONARIVELO Tsiry', kind: 'COLLE', cause: 'OUBLI', forgetId: 'o1', hours: 1, date: '2026-10-07', when: '2026-10-14T13:00', reason: 'Oubli : matériel (calculatrice) le 07/10', status: 'FAITE', by: 'M. Be (CPE)' },
+    { id: 'c2', student: 'RASOA Lova', kind: 'TIG', cause: 'AUTRE', hours: 1, date: '2026-10-09', when: '2026-10-16T12:00', reason: 'Dégradation d\'une table : ponçage et nettoyage', status: 'A_FAIRE', by: 'M. Be (CPE)' },
+  ],
+};
+export const loadPassport = () => { try { return JSON.parse(localStorage.getItem(KEY)) ?? DEMO; } catch { return DEMO; } };
+const save = (d) => { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch { /* stockage indisponible */ } };
+const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
+const fmt = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}${iso.length > 10 ? ` à ${iso.slice(11, 16).replace(':', 'h')}` : ''}`;
+const TODAY = '2026-10-13';
+
+export default function PassportTab({ role, toast }) {
+  const isTeacher = role === 'ENSEIGNANT';
+  const by = { DIRECTION: 'Direction', BUREAU: 'Mme Hanta (secrétariat)', VIE_SCOLAIRE: 'M. Be (CPE)', ENSEIGNANT: 'Mme Ranaivo' }[role] ?? 'M. Be (CPE)';
+  const [data, setData] = useState(loadPassport);
+  const [student, setStudent] = useState('RAMAROSON Fitia');
+  const [forget, setForget] = useState({ kind: FORGET_KINDS[0], note: '' });
+  const [giving, setGiving] = useState(null); // proposition en cours : { …, when }
+  const [tig, setTig] = useState(null);
+  const [err, setErr] = useState([]);
+  const update = (d) => { setData(d); save(d); };
+  const p = student ? passport(student, { attendance: ATTENDANCE, ...data }) : null;
+
+  const addForget = () => {
+    const f = { id: `o${Date.now()}`, student, date: TODAY, kind: forget.kind, note: forget.note.trim(), by };
+    update({ ...data, forgets: [...data.forgets, f] });
+    setForget({ kind: FORGET_KINDS[0], note: '' });
+    toast(`Oubli noté pour ${student}${isTeacher ? ' ; la CPE fixe l\'heure de colle' : ' : une heure de colle est à donner'}.`);
+  };
+  const give = (entry) => {
+    const e = colleErrors(entry);
+    setErr(e); if (e.length) return;
+    update({ ...data, colles: [...data.colles, { id: `c${Date.now()}`, student, date: TODAY, status: 'A_FAIRE', by, ...entry }] });
+    setGiving(null); setTig(null);
+    toast(`${entry.kind === 'TIG' ? 'TIG' : `Colle de ${entry.hours} h`} pour ${student} ; les parents sont prévenus dans l'application.`);
+  };
+  const setStatus = (id, status) => update({ ...data, colles: data.colles.map((c) => (c.id === id ? { ...c, status } : c)) });
+
+  return (
+    <div className="grid gap-5 xl:grid-cols-[1fr_400px] xl:items-start">
+      <Card title="Passeport de vie scolaire" subtitle={`Un oubli = 1 h de colle · ${LATES_PER_COLLE} retards = une colle de 1 ou 2 h`}>
+        <ClassStudentPicker value={student} onChange={setStudent} />
+        {p && (
+          <div className="mt-4 space-y-4">
+            <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
+              <div className="rounded-lg bg-slate-50 p-2"><p className="text-xl font-semibold text-navy-900">{p.lates}</p><p className="text-xs text-slate-500">retards · {p.latesInCycle}/{LATES_PER_COLLE} avant la prochaine colle</p></div>
+              <div className="rounded-lg bg-slate-50 p-2"><p className="text-xl font-semibold text-navy-900">{p.forgets}</p><p className="text-xs text-slate-500">oublis</p></div>
+              <div className="rounded-lg bg-amber-50 p-2"><p className="text-xl font-semibold text-amber-800">{p.collesDue} h</p><p className="text-xs text-amber-800">de colle à faire</p></div>
+              <div className="rounded-lg bg-emerald-50 p-2"><p className="text-xl font-semibold text-emerald-800">{p.collesDone} h</p><p className="text-xs text-emerald-800">effectuées{p.tig ? ` · ${p.tig} TIG` : ''}</p></div>
+            </div>
+            {!isTeacher && p.toGive.length > 0 && (
+              <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+                <p className="mb-1 font-semibold">Colles à donner</p>
+                {p.toGive.map((g, i) => (
+                  <div key={i} className="flex flex-wrap items-center gap-2 py-1">
+                    <span className="flex-1">{g.reason}</span>
+                    {giving?.i === i ? (
+                      <>
+                        {g.choices.length > 1 && <select value={giving.hours} onChange={(e) => setGiving({ ...giving, hours: Number(e.target.value) })} aria-label="Durée" className={inputCls}>{g.choices.map((h) => <option key={h} value={h}>{h} h</option>)}</select>}
+                        <input type="datetime-local" value={giving.when} onChange={(e) => setGiving({ ...giving, when: e.target.value })} aria-label="Date de la colle" className={inputCls} />
+                        <Button className="!py-1 text-xs" onClick={() => give({ kind: 'COLLE', cause: g.cause, forgetId: g.forgetId, reason: g.reason, hours: giving.hours, when: giving.when })}>Donner</Button>
+                      </>
+                    ) : <Button variant="secondary" className="!py-1 text-xs" onClick={() => { setGiving({ i, hours: g.hours, when: '2026-10-21T13:00' }); setErr([]); }}>Donner la colle</Button>}
+                  </div>
+                ))}
+              </div>
+            )}
+            {err.length > 0 && <ul className="rounded-md bg-red-50 p-2 text-xs text-red-800">{err.map((e) => <li key={e}>· {e}</li>)}</ul>}
+            <ul className="divide-y divide-slate-100 text-sm">
+              {p.entries.map((c) => (
+                <li key={c.id} className="flex flex-wrap items-start justify-between gap-2 py-2">
+                  <span className="min-w-0"><span className="font-medium text-slate-900">{c.kind === 'TIG' ? 'TIG' : `Colle de ${c.hours} h`}</span> <span className="text-slate-500">· {fmt(c.when)}</span>
+                    <span className="block text-xs text-slate-500">{c.reason} · donnée par {c.by}</span></span>
+                  {isTeacher ? <Badge tone={c.status === 'FAITE' ? 'green' : c.status === 'NON_FAITE' ? 'red' : 'amber'}>{COLLE_STATUS[c.status]}</Badge> : (
+                    <select value={c.status} onChange={(e) => setStatus(c.id, e.target.value)} aria-label={`Statut — ${c.reason}`} className={`${inputCls} !py-1 text-xs`}>
+                      {Object.entries(COLLE_STATUS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                    </select>
+                  )}
+                </li>
+              ))}
+              {p.entries.length === 0 && <li className="py-2 text-sm text-slate-500">Aucune colle ni TIG.</li>}
+            </ul>
+          </div>
+        )}
+      </Card>
+      <div className="space-y-5">
+        <Card title="Noter un oubli" subtitle="Une heure de colle par oubli">
+          <div className="space-y-2 text-sm">
+            <select value={forget.kind} onChange={(e) => setForget({ ...forget, kind: e.target.value })} aria-label="Oubli" className={`w-full ${inputCls}`}>{FORGET_KINDS.map((k) => <option key={k}>{k}</option>)}</select>
+            <input value={forget.note} onChange={(e) => setForget({ ...forget, note: e.target.value })} placeholder="Précision (ex. calculatrice, DM n°2)" className={`w-full ${inputCls}`} />
+            <Button className="w-full" disabled={!student} onClick={addForget}>Noter l'oubli de {student ? student.split(' ').slice(1).join(' ') : '…'}</Button>
+          </div>
+        </Card>
+        {!isTeacher && (
+          <Card title="Travail d'intérêt général (TIG)">
+            {tig ? (
+              <div className="space-y-2 text-sm">
+                <input value={tig.reason} onChange={(e) => setTig({ ...tig, reason: e.target.value })} placeholder="Motif et travail demandé" className={`w-full ${inputCls}`} />
+                <input type="datetime-local" value={tig.when} onChange={(e) => setTig({ ...tig, when: e.target.value })} aria-label="Date du TIG" className={`w-full ${inputCls}`} />
+                <div className="flex gap-2"><Button disabled={!tig.reason.trim()} onClick={() => give({ kind: 'TIG', cause: 'AUTRE', hours: 1, reason: tig.reason.trim(), when: tig.when })}>Enregistrer</Button><Button variant="secondary" onClick={() => setTig(null)}>Annuler</Button></div>
+              </div>
+            ) : <Button variant="secondary" className="w-full" disabled={!student} onClick={() => setTig({ reason: '', when: '2026-10-16T12:00' })}>Donner un TIG</Button>}
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}

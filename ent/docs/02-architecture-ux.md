@@ -431,20 +431,48 @@ d'explication.
   stock, abîmés, perdus, **à commander** — exportable en Excel. Les prêts et les retours restent dans « Manuels
   scolaires ».
 
-## Examens blancs
+## Examens blancs (candidats libres)
 
-- Rubrique **Examens blancs** (Direction : Pédagogie ; secrétariat : Notes & bulletins), à côté des bulletins et
-  séparée d'eux : les notes d'examen blanc ne modifient pas les moyennes trimestrielles.
-- **Saisie** par épreuve, sur 20, avec les coefficients de l'examen : brevet blanc (3e), épreuves anticipées
-  blanches de français (1re), bac blanc général (philosophie, deux spécialités, grand oral) ou STMG. « abs » =
-  absent, compté 0. Seules les classes à examen sont proposées (s'il n'y a plus de 3e, le brevet blanc
-  disparaît).
-- **Relevés de notes** imprimables, un par élève ou toute la classe : épreuves, coefficients, notes, points,
-  total, moyenne, mention, résultat indicatif (admis, second groupe, non admis) ; document interne sans valeur
-  officielle.
-- **Projection au bac** (Terminale) : notes officielles des épreuves anticipées de français (passées en 1re,
-  saisies une fois) + contrôle continu (moyenne des bulletins) + dernier bac blanc. Le tableau donne la moyenne
-  à obtenir aux épreuves de Terminale pour 10, 12 et 14, en vert si le niveau du bac blanc suffit, et la
-  moyenne projetée ; la projection peut figurer sur le relevé.
-- Coefficients du bac (sur 100) : épreuves anticipées 10, contrôle continu 40, épreuves de Terminale 50. À
-  vérifier chaque année (réforme en cours, dont l'épreuve anticipée de mathématiques) et modifiables.
+- L'école présente ses élèves en **candidats libres** : pas de contrôle continu, tout se joue aux épreuves de
+  fin d'année. Les examens blancs reprennent donc toutes les épreuves, avec les coefficients de la session 2027
+  (sur 100 pour le bac, répartis entre la 1re et la Terminale), modifiables si les textes changent.
+- **Brevet blanc (3e)** : français, mathématiques, histoire-géographie et EMC, sciences, anglais écrit (coef. 2
+  chacune). En sciences, les trois notes (physique-chimie, SVT, technologie) sont saisies et affichées ; seules
+  les deux meilleures comptent.
+- **Épreuves de 1re blanches** : français écrit et oral, mathématiques (épreuve anticipée), spécialité abandonnée
+  (SGN en STMG), histoire-géographie et EMC, enseignement scientifique (mathématiques en STMG), LVA, LVB (33).
+- **Bac blanc (Terminale)** : philosophie, spécialités (management et droit-économie en STMG), grand oral
+  (8 en générale, 12 en STMG), histoire-géographie et EMC, enseignement scientifique ou mathématiques, LVA, LVB,
+  EPS (67).
+- **Saisie** : la Direction et le secrétariat créent l'examen ; chaque professeur saisit l'épreuve de sa matière
+  dans ses classes. Il peut **compter son épreuve dans son carnet de notes** (donc dans le bulletin) avec un
+  coefficient ; l'écran lui propose un coefficient au-dessus de ses autres évaluations.
+- **Relevés de notes** imprimables (un élève ou la classe), sans pied de page : épreuves, coefficients, notes,
+  points, moyenne, mention, résultat indicatif ; document interne sans valeur officielle.
+- **Projection au bac** (Terminale) : vraies notes de 1re (relevé officiel de juin, saisies une fois ou
+  importées) + dernier bac blanc. Le tableau donne la moyenne à obtenir aux épreuves de Terminale pour 10, 12 et
+  14, en vert si le niveau du bac blanc suffit, et la moyenne projetée.
+
+## Retours d'octobre : droits, portail familles, passeport, conditions, modèle d'import
+
+- **CPE** : n'a plus accès aux documents, stages et orientation, aux documents à signer ni à l'inventaire ;
+  consulte seulement les réservations, la bibliothèque et les manuels, et les agendas. **Secrétariat** : voit
+  les taux horaires (il fait la paie) ; seule la Direction les change.
+- **Manuels et livres** : élèves, parents et professeurs voient « disponible » ou non, jamais le nombre
+  d'exemplaires.
+- **Portail parents et élèves** : barre du bas Accueil, Vie scolaire, Notes, Agenda, Autres. L'accueil commence
+  par l'annonce épinglée ou la dernière. « Autres » range le reste en rubriques qui se déroulent et se replient
+  (Échanges, Scolarité, Démarches). L'agenda (cours, devoirs, événements) se lit jour par jour, avec une bande
+  de dates. Plus d'explications internes sur le fonctionnement des notes.
+- **Passeport de vie scolaire** (Vie scolaire ; les professeurs notent les oublis) : un oubli = une heure de
+  colle ; trois retards = une colle d'une ou deux heures ; chaque colle est suivie (à faire, effectuée, non
+  effectuée) ; TIG donnés par la CPE, le secrétariat ou la Direction. Les familles voient retards, oublis et
+  heures de colle à faire.
+- **Conditions à la première connexion** : règlement intérieur, charte informatique et IA, réseaux sociaux
+  (élèves, parents), règlement des professeurs (enseignants) : chaque document s'ouvre avant d'être accepté ;
+  un document remplacé est redemandé.
+- **Modèle Excel d'import** (`ent/modeles/modele-import-chateaubriand.xlsx`, régénéré par
+  `generer_modele.py`) : onglets 1 à 10 (élèves, responsables, personnel, emploi du temps, notes, notes
+  officielles de 1re, paiements, manuels, prêts, inventaire), listes déroulantes, ligne « Exemple » ignorée.
+  L'import lit le classeur dans le navigateur ; élèves, responsables, professeurs, notes officielles de 1re et
+  inventaire sont repris dès maintenant, le reste le sera par la version en ligne.

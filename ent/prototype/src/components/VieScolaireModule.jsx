@@ -5,6 +5,7 @@ import { isMinor, leaveErrors } from '../rules/earlyLeave.js';
 import { loadProfiles } from '../profilesStore.js';
 import { MEASURES, AUTHORS, validateMeasure, phoneReturnAt, PHONE_DURATIONS, PHONE_ACTIONS, phoneDurationFor, validateReturn, ackReminderDue } from '../rules/discipline.js';
 import { formatDateFr } from '../rules/calendar.js';
+import PassportTab from './PassportTab.jsx';
 
 // Vie scolaire : absences / retards, punitions et sanctions, téléphones confisqués.
 // Accessible à la Vie scolaire, au Bureau et à la Direction.
@@ -246,7 +247,7 @@ function PhonesTab({ phones, setPhones, settings, toast }) {
   );
 }
 
-const TABS = [['attendance', 'Absences & retards'], ['measures', 'Punitions & sanctions'], ['phones', 'Téléphones'], ['leave', 'Sorties anticipées']];
+const TABS = [['attendance', 'Absences & retards'], ['passport', 'Passeport (colles, TIG)'], ['measures', 'Punitions & sanctions'], ['phones', 'Téléphones'], ['leave', 'Sorties anticipées']];
 
 /* ---------- Sorties anticipées : un mineur ne part pas seul ---------- */
 const LEAVE_KEY = 'ent-sorties-v1';
@@ -310,7 +311,7 @@ function EarlyLeaveTab({ toast }) {
 
 export default function VieScolaireModule({ settings, role = 'VIE_SCOLAIRE' }) {
   // l'enseignant ne voit que ses outils : punitions et remise d'un téléphone confisqué
-  const tabs = role === 'ENSEIGNANT' ? TABS.filter(([id]) => ['measures', 'phones'].includes(id)) : TABS;
+  const tabs = role === 'ENSEIGNANT' ? TABS.filter(([id]) => ['passport', 'measures', 'phones'].includes(id)) : TABS;
   const [tab, setTab] = useState(tabs[0][0]);
   const [rows, setRows] = useState(ATTENDANCE);
   const [log, setLog] = useState(MEASURES_LOG);
@@ -340,6 +341,7 @@ export default function VieScolaireModule({ settings, role = 'VIE_SCOLAIRE' }) {
       {tab === 'attendance' && <AttendanceTab rows={rows} setRows={setRows} toast={setMessage} />}
       {tab === 'measures' && <MeasuresTab log={log} setLog={setLog} role={role} toast={setMessage} />}
       {tab === 'leave' && <EarlyLeaveTab toast={setMessage} />}
+      {tab === 'passport' && <PassportTab role={role} toast={setMessage} />}
       {tab === 'phones' && <PhonesTab phones={phones} setPhones={setPhones} settings={settings} toast={setMessage} />}
     </div>
   );

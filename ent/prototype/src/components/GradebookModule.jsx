@@ -1,3 +1,5 @@
+import { loadMockExams } from '../mockExamStore.js';
+import { EXAMS } from '../rules/mockExam.js';
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, Icon, StudentSelect } from './ui.jsx';
 import { Annotated, RulePanel, GradeCell } from './gradeUi.jsx';
@@ -413,11 +415,26 @@ function AppreciationsStep({ service, evaluations, grades, validated, settings, 
 /* ---------------- Module ---------------- */
 const STEPS = [['competences', '1. Compétences'], ['notes', '2. Notes'], ['appreciations', '3. Appréciations']];
 
+/** Épreuves d'examen blanc que le professeur a choisi de compter dans son carnet (avec son coefficient). */
+function withMockExams(evaluations, grades) {
+  const ev = { ...evaluations }; const gr = { ...grades };
+  loadMockExams().sessions.forEach((x) => EXAMS[x.kind].parts.forEach((p) => {
+    const c = x.counts?.[p.id];
+    const service = c && SERVICES.find((sv) => sv.cls === x.cls && sv.subject === p.subject);
+    if (!service) return;
+    const id = `mx-${x.id}-${p.id}`;
+    ev[service.id] = [...(ev[service.id] ?? []), { id, type: 'Examen blanc', title: `${x.title} — ${p.label}`, date: x.date, publishOn: x.date, scale: 20, coef: c.coef, fromMockExam: true }];
+    gr[service.id] = Object.fromEntries(service.students.map((st) => [st, { ...(gr[service.id]?.[st] ?? {}), ...(x.marks[st]?.[p.id] != null ? { [id]: String(x.marks[st][p.id]) } : {}) }]));
+  }));
+  return { ev, gr };
+}
+
 export default function GradebookModule({ settings }) {
   const [serviceId, setServiceId] = useState('s1');
   const [step, setStep] = useState('notes');
-  const [evaluations, setEvaluations] = useState(EVALUATIONS);
-  const [grades, setGrades] = useState(GRADES);
+  const [mock] = useState(() => withMockExams(EVALUATIONS, GRADES));
+  const [evaluations, setEvaluations] = useState(mock.ev);
+  const [grades, setGrades] = useState(mock.gr);
   const [remarks, setRemarks] = useState(REMARKS);
   const [myComps, setMyComps] = useState(TEACHER_COMPETENCIES);
   const [validated, setValidated] = useState({});
