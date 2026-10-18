@@ -1,4 +1,5 @@
 import { SEASONS } from '../rules/seasons.js';
+import { FEATURES, MODES, featureMode } from '../features.js';
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, Icon } from './ui.jsx';
 import { CLASS_SUBJECTS } from '../data/grades.js';
@@ -230,6 +231,24 @@ export default function SettingsModule({ settings, onChange, onReset }) {
                 <p className="text-xs text-slate-600">Les liens apparaissent dans « Vie de l'école » et sur l'accueil des familles ; vides, rien ne s'affiche.</p>
               </div>
             </div>
+          </Card>
+
+          {/* Rubriques modulaires */}
+          <Card title="Rubriques affichées" subtitle="Masquer une rubrique peu utile, ou la réserver à la Direction. Rien n'est effacé : on peut la réafficher à tout moment.">
+            <ul className="divide-y divide-slate-100">
+              {FEATURES.map((f) => (
+                <li key={f.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                  <span className="min-w-0"><span className="text-sm font-medium text-slate-900">{f.label}</span> <span className="text-xs text-slate-600">· {f.where}</span>
+                    {f.note && <span className="block text-xs text-slate-600">{f.note}</span>}</span>
+                  <span className="flex gap-1">
+                    {Object.entries(MODES).map(([m, l]) => (
+                      <button key={m} type="button" aria-pressed={featureMode(settings, f.id) === m} onClick={() => onChange({ ...settings, features: { ...(settings.features ?? {}), [f.id]: m } })}
+                        className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${featureMode(settings, f.id) === m ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-700 ring-slate-300'}`}>{l}</button>
+                    ))}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </Card>
 
           {/* Frais de scolarité */}

@@ -1,4 +1,5 @@
-// Annonces de la Direction, du secrétariat, de la vie scolaire (et des professeurs pour leurs classes) :
+// Annonces de la Direction, du secrétariat et de la vie scolaire (publiées par la Direction seule, voir
+// rules/publication.js ; les professeurs n'en rédigent pas) :
 // à qui (parents, élèves, professeurs, personnel), où (Tamatave, Tana, les deux), et quelle partie
 // de l'école (toute l'école, un cycle, des niveaux, des classes). Application et e-mail ; pas de SMS.
 
@@ -28,6 +29,7 @@ export function classInScope(cls, { scope, values = [] }) {
  * à toute l'école.
  */
 export function receives(a, person) {
+  if ((a.status ?? 'PUBLIEE') !== 'PUBLIEE') return false; // brouillons et attentes : jamais diffusés
   const au = a.audience;
   if (!au.roles.includes(person.role)) return false;
   if (au.site !== 'ALL' && au.site !== person.site) return false;
@@ -67,17 +69,14 @@ export function audienceLabel(au, sites) {
   return `${who} · ${where} · ${what}`;
 }
 
-/** Erreurs avant publication ; un professeur ne publie que pour ses classes, aux parents et élèves. */
-export function announcementErrors(a, { role, myClasses = [] } = {}) {
+/** Erreurs avant envoi ou publication ; un professeur n'écrit pas d'annonce. */
+export function announcementErrors(a, { role } = {}) {
+  if (role === 'ENSEIGNANT') return ['Les annonces sont rédigées par la Direction, le secrétariat ou la CPE.'];
   const e = [];
   if (!a.title?.trim()) e.push('Titre obligatoire.');
   if (!a.text?.trim() && !a.photos?.length) e.push('Texte ou photo obligatoire.');
   if (!a.audience.roles.length) e.push('Choisir au moins un destinataire.');
   if (a.audience.scope !== 'ALL' && !a.audience.values.length) e.push('Choisir au moins une classe, un niveau ou un cycle.');
-  if (role === 'ENSEIGNANT') {
-    if (a.audience.scope !== 'CLASS' || a.audience.values.some((c) => !myClasses.includes(c))) e.push('Un professeur publie seulement pour ses classes.');
-    if (a.audience.roles.some((r) => !['PARENT', 'ELEVE'].includes(r))) e.push('Un professeur publie seulement aux parents et aux élèves.');
-  }
   return e;
 }
 

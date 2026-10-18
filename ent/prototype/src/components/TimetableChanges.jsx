@@ -7,7 +7,8 @@ import { publishAnnouncement } from '../announcementsStore.js';
 import { formatDateFr } from '../rules/calendar.js';
 
 // Changements d'emploi du temps (Direction, secrétariat ; consultation pour la CPE et les professeurs) :
-// chaque changement est annoncé aux élèves et aux parents de la classe et apparaît dans les agendas.
+// chaque changement apparaît dans les agendas ; l'avis aux élèves et aux parents de la classe est publié
+// par la Direction (celui du secrétariat attend sa validation).
 
 const KEY = 'ent-changements-edt-v1';
 export const loadChanges = () => { try { return JSON.parse(localStorage.getItem(KEY)) ?? []; } catch { return []; } };
@@ -35,7 +36,8 @@ export default function TimetableChanges({ role }) {
     const item = { ...c, id: `c${Date.now()}`, oldWeekday: wd, at: new Date().toISOString().slice(0, 10) };
     const next = [item, ...list]; setList(next); saveChanges(next);
     const n = changeNotice(item, dateLabel);
-    publishAnnouncement({ ...n, author: role === 'DIRECTION' ? 'Direction' : 'Secrétariat', photos: [], pinned: item.type === 'DEFINITIF', ack: item.type === 'DEFINITIF', email: true, audience: { roles: ['PARENT', 'ELEVE', 'PROFESSEUR'], site: 'TMV', scope: 'CLASS', values: [item.cls] } });
+    publishAnnouncement({ ...n, author: role === 'DIRECTION' ? 'Direction' : 'Secrétariat', photos: [], pinned: item.type === 'DEFINITIF', ack: item.type === 'DEFINITIF', email: true, audience: { roles: ['PARENT', 'ELEVE', 'PROFESSEUR'], site: 'TMV', scope: 'CLASS', values: [item.cls] } },
+      role === 'DIRECTION' ? { role: 'DIRECTION', name: 'Direction' } : { role: 'BUREAU', name: 'Mme Hanta' }); // secrétariat : l'avis attend la validation de la Direction
     setC({ ...blank, cls: c.cls }); setTried(false);
   };
   return (
@@ -84,7 +86,8 @@ export default function TimetableChanges({ role }) {
           </div>
           {c.type && c.cls && (c.subject || c.type === 'AJOUT') && !errors.length && <p className="mt-3 rounded-lg bg-navy-50 p-2 text-sm text-navy-900">Message envoyé : {changeNotice({ ...c, oldWeekday: wd }, dateLabel).text}</p>}
           {tried && errors.length > 0 && <ul className="mt-2 text-sm text-red-700">{errors.map((e) => <li key={e}>· {e}</li>)}</ul>}
-          <Button className="mt-3" onClick={save}>Enregistrer et prévenir la classe</Button>
+          <Button className="mt-3" onClick={save}>{canEdit && role === 'DIRECTION' ? 'Enregistrer et prévenir la classe' : 'Enregistrer et envoyer l\'avis à la Direction'}</Button>
+          {role !== 'DIRECTION' && <p className="mt-1 text-xs text-slate-600">L'agenda est mis à jour tout de suite ; l'avis aux familles part dès que la Direction l'a validé (Annonces → À valider).</p>}
         </Card>
       )}
       <Card title={`Changements (${list.length})`}>

@@ -1157,19 +1157,19 @@ CREATE FUNCTION colles_due_for_lates(enr uuid) RETURNS integer AS $$
   SELECT (lates / 3)::int - colles_for_lates::int FROM v_passport WHERE enrollment_id = enr
 $$ LANGUAGE sql STABLE;
 
--- Publication : publiée d'emblée par l'équipe ; sinon en attente. La validation revient à la Direction ou
--- à la CPE, droit à l'image vérifié.
+-- Vie de l'école : publiée d'emblée par la Direction ; sinon en attente. Seule la Direction valide (droit à
+-- l'image vérifié) ou renvoie avec une remarque.
 CREATE FUNCTION school_post_guard() RETURNS trigger AS $$
-DECLARE staff boolean := EXISTS (SELECT 1 FROM user_role WHERE user_id = NEW.author_id AND role IN ('DIRECTION', 'BUREAU', 'VIE_SCOLAIRE')); BEGIN
+DECLARE director boolean := EXISTS (SELECT 1 FROM user_role WHERE user_id = NEW.author_id AND role = 'DIRECTION'); BEGIN
   IF TG_OP = 'INSERT' THEN
-    NEW.status := CASE WHEN staff THEN 'PUBLIE' ELSE 'EN_ATTENTE' END;
+    NEW.status := CASE WHEN director THEN 'PUBLIEE'::publication_status ELSE 'EN_ATTENTE'::publication_status END;
     RETURN NEW;
   END IF;
-  IF NEW.status <> OLD.status AND NOT (staff AND NEW.moderated_by IS NULL) THEN
-    IF NEW.moderated_by IS NULL OR NOT EXISTS (SELECT 1 FROM user_role WHERE user_id = NEW.moderated_by AND role IN ('DIRECTION', 'VIE_SCOLAIRE')) THEN
-      RAISE EXCEPTION 'La validation revient à la Direction ou à la CPE';
+  IF NEW.status <> OLD.status AND NEW.status IN ('PUBLIEE', 'A_REVOIR', 'RETIREE') THEN
+    IF NEW.moderated_by IS NULL OR NOT EXISTS (SELECT 1 FROM user_role WHERE user_id = NEW.moderated_by AND role = 'DIRECTION') THEN
+      RAISE EXCEPTION 'Seule la Direction publie ou renvoie une publication';
     END IF;
-    IF NEW.status = 'PUBLIE' AND NOT NEW.image_rights_checked THEN
+    IF NEW.status = 'PUBLIEE' AND NOT NEW.image_rights_checked THEN
       RAISE EXCEPTION 'Vérifier le droit à l''image avant de publier';
     END IF;
     NEW.moderated_at := now();
@@ -1198,3 +1198,53 @@ CREATE FUNCTION active_season(site uuid, d date) RETURNS text AS $$
       LIMIT 1)
     ELSE (SELECT seasonal_mode FROM site_setting WHERE site_id = site) END
 $$ LANGUAGE sql STABLE;
+
+-- Annonces : la personne connectée est lue dans la session (SET app.user_id = '…' à chaque requête,
+-- posé par le serveur après l'authentification) ; un formulaire ne peut donc pas se faire passer pour la Direction.
+CREATE FUNCTION current_app_user() RETURNS uuid AS $$
+  SELECT nullif(current_setting('app.user_id', true), '')::uuid
+$$ LANGUAGE sql STABLE;
+CREATE FUNCTION has_role(u uuid, r role_code) RETURNS boolean AS $$
+  SELECT EXISTS (SELECT 1 FROM user_role WHERE user_id = u AND role = r)
+$$ LANGUAGE sql STABLE;
+
+CREATE FUNCTION announcement_guard() RETURNS trigger AS $$
+DECLARE actor uuid := coalesce(current_app_user(), NEW.author_id); director boolean := has_role(actor, 'DIRECTION'); action text; BEGIN
+  IF TG_OP = 'INSERT' THEN
+    IF NOT (has_role(NEW.author_id, 'DIRECTION') OR has_role(NEW.author_id, 'BUREAU') OR has_role(NEW.author_id, 'VIE_SCOLAIRE')) THEN
+      RAISE EXCEPTION 'Les annonces sont rédigées par la Direction, le secrétariat ou la CPE';
+    END IF;
+    NEW.author_service := CASE WHEN has_role(NEW.author_id, 'DIRECTION') THEN 'Direction' WHEN has_role(NEW.author_id, 'BUREAU') THEN 'Secrétariat' ELSE 'Vie scolaire (CPE)' END;
+    IF NEW.status = 'PUBLIEE' AND NOT has_role(NEW.author_id, 'DIRECTION') THEN
+      RAISE EXCEPTION 'Seule la Direction publie : envoyez l''annonce pour validation';
+    END IF;
+    IF NEW.status = 'PUBLIEE' THEN NEW.validated_by := NEW.author_id; NEW.validated_at := now(); END IF;
+    IF NOT has_role(NEW.author_id, 'DIRECTION') THEN NEW.is_pinned := false; END IF; -- l'épinglage se demande
+    INSERT INTO publication_event (entity, entity_id, action, by_user) VALUES ('ANNONCE', NEW.id, 'CREEE', NEW.author_id);
+    IF NEW.status <> 'BROUILLON' THEN INSERT INTO publication_event (entity, entity_id, action, by_user) VALUES ('ANNONCE', NEW.id, CASE NEW.status WHEN 'PUBLIEE' THEN 'PUBLIEE' ELSE 'ENVOYEE' END, NEW.author_id); END IF;
+    RETURN NEW;
+  END IF;
+  -- contenu : l'auteur modifie son brouillon ou une annonce à revoir ; la Direction corrige à tout moment
+  IF (NEW.title, NEW.body_md) IS DISTINCT FROM (OLD.title, OLD.body_md) THEN
+    IF director THEN
+      IF NOT has_role(OLD.author_id, 'DIRECTION') THEN NEW.edited_by_direction := true; END IF;
+      INSERT INTO publication_event (entity, entity_id, action, by_user) VALUES ('ANNONCE', NEW.id, 'CORRIGEE', actor);
+    ELSIF actor <> OLD.author_id OR OLD.status NOT IN ('BROUILLON', 'A_REVOIR') THEN
+      RAISE EXCEPTION 'Annonce envoyée à la Direction : elle ne se modifie plus';
+    END IF;
+  END IF;
+  IF NEW.is_pinned AND NOT OLD.is_pinned AND NOT director THEN RAISE EXCEPTION 'Seule la Direction épingle une annonce'; END IF;
+  IF NEW.status <> OLD.status THEN
+    action := CASE NEW.status WHEN 'EN_ATTENTE' THEN 'ENVOYEE' WHEN 'A_REVOIR' THEN 'RENVOYEE' WHEN 'PUBLIEE' THEN 'PUBLIEE' WHEN 'RETIREE' THEN 'RETIREE' ELSE NULL END;
+    IF NEW.status IN ('PUBLIEE', 'A_REVOIR', 'RETIREE') AND NOT director THEN
+      RAISE EXCEPTION 'Seule la Direction publie, renvoie ou retire une annonce';
+    END IF;
+    IF NEW.status = 'EN_ATTENTE' AND (actor <> OLD.author_id OR OLD.status NOT IN ('BROUILLON', 'A_REVOIR')) THEN
+      RAISE EXCEPTION 'Seul l''auteur envoie son brouillon';
+    END IF;
+    IF NEW.status = 'PUBLIEE' THEN NEW.validated_by := actor; NEW.validated_at := now(); NEW.review_note := NULL; END IF;
+    IF action IS NOT NULL THEN INSERT INTO publication_event (entity, entity_id, action, by_user, note) VALUES ('ANNONCE', NEW.id, action, actor, NEW.review_note); END IF;
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER announcement_check BEFORE INSERT OR UPDATE ON announcement FOR EACH ROW EXECUTE FUNCTION announcement_guard();

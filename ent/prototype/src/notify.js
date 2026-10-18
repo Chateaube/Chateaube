@@ -9,6 +9,7 @@ import { loadInventory } from './careStore.js';
 import { pendingSignatures } from './signatureStore.js';
 import { pendingCount } from './requestsStore.js';
 import { loadPosts } from './schoolLifeStore.js';
+import { loadAnnouncements } from './announcementsStore.js';
 import { loadPassport } from './components/PassportTab.jsx';
 import { loadSuggestions } from './components/InternalResources.jsx';
 import { passport } from './rules/discipline.js';
@@ -36,7 +37,10 @@ export function notificationsFor(role, { account } = {}) {
   const notInformed = ATTENDANCE.filter((a) => a.date === today && !a.notified).length;
   const pendingPosts = loadPosts().filter((p) => p.status === 'EN_ATTENTE').length;
   const collesToGive = Object.values(CLASSES).flat().reduce((t, st) => t + passport(st, { attendance: ATTENDANCE, ...loadPassport() }).toGive.length, 0);
+  const news = loadAnnouncements().list;
   if (role === 'DIRECTION') {
+    const toValidate = news.filter((a) => a.status === 'EN_ATTENTE').length;
+    add(toValidate, { id: 'news', to: 'news', count: toValidate, text: `${toValidate} annonce${toValidate > 1 ? 's' : ''} du secrétariat ou de la CPE à valider`, action: 'Valider' });
     const toSign = pendingSignatures().filter((r) => r.signatory === (account?.id === 'u2' ? 'ADJOINTE' : 'CHEFFE')).length;
     add(toSign, { id: 'sign', to: 'signatures', count: toSign, text: `${toSign} document${toSign > 1 ? 's' : ''} à signer`, action: 'Signer' });
     add(pendingPosts, { id: 'posts', to: 'school-life', count: pendingPosts, text: `${pendingPosts} publication${pendingPosts > 1 ? 's' : ''} proposée${pendingPosts > 1 ? 's' : ''} à valider (droit à l'image)`, action: 'Valider' });
@@ -56,9 +60,12 @@ export function notificationsFor(role, { account } = {}) {
   }
   if (role === 'VIE_SCOLAIRE') {
     add(collesToGive, { id: 'colles', to: 'vs', count: collesToGive, text: `${collesToGive} colle${collesToGive > 1 ? 's' : ''} à donner (oublis, retards)`, action: 'Donner' });
-    add(pendingPosts, { id: 'posts', to: 'school-life', count: pendingPosts, text: `${pendingPosts} publication${pendingPosts > 1 ? 's' : ''} proposée${pendingPosts > 1 ? 's' : ''} à valider`, action: 'Valider' });
   }
-  const published = loadPosts().filter((p) => p.status === 'PUBLIE').slice(0, 1);
+  if (['BUREAU', 'VIE_SCOLAIRE'].includes(role)) {
+    const back = news.filter((a) => a.status === 'A_REVOIR' && a.authorRole === role).length;
+    add(back, { id: 'news-back', to: 'news', count: back, text: `${back} annonce${back > 1 ? 's' : ''} renvoyée${back > 1 ? 's' : ''} par la Direction à revoir`, action: 'Revoir' });
+  }
+  const published = loadPosts().filter((p) => p.status === 'PUBLIEE').slice(0, 1);
   published.forEach((p) => info.push({ id: `post-${p.id}`, level: 'INFO', to: 'school-life', text: `Vie de l'école : ${p.title}` }));
   const seen = loadSeen();
   return { urgent: urgent.filter((u) => !seen[u.id]), todo, info };

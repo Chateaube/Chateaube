@@ -1105,6 +1105,10 @@ CREATE TABLE orientation_wish (
   PRIMARY KEY (enrollment_id, period_id, author, rank)
 );
 
+-- Circuit de publication (annonces, Vie de l'école) : seule la Direction publie.
+--   BROUILLON → EN_ATTENTE → PUBLIEE → RETIREE ; EN_ATTENTE → A_REVOIR (remarque) → EN_ATTENTE
+CREATE TYPE publication_status AS ENUM ('BROUILLON', 'EN_ATTENTE', 'A_REVOIR', 'PUBLIEE', 'RETIREE');
+
 CREATE TABLE announcement (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   title         text NOT NULL,
@@ -2068,8 +2072,8 @@ CREATE TABLE site_setting (
   CHECK (seasonal_mode IN ('AUTO', 'OFF') OR seasonal_mode IS NOT NULL)
 );
 
--- Vie de l'école : albums de photos. L'équipe (Direction, secrétariat, CPE) publie ; élèves et professeurs
--- proposent, la Direction ou la CPE valide après avoir vérifié le droit à l'image.
+-- Vie de l'école : albums de photos. Seule la Direction publie ; secrétariat, CPE, professeurs et élèves
+-- proposent, la Direction valide après avoir vérifié le droit à l'image (même circuit que les annonces).
 CREATE TABLE school_post (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   site_id       uuid NOT NULL REFERENCES site(id),
@@ -2078,13 +2082,13 @@ CREATE TABLE school_post (
   body          text,
   class_id      uuid REFERENCES school_class(id),     -- classe de l'auteur (élève) : rappel du droit à l'image
   author_id     uuid NOT NULL REFERENCES app_user(id),
-  status        text NOT NULL DEFAULT 'EN_ATTENTE' CHECK (status IN ('EN_ATTENTE', 'PUBLIE', 'REFUSE')),
+  status        publication_status NOT NULL DEFAULT 'EN_ATTENTE',
   image_rights_checked boolean NOT NULL DEFAULT false,
   moderated_by  uuid REFERENCES app_user(id),
   moderated_at  timestamptz,
-  refusal_reason text,
+  review_note   text,                                 -- remarque de la Direction quand elle renvoie
   created_at    timestamptz NOT NULL DEFAULT now(),
-  CHECK (status <> 'REFUSE' OR length(trim(coalesce(refusal_reason, ''))) > 0)
+  CHECK (status <> 'A_REVOIR' OR length(trim(coalesce(review_note, ''))) > 0)
 );
 CREATE TABLE school_post_photo (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -2093,3 +2097,31 @@ CREATE TABLE school_post_photo (
   position      smallint NOT NULL CHECK (position BETWEEN 1 AND 6),   -- 6 photos au plus
   UNIQUE (post_id, position)
 );
+
+-- Annonces : circuit de validation et traçabilité. Rédaction : Direction, secrétariat, CPE (jamais un
+-- professeur) ; publication : Direction seule. Le public voit le service (« Secrétariat · validée par la
+-- Direction ») ; l'historique garde qui a rédigé, corrigé, publié, retiré, et quand.
+ALTER TABLE announcement
+  ADD COLUMN status publication_status NOT NULL DEFAULT 'BROUILLON',
+  ADD COLUMN author_service text,                     -- Direction, Secrétariat, Vie scolaire (CPE)
+  ADD COLUMN pin_requested boolean NOT NULL DEFAULT false,
+  ADD COLUMN validated_by uuid REFERENCES app_user(id),
+  ADD COLUMN validated_at timestamptz,
+  ADD COLUMN edited_by_direction boolean NOT NULL DEFAULT false,
+  ADD COLUMN review_note text,
+  ADD CONSTRAINT announcement_published_validated CHECK (status NOT IN ('PUBLIEE', 'RETIREE') OR (validated_by IS NOT NULL AND validated_at IS NOT NULL)),
+  ADD CONSTRAINT announcement_review_note CHECK (status <> 'A_REVOIR' OR length(trim(coalesce(review_note, ''))) > 0);
+CREATE TABLE publication_event (
+  id            bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  entity        text NOT NULL CHECK (entity IN ('ANNONCE', 'VIE_ECOLE')),
+  entity_id     uuid NOT NULL,
+  action        text NOT NULL CHECK (action IN ('CREEE', 'ENVOYEE', 'CORRIGEE', 'RENVOYEE', 'PUBLIEE', 'RETIREE')),
+  by_user       uuid REFERENCES app_user(id),
+  at            timestamptz NOT NULL DEFAULT now(),
+  note          text
+);
+-- Ce que reçoivent élèves, parents et professeurs : uniquement le publié, avec la signature de service.
+CREATE VIEW v_public_announcement AS
+SELECT a.id, a.title, a.body_md, a.publish_at, a.is_pinned,
+  CASE WHEN a.author_service = 'Direction' THEN 'Direction' ELSE a.author_service || ' · validée par la Direction' END AS signature
+FROM announcement a WHERE a.status = 'PUBLIEE';

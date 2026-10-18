@@ -394,3 +394,10 @@ recoder.
   **`active_season`** ; **`school_post`** et **`school_post_photo`** (Vie de l'école : publication directe par
   l'équipe, sinon en attente ; validation par la Direction ou la CPE avec droit à l'image vérifié ; refus motivé ;
   6 photos au plus), fonction **`students_without_image_rights`**. Scénario **T56**.
+- **`publication_status`** (`BROUILLON`, `EN_ATTENTE`, `A_REVOIR`, `PUBLIEE`, `RETIREE`), commun à `announcement` et
+  `school_post` ; **`announcement`** : `status`, `author_service`, `pin_requested`, `validated_by/at`,
+  `edited_by_direction`, `review_note` ; **`publication_event`** (historique : créée, envoyée, corrigée, renvoyée,
+  publiée, retirée) ; vue **`v_public_announcement`** (publié seulement, signature de service) ; fonctions
+  **`current_app_user`** (personne connectée lue dans la session) et **`has_role`** ; déclencheur
+  **`announcement_guard`** (pas de professeur, publication par la Direction seule). Scénarios **T56** (Vie de
+  l'école : Direction seule) et **T57**.

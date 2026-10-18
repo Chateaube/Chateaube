@@ -103,7 +103,7 @@ function UrgentBanner({ child, onSeen }) {
 }
 
 function SchoolLifePreview({ open, social }) {
-  const last = loadPosts().filter((p) => p.status === 'PUBLIE').sort((a, b) => b.date.localeCompare(a.date))[0];
+  const last = loadPosts().filter((p) => p.status === 'PUBLIEE').sort((a, b) => b.date.localeCompare(a.date))[0];
   if (!last && !social?.facebook && !social?.instagram) return null;
   return (
     <Section title="Vie de l'école" action={<button type="button" onClick={open} className="text-xs font-medium text-navy-500">Tout voir ›</button>}>

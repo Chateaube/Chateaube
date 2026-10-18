@@ -19,6 +19,7 @@ import { EXPENSES, SUPPLIERS } from '../data/treasury.js';
 import { toTransactions } from '../rules/treasury.js';
 import { payOf, rateOn } from '../rules/payroll.js';
 import { ExpensesTab, TreasuryDashboard } from './Treasury.jsx';
+import { featureVisible } from '../features.js';
 import { TIMETABLE } from '../data/timetable.js';
 import { teacherHours } from '../rules/teachingHours.js';
 import { loadTeacherAbsences } from '../absencesStore.js';
@@ -310,6 +311,8 @@ function CashTab({ movements, setMovements }) {
   );
 }
 
+// Onglets optionnels : affichage réglé par la Direction (features.js)
+const TAB_FEATURE = { fees: 'caisse.tarifs', articles: 'caisse.articles', reductions: 'caisse.reductions' };
 const TABS = [['collect', 'Encaisser'], ['receipts', 'Reçus & clôture'], ['fees', 'Classes & tarifs'], ['articles', 'Articles & services'], ['reductions', 'Réductions'], ['salaries', 'Salaires'], ['expenses', 'Dépenses & fournisseurs'], ['cash', 'Caisse : entrées / sorties'], ['treasury', 'Trésorerie', 'DIRECTION']];
 
 export default function AccountingModule({ settings, role }) {
@@ -364,7 +367,7 @@ export default function AccountingModule({ settings, role }) {
         </div>
       </div>
       <div className="flex gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1" role="tablist">
-        {TABS.filter(([, , only]) => !only || only === role).map(([id, label]) => (
+        {TABS.filter(([id, , only]) => (!only || only === role) && featureVisible(settings, TAB_FEATURE[id], role)).map(([id, label]) => (
           <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
             className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ${tab === id ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>
             {label}{id === 'receipts' && pendingCancels > 0 && <span className="ml-1.5 rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white">{pendingCancels}</span>}

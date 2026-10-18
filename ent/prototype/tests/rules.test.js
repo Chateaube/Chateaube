@@ -872,8 +872,8 @@ test('annonces : filtres par rôle, site, cycle, niveau, classe', () => {
   assert.ok(!receives({ audience: { ...parentsTle, roles: ['PERSONNEL'] } }, { role: 'PERSONNEL', site: 'TMV' }));
   assert.equal(audienceLabel(parentsTle, { TMV: 'Tamatave' }), 'Parents · Tamatave · niveau Terminale');
   const base = { title: 'Sortie', text: 'Jeudi', photos: [], audience: { roles: ['PARENT'], site: 'TMV', scope: 'CLASS', values: ['1re STMG'] } };
-  assert.deepEqual(announcementErrors(base, { role: 'ENSEIGNANT', myClasses: ['1re STMG'] }), []);
-  assert.equal(announcementErrors({ ...base, audience: all }, { role: 'ENSEIGNANT', myClasses: ['1re STMG'] }).length, 2);
+  assert.equal(announcementErrors(base, { role: 'ENSEIGNANT' }).length, 1); // aucun droit de rédaction pour les professeurs
+  assert.equal(receives({ ...base, status: 'EN_ATTENTE' }, { role: 'PARENT', site: 'TMV', classes: ['1re STMG'] }), false); // jamais diffusée avant validation
   assert.deepEqual(announcementErrors({ ...base, audience: all }, { role: 'DIRECTION' }), []);
   assert.equal(announcementErrors({ ...base, audience: { ...base.audience, scope: 'LEVEL', values: [] } }).length, 1);
 });
@@ -1271,19 +1271,66 @@ test('ambiances saisonnières : dates, chevauchement, désactivation', () => {
 });
 
 import { newPost, moderate, visiblePosts, postErrors, withoutImageRights } from '../src/rules/schoolLife.js';
-test('vie de l\'école : l\'équipe publie, élèves et profs proposent, validation avec droit à l\'image', () => {
+test('vie de l\'école : seule la Direction publie ; secrétariat, CPE, profs et élèves proposent', () => {
   const photos = ['data:image/png;base64,x'];
-  const staff = newPost({ title: 'Octobre rose', photos }, { role: 'VIE_SCOLAIRE', author: 'CPE', at: '2026-10-09' });
-  const pupil = newPost({ title: 'Nos photos', photos }, { role: 'ELEVE', author: 'Aina', at: '2026-10-10' });
-  assert.deepEqual([staff.status, pupil.status], ['PUBLIE', 'EN_ATTENTE']);
+  const dir = newPost({ title: 'Octobre rose', photos }, { role: 'DIRECTION', author: 'Direction', at: '2026-10-09T10:00' });
+  const cpe = newPost({ title: 'Tournoi', photos }, { role: 'VIE_SCOLAIRE', author: 'M. Be', at: '2026-10-09T11:00' });
+  const pupil = newPost({ title: 'Nos photos', photos }, { role: 'ELEVE', author: 'Aina', at: '2026-10-10T12:00' });
+  assert.deepEqual([dir.status, cpe.status, pupil.status], ['PUBLIEE', 'EN_ATTENTE', 'EN_ATTENTE']);
   assert.equal(postErrors({ title: '', photos: [] }).length, 2);
-  assert.throws(() => moderate(pupil, { role: 'ENSEIGNANT', approve: true, imageRightsChecked: true }), /Direction ou à la CPE/);
-  assert.throws(() => moderate(pupil, { role: 'DIRECTION', approve: true }), /droit à l'image/);
-  assert.throws(() => moderate(pupil, { role: 'DIRECTION', approve: false }), /Expliquer/);
+  assert.throws(() => moderate(pupil, { role: 'VIE_SCOLAIRE', by: 'M. Be', approve: true, imageRightsChecked: true }), /Seule la Direction/);
+  assert.throws(() => moderate(pupil, { role: 'DIRECTION', by: 'Direction', approve: true }), /droit à l'image/);
+  assert.throws(() => moderate(pupil, { role: 'DIRECTION', by: 'Direction', approve: false }), /Expliquez/);
   const ok = moderate(pupil, { role: 'DIRECTION', by: 'Direction', approve: true, imageRightsChecked: true });
-  assert.equal(ok.status, 'PUBLIE');
-  const posts = [staff, pupil];
+  assert.equal(ok.status, 'PUBLIEE');
+  const posts = [dir, pupil];
   assert.equal(visiblePosts(posts, { role: 'PARENT', author: 'Parent' }).length, 1);
   assert.equal(visiblePosts(posts, { role: 'ELEVE', author: 'Aina' }).length, 2); // l'auteur voit sa proposition
+  assert.equal(visiblePosts([cpe], { role: 'VIE_SCOLAIRE', author: 'Autre' }).length, 0); // la CPE ne modère plus
   assert.deepEqual(withoutImageRights([{ cls: '1re STMG', lastName: 'A', firstName: 'B', authorizations: { image: false } }, { cls: '1re STMG', lastName: 'C', firstName: 'D', authorizations: { image: true } }], '1re STMG'), ['A B']);
+});
+
+import * as pub from '../src/rules/publication.js';
+test('publication : seule la Direction publie, le secrétariat et la CPE passent par la validation', () => {
+  const hanta = { role: 'BUREAU', name: 'Mme Hanta', at: '2026-10-12T09:00' };
+  const dir = { role: 'DIRECTION', name: 'Cheffe d\'établissement', at: '2026-10-13T08:00' };
+  const prof = { role: 'ENSEIGNANT', name: 'Mme Ranaivo', at: '2026-10-12T10:00' };
+  assert.throws(() => pub.create('ANNONCE', { title: 'x' }, prof), /Direction, le secrétariat ou la CPE/);
+  let a = pub.create('ANNONCE', { title: 'Réunion', text: 'Mardi' }, hanta);
+  assert.equal(a.status, 'BROUILLON');
+  assert.throws(() => pub.approve(a, dir), /Rien à valider/);
+  a = pub.submit(a, hanta);
+  assert.equal(a.status, 'EN_ATTENTE');
+  assert.throws(() => pub.edit(a, { title: 'y' }, hanta), /Déjà envoyée/);
+  assert.throws(() => pub.approve(a, { ...hanta }), /Seule la Direction/);
+  a = pub.sendBack(a, dir, 'Préciser l\'heure');
+  assert.deepEqual([a.status, a.note], ['A_REVOIR', 'Préciser l\'heure']);
+  a = pub.submit(pub.edit(a, { text: 'Mardi 17h' }, hanta), hanta);
+  a = pub.approve(a, dir, { patch: { title: 'Réunion parents-professeurs' } });
+  assert.deepEqual([a.status, a.title, a.editedByDirection], ['PUBLIEE', 'Réunion parents-professeurs', true]);
+  assert.equal(pub.signature(a), 'Secrétariat · validée par la Direction');
+  assert.match(pub.trail(a), /Rédigée par Mme Hanta \(Secrétariat\) le 12\/10, corrigée par la Direction, publiée par Cheffe d'établissement le 13\/10/);
+  assert.deepEqual(a.history.map((h) => h.action), ['CREEE', 'ENVOYEE', 'RENVOYEE', 'ENVOYEE', 'CORRIGEE', 'PUBLIEE']);
+  const d = pub.create('ANNONCE', { title: 'Portes ouvertes' }, dir, { send: true });
+  assert.deepEqual([d.status, pub.signature(d)], ['PUBLIEE', 'Direction']);
+  // Vie de l'école : un professeur propose ; publication seulement avec le droit à l'image vérifié
+  let v = pub.create('VIE_ECOLE', { title: 'Sortie' }, prof, { send: true });
+  assert.equal(v.status, 'EN_ATTENTE');
+  assert.throws(() => pub.approve(v, dir), /droit à l'image/);
+  v = pub.approve(v, dir, { checks: { imageRights: true } });
+  assert.equal(pub.signature({ ...v, authorDisplay: 'Mme Ranaivo' }), 'Proposée par Mme Ranaivo · publiée par la Direction');
+  assert.equal(pub.isPublic({ title: 'ancienne' }), true);
+});
+
+import { featureVisible, featureMode } from '../src/features.js';
+import { saveDecision } from '../src/rules/generalAppreciation.js';
+test('rubriques modulaires : visibles, Direction seulement ou masquées ; décision du conseil avec l\'appréciation', () => {
+  assert.equal(featureMode({}, 'caisse.tarifs'), 'DIRECTION'); // par défaut, réservée à la Direction
+  assert.ok(featureVisible({}, 'caisse.tarifs', 'DIRECTION'));
+  assert.ok(!featureVisible({}, 'caisse.tarifs', 'BUREAU'));
+  assert.ok(!featureVisible({ features: { 'vie-ecole': 'AUCUN' } }, 'vie-ecole', 'DIRECTION'));
+  assert.ok(featureVisible({}, undefined, 'BUREAU'));
+  const e = saveDecision({ text: 'Bon trimestre', status: 'VALIDEE' }, 'ENCOURAGEMENTS', 'BUREAU');
+  assert.deepEqual([e.decision, e.status], ['ENCOURAGEMENTS', 'BROUILLON']); // à revalider par la Direction
+  assert.throws(() => saveDecision({}, 'X', 'ENSEIGNANT'));
 });

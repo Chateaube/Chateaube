@@ -3,10 +3,10 @@ const pic = (bg, fg, emoji, text) => `data:image/svg+xml;charset=utf-8,${encodeU
 
 export const SCHOOL_POSTS = [
   { id: 'p1', title: 'Octobre rose : toute l\'école en rose', text: 'Élèves, professeurs et personnel se sont habillés en rose pour soutenir la lutte contre le cancer du sein. Merci à tous !',
-    date: '2026-10-09', author: 'Direction', authorRole: 'DIRECTION', status: 'PUBLIE',
+    date: '2026-10-09', author: 'Direction', authorRole: 'DIRECTION', authorName: 'Direction', status: 'PUBLIEE', publishedAt: '2026-10-09T17:00',
     photos: [pic('#fbcfe8', '#db2777', '🎀', 'Photo de groupe'), pic('#fce7f3', '#be185d', '👚', 'La 1re STMG en rose'), pic('#fdf2f8', '#ec4899', '💗', 'Le ruban géant')] },
-  { id: 'p2', title: 'Octobre rose — photos de la 1re STMG', text: 'Nos photos de la journée en rose !', date: '2026-10-10', author: 'Aina (1re STMG)', authorRole: 'ELEVE', cls: '1re STMG',
+  { id: 'p2', title: 'Octobre rose — photos de la 1re STMG', text: 'Nos photos de la journée en rose !', date: '2026-10-10', author: 'Aina (1re STMG)', authorDisplay: 'Aina (1re STMG)', authorName: 'Aina (1re STMG)', authorRole: 'ELEVE', cls: '1re STMG', kind: 'VIE_ECOLE',
     status: 'EN_ATTENTE', parent: 'p1', photos: [pic('#fbcfe8', '#9d174d', '📸', 'Selfie de la classe')] },
-  { id: 'p3', title: 'Sortie au port de Tamatave', text: 'Les 1re STMG ont découvert la logistique portuaire.', date: '2026-10-22', author: 'Mme Ranaivo', authorRole: 'ENSEIGNANT',
+  { id: 'p3', title: 'Sortie au port de Tamatave', text: 'Les 1re STMG ont découvert la logistique portuaire.', date: '2026-10-22', author: 'Mme Ranaivo', authorDisplay: 'Mme Ranaivo', authorName: 'Mme Ranaivo', authorRole: 'ENSEIGNANT', kind: 'VIE_ECOLE',
     status: 'EN_ATTENTE', photos: [pic('#dbeafe', '#1d4ed8', '⚓', 'Visite du port')] },
 ];

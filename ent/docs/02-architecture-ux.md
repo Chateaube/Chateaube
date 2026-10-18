@@ -514,3 +514,37 @@ d'explication.
   élèves et professeurs proposent (6 photos au plus), la Direction ou la CPE valide après avoir coché le droit
   à l'image (les élèves de la classe sans autorisation sont rappelés) ou refuse avec un motif visible par
   l'auteur. Aperçu du dernier album sur l'accueil des familles.
+
+## Droits de publication (annonces, Vie de l'école)
+
+- **Un seul circuit** (`rules/publication.js`, base : `publication_status`, `publication_event`) :
+  BROUILLON → EN_ATTENTE → PUBLIEE → RETIREE, avec EN_ATTENTE → A_REVOIR (remarque) → EN_ATTENTE.
+  **Seule la Direction publie.**
+- **Annonces** : rédigées par la Direction (publiées directement), le secrétariat ou la CPE (brouillon, puis
+  « Envoyer à la Direction »). La Direction a une file « À valider » : elle corrige le titre et le texte si besoin
+  (« Corriger et publier »), décide de l'épinglage (que l'auteur peut seulement demander), ou renvoie avec une
+  remarque. Une annonce envoyée ne se modifie plus par son auteur. **Les enseignants n'ont aucun accès à la
+  rédaction** : l'entrée « Annonces » est en consultation, sans formulaire ni bouton. Les avis automatiques du
+  secrétariat (changement d'emploi du temps) passent aussi par la validation ; l'agenda, lui, est mis à jour tout
+  de suite.
+- **Vie de l'école** : même circuit ; la Direction publie, tous les autres proposent (secrétariat, CPE,
+  professeurs, élèves) ; la validation exige le droit à l'image vérifié. La CPE ne valide plus.
+- **Auteur affiché** : le public voit le service et la validation, jamais le nom d'un membre du personnel —
+  « Direction », « Secrétariat · validée par la Direction », « Vie scolaire (CPE) · validée par la Direction »,
+  « Proposée par Aina (1re STMG) · publiée par la Direction ». L'équipe voit la trace complète : « Rédigée par
+  Mme Hanta (Secrétariat) le 12/10, corrigée par la Direction, publiée par Cheffe d'établissement le 13/10. »
+- **Sécurité** : en base, la personne connectée vient de la session (`app.user_id`, posée par le serveur après
+  l'authentification) et non du formulaire ; les déclencheurs refusent une annonce d'un professeur, une
+  publication ou un épinglage hors Direction, une modification après envoi ; la vue `v_public_announcement` ne
+  renvoie que le publié, avec la signature de service.
+
+## Rubriques modulaires ; avis du conseil
+
+- **Rubriques activables** (`features.js`, Paramètres → Rubriques affichées) : chaque rubrique optionnelle est
+  « Visible », « Direction seulement » ou « Masquée ». Classes et tarifs, Articles et services : par défaut
+  « Direction seulement » (le secrétariat encaisse avec les tarifs sans avoir besoin de ces onglets). Masquer
+  n'efface rien. Pour supprimer une rubrique du code : retirer son entrée de `features.js` et l'élément qui porte
+  sa clé `feature`.
+- **Décision du conseil** : saisie avec l'appréciation générale (« Avis du conseil : décision et appréciation
+  générale »), par le secrétariat pendant le conseil, validée avec elle par la Direction. La grille l'affiche en
+  lecture seule (proposition calculée tant qu'elle n'est pas saisie).

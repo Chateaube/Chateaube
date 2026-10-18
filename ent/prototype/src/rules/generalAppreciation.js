@@ -17,6 +17,15 @@ export function saveText(entry, text, role) {
   const keep = role === 'DIRECTION' && entry?.status === 'A_VALIDER';
   return { ...entry, text, status: keep ? 'A_VALIDER' : 'BROUILLON', note: entry?.note ?? '' };
 }
+/**
+ * Décision du conseil (encouragements, avertissement…) : saisie avec l'appréciation générale, validée avec
+ * elle par la Direction ; même règle qu'un changement de texte.
+ */
+export function saveDecision(entry, decision, role) {
+  if (!['DIRECTION', 'BUREAU'].includes(role)) throw new Error('Réservé à la Direction et au secrétariat.');
+  const keep = role === 'DIRECTION' && entry?.status === 'A_VALIDER';
+  return { ...entry, decision, status: keep ? 'A_VALIDER' : 'BROUILLON', note: entry?.note ?? '' };
+}
 /** Le secrétariat envoie à la Direction. */
 export function submit(entry, role) {
   if (role !== 'BUREAU') throw new Error('Envoi réservé au secrétariat.');

@@ -39,6 +39,7 @@ import { PublicPreregistration } from './components/FamilyRequests.jsx';
 import SchoolLifeModule from './components/SchoolLifeModule.jsx';
 import { notificationsFor, countsByScreen, markSeen } from './notify.js';
 import { activeSeason } from './rules/seasons.js';
+import { featureVisible } from './features.js';
 import pillar from './assets/pilier.png';
 import { useScreenGuard } from './screenGuard.js';
 import { useOnline } from './online.js';
@@ -53,7 +54,7 @@ import { DIRECTION_ACCOUNTS } from './data/demo.js';
 const VIE_SCOLAIRE = { id: 'vs', label: 'Absences, retards et punitions', icon: 'users', screen: VieScolaireModule };
 const COUNCIL = { id: 'council', label: 'Conseils de classe', icon: 'cap', screen: CouncilGrid };
 const BULLETINS = { id: 'bulletins', label: 'Bulletins', icon: 'pen', screen: BulletinsModule };
-const BOOKING = { id: 'booking', label: 'Réservations de matériel', icon: 'calendar', screen: BookingModule };
+const BOOKING = { id: 'booking', label: 'Réservations de matériel', icon: 'calendar', screen: BookingModule, feature: 'reservations' };
 const INSCRIPTIONS = { id: 'enrol', label: 'Inscriptions et fiches élèves', icon: 'users', screen: InscriptionsModule };
 const OVERSIGHT = [
   { id: 'oversight-grades', label: 'Notes des professeurs', icon: 'pen', screen: (p) => <TeacherOversight {...p} view="grades" /> },
@@ -67,19 +68,19 @@ const MESSAGES = { id: 'messages', label: 'Messages', icon: 'bell', screen: ({ r
 ) };
 const MANUALS = { id: 'manuals', label: 'Manuels scolaires', icon: 'cap', screen: ManualsModule };
 const FEEDBACK = { id: 'feedback', label: 'Avis du pilote', icon: 'bell', screen: FeedbackModule };
-const LIBRARY = { id: 'library', label: 'Bibliothèque (salle d\'étude)', icon: 'pen', screen: LibraryModule };
+const LIBRARY = { id: 'library', label: 'Bibliothèque (salle d\'étude)', icon: 'pen', screen: LibraryModule, feature: 'bibliotheque' };
 const IMPORT = { id: 'import', label: 'Importer des données', icon: 'swap', screen: ImportModule };
 const GRADE_SHEETS = { id: 'grade-sheets', label: 'Grilles de notes', icon: 'pen', screen: GradeSheets };
 const BOOKS_FOR_TEACHER = { id: 'books', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who="Mme Ranaivo" kind="PROF" /> };
 const TT_CHANGES = { id: 'tt-changes', label: 'Changements d\'emploi du temps', icon: 'clock', screen: TimetableChanges };
 const HOURS = { id: 'hours', label: 'Heures et absences des profs', icon: 'clock', screen: TeachingHours };
 const RESOURCES = { id: 'resources', label: 'Documents, ressources et idées', icon: 'pen', screen: InternalResources };
-const MOCK_EXAMS = { id: 'mock-exams', label: 'Examens blancs', icon: 'cap', screen: MockExamsModule };
-const CARE = { id: 'care', label: 'Soins et infirmerie', icon: 'care', screen: CareModule };
-const INVENTORY = { id: 'inventory', label: 'Inventaire du matériel', icon: 'box', screen: InventoryModule };
+const MOCK_EXAMS = { id: 'mock-exams', label: 'Examens blancs', icon: 'cap', screen: MockExamsModule, feature: 'examens-blancs' };
+const CARE = { id: 'care', label: 'Soins et infirmerie', icon: 'care', screen: CareModule, feature: 'soins' };
+const INVENTORY = { id: 'inventory', label: 'Inventaire du matériel', icon: 'box', screen: InventoryModule, feature: 'inventaire' };
 const AGENDA = { id: 'agenda', label: 'Agendas', icon: 'calendar', screen: AgendaModule };
 const NEWS = { id: 'news', label: 'Annonces', icon: 'megaphone', screen: AnnouncementsModule };
-const SCHOOL_LIFE = { id: 'school-life', label: 'Vie de l\'école (photos)', icon: 'sparkles', screen: SchoolLifeModule };
+const SCHOOL_LIFE = { id: 'school-life', label: 'Vie de l\'école (photos)', icon: 'sparkles', screen: SchoolLifeModule, feature: 'vie-ecole' };
 const STUDENT_LIST = { id: 'students-list', label: 'Liste des élèves', icon: 'users', screen: StudentList };
 const SIGNATURES = { id: 'signatures', label: 'Documents à signer', icon: 'pen', screen: SignaturesModule };
 const FOLLOW_UP = { id: 'followup', label: 'Documents, stages et orientation', icon: 'pen', screen: FollowUpModule };
@@ -142,7 +143,7 @@ const PROFILES = {
         { id: 'discipline', label: 'Vie de classe', icon: 'alert', screen: VieScolaireModule },
       ] },
       { group: 'Mon organisation', items: [{ ...HOURS, label: 'Mes heures et absences' }, AGENDA, BOOKING, GRADE_SHEETS] },
-      { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE] },
+      { group: 'Communication', items: [MESSAGES, ro(NEWS), SCHOOL_LIFE] }, // annonces : lecture seule, aucune rédaction
       { group: 'Ressources', items: [BOOKS_FOR_TEACHER, RESOURCES] },
     ],
   },
@@ -198,8 +199,9 @@ export default function App() {
   const [screen, setScreen] = useState('dashboard');
   const [accountId, setAccountId] = useState('u1');
   const account = DIRECTION_ACCOUNTS.find((a) => a.id === accountId);
-  const NAV = PROFILES[profile].nav;
-  const Current = NAV.flatMap((g) => g.items).find((i) => i.id === screen).screen;
+  // rubriques masquées par la Direction (Paramètres → Rubriques affichées) : retirées du menu
+  const NAV = PROFILES[profile].nav.map((g) => ({ ...g, items: g.items.filter((it) => featureVisible(settings, it.feature, profile)) })).filter((g) => g.items.length);
+  const Current = (NAV.flatMap((g) => g.items).find((i) => i.id === screen) ?? NAV[0].items[0]).screen;
   const switchProfile = (p) => { setProfile(p); setScreen(PROFILES[p].home); };
 
   const persona = profile === 'DIRECTION' ? { name: account.name, detail: account.email } : PERSONAS[profile];

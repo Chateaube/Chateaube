@@ -4,7 +4,7 @@ import { printOnly } from '../print.js';
 import { AveragesSheet, classAverages } from './GradeSheets.jsx';
 import { averagesSheet, averagesRows, isFinalTerm } from '../rules/gradeSheet.js';
 import { buildXlsx } from '../xlsx.js';
-import { GA_STATUS, saveText, submit, validate, sendBack } from '../rules/generalAppreciation.js';
+import { GA_STATUS, saveText, saveDecision, submit, validate, sendBack } from '../rules/generalAppreciation.js';
 
 import { loadGA, saveGA } from '../appreciationStore.js';
 import { Badge, Button, Card, Icon, Stat, StudentSelect } from './ui.jsx';
@@ -31,12 +31,13 @@ export default function CouncilGrid({ settings, role, go }) {
   // conseil du 3e trimestre (passage) : décidé par le trimestre ; la case ne sert qu'à la démonstration
   const [finalTerm, setFinalTerm] = useState(isFinalTerm(TERM));
   const showRank = finalTerm; // le rang n'apparaît qu'au 3e trimestre, sans rien cocher
-  const [decisions, setDecisions] = useState({});
   const [passage, setPassage] = useState({});
   const [open, setOpen] = useState(null);
   const [ga, setGaState] = useState(loadGA);
   const setGa = (next) => { setGaState(next); saveGA(next); };
   const appreciations = Object.fromEntries(Object.entries(ga).map(([k, e]) => [k, e.text ?? '']));
+  // décision du conseil : saisie avec l'appréciation générale (secrétariat), validée avec elle par la Direction
+  const decisions = Object.fromEntries(Object.entries(ga).filter(([, e]) => e.decision).map(([k, e]) => [k, e.decision]));
   const [gaNote, setGaNote] = useState('');
   const [gaError, setGaError] = useState('');
   const act = (fn) => { try { setGaError(''); fn(); } catch (e) { setGaError(e.message); } };
@@ -158,12 +159,9 @@ export default function CouncilGrid({ settings, role, go }) {
                           {grouped.map(([id, n]) => <Badge key={id} tone={FLAG[id].tone}>{FLAG[id].label}{n > 1 ? ` ×${n}` : ''}</Badge>)}
                         </div>
                       </td>
-                      <td className="px-3 py-1.5">
-                        <select value={decision} onChange={(e) => setDecisions({ ...decisions, [r.name]: e.target.value })}
-                          className={`w-52 rounded-md border px-2 py-1 text-xs ${decisions[r.name] === undefined && r.proposal ? 'border-dashed border-navy-300 bg-navy-50' : 'border-slate-300'}`}>
-                          {COUNCIL_DECISIONS.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
-                        </select>
-                        {decisions[r.name] === undefined && r.proposal && <p className="text-[10px] text-navy-500">Proposition — à confirmer</p>}
+                      <td className="px-3 py-1.5 text-xs">
+                        <span className={decisions[r.name] === undefined ? 'text-slate-600' : 'font-medium text-slate-900'}>{DECISION[decision]?.label ?? '—'}</span>
+                        {decisions[r.name] === undefined && r.proposal && <span className="block text-[10px] text-navy-500">proposition — à saisir avec l'appréciation</span>}
                       </td>
                       <td className="px-2 text-center">
                         <button onClick={() => setCurrent(r.name)} disabled={!canWriteGeneral} title={canWriteGeneral ? 'Rédiger l\'appréciation générale' : 'Rédigée par la Direction'}>
@@ -222,7 +220,7 @@ export default function CouncilGrid({ settings, role, go }) {
         </Card>
       )}
       {canWriteGeneral && <div className="grid gap-5 xl:grid-cols-[1fr_320px] xl:items-start print:hidden">
-        <Card title="Appréciations générales"
+        <Card title="Avis du conseil : décision et appréciation générale"
           subtitle={isDirection ? `Tapées par vous ou par le secrétariat · ${written} / ${rows.length} validées${toValidate.length ? ` · ${toValidate.length} à valider` : ''}` : 'Tapez d\'après les notes de la Directrice, puis envoyez-les-lui pour validation'}>
           {isDirection && toValidate.length > 0 && (
             <p className="mb-3 flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">À valider : {toValidate.map((n) => <button key={n} onClick={() => setCurrent(n)} className="font-medium underline">{n.split(' ').slice(1).join(' ')}</button>)}</p>
@@ -237,6 +235,12 @@ export default function CouncilGrid({ settings, role, go }) {
               </p>
             );
           })()}
+          <label className="mt-3 block text-xs font-medium text-slate-600">Décision du conseil
+            <select value={decisions[current] ?? rows.find((x) => x.name === current)?.proposal ?? ''} onChange={(e) => act(() => setGa({ ...ga, [current]: saveDecision(ga[current], e.target.value, role) }))}
+              className="mt-1 block w-72 rounded-md border border-slate-300 px-2 py-1.5 text-sm">
+              {COUNCIL_DECISIONS.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+            </select>
+          </label>
           {ga[current]?.status && <p className="mt-2 text-xs">État : <Badge tone={GA_STATUS[ga[current].status][0]}>{GA_STATUS[ga[current].status][1]}</Badge>{ga[current].note && <span className="ml-2 text-red-700">Remarque de la Direction : {ga[current].note}</span>}</p>}
           <textarea rows={4} value={appText} onChange={(e) => setGa({ ...ga, [current]: saveText(ga[current], e.target.value, role) })}
             placeholder="Appréciation générale du conseil de classe…" className="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />

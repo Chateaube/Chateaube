@@ -1326,11 +1326,15 @@ DO $$ DECLARE d uuid; v timestamptz; BEGIN
 END $$;
 
 -- T56. Vie de l'école ; ambiance saisonnière ; notification urgente ---------------------------------
-DO $$ DECLARE site uuid := (SELECT id FROM site WHERE code = 'TMV'); staff_post uuid; prof_post uuid; BEGIN
-  -- la CPE publie directement ; un professeur propose (en attente, même s'il demande « PUBLIE »)
-  INSERT INTO school_post (site_id, title, author_id) VALUES (site, 'Octobre rose', '00000000-0000-0000-0000-00000000000c') RETURNING id INTO staff_post;
-  INSERT INTO school_post (site_id, title, author_id, status) VALUES (site, 'Sortie au port', '00000000-0000-0000-0000-000000000003', 'PUBLIE') RETURNING id INTO prof_post;
-  IF (SELECT status FROM school_post WHERE id = staff_post) <> 'PUBLIE' OR (SELECT status FROM school_post WHERE id = prof_post) <> 'EN_ATTENTE' THEN RAISE EXCEPTION 'T56: statut à la création'; END IF;
+DO $$ DECLARE site uuid := (SELECT id FROM site WHERE code = 'TMV'); staff_post uuid; prof_post uuid; cpe_post uuid; BEGIN
+  -- la Direction publie directement ; la CPE et un professeur proposent (en attente, même en demandant « PUBLIEE »)
+  INSERT INTO school_post (site_id, title, author_id) VALUES (site, 'Octobre rose', '00000000-0000-0000-0000-000000000001') RETURNING id INTO staff_post;
+  INSERT INTO school_post (site_id, title, author_id, status) VALUES (site, 'Sortie au port', '00000000-0000-0000-0000-000000000003', 'PUBLIEE') RETURNING id INTO prof_post;
+  INSERT INTO school_post (site_id, title, author_id) VALUES (site, 'Tournoi', '00000000-0000-0000-0000-00000000000c') RETURNING id INTO cpe_post;
+  IF (SELECT status FROM school_post WHERE id = staff_post) <> 'PUBLIEE' OR (SELECT status FROM school_post WHERE id = prof_post) <> 'EN_ATTENTE'
+     OR (SELECT status FROM school_post WHERE id = cpe_post) <> 'EN_ATTENTE' THEN
+    RAISE EXCEPTION 'T56: statut à la création';
+  END IF;
   INSERT INTO school_post_photo (post_id, file_key, position) SELECT prof_post, 'photos/' || n, n FROM generate_series(1, 6) n;
   BEGIN
     INSERT INTO school_post_photo (post_id, file_key, position) VALUES (prof_post, 'photos/7', 7);
@@ -1338,21 +1342,21 @@ DO $$ DECLARE site uuid := (SELECT id FROM site WHERE code = 'TMV'); staff_post 
   EXCEPTION WHEN check_violation THEN NULL;
   END;
   BEGIN
-    UPDATE school_post SET status = 'PUBLIE', moderated_by = '00000000-0000-0000-0000-000000000008', image_rights_checked = true WHERE id = prof_post; -- secrétariat
-    RAISE EXCEPTION 'T56: validé par le secrétariat';
+    UPDATE school_post SET status = 'PUBLIEE', moderated_by = '00000000-0000-0000-0000-00000000000c', image_rights_checked = true WHERE id = prof_post; -- CPE
+    RAISE EXCEPTION 'T56: validé par la CPE';
   EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T56:%' THEN RAISE; END IF;
   END;
   BEGIN
-    UPDATE school_post SET status = 'PUBLIE', moderated_by = '00000000-0000-0000-0000-00000000000c' WHERE id = prof_post;
+    UPDATE school_post SET status = 'PUBLIEE', moderated_by = '00000000-0000-0000-0000-000000000001' WHERE id = prof_post;
     RAISE EXCEPTION 'T56: publié sans vérifier le droit à l''image';
   EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T56:%' THEN RAISE; END IF;
   END;
   BEGIN
-    UPDATE school_post SET status = 'REFUSE', moderated_by = '00000000-0000-0000-0000-00000000000c' WHERE id = prof_post;
-    RAISE EXCEPTION 'T56: refus sans motif';
+    UPDATE school_post SET status = 'A_REVOIR', moderated_by = '00000000-0000-0000-0000-000000000001' WHERE id = prof_post;
+    RAISE EXCEPTION 'T56: renvoi sans remarque';
   EXCEPTION WHEN check_violation THEN NULL;
   END;
-  UPDATE school_post SET status = 'PUBLIE', moderated_by = '00000000-0000-0000-0000-00000000000c', image_rights_checked = true WHERE id = prof_post;
+  UPDATE school_post SET status = 'PUBLIEE', moderated_by = '00000000-0000-0000-0000-000000000001', image_rights_checked = true WHERE id = prof_post;
   IF (SELECT moderated_at FROM school_post WHERE id = prof_post) IS NULL THEN RAISE EXCEPTION 'T56: date de validation'; END IF;
   -- droit à l'image : l'élève de Tle STMG sans fiche signée est signalé
   IF NOT EXISTS (SELECT 1 FROM students_without_image_rights('10000000-0000-0000-0000-000000000001')) THEN RAISE EXCEPTION 'T56: élèves sans autorisation non signalés'; END IF;
@@ -1376,5 +1380,57 @@ DO $$ DECLARE site uuid := (SELECT id FROM site WHERE code = 'TMV'); staff_post 
   END;
 END $$;
 
+-- T57. Annonces : jamais par un professeur ; le secrétariat envoie, la Direction corrige et publie ---------
+DO $$ DECLARE a uuid; d uuid; sig text; BEGIN
+  BEGIN
+    INSERT INTO announcement (title, body_md, author_id) VALUES ('Sortie', 'Jeudi', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T57: annonce rédigée par un professeur';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T57:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    INSERT INTO announcement (title, body_md, author_id, status) VALUES ('Fermeture', 'Vendredi', '00000000-0000-0000-0000-000000000008', 'PUBLIEE');
+    RAISE EXCEPTION 'T57: publiée directement par le secrétariat';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T57:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO announcement (title, body_md, author_id, is_pinned) VALUES ('Fermeture', 'Vendredi', '00000000-0000-0000-0000-000000000008', true) RETURNING id INTO a;
+  IF (SELECT (status, is_pinned, author_service) FROM announcement WHERE id = a) <> ('BROUILLON'::publication_status, false, 'Secrétariat'::text) THEN RAISE EXCEPTION 'T57: brouillon du secrétariat'; END IF;
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-000000000008', true);
+  UPDATE announcement SET status = 'EN_ATTENTE' WHERE id = a;
+  BEGIN
+    UPDATE announcement SET body_md = 'Vendredi 12h' WHERE id = a;
+    RAISE EXCEPTION 'T57: modifiée après envoi';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T57:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    UPDATE announcement SET status = 'PUBLIEE' WHERE id = a;
+    RAISE EXCEPTION 'T57: publiée par le secrétariat';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T57:%' THEN RAISE; END IF;
+  END;
+  IF EXISTS (SELECT 1 FROM v_public_announcement WHERE id = a) THEN RAISE EXCEPTION 'T57: visible avant validation'; END IF;
+  -- la Direction renvoie, le secrétariat corrige et renvoie, la Direction corrige et publie
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-000000000001', true);
+  BEGIN
+    UPDATE announcement SET status = 'A_REVOIR' WHERE id = a;
+    RAISE EXCEPTION 'T57: renvoi sans remarque';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE announcement SET status = 'A_REVOIR', review_note = 'Préciser l''heure' WHERE id = a;
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-000000000008', true);
+  UPDATE announcement SET body_md = 'Vendredi, fermeture à 12h', status = 'EN_ATTENTE' WHERE id = a;
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-000000000001', true);
+  UPDATE announcement SET title = 'Fermeture exceptionnelle vendredi à midi', is_pinned = true WHERE id = a;
+  UPDATE announcement SET status = 'PUBLIEE' WHERE id = a;
+  SELECT signature INTO sig FROM v_public_announcement WHERE id = a;
+  IF sig IS DISTINCT FROM 'Secrétariat · validée par la Direction' THEN RAISE EXCEPTION 'T57: signature (%)', sig; END IF;
+  IF NOT (SELECT edited_by_direction AND validated_by = '00000000-0000-0000-0000-000000000001' FROM announcement WHERE id = a) THEN RAISE EXCEPTION 'T57: trace de validation'; END IF;
+  IF (SELECT string_agg(action, ',' ORDER BY id) FROM publication_event WHERE entity_id = a) <> 'CREEE,ENVOYEE,RENVOYEE,ENVOYEE,CORRIGEE,PUBLIEE' THEN
+    RAISE EXCEPTION 'T57: historique (%)', (SELECT string_agg(action, ',' ORDER BY id) FROM publication_event WHERE entity_id = a);
+  END IF;
+  -- la Direction publie directement, sous son nom de service
+  INSERT INTO announcement (title, body_md, author_id, status) VALUES ('Portes ouvertes', 'Samedi', '00000000-0000-0000-0000-000000000001', 'PUBLIEE') RETURNING id INTO d;
+  IF (SELECT signature FROM v_public_announcement WHERE id = d) <> 'Direction' THEN RAISE EXCEPTION 'T57: signature Direction'; END IF;
+  PERFORM set_config('app.user_id', '', true);
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T56 passent'
+\echo 'OK — tous les scénarios T1 à T57 passent'
