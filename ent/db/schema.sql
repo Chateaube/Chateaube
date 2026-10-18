@@ -2043,3 +2043,53 @@ CREATE TABLE document_acceptance (
   PRIMARY KEY (user_id, resource_id, version_at),
   CHECK (opened_at <= accepted_at)
 );
+
+-- Notifications à trois niveaux : URGENT (élève malade, sortie… ; reste affiché jusqu'à « J'ai vu »),
+-- A_FAIRE (décision, validation), INFO (annonce, publication). Le rouge est réservé à l'urgent.
+ALTER TABLE direct_notification
+  ADD COLUMN level text NOT NULL DEFAULT 'INFO' CHECK (level IN ('URGENT', 'A_FAIRE', 'INFO')),
+  ADD COLUMN acknowledged_at timestamptz;
+
+-- Réglages du site : ambiance saisonnière et liens vers les réseaux de l'école.
+CREATE TABLE season (
+  code          text PRIMARY KEY,                     -- OCTOBRE_ROSE, HALLOWEEN, NOEL…
+  label         text NOT NULL,
+  from_md       char(5) NOT NULL CHECK (from_md ~ '^[01][0-9]-[0-3][0-9]$'),   -- MM-JJ
+  to_md         char(5) NOT NULL CHECK (to_md ~ '^[01][0-9]-[0-3][0-9]$'),
+  accent        text NOT NULL,                        -- couleur d'accent (#rrggbb)
+  garland       text NOT NULL                         -- émojis de la guirlande
+);
+CREATE TABLE site_setting (
+  site_id       uuid PRIMARY KEY REFERENCES site(id),
+  seasonal_mode text NOT NULL DEFAULT 'AUTO',         -- AUTO, OFF ou le code d'une ambiance imposée
+  facebook_url  text CHECK (facebook_url IS NULL OR facebook_url ~ '^https://'),
+  instagram_url text CHECK (instagram_url IS NULL OR instagram_url ~ '^https://'),
+  instagram_label text,
+  CHECK (seasonal_mode IN ('AUTO', 'OFF') OR seasonal_mode IS NOT NULL)
+);
+
+-- Vie de l'école : albums de photos. L'équipe (Direction, secrétariat, CPE) publie ; élèves et professeurs
+-- proposent, la Direction ou la CPE valide après avoir vérifié le droit à l'image.
+CREATE TABLE school_post (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id       uuid NOT NULL REFERENCES site(id),
+  parent_id     uuid REFERENCES school_post(id),      -- photos ajoutées à un album existant
+  title         text NOT NULL CHECK (length(trim(title)) > 0),
+  body          text,
+  class_id      uuid REFERENCES school_class(id),     -- classe de l'auteur (élève) : rappel du droit à l'image
+  author_id     uuid NOT NULL REFERENCES app_user(id),
+  status        text NOT NULL DEFAULT 'EN_ATTENTE' CHECK (status IN ('EN_ATTENTE', 'PUBLIE', 'REFUSE')),
+  image_rights_checked boolean NOT NULL DEFAULT false,
+  moderated_by  uuid REFERENCES app_user(id),
+  moderated_at  timestamptz,
+  refusal_reason text,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  CHECK (status <> 'REFUSE' OR length(trim(coalesce(refusal_reason, ''))) > 0)
+);
+CREATE TABLE school_post_photo (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  post_id       uuid NOT NULL REFERENCES school_post(id) ON DELETE CASCADE,
+  file_key      text NOT NULL,
+  position      smallint NOT NULL CHECK (position BETWEEN 1 AND 6),   -- 6 photos au plus
+  UNIQUE (post_id, position)
+);

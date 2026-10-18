@@ -6,9 +6,6 @@ import {
 import { dunningStages, splitExamFee, formatAr } from '../rules/finance.js';
 import { dunningSchedule, stageOn, formatDateFr, monthOf, monthName } from '../rules/calendar.js';
 
-const SCHOOL_MONTHS = [
-  [9, 'S'], [10, 'O'], [11, 'N'], [12, 'D'], [1, 'J'], [2, 'F'], [3, 'M'], [4, 'A'], [5, 'M'], [6, 'J'],
-];
 const STAGE_UI = {
   DANS_LES_DELAIS: { tone: 'slate', label: 'Dans les délais' },
   RELANCE: { tone: 'navy', label: 'Relance' },
@@ -30,55 +27,11 @@ function nextStep(stage, sch) {
 const pct = (a, b) => (b ? (a / b) * 100 : 0);
 const fmtPct = (v) => `${v.toFixed(1).replace('.', ',')} %`;
 
-function SiteSwitch({ value, onChange }) {
-  const options = [{ id: 'ALL', label: 'Tous les sites' }, ...SITES.map((s) => ({ id: s.id, label: s.short }))];
-  return (
-    <div className="inline-flex rounded-lg bg-slate-100 p-1" role="tablist" aria-label="Filtrer par site">
-      {options.map((o) => (
-        <button
-          key={o.id}
-          role="tab"
-          aria-selected={value === o.id}
-          onClick={() => onChange(o.id)}
-          className={`rounded-md px-3 py-1 text-sm font-medium transition ${value === o.id ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
+import { notificationsFor } from '../notify.js';
 
-function DunningCalendar({ settings, today }) {
-  const current = monthOf(today);
-  return (
-    <div className="flex gap-1" aria-label="Mois actifs du cycle de relance">
-      {SCHOOL_MONTHS.map(([m, l], i) => {
-        const active = settings.dunning.activeMonths.includes(m);
-        const skipped = active ? null : `${monthName(m)} : décompte des relances gelé`;
-        return (
-          <div
-            key={i}
-            title={skipped ?? (active ? 'Mois de relance actif' : 'Hors cycle de relance')}
-            className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold
-              ${skipped ? 'hatched text-amber-800 ring-1 ring-amber-300' : active ? 'bg-navy-500 text-white' : 'bg-slate-100 text-slate-400'}
-              ${m === current ? 'outline-2 outline-offset-2 outline-navy-900' : ''}`}
-          >
-            {l}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-import { pendingSignatures } from '../signatureStore.js';
-import { pendingCount } from '../requestsStore.js';
-
-export default function DirectionDashboard({ account, settings, go }) {
-  const toSign = pendingSignatures().filter((r) => r.signatory === (account?.id === 'u2' ? 'ADJOINTE' : 'CHEFFE')).length;
-  const familyRequests = pendingCount();
-  const [site, setSite] = useState('TMV');
+export default function DirectionDashboard({ account, settings, go, site: headerSite = 'TMV' }) {
+  const site = headerSite; // un seul sélecteur de site : celui de la barre du haut
+  const decisionsToTake = notificationsFor('DIRECTION', { account }).todo;
   const [refDate, setRefDate] = useState(TODAY);
   const [decisions, setDecisions] = useState({}); // id → 'VALIDEE' | 'DELAI'
   const [notified, setNotified] = useState({});
@@ -124,60 +77,40 @@ export default function DirectionDashboard({ account, settings, go }) {
 
   return (
     <div className="space-y-5">
-      {toSign > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-amber-50 p-4">
-          <p className="text-sm text-amber-900"><strong>{toSign} document{toSign > 1 ? 's' : ''} à signer</strong> — demandé{toSign > 1 ? 's' : ''} par le secrétariat ou la vie scolaire.</p>
-          <button onClick={() => go?.('signatures')} className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white">Voir et signer</button>
-        </div>
-      )}
-      {familyRequests > 0 && <p className="rounded-2xl bg-navy-50 p-3 text-sm text-navy-900">{familyRequests} démarche{familyRequests > 1 ? 's' : ''} en ligne des familles en attente du secrétariat (Inscriptions).</p>}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-navy-500">Année scolaire 2026-2027</p>
-          <h1 className="text-2xl font-semibold text-navy-900">Tableau de bord Direction</h1>
-          <p className="text-sm text-slate-500">Connectée en tant que {account.name} · droits d'administration complets</p>
-        </div>
-        <SiteSwitch value={site} onChange={setSite} />
+      <div>
+        <p className="text-sm font-semibold text-navy-500">Année scolaire 2026-2027 · {site === 'TMV' ? 'Tamatave' : 'Tana'}</p>
+        <h1 className="text-2xl font-semibold text-navy-900">Bonjour {account.name.replace(/ \(.*\)$/, '')}</h1>
+        <p className="text-sm text-slate-600">{decisionsToTake.length ? `${decisionsToTake.length} décision${decisionsToTake.length > 1 ? 's' : ''} vous attend${decisionsToTake.length > 1 ? 'ent' : ''}.` : 'Aucune décision en attente.'}</p>
       </div>
 
-      {/* Bandeau : mois gelé (octobre) */}
-      <div className={`flex flex-col gap-3 rounded-2xl p-5 sm:flex-row sm:items-center sm:justify-between ${frozen ? 'border border-amber-200 bg-amber-50' : 'border border-navy-100 bg-navy-50'}`}>
-        <div className="flex gap-3">
-          <Icon name="clock" className={`mt-0.5 h-5 w-5 shrink-0 ${frozen ? 'text-amber-700' : 'text-navy-500'}`} />
-          {frozen ? (
-            <div>
-              <p className="text-sm font-semibold text-amber-900">{monthName(monthOf(refDate)).replace(/^./, (c) => c.toUpperCase())} : relances de frais de scolarité suspendues</p>
-              <p className="text-sm text-amber-800">
-                Mois d'encaissement des droits d'examen : le décompte des délais est gelé et reprend au premier jour de classe du mois suivant.
-              </p>
-            </div>
-          ) : (
-            <div>
-              <p className="text-sm font-semibold text-navy-900">Relances de frais de scolarité actives</p>
-              <p className="text-sm text-navy-700">
-                Échéance le {settings.tuition.dueDay} du mois · délais en jours de classe, hors jours fériés et vacances.
-              </p>
-            </div>
-          )}
-        </div>
-        <DunningCalendar settings={settings} today={refDate} />
-      </div>
+      <Card title="Vos décisions" subtitle="Ce qui attend la Direction, du plus urgent au moins urgent">
+        {decisionsToTake.length === 0 ? <p className="text-sm text-slate-600">Rien à décider pour l'instant ✓</p> : (
+          <ul className="divide-y divide-slate-100">
+            {decisionsToTake.map((d, k) => (
+              <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+                <span className="flex items-center gap-3 text-sm text-slate-800"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-navy-50 text-xs font-bold text-navy-700">{k + 1}</span>{d.text}</span>
+                <span className="flex items-center gap-2"><Button onClick={() => go?.(d.to)}>{d.action}</Button></span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
 
+      <h2 className="pt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">L'école en un coup d'œil</h2>
       {/* Indicateurs */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Élèves inscrits" value={kpi.students} hint={site === 'ALL' ? 'Tana + Tamatave' : SITES.find((s) => s.id === site).name} />
+        <Stat label="Élèves inscrits" value={kpi.students} hint={SITES.find((s) => s.id === site)?.name ?? ''} />
         <Stat
           label="Recouvrement des frais de scolarité (cumul)"
           value={fmtPct(pct(kpi.paid, kpi.due))}
           hint={`${formatAr(kpi.paid)} / ${formatAr(kpi.due)}`}
-          tone={pct(kpi.paid, kpi.due) >= 90 ? 'green' : 'amber'}
+          tone={pct(kpi.paid, kpi.due) >= 90 ? 'green' : 'slate'}
         />
-        <Stat label="Impayés en recouvrement" value={formatAr(overdueTotal)} hint={`${visibleCases.length} dossiers ouverts`} tone="red" />
+        <Stat label="Impayés en recouvrement" value={formatAr(overdueTotal)} hint={`${visibleCases.length} dossiers ouverts`} />
         <Stat
-          label="Dossiers candidats libres"
-          value={`${CANDIDATE_FILES.complete} / ${CANDIDATE_FILES.total}`}
+          label="Dossiers d'examen complets"
+          value={`${CANDIDATE_FILES.complete} sur ${CANDIDATE_FILES.total}`}
           hint="Dépôt avant le 30 octobre"
-          tone="amber"
         />
       </div>
 
@@ -186,7 +119,7 @@ export default function DirectionDashboard({ account, settings, go }) {
         <Card
           className="2xl:col-span-2"
           title="Alertes de frais de scolarité"
-          subtitle={`Échéance le ${settings.tuition.dueDay} → relance → avertissement → mise à pied${settings.dunning.suspensionRequiresDirection ? ' (validée par la Direction)' : ''}`}
+          subtitle={frozen ? `Relances en pause en ${monthName(monthOf(refDate))} — reprise au premier jour de classe du mois suivant` : `Échéance le ${settings.tuition.dueDay} → relance → avertissement → mise à pied${settings.dunning.suspensionRequiresDirection ? ' (validée par la Direction)' : ''}`}
           action={
             <label className="flex items-center gap-2 text-xs text-slate-500">
               Date de référence
@@ -249,7 +182,7 @@ export default function DirectionDashboard({ account, settings, go }) {
                         </div>
                       ) : (
                         <Button variant="ghost" onClick={() => act(c.id, null, `Message envoyé à ${c.guardian}.`)}>
-                          <Icon name="bell" /> Notifier
+                          <Icon name="bell" /> Envoyer la relance
                         </Button>
                       )}
                     </td>

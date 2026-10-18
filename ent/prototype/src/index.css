@@ -36,6 +36,10 @@
 
   --color-paper: #f4f7fb;
 
+  /* Lisibilité : gris de texte assombris (contraste AA sur fond blanc) */
+  --color-slate-400: #64748b;
+  --color-slate-500: #475569;
+
   --font-sans: var(--theme-sans, "Quicksand", "Segoe UI", system-ui, sans-serif);
   --font-display: var(--theme-display, "Poppins", "Segoe UI", system-ui, sans-serif);
 

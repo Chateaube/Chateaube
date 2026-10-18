@@ -1156,3 +1156,45 @@ CREATE TRIGGER detention_check BEFORE INSERT OR UPDATE ON detention FOR EACH ROW
 CREATE FUNCTION colles_due_for_lates(enr uuid) RETURNS integer AS $$
   SELECT (lates / 3)::int - colles_for_lates::int FROM v_passport WHERE enrollment_id = enr
 $$ LANGUAGE sql STABLE;
+
+-- Publication : publiée d'emblée par l'équipe ; sinon en attente. La validation revient à la Direction ou
+-- à la CPE, droit à l'image vérifié.
+CREATE FUNCTION school_post_guard() RETURNS trigger AS $$
+DECLARE staff boolean := EXISTS (SELECT 1 FROM user_role WHERE user_id = NEW.author_id AND role IN ('DIRECTION', 'BUREAU', 'VIE_SCOLAIRE')); BEGIN
+  IF TG_OP = 'INSERT' THEN
+    NEW.status := CASE WHEN staff THEN 'PUBLIE' ELSE 'EN_ATTENTE' END;
+    RETURN NEW;
+  END IF;
+  IF NEW.status <> OLD.status AND NOT (staff AND NEW.moderated_by IS NULL) THEN
+    IF NEW.moderated_by IS NULL OR NOT EXISTS (SELECT 1 FROM user_role WHERE user_id = NEW.moderated_by AND role IN ('DIRECTION', 'VIE_SCOLAIRE')) THEN
+      RAISE EXCEPTION 'La validation revient à la Direction ou à la CPE';
+    END IF;
+    IF NEW.status = 'PUBLIE' AND NOT NEW.image_rights_checked THEN
+      RAISE EXCEPTION 'Vérifier le droit à l''image avant de publier';
+    END IF;
+    NEW.moderated_at := now();
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER school_post_check BEFORE INSERT OR UPDATE ON school_post FOR EACH ROW EXECUTE FUNCTION school_post_guard();
+
+-- Élèves d'une classe sans autorisation de droit à l'image (fiche signalétique de l'année).
+CREATE FUNCTION students_without_image_rights(cls uuid) RETURNS TABLE (student_id uuid, name text) AS $$
+  SELECT s.id, s.last_name || ' ' || s.first_name
+  FROM enrollment e JOIN student s ON s.id = e.student_id LEFT JOIN student_record_form f ON f.enrollment_id = e.id
+  WHERE e.class_id = cls AND e.left_on IS NULL AND NOT coalesce(f.auth_image, false)
+$$ LANGUAGE sql STABLE;
+
+-- Ambiance du jour : imposée, désactivée, ou la période la plus courte qui contient la date.
+CREATE FUNCTION active_season(site uuid, d date) RETURNS text AS $$
+  SELECT CASE coalesce((SELECT seasonal_mode FROM site_setting WHERE site_id = site), 'AUTO')
+    WHEN 'OFF' THEN NULL
+    WHEN 'AUTO' THEN (
+      SELECT code FROM season
+      WHERE CASE WHEN from_md <= to_md THEN to_char(d, 'MM-DD') BETWEEN from_md AND to_md
+                 ELSE to_char(d, 'MM-DD') >= from_md OR to_char(d, 'MM-DD') <= to_md END
+      ORDER BY CASE WHEN from_md <= to_md THEN to_date(to_md, 'MM-DD') - to_date(from_md, 'MM-DD')
+                    ELSE 365 - (to_date(from_md, 'MM-DD') - to_date(to_md, 'MM-DD')) END
+      LIMIT 1)
+    ELSE (SELECT seasonal_mode FROM site_setting WHERE site_id = site) END
+$$ LANGUAGE sql STABLE;

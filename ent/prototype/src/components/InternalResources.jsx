@@ -16,7 +16,7 @@ const KEY = 'ent-ressources-v3'; // v2 : un ou plusieurs publics (élèves, pare
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) ?? RESOURCES; } catch { return RESOURCES; } };
 const save = (l) => { try { localStorage.setItem(KEY, JSON.stringify(l)); return true; } catch { return false; } };
 const SKEY = 'ent-suggestions-v1';
-const loadS = () => { try { return JSON.parse(localStorage.getItem(SKEY)) ?? SUGGESTIONS; } catch { return SUGGESTIONS; } };
+export const loadSuggestions = () => { try { return JSON.parse(localStorage.getItem(SKEY)) ?? SUGGESTIONS; } catch { return SUGGESTIONS; } };
 const saveS = (l) => { try { localStorage.setItem(SKEY, JSON.stringify(l)); } catch { /* stockage indisponible */ } };
 const fmt = (iso) => iso.split('-').reverse().join('/');
 const WHO = { DIRECTION: 'Direction', BUREAU: 'Secrétariat', VIE_SCOLAIRE: 'CPE', ENSEIGNANT: 'Mme Ranaivo' };
@@ -129,7 +129,7 @@ export default function InternalResources({ role }) {
 
 /** Boîte à idées : professeurs et personnel proposent ; la Direction répond. */
 function IdeaBox({ role, viewer }) {
-  const [list, setList] = useState(loadS);
+  const [list, setList] = useState(loadSuggestions);
   const [d, setD] = useState({ category: 'METHODOLOGIE', text: '', anonymous: false });
   const [tried, setTried] = useState(false);
   const [reply, setReply] = useState({});

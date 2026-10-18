@@ -156,7 +156,7 @@ function EntryTab({ data, setData, role }) {
             const proposed = suggestedCoef(EVALUATIONS[service?.id] ?? []);
             return (
               <div key={p.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-navy-50 p-3 text-sm text-navy-900">
-                <span className="font-medium">{p.label} : compter dans mon carnet de notes (bulletin)</span>
+                <span className="font-medium">{p.label} : compter cette note dans le bulletin</span>
                 <label className="flex items-center gap-1.5"><input type="checkbox" checked={!!c} onChange={(e) => patch((x) => ({ ...x, counts: { ...(x.counts ?? {}), [p.id]: e.target.checked ? { coef: proposed } : undefined } }))} />oui</label>
                 {c && <label className="flex items-center gap-1.5">coefficient<input inputMode="numeric" value={c.coef} onChange={(e) => patch((x) => ({ ...x, counts: { ...x.counts, [p.id]: { coef: Number(e.target.value.replace(/\D/g, '')) || 1 } } }))} className="w-12 rounded border border-slate-300 px-1 py-0.5 text-center" /></label>}
                 <span className="text-xs text-navy-700">Proposé : {proposed}, au-dessus de vos autres évaluations.</span>

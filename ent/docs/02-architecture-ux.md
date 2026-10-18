@@ -476,3 +476,41 @@ d'explication.
   officielles de 1re, paiements, manuels, prêts, inventaire), listes déroulantes, ligne « Exemple » ignorée.
   L'import lit le classeur dans le navigateur ; élèves, responsables, professeurs, notes officielles de 1re et
   inventaire sont repris dès maintenant, le reste le sera par la version en ligne.
+
+## Refonte de l'ergonomie (audit UX d'octobre)
+
+- **Menu latéral toujours visible** (tiroir sur téléphone) à la place des menus déroulants cachés, rangé par
+  tâches : Aujourd'hui, Élèves, Pédagogie, Vie scolaire, Finances, Communication, Équipe et matériel, Réglages
+  (Direction) ; Aujourd'hui, Caisse, Vie scolaire, Notes et bulletins, Élèves, Communication, Matériel et
+  bibliothèque (secrétariat) ; Aujourd'hui, Élèves, Communication, Ressources (CPE) ; Ma journée, Mon
+  organisation, Communication, Ressources (enseignant). Une fonction partagée garde le même nom et la même place
+  pour tous ; les écrans en lecture seule portent « consultation ». Nombre de tâches en orange à côté des
+  rubriques.
+- **Un seul sélecteur de site** dans la barre du haut. « Signaler un problème ou une idée » passe dans le menu
+  du compte (plus de bouton flottant qui cache les tableaux). Gris de texte assombris (contraste AA). Textes
+  internes retirés (règles techniques, mentions d'accès).
+- **Accueils centrés sur les tâches** : Direction « Vos décisions » (numérotées, une action chacune) puis
+  « L'école en un coup d'œil » ; secrétariat « À traiter aujourd'hui », « Caisse du jour », bouton « Nouvel
+  encaissement » et **« ＋ Action rapide »** permanent (encaisser, absence, passage soins, certificat) ; CPE :
+  filtres avec compteur (parents non prévenus, à justifier), « Prévenir les N parents » en un clic, bouton
+  « Justifier » au lieu d'une liste par ligne ; enseignant : « Ma journée », cours en cours mis en avant avec
+  « Faire l'appel ».
+- **Notifications à trois niveaux** : URGENT (élève au secrétariat, malaise… ; bandeau rouge jusqu'à « J'ai vu »),
+  À FAIRE (orange, avec un nombre), INFORMATIONS. Le rouge est réservé à l'urgent. Chez les parents : bandeau
+  urgent en tête de l'accueil, pastille par enfant (rouge si urgent, orange sinon).
+- **Micro-copie** : « Bien reçu », « J'ai pris connaissance », « Prévenir les parents », « Envoyer la relance »,
+  « Enregistrer et prévenir les parents », « Réinscrire Aina pour 2027-2028 », « Soins et infirmerie »,
+  « Passeport de vie scolaire », « Dossiers d'examen complets : 141 sur 188 ». La mention « (ne concerne pas
+  votre enfant) » est gardée, comme demandé.
+
+## Ambiances saisonnières, réseaux de l'école, Vie de l'école
+
+- **Ambiances** (Paramètres) : Rentrée, Octobre rose, Halloween, Noël, Nouvel an, 8 mars, Fête de
+  l'Indépendance, Grandes vacances ; automatiques selon les dates (la plus courte l'emporte), désactivables ou
+  imposées. Une touche de couleur dans la barre du haut et une guirlande discrète, sans toucher à la lisibilité.
+- **Réseaux** : liens vers la page Facebook de l'école et l'Instagram de l'association des élèves, saisis dans
+  les Paramètres ; affichés dans « Vie de l'école » et sur l'accueil des familles.
+- **Vie de l'école** : albums de photos (Octobre rose, sorties, fêtes) visibles par tous. L'équipe publie ;
+  élèves et professeurs proposent (6 photos au plus), la Direction ou la CPE valide après avoir coché le droit
+  à l'image (les élèves de la classe sans autorisation sont rappelés) ou refuse avec un motif visible par
+  l'auteur. Aperçu du dernier album sur l'accueil des familles.

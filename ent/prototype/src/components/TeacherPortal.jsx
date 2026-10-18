@@ -3,7 +3,7 @@ import { Badge, Button, Card, Icon } from './ui.jsx';
 import { TEACHER, CLASS_LIST } from '../data/people.js';
 
 const h = (t) => t.replace(':', 'h');
-const APPEL_UI = { FAIT: ['green', 'Appel fait'], A_FAIRE: ['red', 'Appel à faire'], A_VENIR: ['slate', 'À venir'] };
+const APPEL_UI = { FAIT: ['green', 'Appel fait'], A_FAIRE: ['amber', 'Appel à faire'], A_VENIR: ['slate', 'À venir'] };
 const MARKS = [['P', 'Présent.e', 'bg-emerald-600'], ['R', 'Retard', 'bg-amber-500'], ['A', 'Absent.e', 'bg-red-600']];
 
 /** Appel d'une séance ; retards et absences peuvent être notifiés aux parents en un clic. */
@@ -46,15 +46,15 @@ export default function TeacherPortal({ go }) {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-semibold text-navy-500">Portail enseignant</p>
+        <p className="text-sm font-semibold text-navy-500">Ma journée</p>
         <h1 className="text-2xl font-semibold text-navy-900">Bonjour {TEACHER.name}</h1>
         <p className="text-sm text-slate-500">{TEACHER.subjects} · {TEACHER.site}</p>
       </div>
 
       {current && !open && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
-          <p className="text-sm text-red-900"><span className="font-semibold">Appel à faire :</span> {current.cls}, {h(current.start)}–{h(current.end)}, {current.room}</p>
-          <Button variant="danger" onClick={() => (go ? go('appel') : setOpen(current))}>Faire l'appel</Button>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-navy-900 p-5 text-white shadow-soft">
+          <div><p className="text-xs uppercase tracking-wide text-navy-200">Cours en cours</p><p className="font-display text-lg font-semibold">{current.cls} · {current.subject}</p><p className="text-sm text-navy-100">{h(current.start)}–{h(current.end)} · {current.room}</p></div>
+          <button type="button" onClick={() => (go ? go('appel') : setOpen(current))} className="rounded-xl bg-white px-5 py-3 text-base font-semibold text-navy-900 shadow hover:bg-navy-50">Faire l'appel</button>
         </div>
       )}
       {toast && <p role="status" className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800"><Icon name="check" />{toast}</p>}

@@ -1,3 +1,4 @@
+import { SEASONS } from '../rules/seasons.js';
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, Icon } from './ui.jsx';
 import { CLASS_SUBJECTS } from '../data/grades.js';
@@ -201,6 +202,36 @@ export default function SettingsModule({ settings, onChange, onReset }) {
 
       <div className="grid gap-5 xl:grid-cols-[1fr_360px] xl:items-start">
         <div className="min-w-0 space-y-5">
+          {/* Ambiance saisonnière et réseaux de l'école */}
+          <Card title="Ambiance saisonnière et réseaux de l'école" subtitle="Une touche de couleur selon la période (Octobre rose, Halloween, Noël…) et les liens montrés aux familles">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="block text-xs font-medium text-slate-600">Ambiance
+                  <select value={settings.seasonal?.mode ?? 'AUTO'} onChange={(e) => onChange({ ...settings, seasonal: { mode: e.target.value } })} className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
+                    <option value="AUTO">Automatique, selon les dates</option>
+                    <option value="OFF">Désactivée</option>
+                    {SEASONS.map((x) => <option key={x.id} value={x.id}>Toujours : {x.label}</option>)}
+                  </select>
+                </label>
+                <ul className="mt-2 space-y-0.5 text-xs text-slate-600">
+                  {SEASONS.map((x) => <li key={x.id}>{x.garland.split(' ')[0]} {x.label} : du {x.from.split('-').reverse().join('/')} au {x.to.split('-').reverse().join('/')}</li>)}
+                </ul>
+              </div>
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-slate-600">Page Facebook de l'école
+                  <input type="url" value={settings.social?.facebook ?? ''} onChange={(e) => onChange({ ...settings, social: { ...settings.social, facebook: e.target.value.trim() } })} placeholder="https://www.facebook.com/…" className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
+                </label>
+                <label className="block text-xs font-medium text-slate-600">Instagram
+                  <input type="url" value={settings.social?.instagram ?? ''} onChange={(e) => onChange({ ...settings, social: { ...settings.social, instagram: e.target.value.trim() } })} placeholder="https://www.instagram.com/…" className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
+                </label>
+                <label className="block text-xs font-medium text-slate-600">Nom affiché pour l'Instagram
+                  <input value={settings.social?.instagramLabel ?? ''} onChange={(e) => onChange({ ...settings, social: { ...settings.social, instagramLabel: e.target.value } })} className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
+                </label>
+                <p className="text-xs text-slate-600">Les liens apparaissent dans « Vie de l'école » et sur l'accueil des familles ; vides, rien ne s'affiche.</p>
+              </div>
+            </div>
+          </Card>
+
           {/* Frais de scolarité */}
           <Card title="Échéancier de frais de scolarité" subtitle="Année 2026-2027 · Tamatave">
             <NumberField label="Jour d'échéance mensuelle" value={settings.tuition.dueDay} min={1} max={28} suffix="du mois"

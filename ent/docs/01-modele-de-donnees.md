@@ -389,3 +389,8 @@ recoder.
   tranche de trois retards). Scénario **T54**.
 - **`internal_resource.must_accept`** et **`document_acceptance`** (document ouvert puis accepté, par version ;
   une nouvelle version est redemandée). Scénario **T55**.
+- **`direct_notification.level`** (`URGENT`, `A_FAIRE`, `INFO`) et `acknowledged_at` ; **`season`** et
+  **`site_setting`** (ambiance automatique, désactivée ou imposée ; liens Facebook et Instagram en https), fonction
+  **`active_season`** ; **`school_post`** et **`school_post_photo`** (Vie de l'école : publication directe par
+  l'équipe, sinon en attente ; validation par la Direction ou la CPE avec droit à l'image vérifié ; refus motivé ;
+  6 photos au plus), fonction **`students_without_image_rights`**. Scénario **T56**.

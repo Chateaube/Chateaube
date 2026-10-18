@@ -38,41 +38,52 @@ export function ClassStudentPicker({ value, onChange }) {
 
 const Ack = ({ at }) => (at
   ? <span className="inline-flex items-center gap-1 text-xs text-emerald-700"><Icon name="check" className="h-3.5 w-3.5" />Parent informé · {fmtDT(at)}</span>
-  : <span className="text-xs text-amber-700">En attente de « Je suis informé.e »</span>);
+  : <span className="text-xs text-amber-700">En attente de « J'ai pris connaissance »</span>);
 
 /* ---------- Absences & retards ---------- */
 function AttendanceTab({ rows, setRows, toast }) {
-  const update = (id, patch, msg) => { setRows(rows.map((r) => (r.id === id ? { ...r, ...patch } : r))); toast(msg); };
+  const [filter, setFilter] = useState('ALL');
+  const [justifying, setJustifying] = useState(null);
+  const update = (ids, patch, msg) => { setRows(rows.map((r) => (ids.includes(r.id) ? { ...r, ...patch } : r))); toast(msg); };
+  const notInformed = rows.filter((r) => !r.notified);
+  const toJustify = rows.filter((r) => !r.justified);
+  const FILTERS = [['ALL', 'Tout', rows.length], ['PARENTS', 'Parents non prévenus', notInformed.length], ['JUSTIFY', 'À justifier', toJustify.length]];
+  const shown = filter === 'PARENTS' ? notInformed : filter === 'JUSTIFY' ? toJustify : rows;
   return (
-    <Card title="Absences et retards" subtitle="Issus de l'appel des enseignants en temps réel">
+    <Card title="Absences et retards" subtitle="Issus de l'appel des enseignants en temps réel"
+      action={notInformed.length > 0 && <Button onClick={() => update(notInformed.map((r) => r.id), { notified: true }, `${notInformed.length} famille${notInformed.length > 1 ? 's' : ''} prévenue${notInformed.length > 1 ? 's' : ''} (e-mail + application).`)}><Icon name="bell" />Prévenir les {notInformed.length} parent{notInformed.length > 1 ? 's' : ''}</Button>}>
+      <div className="mb-3 flex flex-wrap gap-2">
+        {FILTERS.map(([k, l, n]) => (
+          <button key={k} type="button" aria-pressed={filter === k} onClick={() => setFilter(k)}
+            className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${filter === k ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-700 ring-slate-300'}`}>{l} <span className={`ml-1 rounded-full px-1.5 ${filter === k ? 'bg-white/20' : k !== 'ALL' && n ? 'bg-amber-100 text-amber-900' : 'bg-slate-100'}`}>{n}</span></button>
+        ))}
+      </div>
       <div className="-mx-5 overflow-x-auto">
-        <table className="w-full min-w-[900px] text-sm">
+        <table className="w-full min-w-[860px] text-sm">
           <thead>
             <tr className="border-y border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
               <th className="px-4 py-2 font-medium">Élève</th><th className="px-2 font-medium">Type</th><th className="px-2 font-medium">Date / créneau</th>
-              <th className="px-2 font-medium">Justificatif</th><th className="px-2 font-medium">Parent</th><th className="px-4 text-right font-medium">Action</th>
+              <th className="px-2 font-medium">Justificatif</th><th className="px-2 font-medium">Parents</th><th className="px-4 text-right font-medium">Action</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
+            {shown.map((r) => (
               <tr key={r.id} className="border-b border-slate-100">
                 <td className="px-4 py-2"><p className="font-medium text-slate-900">{r.student}</p><p className="text-xs text-slate-500">{classOf(r.student)} · appel de {r.by}</p></td>
-                <td className="px-2">{r.kind === 'ABSENCE' ? <Badge tone="red">Absence</Badge> : <Badge tone="amber">Retard</Badge>}</td>
+                <td className="px-2">{r.kind === 'ABSENCE' ? <Badge tone="navy">Absence</Badge> : <Badge tone="slate">Retard</Badge>}</td>
                 <td className="px-2 text-slate-600">{formatDateFr(r.date).replace(/ \d{4}$/, '')}<br /><span className="text-xs">{r.slot}</span></td>
                 <td className="px-2">
-                  {r.justified ? <Badge tone="green">{r.reason ?? 'Justifié'}</Badge> : (
-                    <select defaultValue="" onChange={(e) => e.target.value && update(r.id, { justified: true, reason: e.target.value }, `${r.kind === 'ABSENCE' ? 'Absence' : 'Retard'} de ${r.student} justifié.`)}
-                      className="rounded-md border border-slate-300 px-2 py-1 text-xs">
-                      <option value="">À justifier…</option>{REASONS.map((x) => <option key={x}>{x}</option>)}
-                    </select>
-                  )}
+                  {r.justified ? <Badge tone="green">{r.reason ?? 'Justifié'}</Badge> : justifying === r.id ? (
+                    <span className="flex flex-wrap gap-1">{REASONS.map((x) => <button key={x} type="button" onClick={() => { update([r.id], { justified: true, reason: x }, `${r.kind === 'ABSENCE' ? 'Absence' : 'Retard'} de ${r.student} justifié.`); setJustifying(null); }} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs hover:bg-navy-50">{x}</button>)}</span>
+                  ) : <button type="button" onClick={() => setJustifying(r.id)} className="text-xs font-medium text-navy-700 underline decoration-dotted">Justifier</button>}
                 </td>
-                <td className="px-2">{r.notified ? <Ack at={r.parentAck} /> : <span className="text-xs text-slate-500">Non prévenu</span>}</td>
+                <td className="px-2">{r.notified ? <Ack at={r.parentAck} /> : <span className="text-xs font-medium text-amber-800">Pas encore prévenus</span>}</td>
                 <td className="px-4 text-right">
-                  {!r.notified && <Button variant="ghost" onClick={() => update(r.id, { notified: true }, `Parent de ${r.student} prévenu (e-mail + application).`)}><Icon name="bell" />Prévenir</Button>}
+                  {!r.notified && <Button variant="secondary" onClick={() => update([r.id], { notified: true }, `Parents de ${r.student} prévenus (e-mail + application).`)}><Icon name="bell" />Prévenir les parents</Button>}
                 </td>
               </tr>
             ))}
+            {!shown.length && <tr><td colSpan={6} className="px-4 py-4 text-sm text-slate-600">Rien à traiter ✓</td></tr>}
           </tbody>
         </table>
       </div>
@@ -247,7 +258,7 @@ function PhonesTab({ phones, setPhones, settings, toast }) {
   );
 }
 
-const TABS = [['attendance', 'Absences & retards'], ['passport', 'Passeport (colles, TIG)'], ['measures', 'Punitions & sanctions'], ['phones', 'Téléphones'], ['leave', 'Sorties anticipées']];
+const TABS = [['attendance', 'Absences & retards'], ['passport', 'Passeport de vie scolaire'], ['measures', 'Punitions & sanctions'], ['phones', 'Téléphones'], ['leave', 'Sorties anticipées']];
 
 /* ---------- Sorties anticipées : un mineur ne part pas seul ---------- */
 const LEAVE_KEY = 'ent-sorties-v1';
@@ -323,12 +334,12 @@ export default function VieScolaireModule({ settings, role = 'VIE_SCOLAIRE' }) {
     <div className="space-y-5">
       <div>
         <p className="text-sm font-semibold text-navy-500">Tamatave</p>
-        <h1 className="text-2xl font-semibold text-navy-900">{role === 'ENSEIGNANT' ? 'Punitions & téléphones' : 'Vie scolaire'}</h1>
+        <h1 className="text-2xl font-semibold text-navy-900">{role === 'ENSEIGNANT' ? 'Vie de classe' : 'Absences, retards et punitions'}</h1>
       </div>
       {role !== 'ENSEIGNANT' && <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Absences aujourd'hui" value={today.filter((r) => r.kind === 'ABSENCE').length} tone="red" />
-        <Stat label="Retards aujourd'hui" value={today.filter((r) => r.kind === 'RETARD').length} tone="amber" />
-        <Stat label="Mesures non lues par le parent" value={log.filter((m) => !m.parentAck).length} tone="amber" />
+        <Stat label="Absences aujourd'hui" value={today.filter((r) => r.kind === 'ABSENCE').length} />
+        <Stat label="Retards aujourd'hui" value={today.filter((r) => r.kind === 'RETARD').length} />
+        <Stat label="Parents pas encore informés" value={log.filter((m) => !m.parentAck).length} tone="amber" />
         <Stat label="Téléphones en garde" value={phones.filter((p) => p.action !== 'AVERTISSEMENT' && !p.returned).length} />
       </div>}
       {message && <p role="status" className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800"><Icon name="check" />{message}</p>}

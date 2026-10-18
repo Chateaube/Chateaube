@@ -36,6 +36,9 @@ import TimetableChanges from './components/TimetableChanges.jsx';
 import InternalResources from './components/InternalResources.jsx';
 import SignaturesModule from './components/SignaturesModule.jsx';
 import { PublicPreregistration } from './components/FamilyRequests.jsx';
+import SchoolLifeModule from './components/SchoolLifeModule.jsx';
+import { notificationsFor, countsByScreen, markSeen } from './notify.js';
+import { activeSeason } from './rules/seasons.js';
 import pillar from './assets/pilier.png';
 import { useScreenGuard } from './screenGuard.js';
 import { useOnline } from './online.js';
@@ -47,14 +50,14 @@ import { DIRECTION_ACCOUNTS } from './data/demo.js';
 // Direction = administrateur (accès à tout). Bureau = administration / économat,
 // avec accès à la Vie scolaire ; la Vie scolaire n'a pas accès au Bureau.
 // Les entrées sans `screen` existent dans l'architecture mais pas dans ce prototype.
-const VIE_SCOLAIRE = { id: 'vs', label: 'Vie scolaire', icon: 'users', screen: VieScolaireModule };
+const VIE_SCOLAIRE = { id: 'vs', label: 'Absences, retards et punitions', icon: 'users', screen: VieScolaireModule };
 const COUNCIL = { id: 'council', label: 'Conseils de classe', icon: 'cap', screen: CouncilGrid };
 const BULLETINS = { id: 'bulletins', label: 'Bulletins', icon: 'pen', screen: BulletinsModule };
-const BOOKING = { id: 'booking', label: 'Réservations', icon: 'calendar', screen: BookingModule };
-const INSCRIPTIONS = { id: 'enrol', label: 'Inscriptions & fiches élèves', icon: 'users', screen: InscriptionsModule };
+const BOOKING = { id: 'booking', label: 'Réservations de matériel', icon: 'calendar', screen: BookingModule };
+const INSCRIPTIONS = { id: 'enrol', label: 'Inscriptions et fiches élèves', icon: 'users', screen: InscriptionsModule };
 const OVERSIGHT = [
-  { id: 'oversight-grades', label: 'Notes & appréciations (profs)', icon: 'pen', screen: (p) => <TeacherOversight {...p} view="grades" /> },
-  { id: 'oversight-homework', label: 'Cahier de textes (profs)', icon: 'calendar', screen: (p) => <TeacherOversight {...p} view="homework" /> },
+  { id: 'oversight-grades', label: 'Notes des professeurs', icon: 'pen', screen: (p) => <TeacherOversight {...p} view="grades" /> },
+  { id: 'oversight-homework', label: 'Cahiers de textes', icon: 'calendar', screen: (p) => <TeacherOversight {...p} view="homework" /> },
 ];
 const MESSAGES = { id: 'messages', label: 'Messages', icon: 'bell', screen: ({ role }) => (
   <div className="space-y-4">
@@ -65,80 +68,53 @@ const MESSAGES = { id: 'messages', label: 'Messages', icon: 'bell', screen: ({ r
 const MANUALS = { id: 'manuals', label: 'Manuels scolaires', icon: 'cap', screen: ManualsModule };
 const FEEDBACK = { id: 'feedback', label: 'Avis du pilote', icon: 'bell', screen: FeedbackModule };
 const LIBRARY = { id: 'library', label: 'Bibliothèque (salle d\'étude)', icon: 'pen', screen: LibraryModule };
-const IMPORT = { id: 'import', label: 'Importer des données (Excel)', icon: 'swap', screen: ImportModule };
+const IMPORT = { id: 'import', label: 'Importer des données', icon: 'swap', screen: ImportModule };
 const GRADE_SHEETS = { id: 'grade-sheets', label: 'Grilles de notes', icon: 'pen', screen: GradeSheets };
 const BOOKS_FOR_TEACHER = { id: 'books', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who="Mme Ranaivo" kind="PROF" /> };
 const TT_CHANGES = { id: 'tt-changes', label: 'Changements d\'emploi du temps', icon: 'clock', screen: TimetableChanges };
 const HOURS = { id: 'hours', label: 'Heures et absences des profs', icon: 'clock', screen: TeachingHours };
 const RESOURCES = { id: 'resources', label: 'Documents, ressources et idées', icon: 'pen', screen: InternalResources };
 const MOCK_EXAMS = { id: 'mock-exams', label: 'Examens blancs', icon: 'cap', screen: MockExamsModule };
-const CARE = { id: 'care', label: 'Soins (passages, Doliprane)', icon: 'care', screen: CareModule };
+const CARE = { id: 'care', label: 'Soins et infirmerie', icon: 'care', screen: CareModule };
 const INVENTORY = { id: 'inventory', label: 'Inventaire du matériel', icon: 'box', screen: InventoryModule };
 const AGENDA = { id: 'agenda', label: 'Agendas', icon: 'calendar', screen: AgendaModule };
 const NEWS = { id: 'news', label: 'Annonces', icon: 'megaphone', screen: AnnouncementsModule };
+const SCHOOL_LIFE = { id: 'school-life', label: 'Vie de l\'école (photos)', icon: 'sparkles', screen: SchoolLifeModule };
 const STUDENT_LIST = { id: 'students-list', label: 'Liste des élèves', icon: 'users', screen: StudentList };
 const SIGNATURES = { id: 'signatures', label: 'Documents à signer', icon: 'pen', screen: SignaturesModule };
-const FOLLOW_UP = { id: 'followup', label: 'Documents, stages & orientation', icon: 'pen', screen: FollowUpModule };
+const FOLLOW_UP = { id: 'followup', label: 'Documents, stages et orientation', icon: 'pen', screen: FollowUpModule };
+const ACCOUNTING = { id: 'accounting', label: 'Caisse et comptabilité', icon: 'wallet', screen: AccountingModule };
+const ro = (item, label) => ({ ...item, ...(label ? { label } : {}), readOnly: true }); // consultation seulement
 
+// Menu latéral par profil : mêmes noms et même place pour une fonction partagée entre rôles.
 const PROFILES = {
   DIRECTION: {
     label: 'Direction',
     title: 'Administrateur — accès complet',
     home: 'dashboard',
     nav: [
-      { group: 'Pilotage', items: [
-        { id: 'dashboard', label: 'Tableau de bord', icon: 'home', screen: DirectionDashboard },
-        FEEDBACK,
-        SIGNATURES,
-        INSCRIPTIONS,
-        STUDENT_LIST,
-        { id: 'students', label: 'Mobilité Tamatave → Tana', icon: 'swap' },
-        { id: 'accounting', label: 'Comptabilité', icon: 'wallet', screen: AccountingModule },
-        MANUALS,
-        LIBRARY,
-      ] },
-      { group: 'Pédagogie', items: [
-        COUNCIL,
-        BULLETINS,
-        MOCK_EXAMS,
-        GRADE_SHEETS,
-        ...OVERSIGHT,
-        AGENDA,
-        TT_CHANGES,
-        HOURS,
-        { id: 'timetable', label: 'Emplois du temps', icon: 'clock' },
-        BOOKING,
-        { id: 'exams', label: 'Examens & Campus France', icon: 'cap' },
-      ] },
-      { group: 'Vie scolaire & familles', items: [
-        VIE_SCOLAIRE,
-        CARE,
-        FOLLOW_UP,
-        MESSAGES,
-        NEWS,
-      ] },
-      { group: 'Administration', items: [
-        { id: 'staff', label: 'Gestion des agents', icon: 'users', screen: StaffModule },
-        RESOURCES,
-        INVENTORY,
-        IMPORT,
-        { id: 'settings', label: 'Paramètres', icon: 'settings', screen: SettingsModule },
-      ] },
+      { group: 'Aujourd\'hui', items: [{ id: 'dashboard', label: 'Mes décisions', icon: 'home', screen: DirectionDashboard }, SIGNATURES, FEEDBACK] },
+      { group: 'Élèves', items: [INSCRIPTIONS, STUDENT_LIST, { id: 'students', label: 'Mobilité Tamatave → Tana', icon: 'swap' }] },
+      { group: 'Pédagogie', items: [COUNCIL, BULLETINS, MOCK_EXAMS, GRADE_SHEETS, ...OVERSIGHT, { id: 'timetable', label: 'Emplois du temps', icon: 'clock' }, { id: 'exams', label: 'Examens & Campus France', icon: 'cap' }] },
+      { group: 'Vie scolaire', items: [VIE_SCOLAIRE, CARE, HOURS, TT_CHANGES, FOLLOW_UP] },
+      { group: 'Finances', items: [ACCOUNTING] },
+      { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, AGENDA] },
+      { group: 'Équipe et matériel', items: [{ id: 'staff', label: 'Gestion des agents', icon: 'users', screen: StaffModule }, RESOURCES, INVENTORY, MANUALS, LIBRARY, BOOKING] },
+      { group: 'Réglages', items: [IMPORT, { id: 'settings', label: 'Paramètres', icon: 'settings', screen: SettingsModule }] },
     ],
   },
   BUREAU: {
     label: 'Secrétariat',
-    title: 'Secrétariat / économat',
+    title: 'Secrétariat',
     home: 'bureau',
     nav: [
-      { group: 'Caisse', items: [
-        { id: 'bureau', label: 'Accueil du secrétariat', icon: 'home', screen: BureauHome },
-        { id: 'accounting', label: 'Encaissements & comptabilité', icon: 'wallet', screen: AccountingModule },
-      ] },
-      { group: 'Vie scolaire', items: [VIE_SCOLAIRE, CARE, HOURS, TT_CHANGES, MESSAGES, NEWS, RESOURCES, AGENDA, FOLLOW_UP, BOOKING] },
-      { group: 'Notes & bulletins', items: [COUNCIL, BULLETINS, MOCK_EXAMS, GRADE_SHEETS, ...OVERSIGHT] },
-      { group: 'Élèves', items: [INSCRIPTIONS, STUDENT_LIST, SIGNATURES, MANUALS, LIBRARY, IMPORT] },
-      { group: 'Matériel', items: [INVENTORY] },
+      { group: 'Aujourd\'hui', items: [{ id: 'bureau', label: 'À traiter aujourd\'hui', icon: 'home', screen: BureauHome }] },
+      { group: 'Caisse', items: [ACCOUNTING] },
+      { group: 'Vie scolaire', items: [VIE_SCOLAIRE, CARE, HOURS, TT_CHANGES, FOLLOW_UP] },
+      { group: 'Notes et bulletins', items: [COUNCIL, BULLETINS, MOCK_EXAMS, GRADE_SHEETS, ...OVERSIGHT] },
+      { group: 'Élèves', items: [INSCRIPTIONS, STUDENT_LIST, SIGNATURES, IMPORT] },
+      { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, AGENDA, RESOURCES] },
+      { group: 'Matériel et bibliothèque', items: [MANUALS, LIBRARY, BOOKING, INVENTORY] },
     ],
   },
   VIE_SCOLAIRE: {
@@ -146,10 +122,10 @@ const PROFILES = {
     title: 'CPE — vie scolaire',
     home: 'vs',
     nav: [
-      { group: 'Au quotidien', items: [VIE_SCOLAIRE, CARE, { ...HOURS, label: 'Absences des profs' }, TT_CHANGES, AGENDA, STUDENT_LIST] },
-      // consultation seulement : réservations, bibliothèque et manuels, cahier de textes
-      { group: 'Ressources', items: [BOOKING, { id: 'books-cpe', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who="M. Be" kind="CPE" /> }, OVERSIGHT[1]] },
-      { group: 'Communication', items: [MESSAGES, NEWS, RESOURCES] },
+      { group: 'Aujourd\'hui', items: [VIE_SCOLAIRE, CARE, HOURS, ro(TT_CHANGES)] },
+      { group: 'Élèves', items: [ro(STUDENT_LIST)] },
+      { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, ro(AGENDA), RESOURCES] },
+      { group: 'Ressources', items: [ro(BOOKING), ro({ id: 'books-cpe', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who="M. Be" kind="CPE" /> }), ro(OVERSIGHT[1])] },
     ],
   },
   ENSEIGNANT: {
@@ -158,18 +134,15 @@ const PROFILES = {
     home: 'teacher',
     nav: [
       { group: 'Ma journée', items: [
-        { id: 'teacher', label: 'Mon tableau de bord', icon: 'home', screen: TeacherPortal },
+        { id: 'teacher', label: 'Ma journée', icon: 'home', screen: TeacherPortal },
         { id: 'appel', label: 'Appel', icon: 'check', screen: AttendanceModule },
-        { ...HOURS, label: 'Mes heures et absences' },
-        AGENDA,
-        { id: 'grades', label: 'Notes & appréciations', icon: 'pen', screen: GradebookModule },
+        { id: 'grades', label: 'Notes et appréciations', icon: 'pen', screen: GradebookModule },
         { id: 'homework', label: 'Cahier de textes', icon: 'calendar', screen: HomeworkModule },
         MOCK_EXAMS,
-        GRADE_SHEETS,
-        { id: 'discipline', label: 'Punitions & téléphones', icon: 'alert', screen: VieScolaireModule },
-        BOOKING,
+        { id: 'discipline', label: 'Vie de classe', icon: 'alert', screen: VieScolaireModule },
       ] },
-      { group: 'Communication', items: [MESSAGES, NEWS] },
+      { group: 'Mon organisation', items: [{ ...HOURS, label: 'Mes heures et absences' }, AGENDA, BOOKING, GRADE_SHEETS] },
+      { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE] },
       { group: 'Ressources', items: [BOOKS_FOR_TEACHER, RESOURCES] },
     ],
   },
@@ -243,31 +216,65 @@ export default function App() {
   const hidden = useScreenGuard(protectedProfile);
   const online = useOnline();
 
-  const [openGroup, setOpenGroup] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
-  const goTo = (id) => { setScreen(id); setOpenGroup(null); setMobileOpen(false); };
+  const [bellOpen, setBellOpen] = useState(false);
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState({});
+  const [tick, setTick] = useState(0); // recalcul des notifications après « J'ai vu »
+  const goTo = (id) => { setScreen(id); setMobileOpen(false); setBellOpen(false); setQuickOpen(false); setTick((t) => t + 1); };
+  const staffProfile = !['PARENT', 'ELEVE', 'VISITEUR'].includes(profile);
+  const notes = staffProfile ? notificationsFor(profile, { account }) : { urgent: [], todo: [], info: [] };
+  const counts = countsByScreen(notes.todo);
+  const bellCount = notes.urgent.length + notes.todo.length;
+  const season = activeSeason(new Date().toISOString().slice(0, 10), settings.seasonal);
+  const currentItem = NAV.flatMap((g) => g.items).find((i) => i.id === screen);
   const activeGroup = NAV.find((g) => g.items.some((i) => i.id === screen))?.group;
-  const navItem = (item, onDark) => {
+  const screenLabel = currentItem?.label ?? screen;
+  void tick;
+
+  const navItem = (item) => {
     const enabled = Boolean(item.screen);
     const active = item.id === screen;
+    const n = counts[item.id];
     return (
-      <button key={item.id} onClick={() => enabled && goTo(item.id)} disabled={!enabled}
-        title={enabled ? undefined : 'Prévu dans l\'architecture — hors périmètre du prototype'}
-        className={`flex w-full items-center gap-3 whitespace-nowrap rounded-xl px-3 py-2 text-left text-sm transition
-          ${active ? 'bg-navy-50 font-semibold text-navy-900' : enabled ? 'text-slate-700 hover:bg-slate-100' : 'text-slate-300'} ${onDark ? '' : ''}`}>
-        <Icon name={item.icon} className={`h-[18px] w-[18px] shrink-0 ${active ? 'text-navy-500' : 'text-slate-400'}`} />
-        <span className="truncate">{item.label}</span>
-        {!enabled && <span className="ml-auto text-[10px] font-normal">bientôt</span>}
+      <button key={item.id} onClick={() => enabled && goTo(item.id)} disabled={!enabled} aria-current={active ? 'page' : undefined}
+        title={enabled ? undefined : 'Prévu plus tard'}
+        className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition
+          ${active ? 'bg-navy-50 font-semibold text-navy-900' : enabled ? 'text-slate-700 hover:bg-slate-100' : 'text-slate-400'}`}>
+        <Icon name={item.icon} className={`h-4 w-4 shrink-0 ${active ? 'text-navy-500' : 'text-slate-400'}`} />
+        <span className="min-w-0 flex-1 leading-tight">{item.label}</span>
+        {item.readOnly && <span className="rounded bg-slate-100 px-1 text-[10px] font-normal text-slate-600">consultation</span>}
+        {n > 0 && <span className="rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white">{n}</span>}
+        {!enabled && <span className="text-[10px] font-normal">bientôt</span>}
       </button>
     );
   };
+  const sidebar = (
+    <div className="space-y-3">
+      {NAV.map((g) => {
+        const isOpen = !(collapsed[g.group] ?? false) || g.group === activeGroup;
+        const n = g.items.reduce((t, it) => t + (counts[it.id] ?? 0), 0);
+        return (
+          <div key={g.group}>
+            <button type="button" onClick={() => setCollapsed({ ...collapsed, [g.group]: isOpen })} aria-expanded={isOpen}
+              className="flex w-full items-center justify-between px-2.5 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500 hover:text-navy-900">
+              <span>{g.group}{!isOpen && n > 0 && <span className="ml-1.5 rounded-full bg-amber-500 px-1.5 text-[10px] text-white">{n}</span>}</span>
+              <span className={`transition ${isOpen ? '' : '-rotate-90'}`}>▾</span>
+            </button>
+            {isOpen && <div className="space-y-0.5">{g.items.map(navItem)}</div>}
+          </div>
+        );
+      })}
+    </div>
+  );
+  const QUICK = profile === 'BUREAU' ? [['accounting', 'Encaisser'], ['vs', 'Noter une absence'], ['care', 'Enregistrer un passage (soins)'], ['enrol', 'Imprimer un certificat']] : [];
 
   return (
-    <div className={`min-h-screen ${protectedProfile ? 'screen-guard' : ''}`} onClick={() => { setOpenGroup(null); setAccountOpen(false); }}>
-      {/* Bandeau du prototype : changer de profil, d'ambiance, protection d'écran */}
+    <div className={`min-h-screen ${protectedProfile ? 'screen-guard' : ''}`} onClick={() => { setAccountOpen(false); setBellOpen(false); setQuickOpen(false); }}>
+      {/* Bandeau du prototype : changer de profil, protection d'écran */}
       <div className="print:hidden bg-slate-900 px-4 py-1.5 text-[11px] text-slate-300 lg:px-8">
-        <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-x-4 gap-y-1.5">
+        <div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-x-4 gap-y-1.5">
           <span className="rounded-full bg-amber-400/90 px-2 py-0.5 font-semibold text-slate-900">Prototype · données fictives</span>
           <span className="flex min-w-0 flex-wrap items-center gap-1.5">Voir l'ENT en tant que
             <span className="flex max-w-[calc(100vw-2rem)] gap-0.5 overflow-x-auto rounded-full bg-white/10 p-0.5" role="tablist" aria-label="Profil">
@@ -281,61 +288,72 @@ export default function App() {
         </div>
       </div>
 
-      {/* Barre du haut : logo, menu, compte */}
-      <header className="print:hidden sticky top-0 z-30 shadow-[0_8px_24px_-16px_rgb(0_51_102/0.6)]" style={{ background: 'var(--topbar)', color: 'var(--topbar-fg)' }}>
-        <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-3 px-4 lg:px-8">
+      {/* Barre du haut : logo, site, action rapide, notifications, compte */}
+      <header className="print:hidden sticky top-0 z-30 shadow-[0_8px_24px_-16px_rgb(0_51_102/0.6)]"
+        style={{ background: season ? `linear-gradient(100deg, #002a55 0%, #005baa 60%, ${season.accent} 130%)` : 'var(--topbar)', color: 'var(--topbar-fg)' }}>
+        <div className="mx-auto flex h-16 max-w-[1500px] items-center gap-3 px-4 lg:px-8">
+          {staffProfile && (
+            <button className="rounded-full p-2 hover:bg-white/10 lg:hidden" aria-label="Menu" aria-expanded={mobileOpen} onClick={(e) => { e.stopPropagation(); setMobileOpen(!mobileOpen); }}>
+              <Icon name="menu" className="h-6 w-6" />
+            </button>
+          )}
           <button className="flex shrink-0 items-center gap-2.5" onClick={() => goTo(PROFILES[profile].home)} aria-label="Accueil">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white p-1 shadow-sm"><img src={pillar} alt="" className="h-full" /></span>
             <span className="hidden text-left leading-tight sm:block">
               <span className="block font-display text-[15px] font-semibold tracking-wide">CHATEAUBRIAND</span>
-              <span className="block text-[11px]" style={{ color: 'var(--topbar-muted)' }}>Tamatave · {PROFILES[profile].title}</span>
+              <span className="block text-[11px]" style={{ color: 'var(--topbar-muted)' }}>{PROFILES[profile].title}</span>
             </span>
           </button>
-          {profile === 'DIRECTION' && (
-            <select value={site} onChange={(e) => setSite(e.target.value)} aria-label="Site" onClick={(e) => e.stopPropagation()}
-              className="hidden rounded-full border-0 bg-white/15 px-3 py-1 text-xs font-medium text-white sm:block">
+          {staffProfile && (
+            <select value={site} onChange={(e) => setSite(e.target.value)} aria-label="Site" onClick={(e) => e.stopPropagation()} disabled={profile !== 'DIRECTION'}
+              className="ml-2 rounded-full border-0 bg-white/15 px-3 py-1 text-xs font-medium text-white disabled:opacity-100">
               <option value="TMV" className="text-slate-900">Tamatave</option>
-              <option value="TNR" disabled className="text-slate-400">Tana (bientôt)</option>
+              <option value="TNR" disabled className="text-slate-500">Tana (bientôt)</option>
             </select>
           )}
-
-          <nav aria-label="Navigation principale" className="ml-4 hidden flex-1 items-center gap-1 lg:flex">
-            {NAV.map((g) => {
-              const single = g.items.length === 1;
-              const active = g.group === activeGroup;
-              return (
-                <div key={g.group} className="relative" onClick={(e) => e.stopPropagation()}>
-                  <button onClick={() => (single ? goTo(g.items[0].id) : setOpenGroup(openGroup === g.group ? null : g.group))}
-                    aria-expanded={single ? undefined : openGroup === g.group}
-                    className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-medium transition ${active ? 'bg-white/20 shadow-inner' : 'hover:bg-white/10'}`}
-                  >
-                    {single ? g.items[0].label : g.group}
-                    {!single && <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 opacity-70" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 8l5 5 5-5" /></svg>}
-                  </button>
-                  {openGroup === g.group && (
-                    <div className="absolute left-0 top-full z-40 mt-2 w-72 rounded-2xl bg-white p-2 text-slate-800 shadow-2xl ring-1 ring-slate-200">
-                      {g.items.map((item) => navItem(item))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </nav>
+          {season && <span className="hidden rounded-full bg-white/15 px-3 py-1 text-xs xl:inline" title={season.greeting}>{season.garland.split(' ')[0]} {season.label}</span>}
 
           <div className="ml-auto flex items-center gap-2">
-            <span className="relative flex h-9 w-9 items-center justify-center rounded-full bg-white/15" aria-label="Notifications" role="img">
-              <Icon name="bell" className="h-[18px] w-[18px]" />
-              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-orange-400" />
-            </span>
+            {QUICK.length > 0 && (
+              <div className="relative" onClick={(e) => e.stopPropagation()}>
+                <button onClick={() => { setQuickOpen(!quickOpen); setBellOpen(false); }} aria-expanded={quickOpen}
+                  className="flex items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 text-sm font-semibold text-navy-900 shadow-sm hover:bg-navy-50">＋ Action rapide</button>
+                {quickOpen && (
+                  <div className="absolute right-0 top-full z-40 mt-2 w-64 rounded-2xl bg-white p-2 text-slate-800 shadow-2xl ring-1 ring-slate-200">
+                    {QUICK.map(([id, label]) => <button key={id} onClick={() => goTo(id)} className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100">{label}</button>)}
+                  </div>
+                )}
+              </div>
+            )}
+            {staffProfile && (
+              <div className="relative" onClick={(e) => e.stopPropagation()}>
+                <button onClick={() => { setBellOpen(!bellOpen); setQuickOpen(false); }} aria-expanded={bellOpen} aria-label={`Notifications : ${notes.urgent.length} urgentes, ${notes.todo.length} à faire`}
+                  className="relative flex h-9 w-9 items-center justify-center rounded-full bg-white/15 hover:bg-white/25">
+                  <Icon name="bell" className="h-[18px] w-[18px]" />
+                  {bellCount > 0 && <span className={`absolute -right-1 -top-1 rounded-full px-1.5 text-[10px] font-bold text-white ${notes.urgent.length ? 'bg-red-600' : 'bg-amber-500'}`}>{bellCount}</span>}
+                </button>
+                {bellOpen && (
+                  <div className="absolute right-0 top-full z-40 mt-2 w-[22rem] rounded-2xl bg-white p-3 text-sm text-slate-800 shadow-2xl ring-1 ring-slate-200">
+                    {[['URGENT', notes.urgent, 'text-red-700'], ['À FAIRE', notes.todo, 'text-amber-700'], ['INFORMATIONS', notes.info, 'text-navy-700']].map(([title, list, tone]) => list.length > 0 && (
+                      <div key={title} className="mb-2">
+                        <p className={`px-1 pb-1 text-[11px] font-bold tracking-wide ${tone}`}>{title}</p>
+                        {list.map((n) => <button key={n.id} onClick={() => goTo(n.to)} className="block w-full rounded-lg px-2 py-1.5 text-left hover:bg-slate-100">{n.text}</button>)}
+                      </div>
+                    ))}
+                    {!bellCount && !notes.info.length && <p className="p-2 text-slate-600">Rien de nouveau ✓</p>}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="relative" onClick={(e) => e.stopPropagation()}>
-              <button onClick={() => setAccountOpen(!accountOpen)} className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 hover:bg-white/10">
+              <button onClick={() => { setAccountOpen(!accountOpen); setBellOpen(false); }} className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 hover:bg-white/10" aria-label="Mon compte">
                 <Avatar name={persona.name} className="h-8 w-8 text-[11px] ring-2 ring-white/60" />
                 <span className="hidden text-left text-xs leading-tight md:block"><span className="block font-semibold">{persona.short ?? persona.name}</span><span style={{ color: 'var(--topbar-muted)' }}>{persona.detail}</span></span>
               </button>
               {accountOpen && (
                 <div className="absolute right-0 top-full z-40 mt-2 w-72 rounded-2xl bg-white p-4 text-sm text-slate-700 shadow-2xl ring-1 ring-slate-200">
                   <p className="font-semibold text-slate-900">{persona.name}</p>
-                  <p className="text-xs text-slate-500">{persona.detail}</p>
+                  <p className="text-xs text-slate-600">{persona.detail}</p>
                   {profile === 'DIRECTION' && (
                     <label className="mt-3 block text-xs text-slate-600">Compte Direction (droits identiques)
                       <select value={accountId} onChange={(e) => setAccountId(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 px-2.5 py-1.5 text-sm">
@@ -343,23 +361,17 @@ export default function App() {
                       </select>
                     </label>
                   )}
-                  <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-500"><span className="flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-navy-900 ring-1 ring-slate-200">G</span>Connexion Google · même compte sur ordinateur et téléphone</p>
+                  {profile !== 'VISITEUR' && <div className="mt-3 border-t border-slate-100 pt-2"><FeedbackButton variant="menu" profile={profile} who={persona.detail ?? persona.name} screen={screenLabel} /></div>}
+                  <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-600"><span className="flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-navy-900 ring-1 ring-slate-200">G</span>Connexion Google · même compte sur ordinateur et téléphone</p>
                 </div>
               )}
             </div>
-            <button className="rounded-full p-2 hover:bg-white/10 lg:hidden" aria-label="Menu" aria-expanded={mobileOpen} onClick={(e) => { e.stopPropagation(); setMobileOpen(!mobileOpen); }}>
-              <Icon name="menu" className="h-6 w-6" />
-            </button>
           </div>
         </div>
-        {mobileOpen && (
-          <nav aria-label="Navigation principale (mobile)" className="max-h-[75vh] overflow-y-auto border-t border-white/10 bg-white px-4 py-3 text-slate-800 lg:hidden" onClick={(e) => e.stopPropagation()}>
-            {NAV.map((g) => (
-              <div key={g.group} className="mb-2">
-                <p className="px-3 pb-1 text-[11px] font-semibold text-slate-400">{g.group}</p>
-                {g.items.map((item) => navItem(item))}
-              </div>
-            ))}
+        {season && <div className="overflow-hidden whitespace-nowrap py-0.5 text-center text-[11px] tracking-[1.4em] opacity-80" aria-hidden="true">{Array(6).fill(season.garland).join('        ')}</div>}
+        {mobileOpen && staffProfile && (
+          <nav aria-label="Navigation principale (mobile)" className="max-h-[75vh] overflow-y-auto border-t border-white/10 bg-white px-3 py-3 text-slate-800 lg:hidden" onClick={(e) => e.stopPropagation()}>
+            {sidebar}
           </nav>
         )}
       </header>
@@ -369,13 +381,27 @@ export default function App() {
           Hors connexion : consultation et saisies courantes possibles, envoyées au retour du réseau. La caisse attend la connexion.
         </p>
       )}
-      <main className="mx-auto w-full max-w-[1400px] px-4 py-6 lg:px-8">
-        {profile === 'ENSEIGNANT'
-          ? <TermsGate viewer="ENSEIGNANT" account="mme-ranaivo"><Current key={`${profile}-${screen}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={setScreen} role={profile} site={site} /></TermsGate>
-          : <Current key={`${profile}-${screen}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={setScreen} role={profile} site={site} />}
-      </main>
-
-      {profile !== 'VISITEUR' && <FeedbackButton profile={profile} who={persona.detail ?? persona.name} screen={NAV.flatMap((g) => g.items).find((i) => i.id === screen)?.label ?? screen} />}
+      <div className="mx-auto flex w-full max-w-[1500px] gap-6 px-4 py-6 lg:px-8">
+        {staffProfile && (
+          <aside className="print:hidden sticky top-24 hidden max-h-[calc(100vh-7rem)] w-64 shrink-0 self-start overflow-y-auto rounded-2xl bg-white/80 p-3 shadow-soft lg:block">
+            <nav aria-label="Navigation principale">{sidebar}</nav>
+          </aside>
+        )}
+        <main className="min-w-0 flex-1">
+          {notes.urgent.length > 0 && (
+            <div role="alert" className="print:hidden mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+              <span className="font-bold">⚠ Urgent</span>
+              <span className="min-w-0 flex-1">{notes.urgent.map((u) => u.text).join(' · ')}</span>
+              <button onClick={() => goTo(notes.urgent[0].to)} className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white">Voir</button>
+              <button onClick={() => { markSeen(notes.urgent.map((u) => u.id)); setTick((t) => t + 1); }} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-red-800 ring-1 ring-red-300">J'ai vu</button>
+            </div>
+          )}
+          {currentItem?.readOnly && <p className="mb-3 inline-block rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">Consultation seulement</p>}
+          {profile === 'ENSEIGNANT'
+            ? <TermsGate viewer="ENSEIGNANT" account="mme-ranaivo"><Current key={`${profile}-${screen}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={goTo} role={profile} site={site} /></TermsGate>
+            : <Current key={`${profile}-${screen}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={goTo} role={profile} site={site} season={season} />}
+        </main>
+      </div>
       {hidden && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black text-center text-sm text-slate-400" role="alert">
           Contenu masqué : les captures d'écran ne sont pas autorisées.<br />Revenez sur la page pour continuer.

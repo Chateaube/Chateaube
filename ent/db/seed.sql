@@ -210,3 +210,14 @@ INSERT INTO school_life_policy (year_id, site_id) SELECT y.id, s.id FROM academi
 INSERT INTO internship_type (code, level_code, label, school_days) VALUES
   ('STAGE_3E', '3E', 'Stage d''observation de 3e', 5),
   ('STAGE_2DE', '2NDE', 'Stage de seconde', 10);
+
+-- Ambiances saisonnières (modifiables)
+INSERT INTO season (code, label, from_md, to_md, accent, garland) VALUES
+  ('RENTREE', 'Rentrée', '09-01', '09-15', '#0ea5e9', '🎒 ✏️ 📚'),
+  ('OCTOBRE_ROSE', 'Octobre rose', '10-01', '10-31', '#ec4899', '🎀 💗 🎀'),
+  ('HALLOWEEN', 'Halloween', '10-25', '10-31', '#f97316', '🎃 🦇 👻 🍬'),
+  ('NOEL', 'Noël', '12-01', '01-06', '#dc2626', '🎄 ⭐ 🎁 ❄️'),
+  ('NOUVEL_AN', 'Nouvel an', '01-01', '01-07', '#a855f7', '✨ 🎆 🥂'),
+  ('FEMMES', 'Journée des droits des femmes', '03-01', '03-08', '#8b5cf6', '💜 🌸'),
+  ('INDEPENDANCE', 'Fête de l''Indépendance', '06-20', '06-26', '#16a34a', '🇲🇬 🎉 🇲🇬'),
+  ('VACANCES', 'Grandes vacances', '06-27', '07-10', '#f59e0b', '☀️ 🏖️ 🌴');

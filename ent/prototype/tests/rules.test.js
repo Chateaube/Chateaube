@@ -1258,3 +1258,32 @@ test('modèle Excel : élèves, responsables, professeurs, notes officielles de 
   const [s] = withExtras([{ lastName: 'RABE', firstName: 'Jean Luc', guardians: [] }], r);
   assert.deepEqual([s.usualName, s.sex, s.health.allergies, s.guardians.length], ['Luc', 'M', 'Paracétamol', 1]);
 });
+
+import { activeSeason } from '../src/rules/seasons.js';
+test('ambiances saisonnières : dates, chevauchement, désactivation', () => {
+  assert.equal(activeSeason('2026-10-18').id, 'OCTOBRE_ROSE');
+  assert.equal(activeSeason('2026-10-28').id, 'HALLOWEEN'); // la plus courte l'emporte
+  assert.equal(activeSeason('2027-01-03').id, 'NOUVEL_AN');
+  assert.equal(activeSeason('2026-12-24').id, 'NOEL');
+  assert.equal(activeSeason('2026-11-15'), null);
+  assert.equal(activeSeason('2026-10-18', { mode: 'OFF' }), null);
+  assert.equal(activeSeason('2026-11-15', { mode: 'NOEL' }).id, 'NOEL');
+});
+
+import { newPost, moderate, visiblePosts, postErrors, withoutImageRights } from '../src/rules/schoolLife.js';
+test('vie de l\'école : l\'équipe publie, élèves et profs proposent, validation avec droit à l\'image', () => {
+  const photos = ['data:image/png;base64,x'];
+  const staff = newPost({ title: 'Octobre rose', photos }, { role: 'VIE_SCOLAIRE', author: 'CPE', at: '2026-10-09' });
+  const pupil = newPost({ title: 'Nos photos', photos }, { role: 'ELEVE', author: 'Aina', at: '2026-10-10' });
+  assert.deepEqual([staff.status, pupil.status], ['PUBLIE', 'EN_ATTENTE']);
+  assert.equal(postErrors({ title: '', photos: [] }).length, 2);
+  assert.throws(() => moderate(pupil, { role: 'ENSEIGNANT', approve: true, imageRightsChecked: true }), /Direction ou à la CPE/);
+  assert.throws(() => moderate(pupil, { role: 'DIRECTION', approve: true }), /droit à l'image/);
+  assert.throws(() => moderate(pupil, { role: 'DIRECTION', approve: false }), /Expliquer/);
+  const ok = moderate(pupil, { role: 'DIRECTION', by: 'Direction', approve: true, imageRightsChecked: true });
+  assert.equal(ok.status, 'PUBLIE');
+  const posts = [staff, pupil];
+  assert.equal(visiblePosts(posts, { role: 'PARENT', author: 'Parent' }).length, 1);
+  assert.equal(visiblePosts(posts, { role: 'ELEVE', author: 'Aina' }).length, 2); // l'auteur voit sa proposition
+  assert.deepEqual(withoutImageRights([{ cls: '1re STMG', lastName: 'A', firstName: 'B', authorizations: { image: false } }, { cls: '1re STMG', lastName: 'C', firstName: 'D', authorizations: { image: true } }], '1re STMG'), ['A B']);
+});

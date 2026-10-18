@@ -266,14 +266,7 @@ export default function BookingModule({ role }) {
         </Card>}
       </div>
 
-      <Card title="Règles de gestion" subtitle="Appliquées dans l'interface et garanties par la base de données">
-        <ul className="grid gap-2 text-sm text-slate-700 md:grid-cols-2">
-          <li className="flex gap-2"><Badge tone="navy">Conflits</Badge>Deux réservations d'un même équipement ne peuvent pas se chevaucher (contrainte d'exclusion PostgreSQL).</li>
-          <li className="flex gap-2"><Badge tone="navy">Horaires</Badge>Lundi, mardi, jeudi, vendredi 7h–17h ; mercredi 7h–12h.</li>
-          <li className="flex gap-2"><Badge tone="navy">Sites</Badge>Le matériel est rattaché à un site : pas de réservation croisée Tana ↔ Tamatave.</li>
-          <li className="flex gap-2"><Badge tone="navy">Arbitrage</Badge>La Vie scolaire et la Direction peuvent annuler ou réattribuer une réservation.</li>
-        </ul>
-      </Card>
+
     </div>
   );
 }

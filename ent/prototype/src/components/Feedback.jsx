@@ -10,8 +10,8 @@ const STATUS = { NOUVEAU: ['amber', 'Nouveau'], EN_COURS: ['navy', 'En cours'], 
 const PROFILE_LABEL = { DIRECTION: 'Direction', BUREAU: 'Bureau', VIE_SCOLAIRE: 'Vie scolaire', ENSEIGNANT: 'Enseignant', PARENT: 'Parent', ELEVE: 'Élève' };
 const inputCls = 'w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm';
 
-/** Bouton flottant présent sur tous les écrans. */
-export function FeedbackButton({ profile, who, screen }) {
+/** « Signaler un problème ou une idée » : dans le menu du compte (variant « menu »), ou bouton flottant. */
+export function FeedbackButton({ profile, who, screen, variant = 'floating' }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState({ type: 'PROBLEME', text: '', photo: null });
   const [sent, setSent] = useState(false);
@@ -22,10 +22,16 @@ export function FeedbackButton({ profile, who, screen }) {
   };
   return (
     <>
-      <button type="button" onClick={() => { setOpen(true); setSent(false); }} aria-label="Donner mon avis"
-        className="nav-control fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full bg-coral-500 p-3 sm:px-4 sm:py-2.5 text-sm font-semibold text-white shadow-lg hover:bg-coral-700 print:hidden">
-        <Icon name="bell" className="h-4 w-4" /><span className="hidden sm:inline">Donner mon avis</span>
-      </button>
+      {variant === 'menu' ? (
+        <button type="button" onClick={() => { setOpen(true); setSent(false); }} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-navy-900 hover:bg-slate-100">
+          <Icon name="bell" className="h-4 w-4 text-coral-500" />Signaler un problème ou une idée
+        </button>
+      ) : (
+        <button type="button" onClick={() => { setOpen(true); setSent(false); }} aria-label="Donner mon avis"
+          className="nav-control fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full bg-coral-500 p-3 text-sm font-semibold text-white shadow-lg hover:bg-coral-700 sm:px-4 sm:py-2.5 print:hidden">
+          <Icon name="bell" className="h-4 w-4" /><span className="hidden sm:inline">Donner mon avis</span>
+        </button>
+      )}
       {open && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-4 sm:items-center" role="dialog" aria-label="Donner mon avis" onClick={() => setOpen(false)}>
           <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
@@ -37,7 +43,7 @@ export function FeedbackButton({ profile, who, screen }) {
               </div>
             ) : (
               <div className="space-y-3">
-                <p className="text-lg font-semibold text-navy-900">Donner mon avis</p>
+                <p className="text-lg font-semibold text-navy-900">Signaler un problème ou une idée</p>
                 <p className="text-xs text-slate-500">Écran : {screen} · {who}</p>
                 <div className="grid grid-cols-3 gap-1 rounded-lg bg-slate-100 p-1">
                   {Object.entries(FEEDBACK_TYPES).map(([k, [, l]]) => (

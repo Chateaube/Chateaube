@@ -53,7 +53,7 @@ export default function CareModule({ role = 'BUREAU' }) {
     <div className="space-y-5">
       <div>
         <p className="text-sm font-semibold text-navy-500">Tamatave</p>
-        <h1 className="text-2xl font-semibold text-navy-900">Soins</h1>
+        <h1 className="text-2xl font-semibold text-navy-900">Soins et infirmerie</h1>
         <p className="text-sm text-slate-500">Passages au secrétariat. Pas d'infirmerie : seul le Doliprane est donné, par le secrétariat (règlement intérieur).</p>
       </div>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -98,7 +98,7 @@ export default function CareModule({ role = 'BUREAU' }) {
               {d.outcome === 'SORTIE' && <p className="text-[11px] text-slate-500">Enregistrez aussi la sortie dans Vie scolaire → Sorties anticipées (un mineur ne part qu'avec un adulte).</p>}
               {d.student && d.reason && d.outcome && <p className="rounded-md bg-navy-50 p-2 text-xs text-navy-900">Message aux parents : {parentNotice(d, firstNameOf(d.student))}</p>}
               {tried && errors.length > 0 && <ul className="rounded-md bg-red-50 p-2 text-xs text-red-800">{errors.map((e) => <li key={e}>· {e}</li>)}</ul>}
-              <Button className="w-full" onClick={save}>Enregistrer le passage</Button>
+              <Button className="w-full" onClick={save}>Enregistrer et prévenir les parents</Button>
             </div>
           </Card>
         ) : <Card title="Enregistrer un passage"><p className="text-sm text-slate-500">C'est le secrétariat qui garde la trousse de secours et le Doliprane, et qui enregistre les passages.</p></Card>}

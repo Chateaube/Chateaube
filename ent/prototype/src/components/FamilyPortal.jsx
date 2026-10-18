@@ -35,6 +35,9 @@ import { loadLibrary } from '../libraryStore.js';
 import { designation, dueSoonLoans, daysLeft, gamesOut } from '../rules/library.js';
 import { GAMES, GAME_LOG } from '../data/games.js';
 import { loadVisits } from '../careStore.js';
+import { loadSeen, markSeen } from '../notify.js';
+import { loadPosts } from '../schoolLifeStore.js';
+import SchoolLifeModule, { SocialLinks } from './SchoolLifeModule.jsx';
 import { loadPassport } from './PassportTab.jsx';
 import { passport, COLLE_STATUS } from '../rules/discipline.js';
 import { parentNotice } from '../rules/care.js';
@@ -81,12 +84,34 @@ function BookDueSoon({ child }) {
   return <div className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-900"><p className="font-semibold">Livre à rendre bientôt — {child.name}</p>{soon.map((l) => <p key={l.id}>{l.code} : à rendre le {l.due.split('-').reverse().join('/')} au secrétariat (ou repasser avec le livre pour le garder un mois de plus).</p>)}</div>;
 }
 
-function CareNotice({ child }) {
-  // passage au secrétariat (mal de tête, Doliprane…) des 3 derniers jours, pour en reparler le soir
-  const since = new Date(new Date(`${TODAY}T12:00:00`) - 3 * 864e5).toISOString().slice(0, 10);
-  const list = loadVisits().filter((v) => v.student === fullName(child) && v.at.slice(0, 10) >= since && v.at.slice(0, 10) <= TODAY);
+/** Urgent : passage au secrétariat (malaise, Doliprane…) d'hier ou d'aujourd'hui, jusqu'à « J'ai vu ». */
+const careAlerts = (child) => {
+  const since = new Date(new Date(`${TODAY}T12:00:00`) - 864e5).toISOString().slice(0, 10);
+  const seen = loadSeen();
+  return loadVisits().filter((v) => v.student === fullName(child) && v.at.slice(0, 10) >= since && v.at.slice(0, 10) <= TODAY && !seen[`fam-care-${v.id}`]);
+};
+function UrgentBanner({ child, onSeen }) {
+  const list = careAlerts(child);
   if (!list.length) return null;
-  return <div className="rounded-2xl bg-sky-50 p-4 text-sm text-sky-900"><p className="font-semibold">Passage au secrétariat — {child.name}</p>{list.map((v) => <p key={v.id}>{v.at.slice(8, 10)}/{v.at.slice(5, 7)} · {v.notice ?? parentNotice(v, child.name)}</p>)}</div>;
+  return (
+    <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+      <p className="font-bold">⚠ {child.name} — passage au secrétariat</p>
+      {list.map((v) => <p key={v.id} className="mt-1">{v.at.slice(8, 10)}/{v.at.slice(5, 7)} · {v.notice ?? parentNotice(v, child.name)}</p>)}
+      <button type="button" onClick={() => { markSeen(list.map((v) => `fam-care-${v.id}`)); onSeen(); }} className="mt-2 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white">J'ai vu</button>
+    </div>
+  );
+}
+
+function SchoolLifePreview({ open, social }) {
+  const last = loadPosts().filter((p) => p.status === 'PUBLIE').sort((a, b) => b.date.localeCompare(a.date))[0];
+  if (!last && !social?.facebook && !social?.instagram) return null;
+  return (
+    <Section title="Vie de l'école" action={<button type="button" onClick={open} className="text-xs font-medium text-navy-500">Tout voir ›</button>}>
+      {last && <><p className="mb-1.5 text-sm font-medium text-slate-800">{last.title}</p>
+        <div className="flex gap-1.5 overflow-x-auto">{last.photos.slice(0, 3).map((src, i) => <img key={i} src={src} alt="" className="h-20 w-28 shrink-0 rounded-lg object-cover" />)}</div></>}
+      <SocialLinks social={social} />
+    </Section>
+  );
 }
 
 function GamesAvailable() {
@@ -113,11 +138,13 @@ function BulletinPickup({ child, settings }) {
   return <div className={`rounded-2xl p-4 text-sm ${status === 'BLOQUE' ? 'bg-red-50 text-red-900' : 'bg-navy-50 text-navy-900'}`}><p className="font-semibold">Bulletin — {child.name}</p><p>{msg}</p></div>;
 }
 
-function Home({ child, isParent, openFiche, openReenrol, settings }) {
+function Home({ child, isParent, openFiche, openReenrol, settings, onSeen, openSchoolLife }) {
   const due = HOMEWORK.filter((h) => h.cls === child.cls && h.due && h.due > TODAY).sort((a, b) => a.due.localeCompare(b.due)).slice(0, 2);
   return (
     <>
+      {isParent && <UrgentBanner child={child} onSeen={onSeen} />}
       <Announcements isParent={isParent} />
+      <SchoolLifePreview open={openSchoolLife} social={settings?.social} />
       {isParent && PARENT.alerts.map((a) => (
         <div key={a.title} className={`rounded-2xl p-4 ${a.tone === 'red' ? 'bg-red-50' : 'bg-amber-50'}`}>
           <p className={`text-sm font-semibold ${a.tone === 'red' ? 'text-red-900' : 'text-amber-900'}`}>{a.title}</p>
@@ -132,13 +159,12 @@ function Home({ child, isParent, openFiche, openReenrol, settings }) {
         </div>
       )}
       {isParent && <BulletinPickup child={child} settings={settings} />}
-      {isParent && <CareNotice child={child} />}
       <BookDueSoon child={child} />
       {isParent && profileOf(child) && nextClass(child.cls) && (
         <div className="rounded-2xl bg-emerald-50 p-4">
           <p className="text-sm font-semibold text-emerald-900">Réinscriptions 2027-2028 ouvertes</p>
           <p className="text-sm text-emerald-800">{nextClass(profileOf(child).cls) ? `Réinscrivez ${child.name} en ${nextClass(profileOf(child).cls)} depuis votre téléphone, avec les pièces en photo.` : `Dites-nous si ${child.name} poursuit ailleurs l'an prochain.`}</p>
-          <Button className="mt-2 !py-1 text-xs" onClick={openReenrol}>Réinscrire</Button>
+          <Button className="mt-2 !py-1 text-xs" onClick={openReenrol}>Réinscrire {child.name} pour 2027-2028</Button>
         </div>
       )}
       <Section title={`Aujourd'hui — ${child.name}`}>
@@ -278,7 +304,7 @@ function SchoolLife({ child, isParent, acks, setAcks, settings }) {
                 {isParent ? (
                   <label className={`mt-2 flex items-center gap-2 text-sm ${ack ? 'text-emerald-700' : 'text-slate-800'}`}>
                     <input type="checkbox" checked={!!ack} disabled={!!ack} onChange={() => setAcks({ ...acks, [it.key]: NOW })} />
-                    Je suis informé.e{ack && ` · ${shortDate(ack.slice(0, 10)).toLowerCase()}`}
+                    J'ai pris connaissance{ack && ` · ${shortDate(ack.slice(0, 10)).toLowerCase()}`}
                   </label>
                 ) : ack && <p className="mt-1 text-xs text-emerald-700">Vu par tes parents</p>}
               </li>
@@ -484,7 +510,7 @@ function MySignature() {
 // ce qui ne concerne pas l'enfant reste grisé.
 const TABS = [['home', 'Accueil', 'home'], ['life', 'Vie scol.', 'users'], ['notes', 'Notes', 'pen'], ['agenda', 'Agenda', 'calendar'], ['more', 'Autres', 'menu']];
 const SECTIONS = [
-  ['Échanges', [['messages', 'Messages', 'bell'], ['schooldocs', 'Règlement et chartes', 'pen']]],
+  ['Échanges', [['messages', 'Messages', 'bell'], ['schoollife', 'Vie de l\'école', 'sparkles'], ['schooldocs', 'Règlement et chartes', 'pen']]],
   ['Scolarité', [['library', 'Bibliothèque', 'cap'], ['stages', 'Stages', 'cap'], ['orientation', 'Orientation', 'cap']]],
   ['Démarches', [['documents', 'Documents et autorisations', 'pen'], ['payments', 'Paiements', 'wallet', 'PARENT'], ['fiche', 'Fiche signalétique', 'pen', 'PARENT'], ['reenrol', 'Réinscription', 'calendar', 'PARENT'], ['update', 'Mettre à jour nos informations', 'users', 'PARENT'], ['signature', 'Ma signature', 'pen', 'PARENT']]],
 ];
@@ -498,7 +524,7 @@ function Others({ audience, menu, badges, open }) {
     return (
       <details key={title} open className="group rounded-2xl bg-white/70 p-2 shadow-soft">
         <summary className="flex cursor-pointer list-none items-center justify-between px-2 py-1.5 text-sm font-semibold text-slate-800">
-          <span>{title}{count > 0 && <span className="ml-2 rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white">{count}</span>}</span>
+          <span>{title}{count > 0 && <span className="ml-2 rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white">{count}</span>}</span>
           <span className="text-slate-400 transition group-open:rotate-180">▾</span>
         </summary>
         <div className="mt-1 grid grid-cols-3 gap-2">
@@ -509,7 +535,7 @@ function Others({ audience, menu, badges, open }) {
                 className={`relative flex min-h-[78px] flex-col items-center justify-center gap-1 rounded-2xl p-2 text-center text-[12px] font-medium leading-tight ${off ? 'cursor-default bg-slate-100 text-slate-400' : 'bg-white text-slate-800 shadow-soft'}`}>
                 <Icon name={icon} className={`h-5 w-5 ${off ? 'text-slate-300' : 'text-navy-500'}`} />
                 <span>{label}{off && <span className="block text-[10px] font-normal">(ne concerne pas {isParent ? 'votre enfant' : 'ta classe'})</span>}</span>
-                {!off && badges[id] > 0 && <span className="absolute right-1.5 top-1.5 rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white">{badges[id]}</span>}
+                {!off && badges[id] > 0 && <span className="absolute right-1.5 top-1.5 rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white">{badges[id]}</span>}
               </button>
             );
           })}
@@ -519,11 +545,14 @@ function Others({ audience, menu, badges, open }) {
   });
 }
 
-export default function FamilyPortal({ settings, audience = 'PARENT' }) {
+export default function FamilyPortal({ settings, audience = 'PARENT', season }) {
   const isParent = audience === 'PARENT';
   const [screen, setScreen] = useState('home');
   const [childId, setChildId] = useState(PARENT.children[0].id);
   const [acks, setAcks] = useState({});
+  const [tick, setTick] = useState(0); void tick;
+  // pastille par enfant : alertes urgentes non vues + mesures à confirmer
+  const childCount = (c) => careAlerts(c).length + [...ATTENDANCE, ...MEASURES_LOG].filter((x) => x.student === fullName(c) && !x.parentAck && !acks[x.id] && (x.notified ?? true)).length;
   const child = PARENT.children.find((c) => c.id === (isParent ? childId : 'aina'));
   const pendingAcks = isParent ? [...ATTENDANCE, ...MEASURES_LOG].filter((x) => PARENT.children.some((c) => fullName(c) === x.student) && !x.parentAck && !acks[x.id] && (x.notified ?? true)).length : 0;
   // menu « Plus » selon la classe de l'enfant affiché ; un écran qui ne le concerne pas est refermé
@@ -540,13 +569,17 @@ export default function FamilyPortal({ settings, audience = 'PARENT' }) {
     <div className="mx-auto w-full max-w-[420px]">
       <p className="mb-2 text-center text-xs text-slate-500">Aperçu du portail {isParent ? 'parents' : 'élèves'} (application mobile)</p>
       <div className="flex h-[780px] max-h-[calc(100vh-6rem)] flex-col overflow-hidden rounded-[36px] border-[10px] border-slate-800 bg-paper shadow-2xl">
-        <header className="rounded-b-[28px] bg-gradient-to-br from-navy-900 via-navy-700 to-navy-500 px-5 pb-4 pt-5 text-white">
-          <p className="text-xs text-navy-200">Chateaubriand · Tamatave</p>
+        <header className="rounded-b-[28px] px-5 pb-4 pt-5 text-white" style={{ background: `linear-gradient(135deg, #003366, #00427f 55%, ${season?.accent ?? '#005baa'})` }}>
+          {season && <p className="mb-1 truncate text-center text-xs tracking-[0.4em]" aria-hidden="true">{season.garland}</p>}
+          <p className="text-xs text-navy-200">Chateaubriand · Tamatave{season ? ` · ${season.label}` : ''}</p>
           <p className="mt-0.5 font-display text-xl font-semibold">{isParent ? `Bonjour ${PARENT.name}` : `Bonjour ${child.name} · ${child.cls}`}</p>
           {isParent && !['payments', 'messages'].includes(view) && (
             <div className="mt-3 flex gap-2">
               {PARENT.children.map((c) => (
-                <button key={c.id} onClick={() => setChildId(c.id)} className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition ${c.id === childId ? 'bg-white text-navy-900' : 'bg-white/10 text-white hover:bg-white/20'}`}>{c.name} · {c.cls}</button>
+                <button key={c.id} onClick={() => setChildId(c.id)} className={`relative rounded-full px-3.5 py-1.5 text-sm font-medium transition ${c.id === childId ? 'bg-white text-navy-900' : 'bg-white/10 text-white hover:bg-white/20'}`}>
+                  {c.name} · {c.cls}
+                  {childCount(c) > 0 && <span className={`absolute -right-1 -top-1 rounded-full px-1.5 text-[10px] font-bold text-white ${careAlerts(c).length ? 'bg-red-600' : 'bg-amber-500'}`} aria-label={`${childCount(c)} à voir`}>{childCount(c)}</span>}
+                </button>
               ))}
             </div>
           )}
@@ -554,8 +587,9 @@ export default function FamilyPortal({ settings, audience = 'PARENT' }) {
         <div role="region" aria-label="Contenu du portail" className="flex-1 space-y-3 overflow-y-auto p-4">
           <TermsGate phone viewer={audience} account={isParent ? ACCOUNT.id : 'aina'}>
           {!isTab && <button onClick={() => go('more')} className="text-sm font-medium text-navy-500">‹ Autres</button>}
-          {view === 'home' && <Home child={child} isParent={isParent} settings={settings} openFiche={() => go('fiche')} openReenrol={() => go('reenrol')} />}
+          {view === 'home' && <Home child={child} isParent={isParent} settings={settings} openFiche={() => go('fiche')} openReenrol={() => go('reenrol')} onSeen={() => setTick((t) => t + 1)} openSchoolLife={() => go('schoollife')} />}
           {view === 'more' && <Others audience={audience} menu={menu} badges={badges} open={go} />}
+          {view === 'schoollife' && <SchoolLifeModule compact role={audience} settings={settings} cls={child.cls} author={isParent ? 'Parent' : `${child.name} (${child.cls})`} />}
           {view === 'schooldocs' && <FamilyDocuments audience={audience} />}
           {view === 'agenda' && <AgendaModule key={child.id} compact role={audience} cls={child.cls} settings={settings} today={TODAY} />}
           {view === 'reenrol' && (profileOf(child) ? <FamilyRequestForm key={`r-${child.id}`} profile={profileOf(child)} kind="REINSCRIPTION" guardianName={ACCOUNT.name} /> : <Section><p className="text-sm text-slate-500">Fiche introuvable.</p></Section>)}
@@ -583,8 +617,8 @@ export default function FamilyPortal({ settings, audience = 'PARENT' }) {
             <button key={id} onClick={() => go(id)} aria-current={view === id ? 'page' : undefined}
               className={`relative flex flex-col items-center gap-0.5 py-2 text-[11px] ${view === id ? 'font-semibold text-navy-900' : 'text-slate-400'}`}>
               <Icon name={icon} className="h-5 w-5" />{label}
-              {id === 'life' && pendingAcks > 0 && <span className="absolute right-3 top-1 rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white">{pendingAcks}</span>}
-              {id === 'more' && moreBadge > 0 && <span className="absolute right-3 top-1 rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white">{moreBadge}</span>}
+              {id === 'life' && pendingAcks > 0 && <span className="absolute right-3 top-1 rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white">{pendingAcks}</span>}
+              {id === 'more' && moreBadge > 0 && <span className="absolute right-3 top-1 rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white">{moreBadge}</span>}
             </button>
           ))}
         </nav>

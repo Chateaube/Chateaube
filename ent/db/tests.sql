@@ -1325,5 +1325,56 @@ DO $$ DECLARE d uuid; v timestamptz; BEGIN
   END IF;
 END $$;
 
+-- T56. Vie de l'école ; ambiance saisonnière ; notification urgente ---------------------------------
+DO $$ DECLARE site uuid := (SELECT id FROM site WHERE code = 'TMV'); staff_post uuid; prof_post uuid; BEGIN
+  -- la CPE publie directement ; un professeur propose (en attente, même s'il demande « PUBLIE »)
+  INSERT INTO school_post (site_id, title, author_id) VALUES (site, 'Octobre rose', '00000000-0000-0000-0000-00000000000c') RETURNING id INTO staff_post;
+  INSERT INTO school_post (site_id, title, author_id, status) VALUES (site, 'Sortie au port', '00000000-0000-0000-0000-000000000003', 'PUBLIE') RETURNING id INTO prof_post;
+  IF (SELECT status FROM school_post WHERE id = staff_post) <> 'PUBLIE' OR (SELECT status FROM school_post WHERE id = prof_post) <> 'EN_ATTENTE' THEN RAISE EXCEPTION 'T56: statut à la création'; END IF;
+  INSERT INTO school_post_photo (post_id, file_key, position) SELECT prof_post, 'photos/' || n, n FROM generate_series(1, 6) n;
+  BEGIN
+    INSERT INTO school_post_photo (post_id, file_key, position) VALUES (prof_post, 'photos/7', 7);
+    RAISE EXCEPTION 'T56: une 7e photo';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    UPDATE school_post SET status = 'PUBLIE', moderated_by = '00000000-0000-0000-0000-000000000008', image_rights_checked = true WHERE id = prof_post; -- secrétariat
+    RAISE EXCEPTION 'T56: validé par le secrétariat';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T56:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    UPDATE school_post SET status = 'PUBLIE', moderated_by = '00000000-0000-0000-0000-00000000000c' WHERE id = prof_post;
+    RAISE EXCEPTION 'T56: publié sans vérifier le droit à l''image';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T56:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    UPDATE school_post SET status = 'REFUSE', moderated_by = '00000000-0000-0000-0000-00000000000c' WHERE id = prof_post;
+    RAISE EXCEPTION 'T56: refus sans motif';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE school_post SET status = 'PUBLIE', moderated_by = '00000000-0000-0000-0000-00000000000c', image_rights_checked = true WHERE id = prof_post;
+  IF (SELECT moderated_at FROM school_post WHERE id = prof_post) IS NULL THEN RAISE EXCEPTION 'T56: date de validation'; END IF;
+  -- droit à l'image : l'élève de Tle STMG sans fiche signée est signalé
+  IF NOT EXISTS (SELECT 1 FROM students_without_image_rights('10000000-0000-0000-0000-000000000001')) THEN RAISE EXCEPTION 'T56: élèves sans autorisation non signalés'; END IF;
+  -- ambiances : Octobre rose le 18, Halloween le 28 (la plus courte), Noël le 24 décembre, rien le 15 novembre
+  IF active_season(site, '2026-10-18') <> 'OCTOBRE_ROSE' OR active_season(site, '2026-10-28') <> 'HALLOWEEN' OR active_season(site, '2026-12-24') <> 'NOEL'
+     OR active_season(site, '2027-01-03') <> 'NOUVEL_AN' OR active_season(site, '2026-11-15') IS NOT NULL THEN
+    RAISE EXCEPTION 'T56: ambiances (%, %, %)', active_season(site, '2026-10-18'), active_season(site, '2026-10-28'), active_season(site, '2027-01-03');
+  END IF;
+  INSERT INTO site_setting (site_id, seasonal_mode) VALUES (site, 'OFF');
+  IF active_season(site, '2026-10-18') IS NOT NULL THEN RAISE EXCEPTION 'T56: ambiance désactivée'; END IF;
+  BEGIN
+    UPDATE site_setting SET facebook_url = 'http://faux' WHERE site_id = site;
+    RAISE EXCEPTION 'T56: lien non sécurisé';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  -- notification urgente : niveau contrôlé
+  BEGIN
+    INSERT INTO direct_notification (guardian_id, reason, subject, body, channels, level) SELECT id, 'DISCIPLINE', 'x', 'y', '{EMAIL}', 'TRES_URGENT' FROM guardian LIMIT 1;
+    RAISE EXCEPTION 'T56: niveau inconnu';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T55 passent'
+\echo 'OK — tous les scénarios T1 à T56 passent'

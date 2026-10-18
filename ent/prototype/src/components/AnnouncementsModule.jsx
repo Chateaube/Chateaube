@@ -34,7 +34,7 @@ export function AnnouncementCard({ a, who, compact = false }) {
         </div>
       )}
       {a.ack && who && (ok ? <p className="mt-2 text-xs text-emerald-700">✓ Lu et compris</p>
-        : <Button className="mt-2 !py-1 text-xs" onClick={() => { acknowledge(a.id, who); setOk(true); }}>J'ai lu</Button>)}
+        : <Button className="mt-2 !py-1 text-xs" onClick={() => { acknowledge(a.id, who); setOk(true); }}>Bien reçu</Button>)}
     </article>
   );
 }
