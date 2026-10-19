@@ -602,3 +602,15 @@ changement d'emploi du temps attend la validation de la Direction. Même règle 
 ## Ambiances : bande repliée par défaut
 
 La bande « Le saviez-vous ? » du personnel est repliée par défaut ; chacun peut l'ouvrir (mémorisé par ambiance).
+
+## Arborescence des menus (refonte de la navigation, étape 1)
+
+- **Direction** : 5 rubriques au lieu de 8 (Aujourd'hui, Élèves et vie scolaire, Pédagogie, Communication,
+  Administration), 30 entrées au lieu de 33. Les entrées « bientôt » (mobilité Tana, emploi du temps, Campus
+  France) sortent du menu. « Avis du pilote » passe dans Administration.
+- **Portail famille** : « Autres » en 4 sections de 3 entrées au plus (Échanges, Scolarité, Papiers, Inscription
+  et paiements). Les entrées réservées aux parents sont marquées `PARENT`.
+- **Source unique** : `rules/navigation.js` (arborescence, testée : un seul emplacement par écran, rubriques et
+  sections bornées, identifiant inconnu refusé). Les libellés et icônes restent dans les composants.
+- Étapes suivantes : pages sommaires par rubrique, onglets internes pour les écrans sans onglets, haut de page
+  allégé. Voir le plan validé.

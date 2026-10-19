@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { FAMILY_SECTIONS } from '../rules/navigation.js';
 import { AmbianceHomeCard } from './AmbianceNote.jsx';
 import StudentMandates from './StudentMandates.jsx';
 import { mandatesOf } from '../rules/mandates.js';
@@ -514,11 +515,7 @@ function MySignature() {
 // « Autres » range tout le reste par thème, en rubriques qui se déroulent et se replient ;
 // ce qui ne concerne pas l'enfant reste grisé.
 const TABS = [['home', 'Accueil', 'home'], ['life', 'Vie scol.', 'users'], ['notes', 'Notes', 'pen'], ['agenda', 'Agenda', 'calendar'], ['more', 'Autres', 'menu']];
-const SECTIONS = [
-  ['Échanges', [['messages', 'Messages', 'bell'], ['schoollife', 'Vie de l\'école', 'sparkles'], ['schooldocs', 'Règlement et chartes', 'pen']]],
-  ['Scolarité', [['library', 'Bibliothèque', 'cap'], ['stages', 'Stages', 'cap'], ['orientation', 'Orientation', 'cap']]],
-  ['Démarches', [['documents', 'Documents et autorisations', 'pen'], ['payments', 'Paiements', 'wallet', 'PARENT'], ['fiche', 'Fiche signalétique', 'pen', 'PARENT'], ['reenrol', 'Réinscription', 'calendar', 'PARENT'], ['update', 'Mettre à jour nos informations', 'users', 'PARENT'], ['signature', 'Ma signature', 'pen', 'PARENT']]],
-];
+const SECTIONS = FAMILY_SECTIONS;
 
 // Élève délégué ou membre du BDE : une rubrique de plus, seulement pour lui (cf. rules/mandates.js)
 const mandateSection = (mandates) => {

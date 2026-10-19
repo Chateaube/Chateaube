@@ -44,6 +44,7 @@ import { useAmbiance } from './ambianceRuntime.js';
 import AmbianceBand from './components/AmbianceNote.jsx';
 import AmbianceEffects from './components/AmbianceEffects.jsx';
 import { featureVisible } from './features.js';
+import { DIRECTION_TREE, arrangeNav } from './rules/navigation.js';
 import pillar from './assets/pilier.png';
 import { useScreenGuard } from './screenGuard.js';
 import { useOnline } from './online.js';
@@ -98,7 +99,7 @@ const PROFILES = {
     label: 'Direction',
     title: 'Administrateur — accès complet',
     home: 'dashboard',
-    nav: [
+    nav: arrangeNav(DIRECTION_TREE, [
       { group: 'Aujourd\'hui', items: [{ id: 'dashboard', label: 'Mes décisions', icon: 'home', screen: DirectionDashboard }, SIGNATURES, FEEDBACK] },
       { group: 'Élèves', items: [INSCRIPTIONS, STUDENT_LIST, { id: 'students', label: 'Mobilité Tamatave → Tana', icon: 'swap' }] },
       { group: 'Pédagogie', items: [COUNCIL, BULLETINS, MOCK_EXAMS, GRADE_SHEETS, ...OVERSIGHT, { id: 'timetable', label: 'Emplois du temps', icon: 'clock' }, { id: 'exams', label: 'Examens & Campus France', icon: 'cap' }] },
@@ -107,7 +108,7 @@ const PROFILES = {
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, AGENDA] },
       { group: 'Équipe et matériel', items: [{ id: 'staff', label: 'Gestion des agents', icon: 'users', screen: StaffModule }, RESOURCES, INVENTORY, MANUALS, LIBRARY, BOOKING] },
       { group: 'Réglages', items: [IMPORT, { id: 'settings', label: 'Paramètres', icon: 'settings', screen: SettingsModule }] },
-    ],
+    ]),
   },
   BUREAU: {
     label: 'Secrétariat',

@@ -1457,3 +1457,29 @@ test('données réelles : expiration et effacement de ce navigateur (réglages g
   assert.equal(wipeLocalData(store), 2);
   assert.deepEqual(Object.keys(data).sort(), ['autre', 'ent-ambiance-prefs-v1', 'ent-chateaubriand-settings-v3']);
 });
+
+import { DIRECTION_TREE, FAMILY_SECTIONS, arrangeNav } from '../src/rules/navigation.js';
+test('navigation : Direction en 5 rubriques, un seul emplacement par écran, rien « bientôt » dans le menu', () => {
+  assert.equal(DIRECTION_TREE.length, 5);
+  const ids = DIRECTION_TREE.flatMap((g) => g.ids);
+  assert.equal(new Set(ids).size, ids.length, 'écran présent deux fois');
+  DIRECTION_TREE.forEach((g) => assert.ok(g.ids.length <= 9, `${g.group} : plus de 9 entrées`));
+  ['students', 'timetable', 'exams'].forEach((id) => assert.ok(!ids.includes(id), `${id} ne doit pas être dans le menu`));
+  assert.ok(ids.includes('mandates') && ids.includes('feedback'), 'Délégués et BDE et Avis du pilote sont dans le menu');
+});
+
+test('navigation : l\'arborescence ne garde que les entrées existantes, dans son ordre ; un identifiant inconnu est refusé', () => {
+  const groups = [{ group: 'A', items: [{ id: 'x' }, { id: 'y' }, { id: 'z' }] }];
+  const tree = [{ group: 'Nouveau', ids: ['z', 'x'] }];
+  assert.deepEqual(arrangeNav(tree, groups), [{ group: 'Nouveau', items: [{ id: 'z' }, { id: 'x' }] }]);
+  assert.throws(() => arrangeNav([{ group: 'B', ids: ['inconnu'] }], groups), /inconnu/);
+});
+
+test('navigation : portail famille en 4 sections de 3 au plus, entrées réservées aux parents bien marquées', () => {
+  assert.equal(FAMILY_SECTIONS.length, 4);
+  const entries = FAMILY_SECTIONS.flatMap(([, items]) => items);
+  assert.equal(new Set(entries.map(([id]) => id)).size, entries.length, 'entrée présente deux fois');
+  FAMILY_SECTIONS.forEach(([title, items]) => assert.ok(items.length <= 3, `${title} : plus de 3 entrées`));
+  const parentOnly = entries.filter((e) => e[3] === 'PARENT').map((e) => e[0]).sort();
+  assert.deepEqual(parentOnly, ['fiche', 'payments', 'reenrol', 'signature', 'update']);
+});
