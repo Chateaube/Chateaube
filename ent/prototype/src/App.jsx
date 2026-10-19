@@ -266,7 +266,7 @@ export default function App() {
     const active = item.id === screen;
     const n = counts[item.id];
     return (
-      <button key={item.id} onClick={() => enabled && goTo(item.id)} disabled={!enabled} aria-current={active ? 'page' : undefined}
+      <button key={item.id} data-nav={item.id} onClick={() => enabled && goTo(item.id)} disabled={!enabled} aria-current={active ? 'page' : undefined}
         title={enabled ? undefined : 'Prévu plus tard'}
         className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition
           ${active ? 'bg-navy-50 font-semibold text-navy-900' : enabled ? 'text-slate-700 hover:bg-slate-100' : 'text-slate-400'}`}>
@@ -308,7 +308,7 @@ export default function App() {
           <span className="flex min-w-0 flex-wrap items-center gap-1.5">Voir l'ENT en tant que
             <span className="flex max-w-[calc(100vw-2rem)] gap-0.5 overflow-x-auto rounded-full bg-white/10 p-0.5" role="tablist" aria-label="Profil">
               {Object.entries(PROFILES).map(([k, p]) => (
-                <button key={k} role="tab" aria-selected={profile === k} onClick={() => switchProfile(k)} disabled={realData && profile !== k}
+                <button key={k} role="tab" data-nav={`profil-${k}`} aria-selected={profile === k} onClick={() => switchProfile(k)} disabled={realData && profile !== k}
                   className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 font-medium ${profile === k ? 'bg-white text-slate-900' : 'text-white hover:bg-white/10'}`}>{p.label}</button>
               ))}
             </span>

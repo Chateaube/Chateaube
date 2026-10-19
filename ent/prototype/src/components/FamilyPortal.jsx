@@ -544,7 +544,7 @@ function Others({ audience, menu, badges, open, mandates = [] }) {
           {list.map(([id, label, icon]) => {
             const off = menu[id] === false;
             return (
-              <button key={id} type="button" disabled={off} onClick={() => open(id)}
+              <button key={id} type="button" data-nav={`autres-${id}`} disabled={off} onClick={() => open(id)}
                 className={`relative flex min-h-[78px] flex-col items-center justify-center gap-1 rounded-2xl p-2 text-center text-[12px] font-medium leading-tight ${off ? 'cursor-default bg-slate-100 text-slate-400' : 'bg-white text-slate-800 shadow-soft'}`}>
                 <Icon name={icon} className={`h-5 w-5 ${off ? 'text-slate-300' : 'text-navy-500'}`} />
                 <span>{label}{off && <span className="block text-[10px] font-normal">(ne concerne pas {isParent ? 'votre enfant' : 'ta classe'})</span>}</span>
@@ -629,7 +629,7 @@ export default function FamilyPortal({ settings, audience = 'PARENT', ambiance }
         </div>
         <nav className="grid grid-cols-5 border-t border-slate-100 bg-white px-1 pb-1" aria-label="Navigation du portail">
           {TABS.map(([id, label, icon]) => (
-            <button key={id} onClick={() => go(id)} aria-current={view === id ? 'page' : undefined}
+            <button key={id} data-nav={`tab-${id}`} onClick={() => go(id)} aria-current={view === id ? 'page' : undefined}
               className={`relative flex flex-col items-center gap-0.5 py-2 text-[11px] ${view === id ? 'font-semibold text-navy-900' : 'text-slate-400'}`}>
               <Icon name={icon} className="h-5 w-5" />{label}
               {id === 'life' && pendingAcks > 0 && <span className="absolute right-3 top-1 rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white">{pendingAcks}</span>}
