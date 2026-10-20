@@ -2238,3 +2238,32 @@ CREATE TABLE activity_log (
   text          text NOT NULL CHECK (length(trim(text)) > 0)
 );
 CREATE INDEX activity_log_day ON activity_log (site_id, at DESC);
+
+-- -----------------------------------------------------------------------------
+-- Inscription : parcours antérieur ; bibliothèque : facturation des livres non rendus
+-- -----------------------------------------------------------------------------
+-- Système de l'école d'origine (pour lire ses bulletins) et brevet à l'entrée en 2de.
+ALTER TABLE student
+  ADD COLUMN previous_system text CHECK (previous_system IN ('FRANCAIS', 'EXPRESSION_FRANCAISE', 'MALGACHE', 'ANGLOPHONE', 'AUTRE')),
+  ADD COLUMN dnb_status text CHECK (dnb_status IN ('OBTENU', 'NON_OBTENU', 'NON_PRESENTE'));
+ALTER TABLE pre_registration
+  ADD COLUMN previous_system text CHECK (previous_system IN ('FRANCAIS', 'EXPRESSION_FRANCAISE', 'MALGACHE', 'ANGLOPHONE', 'AUTRE')),
+  ADD COLUMN dnb_status text CHECK (dnb_status IN ('OBTENU', 'NON_OBTENU', 'NON_PRESENTE')),
+  ADD COLUMN repeating boolean NOT NULL DEFAULT false;
+ALTER TABLE enrollment ADD COLUMN repeating boolean NOT NULL DEFAULT false; -- redouble la classe (relevés demandés en 1re et Terminale)
+-- Annuaire des écoles d'origine, appris des fiches : proposé à la saisie avec le système le plus fréquent.
+CREATE VIEW v_school_directory AS
+SELECT min(previous_school) AS name, lower(trim(previous_school)) AS key, count(*) AS students,
+  mode() WITHIN GROUP (ORDER BY previous_system) FILTER (WHERE previous_system IS NOT NULL) AS system
+FROM student WHERE coalesce(trim(previous_school), '') <> '' GROUP BY lower(trim(previous_school));
+
+-- Livre non rendu à la fin du prêt (30 jours) : facturé au prix du livre, réglé à la caisse (n° de reçu).
+ALTER TABLE library_book ADD COLUMN price integer CHECK (price IS NULL OR price >= 0); -- en ariary
+ALTER TABLE library_loan
+  ADD COLUMN billed_receipt text CHECK (billed_receipt IS NULL OR billed_receipt LIKE 'ANX-%'),
+  ADD COLUMN billed_on date,
+  ADD CONSTRAINT library_bill_settled CHECK ((billed_receipt IS NULL) = (billed_on IS NULL));
+CREATE VIEW v_library_to_bill AS
+SELECT l.id AS loan_id, l.enrollment_id, l.copy_code, l.due_on, b.title, b.price
+FROM library_loan l JOIN library_copy c ON c.code = l.copy_code JOIN library_book b ON b.id = c.book_id
+WHERE l.enrollment_id IS NOT NULL AND l.returned_on IS NULL AND l.due_on < current_date AND l.billed_receipt IS NULL;

@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Badge, Button, Card, Stat } from './ui.jsx';
 import { CLASSES } from '../data/schoollife.js';
 import { STAFF } from '../data/people.js';
-import { BOOK_TYPES, LOAN_DAYS, nextCode, designation, openLoan, borrow, renew, giveBackBook, overdueLoans, availability, expiredReservations, RESERVATION_HOLD_DAYS, dueSoonLoans, REMINDER_DAYS_BEFORE, gamesOut, takeGame, returnGame, gameStats, gameIncidents } from '../rules/library.js';
+import { BOOK_TYPES, LOAN_DAYS, nextCode, designation, openLoan, borrow, renew, giveBackBook, overdueLoans, availability, expiredReservations, RESERVATION_HOLD_DAYS, dueSoonLoans, REMINDER_DAYS_BEFORE, gamesOut, takeGame, returnGame, gameStats, gameIncidents, toBill, billAmount, settleBill } from '../rules/library.js';
+import { formatAr } from '../rules/finance.js';
 import { GAMES, GAME_LOG } from '../data/games.js';
 import { CONDITIONS, conditionLabel } from '../rules/manuals.js';
 import { loadLibrary, saveLibrary } from '../libraryStore.js';
@@ -150,16 +151,19 @@ function DeskTab({ books, loans, setLoans }) {
         <ul className="list-disc space-y-1.5 pl-4 text-sm text-slate-600">
           <li>Élèves : {LOAN_DAYS} jours. Pour garder le livre un mois de plus, l'élève repasse au secrétariat <strong>avec le livre</strong>.</li>
           <li>Professeurs : pas de date limite.</li>
-          <li>Un livre en retard est rappelé à l'élève et au parent ; il bloque la remise du bulletin comme un manuel.</li>
-          <li>Livre perdu ou abîmé : à remplacer ou à régler à la caisse.</li>
+          <li>Rappel à l'élève et au parent quelques jours avant la date de retour.</li>
+          <li>Non rendu au bout de {LOAN_DAYS} jours : <strong>facturé au prix du livre</strong> (réglé à la caisse) ; tant que ce n'est pas réglé, le bulletin n'est pas remis.</li>
+          <li>Livre perdu ou abîmé : facturé au même prix.</li>
         </ul>
       </Card>
     </div>
   );
 }
 
-function LateTab({ books, loans }) {
-  const late = overdueLoans(loans, TODAY).sort((a, b) => a.due.localeCompare(b.due));
+function LateTab({ books, loans, setLoans }) {
+  const late = toBill(loans, TODAY).sort((a, b) => a.due.localeCompare(b.due));
+  const [receipt, setReceipt] = useState({});
+  const [err, setErr] = useState('');
   const soon = dueSoonLoans(loans, TODAY).sort((a, b) => a.due.localeCompare(b.due));
   const [sent, setSent] = useState({});
   return (
@@ -171,7 +175,8 @@ function LateTab({ books, loans }) {
         </ul>
       )}
     </Card>
-    <Card title={`Livres en retard (${late.length})`} subtitle="Élèves seulement : les professeurs n'ont pas de date limite">
+    <Card title={`Non rendus après ${LOAN_DAYS} jours — à facturer (${late.length})`} subtitle="Élèves seulement. Le livre est facturé à son prix ; payé à la caisse, on reporte le n° du reçu">
+      {err && <p className="mb-2 rounded-md bg-red-50 p-2 text-xs text-red-800">{err}</p>}
       {late.length === 0 ? <p className="text-sm text-emerald-700">Aucun retard.</p> : (
         <ul className="divide-y divide-slate-100">
           {late.map((l) => (
@@ -179,8 +184,11 @@ function LateTab({ books, loans }) {
               <span className="min-w-0 flex-1"><span className="font-medium">{l.borrower}</span> <span className="text-slate-500">· {l.cls}</span>
                 <span className="block text-xs text-slate-500">{l.code} · {designation(bookOf(l.code, books))}</span></span>
               <Badge tone="red">{daysLate(l.due)} j de retard</Badge>
-              {sent[l.id] ? <span className="text-xs text-emerald-700">Rappel envoyé (élève et parent)</span>
-                : <Button variant="secondary" className="!px-2 !py-1 text-xs" onClick={() => setSent({ ...sent, [l.id]: true })}>Envoyer un rappel</Button>}
+              <span className="text-sm font-semibold tabular-nums text-slate-900">{billAmount(l, books) == null ? 'prix à fixer au catalogue' : formatAr(billAmount(l, books))}</span>
+              {sent[l.id] ? <span className="text-xs text-emerald-700">Facture envoyée (élève et parent)</span>
+                : <Button variant="secondary" className="!px-2 !py-1 text-xs" onClick={() => setSent({ ...sent, [l.id]: true })}>Envoyer la facture</Button>}
+              <input value={receipt[l.id] ?? ''} onChange={(e) => setReceipt({ ...receipt, [l.id]: e.target.value })} placeholder="N° du reçu (ANX-…)" aria-label={`N° du reçu — ${l.borrower}`} className="w-40 rounded-md border border-slate-300 px-2 py-1 text-xs" />
+              <Button variant="secondary" className="!px-2 !py-1 text-xs" onClick={() => { const r = settleBill(l, receipt[l.id], TODAY); if (r.error) { setErr(r.error); return; } setErr(''); setLoans(loans.map((x) => (x.id === l.id ? r.loan : x))); }}>Réglé</Button>
             </li>
           ))}
         </ul>
@@ -263,7 +271,8 @@ function GamesTab({ data, setData }) {
 
 function CatalogTab({ books, setBooks, loans }) {
   const [type, setType] = useState('');
-  const [draft, setDraft] = useState({ type: 'ROMAN', title: '', author: '', editor: '', collection: '', year: '', isbn: '', n: 1, state: 'NEUF' });
+  const [draft, setDraft] = useState({ type: 'ROMAN', title: '', author: '', editor: '', collection: '', year: '', isbn: '', n: 1, state: 'NEUF', price: '' });
+  const setPrice = (id, raw) => { const d = raw.replace(/\D/g, ''); setBooks(books.map((b) => (b.id === id ? { ...b, price: d === '' ? null : Number(d) } : b))); };
   const shown = books.filter((b) => !type || b.type === type);
   const total = books.reduce((s, b) => s + b.copies.length, 0);
   const out = loans.filter((l) => !l.returnedOn).length;
@@ -274,7 +283,7 @@ function CatalogTab({ books, setBooks, loans }) {
       const code = nextCode(draft.type, [...all, { copies }]);
       copies.push({ code, state: draft.state });
     }
-    all = [...books, { id: `k${Date.now()}`, type: draft.type, title: draft.title.trim(), author: draft.author.trim(), editor: draft.editor.trim(), collection: draft.collection.trim(), year: Number(draft.year) || null, isbn: draft.isbn.trim(), copies }];
+    all = [...books, { id: `k${Date.now()}`, type: draft.type, title: draft.title.trim(), author: draft.author.trim(), editor: draft.editor.trim(), collection: draft.collection.trim(), year: Number(draft.year) || null, isbn: draft.isbn.trim(), price: Number(draft.price) || null, copies }];
     setBooks(all);
     setDraft({ ...draft, title: '', author: '', collection: '', year: '', isbn: '', n: 1 });
   };
@@ -291,7 +300,8 @@ function CatalogTab({ books, setBooks, loans }) {
         <ul className="divide-y divide-slate-100">
           {shown.map((b) => (
             <li key={b.id} className="py-2 text-sm">
-              <p className="font-medium text-slate-800">{designation(b)}</p>
+              <div className="flex flex-wrap items-start justify-between gap-2"><p className="font-medium text-slate-800">{designation(b)}</p>
+                <label className="text-xs text-slate-600">Prix si non rendu <input value={b.price ?? ''} inputMode="numeric" onChange={(e) => setPrice(b.id, e.target.value)} placeholder="à fixer" aria-label={`Prix — ${b.title}`} className="ml-1 w-24 rounded-md border border-slate-300 px-2 py-0.5 text-right tabular-nums" /> Ar</label></div>
               <p className="mt-1 flex flex-wrap items-center gap-1 text-xs text-slate-500">{BOOK_TYPES[b.type].label}{b.isbn ? ` · ISBN ${b.isbn}` : ''} ·
                 {b.copies.map((c) => <Badge key={c.code} tone={openLoan(c.code, loans) ? 'amber' : 'green'}>{c.code}{openLoan(c.code, loans) ? ' sorti' : ''}</Badge>)}</p>
             </li>
@@ -307,6 +317,7 @@ function CatalogTab({ books, setBooks, loans }) {
           <input value={draft.collection} onChange={(e) => setDraft({ ...draft, collection: e.target.value })} placeholder="Collection (ex. Folio)" className={inputCls} aria-label="Collection" />
           <input value={draft.year} onChange={(e) => setDraft({ ...draft, year: e.target.value.replace(/\D/g, '').slice(0, 4) })} placeholder="Année" className={inputCls} aria-label="Année" />
           <input value={draft.isbn} onChange={(e) => setDraft({ ...draft, isbn: e.target.value.replace(/[^\dX]/gi, '') })} placeholder="ISBN (code-barres au dos)" className={inputCls} aria-label="ISBN" />
+          <input value={draft.price} inputMode="numeric" onChange={(e) => setDraft({ ...draft, price: e.target.value.replace(/\D/g, '') })} placeholder="Prix (Ar), facturé si non rendu" className={inputCls} aria-label="Prix du livre" />
           <span className="flex gap-2">
             <input type="number" min={1} max={30} value={draft.n} onChange={(e) => setDraft({ ...draft, n: Math.min(30, Math.max(1, Number(e.target.value) || 1)) })} className={`w-20 ${inputCls}`} aria-label="Nombre d'exemplaires" />
             <select value={draft.state} onChange={(e) => setDraft({ ...draft, state: e.target.value })} className={`flex-1 ${inputCls}`} aria-label="État">{CONDITIONS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
@@ -367,7 +378,7 @@ export default function LibraryModule() {
         ))}
       </div>
       {tab === 'desk' && <DeskTab books={data.books} loans={data.loans} setLoans={setLoans} />}
-      {tab === 'follow' && <div className="space-y-5"><LateTab books={data.books} loans={data.loans} /><ReservationsTab data={data} setData={setData} /></div>}
+      {tab === 'follow' && <div className="space-y-5"><LateTab books={data.books} loans={data.loans} setLoans={setLoans} /><ReservationsTab data={data} setData={setData} /></div>}
       {tab === 'games' && <GamesTab data={data} setData={setData} />}
       {tab === 'catalog' && <div className="space-y-5"><CatalogTab books={data.books} setBooks={setBooks} loans={data.loans} /><LabelsTab books={data.books} /></div>}
     </div>

@@ -13,7 +13,8 @@ import { loadImport } from '../importStore.js';
 // Manuels scolaires (Bureau et Direction) :
 // - manuels de base à rendre, en location (25 000 Ar l'un pour l'année) ;
 // - cahiers d'activités à rendre (location) ou gardés par l'élève (vendus, prix propre) ;
-// - un lot identique pour toute la classe, sauf les manuels de spécialité (1re et Terminale générales) ;
+// - un lot par classe (plus les manuels de spécialité en 1re et Terminale générales), remis élève par élève
+//   au fil de l'année (une case par élève et par titre), ou à toute la classe d'un coup en début d'année ;
 // - stock par état, prêts, retours, pertes à régler au prix fixé pour chaque manuel.
 // Les prix sont fixés par la Direction ; le Bureau gère le stock et la distribution.
 
@@ -23,7 +24,7 @@ const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-s
 const fmt = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
 const TONE = { NEUF: 'green', BON: 'navy', USE: 'amber', DECHIRE: 'red', PERDU: 'red' };
 const ALL_CLASSES = ['6e', '5e', '4e', '3e', '2de', '1re Générale', '1re STMG', 'Terminale Générale', 'Terminale STMG'];
-const TABS = [['kit', 'Lot de la classe'], ['stock', 'Stock et prix'], ['loans', 'Prêts par titre'], ['due', 'À régler et non rendus']];
+const TABS = [['kit', 'Qui a quoi'], ['stock', 'Titres, stock et prix'], ['loans', 'Retours et pertes'], ['due', 'À régler et non rendus']];
 
 // Spécialités : élèves importés (fiche) sinon démonstration
 const importedSpecialties = () => Object.fromEntries((loadImport()?.students ?? []).map((s) => [`${s.lastName} ${s.firstName}`, s.specialties ?? []]));
@@ -51,7 +52,19 @@ function KitTab({ manuals, setManuals, loans, setLoans, specialtiesOf }) {
   const spe = items.filter((m) => m.specialty);
   const has = (student, m) => loans.find((l) => l.manualId === m.id && l.student === student && (l.sold || !l.returnedOn));
 
+  // remettre un titre à un élève, le jour où il le prend
+  const giveOne = (student, m0) => {
+    const m = manuals.find((x) => x.id === m0.id);
+    const state = CONDITIONS.find((c) => c.id !== 'DECHIRE' && m.stock[c.id] > 0)?.id;
+    if (!state) { setError(`Plus d'exemplaire en état de « ${m.title} » : ajoutez-en dans « Titres, stock et prix » (Entrée en réserve).`); return; }
+    const r = lend(m, loans, { student, cls, state, on: TODAY, dueBack: YEAR_END });
+    if (r.error) { setError(r.error); return; }
+    setManuals(manuals.map((x) => (x.id === m.id ? r.manual : x)));
+    setLoans([...loans, r.loan]);
+    setError('');
+  };
   const distribute = () => {
+    if (!window.confirm(`Remettre tous les titres à tous les élèves de ${cls} qui ne les ont pas encore ?`)) return;
     let ms = manuals;
     const added = [];
     const errors = [];
@@ -100,8 +113,8 @@ function KitTab({ manuals, setManuals, loans, setLoans, specialtiesOf }) {
       </Card>
 
       {students.length > 0 && items.length > 0 && (
-        <Card title={`Qui a quoi — ${cls}`} subtitle="✓ remis · – non remis · ✕ perdu · gris : non concerné (spécialité)"
-          action={<Button onClick={distribute}>Distribuer le lot à toute la classe</Button>}>
+        <Card title={`Qui a quoi — ${cls}`} subtitle="Cliquez sur « – » le jour où l'élève prend le manuel · ✓ remis · ✕ perdu · gris : non concerné (spécialité)"
+          action={<Button variant="secondary" onClick={distribute}>Tout remettre à la classe (début d'année)</Button>}>
           {error && <p className="mb-3 rounded-lg bg-red-50 p-2 text-sm text-red-800">{error}</p>}
           <div className="-mx-5 overflow-x-auto">
             <table className="w-full text-xs">
@@ -118,7 +131,8 @@ function KitTab({ manuals, setManuals, loans, setLoans, specialtiesOf }) {
                     {items.map((m) => {
                       if (!eligible(m, specialtiesOf(s))) return <td key={m.id} className="bg-slate-50 text-center text-slate-300">·</td>;
                       const l = loans.find((x) => x.manualId === m.id && x.student === s && (x.sold || !x.returnedOn));
-                      return <td key={m.id} className={`text-center text-sm ${!l ? 'text-slate-400' : l.stateIn === 'PERDU' ? 'text-red-600' : 'text-emerald-600'}`} title={l ? `${l.sold ? 'Remis' : 'Prêté'} le ${fmt(l.issuedOn)} (${conditionLabel(l.stateOut)})` : 'Non remis'}>{!l ? '–' : l.stateIn === 'PERDU' ? '✕' : '✓'}</td>;
+                      if (!l) return <td key={m.id} className="text-center"><button type="button" onClick={() => giveOne(s, m)} aria-label={`Remettre « ${m.title} » à ${s}`} title="Remettre ce manuel à cet élève aujourd'hui" className="h-7 w-7 rounded-md text-slate-500 ring-1 ring-slate-200 hover:bg-navy-50 hover:text-navy-900">–</button></td>;
+                      return <td key={m.id} className={`text-center text-sm ${l.stateIn === 'PERDU' ? 'text-red-600' : 'text-emerald-600'}`} title={`${l.sold ? 'Remis' : 'Prêté'} le ${fmt(l.issuedOn)} (${conditionLabel(l.stateOut)})`}>{l.stateIn === 'PERDU' ? '✕' : '✓'}</td>;
                     })}
                   </tr>
                 ))}
@@ -139,6 +153,12 @@ function StockTab({ manuals, setManuals, loans, canEdit }) {
   const [stockError, setStockError] = useState('');
   const shown = manuals.filter((m) => !cls || m.levels.includes(cls));
   const update = (id, patch) => setManuals(manuals.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+  const [editing, setEditing] = useState(null); // { id, title, levels }
+  const remove = (m) => {
+    if (loans.some((l) => l.manualId === m.id)) { setStockError(`« ${m.title} » a déjà été remis à des élèves : il ne peut plus être supprimé (sa réforme se fait par « Mouvement de stock »).`); return; }
+    if (window.confirm(`Supprimer « ${m.title} » de la liste des manuels ?`)) { setManuals(manuals.filter((x) => x.id !== m.id)); setStockError(''); }
+  };
+  const setCount = (m, state, raw) => { const n = Math.max(0, Number(raw.replace(/\D/g, '')) || 0); update(m.id, { stock: { ...m.stock, [state]: n } }); };
   const totals = manuals.reduce((t, m) => ({ stock: t.stock + Object.values(m.stock).reduce((a, b) => a + b, 0), lent: t.lent + lentCount(m, loans), torn: t.torn + m.stock.DECHIRE }), { stock: 0, lent: 0, torn: 0 });
   const moveStock = () => {
     const m = manuals.find((x) => x.id === move.id);
@@ -163,6 +183,8 @@ function StockTab({ manuals, setManuals, loans, canEdit }) {
         <Stat label="Prêtés aux élèves" value={String(totals.lent)} />
         <Stat label="Déchirés à réparer" value={String(totals.torn)} tone={totals.torn ? 'amber' : undefined} />
       </div>
+      <p className="rounded-lg bg-navy-50 px-3 py-2 text-sm text-navy-900">D'où vient le stock ? Des exemplaires que vous enregistrez ici : à la création du titre, puis par « Entrée en réserve » à chaque achat ou photocopie. Il n'a rien à voir avec l'inventaire du matériel. La Direction peut aussi corriger directement les nombres du tableau (comptage).</p>
+      {stockError && <p className="rounded-lg bg-red-50 p-2 text-sm text-red-800">{stockError}</p>}
       <Card title="Titres, prix et stock" subtitle={canEdit ? 'Prix modifiables par la Direction : location (titres à rendre), vente (cahiers gardés), prix en cas de perte' : 'Consultation des prix : seule la Direction les modifie'}
         action={(
           <select value={cls} onChange={(e) => setCls(e.target.value)} className={inputCls} aria-label="Filtrer par classe">
@@ -176,7 +198,7 @@ function StockTab({ manuals, setManuals, loans, canEdit }) {
                 <th className="px-4 py-2 font-medium">Titre</th><th className="px-2 font-medium">Type</th>
                 <th className="px-2 text-right font-medium">Prix</th><th className="px-2 text-right font-medium">Si perdu / abîmé</th>
                 {CONDITIONS.map((c) => <th key={c.id} className="px-2 text-right font-medium">{c.label}</th>)}
-                <th className="px-2 text-right font-medium">Prêtés</th><th className="px-4 text-right font-medium">Total</th>
+                <th className="px-2 text-right font-medium">Prêtés</th><th className="px-2 text-right font-medium">Total</th>{canEdit && <th className="px-4 font-medium"><span className="sr-only">Actions</span></th>}
               </tr>
             </thead>
             <tbody>
@@ -186,9 +208,22 @@ function StockTab({ manuals, setManuals, loans, canEdit }) {
                   <td className="px-2"><Badge tone={m.returnable ? 'navy' : 'green'}>{kindLabel(m)}</Badge><p className="mt-0.5 text-[11px] text-slate-500">{KINDS[m.kind]} · {BINDINGS[m.binding]}</p></td>
                   <td className="px-2 text-right"><Price canEdit={canEdit} value={m.price} onChange={(v) => update(m.id, { price: v ?? 0 })} label={`Prix — ${m.title}`} />{m.returnable && <span className="block text-[10px] text-slate-500">location / an</span>}</td>
                   <td className="px-2 text-right">{m.returnable ? <Price canEdit={canEdit} value={m.replacementPrice} onChange={(v) => update(m.id, { replacementPrice: v })} label={`Prix si perdu — ${m.title}`} /> : <span className="text-xs text-slate-400">gardé</span>}</td>
-                  {CONDITIONS.map((c) => <td key={c.id} className={`px-2 text-right tabular-nums ${c.id === 'DECHIRE' && m.stock.DECHIRE ? 'text-red-700' : ''}`}>{m.stock[c.id] ?? 0}</td>)}
+                  {CONDITIONS.map((c) => <td key={c.id} className={`px-2 text-right tabular-nums ${c.id === 'DECHIRE' && m.stock.DECHIRE ? 'text-red-700' : ''}`}>{canEdit
+                    ? <input value={m.stock[c.id] ?? 0} inputMode="numeric" onChange={(e) => setCount(m, c.id, e.target.value)} aria-label={`${c.label} en réserve — ${m.title}`} className="w-12 rounded border border-slate-300 px-1 py-0.5 text-right tabular-nums" />
+                    : m.stock[c.id] ?? 0}</td>)}
                   <td className="px-2 text-right tabular-nums">{lentCount(m, loans)}</td>
-                  <td className="px-4 text-right font-semibold tabular-nums">{totalCopies(m, loans)}</td>
+                  <td className="px-2 text-right font-semibold tabular-nums">{totalCopies(m, loans)}</td>
+                  {canEdit && <td className="whitespace-nowrap px-4 text-right">
+                    {editing?.id === m.id ? (
+                      <span className="flex items-center gap-1">
+                        <input value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} aria-label="Nouveau titre" className="w-44 rounded border border-slate-300 px-1 py-0.5 text-xs" />
+                        <button type="button" className="text-xs font-medium text-navy-700" onClick={() => { if (editing.title.trim()) update(m.id, { title: editing.title.trim() }); setEditing(null); }}>OK</button>
+                      </span>
+                    ) : <>
+                      <button type="button" className="text-xs font-medium text-navy-700" onClick={() => setEditing({ id: m.id, title: m.title })}>Renommer</button>
+                      <button type="button" className="ml-3 text-xs font-medium text-red-700" onClick={() => remove(m)}>Supprimer</button>
+                    </>}
+                  </td>}
                 </tr>
               ))}
             </tbody>
@@ -288,7 +323,7 @@ function LoansTab({ manuals, setManuals, loans, setLoans, specialtiesOf }) {
   const without = students.filter((s) => { const l = loanOf(s); return !l || (!l.sold && l.returnedOn); });
 
   return (
-    <Card title="Prêts par titre" subtitle="Sortie avec l'état de l'exemplaire, retour avec son nouvel état ; un cahier gardé est simplement remis">
+    <Card title="Retours et pertes, titre par titre" subtitle="Retour avec le nouvel état de l'exemplaire, ou perte déclarée (à régler à la caisse). On peut aussi remettre le titre ici, avec l'état choisi">
       <div className="mb-4 grid gap-2 text-sm sm:grid-cols-[180px_1fr_160px_auto] sm:items-end">
         <label className="text-xs text-slate-600">Classe
           <select value={cls} onChange={(e) => { setCls(e.target.value); setManualId(manuals.find((m) => m.levels.includes(e.target.value))?.id ?? ''); setError(''); }} className={`mt-1 w-full ${inputCls}`}>

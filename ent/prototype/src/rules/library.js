@@ -119,3 +119,16 @@ export function gameStats(log, games, from, to) {
   return games.map((g) => ({ game: g, count: counts[g.id] })).sort((a, b) => b.count - a.count);
 }
 export const gameIncidents = (log) => log.filter((e) => e.complete === false && !e.resolved);
+
+// --- Livre non rendu à la fin du prêt (30 jours) : facturé ---
+// Le prix est celui du livre (fixé au catalogue). Payé à la caisse ; on reporte le n° du reçu.
+// Rendu ensuite : la facture déjà réglée n'est pas remboursée automatiquement (décision de la Direction).
+/** Prêts à facturer : élèves, date de retour dépassée, pas encore réglés. */
+export const toBill = (loans, today) => overdueLoans(loans, today).filter((l) => l.billed?.status !== 'REGLE');
+/** Montant à facturer pour un prêt : prix du livre, null s'il n'est pas fixé. */
+export const billAmount = (loan, books) => books.find((b) => b.copies.some((c) => c.code === loan.code))?.price ?? null;
+/** Règlement à la caisse : n° de reçu obligatoire. */
+export function settleBill(loan, receipt, on) {
+  if (!/^ANX-/.test(receipt ?? '')) return { error: 'Indiquer le n° du reçu de caisse (ANX-…).' };
+  return { loan: { ...loan, billed: { status: 'REGLE', receipt, on } } };
+}

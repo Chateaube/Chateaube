@@ -216,7 +216,7 @@ export default function App() {
   const [screen, setScreen] = useState('dashboard');
   const [accountId, setAccountId] = useState('u1');
   const account = DIRECTION_ACCOUNTS.find((a) => a.id === accountId);
-  // rubriques masquées par la Direction (Paramètres → Rubriques affichées) : retirées du menu
+  // rubriques masquées par la Direction (Droits d'accès → Rubriques de l'école) : retirées du menu
   const NAV = applyAccess({ profile, person: PERSON_OF[profile], baseNav: PROFILES[profile].nav, catalogue: catalogue(), access: settings.access }).map((g) => ({ ...g, items: g.items.filter((it) => featureVisible(settings, it.feature, profile)) })).filter((g) => g.items.length);
   const Current = (NAV.flatMap((g) => g.items).find((i) => i.id === screen) ?? NAV[0].items[0]).screen;
   const switchProfile = (p) => { setProfile(p); setScreen(PROFILES[p].home); };

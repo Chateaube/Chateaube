@@ -5,9 +5,12 @@ import { CLASSES } from '../data/schoollife.js';
 import { SERVICES, EVALUATIONS } from '../data/grades.js';
 import { specialtiesOf } from '../data/mockExams.js';
 import { loadMockExams, saveMockExams } from '../mockExamStore.js';
-import { EXAMS, examsForClass, bacKindOf, isBac, examResult, partMark, keptSubs, bacProjection, mention, decision, validMark, suggestedCoef } from '../rules/mockExam.js';
+import { EXAMS, examsForClass, bacKindOf, isBac, examResult, partMark, keptSubs, bacProjection, mention, decision, validMark, suggestedCoef, fullBacTranscript, importOfficial, officialHeaders } from '../rules/mockExam.js';
 import { formatDateFr } from '../rules/calendar.js';
 import { printOnly } from '../print.js';
+import { buildXlsx } from '../xlsx.js';
+import { readXlsx, sheetRows } from '../xlsxRead.js';
+import { saveFile } from '../download.js';
 
 // Examens blancs (candidats libres : pas de contrôle continu) : saisie des notes par épreuve — chaque
 // professeur saisit son épreuve —, relevés de notes « comme à l'examen » (3e, 1re, Terminale) et projection
@@ -36,11 +39,12 @@ const MY_CLASSES = [...new Set(SERVICES.map((x) => x.cls))];
 const canEnter = (role, p) => role !== 'ENSEIGNANT' || MY_SUBJECTS.includes(p.subject);
 const cells = (p) => (p.subs ? p.subs.map((x) => ({ id: x.id, label: x.label, part: p })) : [{ id: p.id, label: p.label, part: p }]);
 
-function Transcript({ session, student, extra }) {
+function Transcript({ session, student, extra, official }) {
   const exam = EXAMS[session.kind];
   const marks = session.marks[student] ?? {};
   const r = examResult(exam.parts, marks);
   const td = 'border border-black';
+  const full = isBac(session.kind) ? fullBacTranscript(session.kind, { official, blanc: marks }) : null;
   return (
     <div className="mx-auto mb-6 w-full max-w-[760px] bg-white p-8 text-[11px] text-black shadow-soft print:mb-0 print:shadow-none" style={{ breakAfter: 'page', fontFamily: 'Poppins, sans-serif' }}>
       <div className="flex items-start justify-between gap-6">
@@ -53,6 +57,7 @@ function Transcript({ session, student, extra }) {
           <p>{session.cls} · épreuves du {formatDateFr(session.date).replace(/^\S+ /, '')}</p>
         </div>
       </div>
+      {full ? <FullBacTable full={full} kind={session.kind} student={student} td={td} /> : (<>
       <table className="mt-5 w-full border-collapse">
         <thead><tr className="font-bold"><th className={`${td} px-2 py-1 text-left`}>ÉPREUVE</th><th className={`w-[11%] ${td}`}>COEF.</th><th className={`w-[13%] ${td}`}>NOTE /20</th><th className={`w-[13%] ${td}`}>POINTS</th></tr></thead>
         <tbody>
@@ -79,10 +84,41 @@ function Transcript({ session, student, extra }) {
         <div className="border border-black p-2"><p className="text-[9px] font-bold">RÉSULTAT INDICATIF</p><p className="text-[12px] font-semibold">{r.complete ? decision(r.average, session.kind) : 'Épreuve(s) manquante(s)'}</p></div>
       </div>
       {!r.complete && <p className="mt-2 text-[10px]">Sans note : {r.missing.join(', ')}.</p>}
+      </>)}
       {extra}
       <p className="mt-4 text-[9.5px] italic">Examen blanc organisé par l'établissement dans les conditions de l'examen. Document interne, sans valeur officielle. « Abs. » : absent, compté 0.</p>
       <div className="mt-6 flex justify-end"><p className="w-56 border-t border-black pt-1 text-center text-[10px]">La Cheffe d'établissement</p></div>
     </div>
+  );
+}
+
+/** Bac blanc de Terminale : relevé complet, notes officielles de 1re + épreuves de Terminale, total sur 100. */
+function FullBacTable({ full, kind, student, td }) {
+  return (
+    <>
+      <table className="mt-5 w-full border-collapse">
+        <thead><tr className="font-bold"><th className={`${td} px-2 py-1 text-left`}>ÉPREUVE</th><th className={`w-[11%] ${td}`}>COEF.</th><th className={`w-[13%] ${td}`}>NOTE /20</th><th className={`w-[13%] ${td}`}>POINTS</th></tr></thead>
+        {full.sections.map((sec) => (
+          <tbody key={sec.title}>
+            <tr><td colSpan={4} className={`${td} bg-slate-100 px-2 py-1 font-bold`}>{sec.title}</td></tr>
+            {sec.rows.map((p) => (
+              <tr key={p.id}><td className={`${td} px-2 py-1.5`}>{partLabel(p, kind, student)}</td><td className={`${td} text-center`}>{p.coef}</td>
+                <td className={`${td} text-center font-semibold ${typeof p.mark === 'number' && p.mark < 10 ? 'text-red-700' : ''}`}>{p.mark == null ? '—' : f2(p.mark)}</td>
+                <td className={`${td} text-center`}>{p.points == null ? '' : f2(p.points)}</td></tr>
+            ))}
+            <tr className="font-semibold"><td className={`${td} px-2 py-1 text-right`}>Sous-total</td><td className={`${td} text-center`}>{sec.coef}</td><td className={td} /><td className={`${td} text-center`}>{f2(sec.points)}</td></tr>
+          </tbody>
+        ))}
+        <tbody><tr className="font-bold"><td className={`${td} px-2 py-1.5 text-right`}>TOTAL DU BACCALAURÉAT</td><td className={`${td} text-center`}>{full.total}</td><td className={td} /><td className={`${td} text-center`}>{f2(full.points)} / {full.coef * 20}</td></tr></tbody>
+      </table>
+      <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+        <div className="border border-black p-2"><p className="text-[9px] font-bold">MOYENNE SUR 100 COEF.</p><p className="text-[16px] font-bold">{full.average == null ? '—' : f2(full.average)}</p></div>
+        <div className="border border-black p-2"><p className="text-[9px] font-bold">MENTION</p><p className="text-[12px] font-semibold">{full.mention || '—'}</p></div>
+        <div className="border border-black p-2"><p className="text-[9px] font-bold">RÉSULTAT INDICATIF</p><p className="text-[12px] font-semibold">{full.complete ? full.decision : 'Relevé incomplet'}</p></div>
+      </div>
+      {full.officialMissing && <p className="mt-2 text-[10px] font-semibold">Notes officielles de 1re non saisies : la moyenne ne porte que sur les épreuves de Terminale.</p>}
+      {!full.complete && !full.officialMissing && <p className="mt-2 text-[10px]">Sans note : {full.sections.flatMap((x) => x.missing).join(', ')}.</p>}
+    </>
   );
 }
 
@@ -194,7 +230,7 @@ function EntryTab({ data, setData, role }) {
 function TranscriptsTab({ data, setData, role }) {
   const [id, setId] = useState(data.sessions[0]?.id);
   const [who, setWho] = useState('');
-  const [withProj, setWithProj] = useState(true);
+  const [withProj, setWithProj] = useState(false); // le relevé complet (1re + Terminale) suffit le plus souvent
   const s = data.sessions.find((x) => x.id === id);
   const students = s ? (who ? [who] : CLASSES[s.cls] ?? []) : [];
   const bac = s && isBac(s.kind);
@@ -222,10 +258,75 @@ function TranscriptsTab({ data, setData, role }) {
         )}
       </Card>
       <div className="transcripts-print">
-        {s && students.map((st) => <Transcript key={st} session={s} student={st}
+        {s && students.map((st) => <Transcript key={st} session={s} student={st} official={data.official?.[st]}
           extra={bac && withProj ? <ProjectionBlock p={bacProjection(s.kind, { official: data.official?.[st], blanc: s.marks[st] })} /> : null} />)}
       </div>
     </div>
+  );
+}
+
+/* ---------- Notes officielles de 1re des Terminales ----------
+ * Le relevé de juin (épreuves anticipées et épreuves de fin de 1re) : saisi ici, ou importé depuis le modèle
+ * Excel. Un nouvel élève arrivé en Terminale apporte son relevé à l'inscription (pièce demandée). */
+function OfficialTab({ data, setData }) {
+  const terminales = Object.keys(CLASSES).filter((c) => /^Terminale/.test(c));
+  const [cls, setCls] = useState(terminales[0]);
+  const [report, setReport] = useState(null);
+  const kind = bacKindOf(cls);
+  const parts = EXAMS[EXAMS[kind].first].parts;
+  const students = CLASSES[cls] ?? [];
+  const save = (official) => { const next = { ...data, official }; setData(next); saveMockExams(next); };
+  const setMark = (st, part, raw) => {
+    const v = parseMark(raw);
+    if (v !== '' && (v === 'ABS' ? false : !validMark(v))) return false;
+    const o = { ...(data.official?.[st] ?? {}) }; if (v === '') delete o[part]; else o[part] = v;
+    save({ ...data.official, [st]: o }); return true;
+  };
+  const template = () => saveFile(`notes-de-1re-${cls.replace(/\s+/g, '-')}.xlsx`, buildXlsx([{ name: 'Notes de 1re', rows: [officialHeaders(kind), ...students.map((st) => [st, ...parts.map((p) => data.official?.[st]?.[p.id] ?? '')])], freeze: { col: 1, row: 1 } }]));
+  const importFile = async (file) => {
+    try {
+      const book = await readXlsx(await file.arrayBuffer());
+      const rows = sheetRows(Object.values(book)[0] ?? []);
+      const r = importOfficial(rows, kind, students);
+      save({ ...data.official, ...Object.fromEntries(Object.entries(r.official).map(([st, m]) => [st, { ...(data.official?.[st] ?? {}), ...m }])) });
+      setReport({ ok: Object.keys(r.official).length, errors: r.errors });
+    } catch (x) { setReport({ ok: 0, errors: [`Fichier illisible : ${x.message}`] }); }
+  };
+  const filled = (st) => parts.filter((p) => data.official?.[st]?.[p.id] != null).length;
+  return (
+    <Card title="Notes officielles de 1re" subtitle="Relevé de juin des épreuves anticipées et de fin de 1re : elles apparaissent sur le relevé du bac blanc et dans l'application des familles"
+      action={<select value={cls} onChange={(e) => { setCls(e.target.value); setReport(null); }} aria-label="Classe" className={inputCls}>{terminales.map((c) => <option key={c}>{c}</option>)}</select>}>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <Button variant="secondary" onClick={template}>Télécharger le modèle Excel ({cls})</Button>
+        <label className="cursor-pointer rounded-lg bg-navy-500 px-3 py-2 text-sm font-semibold text-white hover:bg-navy-700">Importer le fichier rempli
+          <input type="file" accept=".xlsx" className="sr-only" onChange={(e) => { if (e.target.files[0]) importFile(e.target.files[0]); e.target.value = ''; }} /></label>
+        <span className="text-xs text-slate-600">Ou saisir directement dans le tableau (« abs » pour un absent).</span>
+      </div>
+      {report && <div role="status" className={`mb-3 rounded-lg p-2 text-sm ${report.errors.length ? 'bg-amber-50 text-amber-900' : 'bg-emerald-50 text-emerald-800'}`}>{report.ok} élève{report.ok > 1 ? 's' : ''} importé{report.ok > 1 ? 's' : ''}.{report.errors.map((e) => <span key={e} className="block">· {e}</span>)}</div>}
+      <div className="-mx-5 overflow-x-auto px-5">
+        <table className="w-full min-w-[900px] text-sm">
+          <thead><tr className="border-b border-slate-200 text-left text-xs text-slate-600">
+            <th className="py-2 pr-2 font-medium">Élève</th>
+            {parts.map((p) => <th key={p.id} className="px-1 text-center font-medium">{p.label}<span className="block font-normal">coef. {p.coef}</span></th>)}
+            <th className="px-2 font-medium">État</th>
+          </tr></thead>
+          <tbody>{students.map((st) => (
+            <tr key={st} className="border-b border-slate-100">
+              <td className="py-1.5 pr-2 font-medium text-slate-900">{st}</td>
+              {parts.map((p) => (
+                <td key={p.id} className="px-1 text-center">
+                  <input key={`${st}-${p.id}-${data.official?.[st]?.[p.id] ?? ''}`} defaultValue={f2(data.official?.[st]?.[p.id])} aria-label={`${p.label} — ${st}`}
+                    onBlur={(e) => { if (!setMark(st, p.id, e.target.value)) e.target.value = f2(data.official?.[st]?.[p.id]); }}
+                    className="w-14 rounded border border-slate-300 px-1 py-0.5 text-center tabular-nums" />
+                </td>
+              ))}
+              <td className="px-2 text-xs">{filled(st) === parts.length ? <Badge tone="green">complet</Badge> : filled(st) === 0 ? <Badge tone="amber">relevé à demander</Badge> : <Badge tone="slate">{parts.length - filled(st)} manquante{parts.length - filled(st) > 1 ? 's' : ''}</Badge>}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+      </div>
+      <p className="mt-2 text-xs text-slate-600">Nouvel élève en Terminale : le relevé des épreuves anticipées est demandé dans les pièces d'inscription. Sans ces notes, le relevé du bac blanc reste partiel.</p>
+    </Card>
   );
 }
 
@@ -291,7 +392,7 @@ function ProjectionTab({ data, setData }) {
   );
 }
 
-const TABS = [['entry', 'Saisie des notes'], ['transcripts', 'Relevés de notes'], ['projection', 'Projection au bac']];
+const TABS = [['entry', 'Saisie des notes'], ['official', 'Notes de 1re (relevés officiels)'], ['transcripts', 'Relevés de notes'], ['projection', 'Projection au bac']];
 export default function MockExamsModule({ role }) {
   const tabs = role === 'ENSEIGNANT' ? TABS.slice(0, 1) : TABS;
   const [tab, setTab] = useState('entry');
@@ -310,6 +411,7 @@ export default function MockExamsModule({ role }) {
       )}
       {tab === 'entry' && <EntryTab data={data} setData={setData} role={role} />}
       {tab === 'transcripts' && <TranscriptsTab data={data} setData={setData} role={role} />}
+      {tab === 'official' && <OfficialTab data={data} setData={setData} />}
       {tab === 'projection' && <ProjectionTab data={data} setData={setData} />}
     </div>
   );

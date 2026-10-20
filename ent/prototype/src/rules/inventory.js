@@ -48,3 +48,16 @@ export function consume(it, n, by, at, note) {
   if (n > usable(it)) throw new Error(`Plus assez de ${it.name}.`);
   return { ...it, qty: it.qty - n, log: [...(it.log ?? []), { at, by, kind: 'UTILISE', n, note }] };
 }
+
+/** Correction d'un article (nom, lieu, quantité comptée, seuil, péremption) : gardée dans l'historique. */
+export function editItem(it, patch, by, at) {
+  const qty = patch.qty == null ? it.qty : Number(patch.qty);
+  if (!String(patch.name ?? it.name).trim()) throw new Error('Le nom de l\'article est obligatoire.');
+  if (!(qty >= 0)) throw new Error('Quantité incorrecte.');
+  if (qty < (it.broken ?? 0)) throw new Error(`Il y a ${it.broken} cassé(s) : la quantité ne peut pas être plus petite.`);
+  return { ...it, ...patch, name: String(patch.name ?? it.name).trim(), qty, log: [...(it.log ?? []), { at, by, kind: 'CORRECTION', n: qty - it.qty, note: 'correction de la fiche' }] };
+}
+
+/** Utilisations de la trousse de secours (les plus récentes d'abord) : quoi, combien, par qui, pour qui. */
+export const usages = (items) => items.flatMap((it) => (it.log ?? []).filter((l) => l.kind === 'UTILISE').map((l) => ({ ...l, item: it.name })))
+  .sort((a, b) => String(b.at).localeCompare(String(a.at)));

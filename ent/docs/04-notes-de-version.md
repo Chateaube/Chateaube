@@ -116,3 +116,30 @@
 - Base : `justified_at` et vue `v_attendance_status`, `school_forget.colle_requested`, `carnet_colles_due`,
   `is_new_student`, objets confisqués (`object_kind`, `handed_to`, durée décidée par Direction/secrétariat),
   table `activity_log` ; scénario T60.
+
+## 20 octobre 2026 (nuit) — relevé complet de Terminale, parcours antérieur, matériel remis à plat
+
+- **Bac blanc de Terminale : relevé complet**, comme le relevé officiel. Les notes officielles de 1re (déjà
+  acquises) puis les notes du bac blanc, avec une colonne **Points** (note × coefficient), les sous-totaux et le
+  total sur 100 coefficients. Même relevé dans l'application des élèves et des parents.
+- **Notes de 1re (relevés officiels)** : nouvel onglet des Examens blancs. Saisie directe dans un tableau
+  (classe × épreuves) ou import du modèle Excel prérempli. État par élève : complet, notes manquantes, relevé à
+  demander. La projection au bac devient facultative sur le relevé imprimé.
+- **Inscription : parcours antérieur.** Système de l'école d'origine (français, expression française, malgache,
+  anglophone, autre). Les écoles déjà saisies sont proposées avec leur système (« Déjà connue : 3 élèves »).
+  En 2de : brevet obtenu, non obtenu ou non présenté. En 1re et en Terminale : case « Redouble ». Même chose
+  dans le formulaire public de pré-inscription.
+- **Pièces selon la classe** : relevé du brevet (nouvel élève en 2de qui l'a obtenu), relevé des épreuves
+  anticipées (nouvel élève en Terminale), relevés de l'examen (tout redoublant de 1re ou de Terminale).
+- **Rubriques affichées** : déplacées des Paramètres vers Droits d'accès, onglet « Rubriques de l'école ».
+- **Bibliothèque** : un prix par livre ; non rendu au bout de 30 jours → **facturé**, liste « à facturer », report
+  du n° de reçu de caisse ; tant que ce n'est pas réglé, le bulletin n'est pas remis. Les parents le voient.
+- **Manuels** : « Qui a quoi » — on clique sur la case d'un élève le jour où il prend le manuel ; « Tout remettre
+  à la classe » ne sert qu'en début d'année. Le stock vient des entrées enregistrées dans le module (pas de
+  l'inventaire). La Direction peut corriger les nombres, renommer ou supprimer un titre.
+- **Inventaire** : boutons clairs par article — Utilisé (trousse), Cassé, Réparé / jeté, Racheté, Modifier,
+  Supprimer (Direction). Trousse : « Ce qui a été utilisé » (quoi, combien, par qui, pour qui).
+- **Soins** : en plus du Doliprane, les produits de la trousse utilisés (pansements, compresses…) sont déduits du
+  stock et notés au registre. La Direction peut aussi enregistrer un passage.
+- Base : parcours antérieur (`previous_system`, `dnb_status`, `repeating`), vue `v_school_directory`, prix des
+  livres et facturation (`v_library_to_bill`) ; scénario T61.

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Badge, Button, Card, Icon, Stat } from './ui.jsx';
 import { DocumentInput, DocumentThumb } from './PhotoInput.jsx';
 import { loadInventory, saveInventory } from '../careStore.js';
-import { CATEGORIES, inventoryAlerts, reportBroken, resolveBroken, addPurchase, usable } from '../rules/inventory.js';
+import { CATEGORIES, inventoryAlerts, reportBroken, resolveBroken, addPurchase, usable, consume, editItem, usages } from '../rules/inventory.js';
 import { buildXlsx } from '../xlsx.js';
 import { saveFile } from '../download.js';
 import { printOnly } from '../print.js';
@@ -94,6 +94,8 @@ export default function InventoryModule({ role = 'BUREAU' }) {
       if (open.mode === 'CASSE') n = reportBroken(it, Number(f.n), f.note, BY[role], at);
       if (open.mode === 'REGLER') n = resolveBroken(it, Number(f.n), f.how ?? 'REPARE', BY[role], at);
       if (open.mode === 'ACHAT') n = addPurchase(it, { n: Number(f.n), supplier: f.supplier, price: Number(f.price) || null, invoice: f.invoice, expires: f.expires }, BY[role], at);
+      if (open.mode === 'UTILISE') n = consume(it, Number(f.n), BY[role], at, f.note);
+      if (open.mode === 'MODIF') n = editItem(it, { name: f.name, place: f.place, qty: Number(f.qty), min: f.min === '' || f.min == null ? null : Number(f.min), expires: f.expires || undefined }, BY[role], at);
       update(items.map((x) => (x.id === it.id ? n : x))); setOpen(null); setF({}); setErr('');
     } catch (e) { setErr(e.message); }
   };
@@ -108,6 +110,8 @@ export default function InventoryModule({ role = 'BUREAU' }) {
     saveFile('inventaire.xlsx', buildXlsx([{ name: 'Inventaire', rows, widths: [18, 34, 20, 10, 10, 10, 8, 12], freeze: { row: 3, col: 0 } }]));
   };
   const list = items.filter((i) => i.cat === cat);
+  const removeItem = (it) => { if (window.confirm(`Supprimer « ${it.name} » de l'inventaire ? (son historique et ses factures disparaissent aussi)`)) update(items.filter((x) => x.id !== it.id)); };
+  const btn = 'rounded-md px-2 py-1 text-xs font-medium ring-1 ring-slate-200 hover:bg-slate-50';
 
   return (
     <div className="space-y-5">
@@ -158,16 +162,28 @@ export default function InventoryModule({ role = 'BUREAU' }) {
                     <td className={`px-2 text-right tabular-nums ${it.broken ? 'text-red-700' : 'text-slate-400'}`}>{it.broken ?? 0}</td>
                     <td className={`px-2 text-right font-semibold tabular-nums ${it.min != null && usable(it) <= it.min ? 'text-amber-700' : ''}`}>{usable(it)}</td>
                     <td className="px-2"><div className="flex flex-wrap gap-1">{(it.invoices ?? []).filter((v) => v.invoice).map((v, i) => <DocumentThumb key={i} doc={v.invoice} title={`Facture ${v.supplier ?? ''}`} />)}{!(it.invoices ?? []).length && <span className="text-xs text-slate-400">—</span>}</div></td>
-                    <td className="whitespace-nowrap py-2 pl-2 text-right">
-                      <button type="button" onClick={() => { setOpen({ id: it.id, mode: 'CASSE' }); setF({ n: 1 }); setErr(''); }} className="text-xs font-medium text-red-700">Signaler une casse</button>
-                      {manage && it.broken > 0 && <button type="button" onClick={() => { setOpen({ id: it.id, mode: 'REGLER' }); setF({ n: 1, how: 'REPARE' }); setErr(''); }} className="ml-3 text-xs font-medium text-navy-700">Réparé / jeté</button>}
-                      {manage && <button type="button" onClick={() => { setOpen({ id: it.id, mode: 'ACHAT' }); setF({ n: 1 }); setErr(''); }} className="ml-3 text-xs font-medium text-navy-700">Achat</button>}
+                    <td className="py-2 pl-2 text-right">
+                      <div className="flex flex-wrap justify-end gap-1">
+                        {it.cat === 'Trousse de secours' && <button type="button" onClick={() => { setOpen({ id: it.id, mode: 'UTILISE' }); setF({ n: 1, note: '' }); setErr(''); }} className={`${btn} text-navy-700`}>Utilisé</button>}
+                        <button type="button" onClick={() => { setOpen({ id: it.id, mode: 'CASSE' }); setF({ n: 1 }); setErr(''); }} className={`${btn} text-red-700`}>Cassé</button>
+                        {manage && it.broken > 0 && <button type="button" onClick={() => { setOpen({ id: it.id, mode: 'REGLER' }); setF({ n: 1, how: 'REPARE' }); setErr(''); }} className={`${btn} text-navy-700`}>Réparé / jeté</button>}
+                        {manage && <button type="button" onClick={() => { setOpen({ id: it.id, mode: 'ACHAT' }); setF({ n: 1 }); setErr(''); }} className={`${btn} text-navy-700`}>Racheté</button>}
+                        {manage && <button type="button" onClick={() => { setOpen({ id: it.id, mode: 'MODIF' }); setF({ name: it.name, place: it.place ?? '', qty: it.qty, min: it.min ?? '', expires: it.expires ?? '' }); setErr(''); }} className={`${btn} text-slate-700`}>Modifier</button>}
+                        {role === 'DIRECTION' && <button type="button" onClick={() => removeItem(it)} className={`${btn} text-red-700`}>Supprimer</button>}
+                      </div>
                     </td>
                   </tr>
                   {open?.id === it.id && (
                     <tr className="bg-slate-50"><td colSpan={7} className="p-3">
                       <div className="flex flex-wrap items-end gap-2 text-xs text-slate-600">
-                        <label>Quantité<input inputMode="numeric" value={f.n ?? ''} onChange={(e) => setF({ ...f, n: e.target.value })} className={`ml-1 w-16 ${inputCls}`} /></label>
+                        {open.mode === 'MODIF' ? <>
+                          <label>Article<input value={f.name ?? ''} onChange={(e) => setF({ ...f, name: e.target.value })} className={`ml-1 ${inputCls}`} /></label>
+                          <label>Lieu<input value={f.place ?? ''} onChange={(e) => setF({ ...f, place: e.target.value })} className={`ml-1 w-32 ${inputCls}`} /></label>
+                          <label>Quantité comptée<input inputMode="numeric" value={f.qty ?? ''} onChange={(e) => setF({ ...f, qty: e.target.value })} className={`ml-1 w-16 ${inputCls}`} /></label>
+                          <label>Seuil<input inputMode="numeric" value={f.min ?? ''} onChange={(e) => setF({ ...f, min: e.target.value })} className={`ml-1 w-14 ${inputCls}`} /></label>
+                          {it.cat === 'Trousse de secours' && <label>Péremption<input type="date" value={f.expires ?? ''} onChange={(e) => setF({ ...f, expires: e.target.value })} className={`ml-1 ${inputCls}`} /></label>}
+                        </> : <label>Quantité<input inputMode="numeric" value={f.n ?? ''} onChange={(e) => setF({ ...f, n: e.target.value })} className={`ml-1 w-16 ${inputCls}`} /></label>}
+                        {open.mode === 'UTILISE' && <label className="flex-1">Pour qui, pourquoi<input value={f.note ?? ''} onChange={(e) => setF({ ...f, note: e.target.value })} placeholder="ex. RAZAKA Feno (4e), genou écorché" className={`ml-1 w-full ${inputCls}`} /></label>}
                         {open.mode === 'CASSE' && <label className="flex-1">Ce qui est cassé<input value={f.note ?? ''} onChange={(e) => setF({ ...f, note: e.target.value })} placeholder="ex. pied de table cassé, salle 1re" className={`ml-1 w-full min-w-[200px] ${inputCls}`} /></label>}
                         {open.mode === 'REGLER' && <select value={f.how} onChange={(e) => setF({ ...f, how: e.target.value })} className={inputCls}><option value="REPARE">Réparé</option><option value="JETE">Jeté (sort de l'inventaire)</option></select>}
                         {open.mode === 'ACHAT' && <>
@@ -187,6 +203,17 @@ export default function InventoryModule({ role = 'BUREAU' }) {
             </tbody>
           </table>
         </div>
+        <p className="mt-3 text-xs text-slate-600"><strong>Cassé</strong> : n'importe qui le signale · <strong>Réparé / jeté</strong> : quand c'est réglé · <strong>Racheté</strong> : ajoute au stock et garde la facture · <strong>Modifier</strong> : corriger le nom, le lieu ou la quantité après un comptage{cat === 'Trousse de secours' ? ' · Utilisé : un produit sorti de la trousse (les Doliprane donnés lors d\'un passage aux soins sont déduits tout seuls)' : ''}.</p>
+        {cat === 'Trousse de secours' && (
+          <div className="mt-4">
+            <p className="mb-1 text-sm font-semibold text-slate-800">Ce qui a été utilisé</p>
+            {usages(list).length === 0 ? <p className="text-sm text-slate-600">Rien pour l'instant.</p> : (
+              <ul className="divide-y divide-slate-100 text-sm">{usages(list).slice(0, 15).map((u, i) => (
+                <li key={i} className="flex flex-wrap justify-between gap-2 py-1.5"><span><strong>{u.n} × {u.item}</strong>{u.note ? ` — ${u.note}` : ''}</span><span className="text-xs text-slate-600">{String(u.at).slice(0, 10).split('-').reverse().join('/')} {String(u.at).slice(11, 16).replace(':', 'h')} · {u.by}</span></li>
+              ))}</ul>
+            )}
+          </div>
+        )}
       </Card>}
       <div className="inventory-print hidden print:block">
         <h1 className="mb-2 text-lg font-semibold">Inventaire du matériel — Tamatave</h1>

@@ -3,7 +3,7 @@ import { Badge, Button, Card } from './ui.jsx';
 import { PhotoInput, DocumentInput, DocumentThumb } from './PhotoInput.jsx';
 import { addRequest, addOnlinePrereg, decideRequest, loadRequests, requestsFor, loadCampaign } from '../requestsStore.js';
 import { profileKey } from '../profilesStore.js';
-import { NATIONALITY_CHOICES, toggleNationality, hasOtherNationality, nationalityLabels, nextClass, REQUIRED_DOCUMENTS, documentsFor, campaignOpen, nextMatricule } from '../rules/enrollment.js';
+import { NATIONALITY_CHOICES, toggleNationality, hasOtherNationality, nationalityLabels, nextClass, REQUIRED_DOCUMENTS, documentsFor, campaignOpen, nextMatricule, SCHOOL_SYSTEMS, DNB_STATUS } from '../rules/enrollment.js';
 import { PREREG_SOURCES, ENROLL_CLASSES } from '../data/enrollment.js';
 
 // Démarches des familles sans passer au secrétariat :
@@ -69,7 +69,7 @@ export function FamilyRequestForm({ profile, kind, guardianName }) {
   const [error, setError] = useState('');
   const pending = sent.find((r) => r.status === 'A_TRAITER');
   const isReenrol = kind === 'REINSCRIPTION';
-  const docKinds = documentsFor('REINSCRIPTION', isReenrol ? next ?? profile.cls : profile.cls);
+  const docKinds = documentsFor('REINSCRIPTION', isReenrol ? next ?? profile.cls : profile.cls, profile);
   const submit = () => {
     const ok = addRequest({ kind, studentKey: key, studentId: profile.id, from: guardianName, payload: { decision: isReenrol ? decision : undefined, cls: isReenrol && decision === 'REINSCRIT' ? next : undefined, photo, nationalities: nat, otherNationality: otherNat, guardians, health }, documents: docs });
     if (!ok) { setError('Le téléphone manque de place : retirez une page ou envoyez des photos plus légères.'); return; }
@@ -188,6 +188,9 @@ function PublicForm() {
           <Field label="Classe demandée"><select value={f.cls} onChange={(e) => setF({ ...f, cls: e.target.value })} className={inputCls}>{ENROLL_CLASSES.map((c) => <option key={c}>{c}</option>)}</select></Field>
         </div>
         <Field label="Établissement actuel de l'enfant">{input('previousSchool')}</Field>
+        <Field label="Programme suivi dans cet établissement"><select value={f.previousSystem ?? ''} onChange={(e) => setF({ ...f, previousSystem: e.target.value || undefined })} className={inputCls}><option value="">Je ne sais pas</option>{Object.entries(SCHOOL_SYSTEMS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Field>
+        {f.cls.startsWith('2de') && <Field label="Brevet (DNB)"><select value={f.dnb ?? ''} onChange={(e) => setF({ ...f, dnb: e.target.value || undefined })} className={inputCls}><option value="">—</option>{Object.entries(DNB_STATUS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Field>}
+        {/^(1re|Terminale)/.test(f.cls) && <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={!!f.repeating} onChange={(e) => setF({ ...f, repeating: e.target.checked })} />L'enfant redouble cette classe</label>}
         <Field label="Responsable (nom et prénom)">{input('contact')}</Field>
         <div className="grid grid-cols-2 gap-2">
           <Field label="Téléphone / WhatsApp">{input('phone', { inputMode: 'tel', placeholder: '+261 34 …' })}</Field>
@@ -198,7 +201,7 @@ function PublicForm() {
         <div>
           <p className="mb-1 text-xs font-semibold text-slate-500">Pièces (facultatif)</p>
           <p className="mb-2 text-[11px] text-slate-500">Utile si vous n'êtes pas à Tamatave : nous les verrons tout de suite. Les originaux restent à déposer au secrétariat.</p>
-          <DocumentsPicker docs={docs} setDocs={setDocs} kinds={documentsFor('INSCRIPTION', f.cls)} />
+          <DocumentsPicker docs={docs} setDocs={setDocs} kinds={documentsFor('INSCRIPTION', f.cls, f)} />
         </div>
         {error && <p className="text-sm text-red-700">{error}</p>}
         <Button className="w-full" disabled={!ready} onClick={() => {

@@ -234,7 +234,7 @@ function Notes({ child, audience, settings }) {
       {exams.length > 0 && (
         <details open className="rounded-2xl bg-white/70 p-2 shadow-soft">
           <summary className="cursor-pointer px-2 py-1.5 text-sm font-semibold text-slate-800">Examens blancs ({exams.length})</summary>
-          <div className="mt-2 space-y-3">{exams.map((x) => <ExamResultCard key={x.id} session={x} student={fullName(child)} />)}</div>
+          <div className="mt-2 space-y-3">{exams.map((x) => <ExamResultCard key={x.id} session={x} student={fullName(child)} official={loadMockExams().official?.[fullName(child)]} />)}</div>
         </details>
       )}
       <div className="grid grid-cols-3 gap-1 rounded-full bg-white p-1 shadow-soft">
@@ -506,7 +506,7 @@ function LibraryLoans({ child, isParent }) {
           {mine.map((l) => (
             <li key={l.id} className="rounded-xl border border-slate-200 p-3 text-sm">
               <p className="font-medium text-slate-800">{designation(bookOf(l.code))}</p>
-              <p className={`text-xs ${l.due < TODAY ? 'text-red-700' : daysLeft(l.due, TODAY) <= 3 ? 'font-medium text-amber-700' : 'text-slate-500'}`}>{l.code} · à rendre le {l.due.split('-').reverse().join('/')}{l.due < TODAY ? ' (en retard)' : daysLeft(l.due, TODAY) <= 3 ? ` (dans ${daysLeft(l.due, TODAY)} jour${daysLeft(l.due, TODAY) > 1 ? 's' : ''})` : ''}</p>
+              <p className={`text-xs ${l.due < TODAY ? 'text-red-700' : daysLeft(l.due, TODAY) <= 3 ? 'font-medium text-amber-700' : 'text-slate-500'}`}>{l.code} · à rendre le {l.due.split('-').reverse().join('/')}{l.due < TODAY ? ` (non rendu : facturé${bookOf(l.code)?.price ? ` ${formatAr(bookOf(l.code).price)}` : ''})` : daysLeft(l.due, TODAY) <= 3 ? ` (dans ${daysLeft(l.due, TODAY)} jour${daysLeft(l.due, TODAY) > 1 ? 's' : ''})` : ''}</p>
             </li>
           ))}
         </ul>

@@ -1,5 +1,5 @@
 // Rubriques modulaires : chaque rubrique optionnelle a un identifiant et un mode d'affichage réglable
-// par la Direction (Paramètres → Rubriques affichées), sans toucher au code :
+// par la Direction (Droits d'accès → Rubriques de l'école), sans toucher au code :
 //   TOUS : visible par les profils concernés · DIRECTION : Direction seulement · AUCUN : masquée.
 // Masquer une rubrique n'efface aucune donnée : tarifs, articles, inventaire… continuent de servir.
 // Pour supprimer une rubrique du code plus tard : retirer son entrée ici et l'élément qui porte son `feature`.

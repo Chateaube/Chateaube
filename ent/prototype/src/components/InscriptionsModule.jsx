@@ -3,6 +3,7 @@ import { Avatar, Badge, Button, Card, Icon, Stat } from './ui.jsx';
 import { PREREGISTRATIONS, PREREG_SOURCES, ENROLL_CLASSES, LANGUAGES, RELATIONS } from '../data/enrollment.js';
 import {
   PREREG_STEPS, PREREG_OTHER, nextPreregStep, nextClass, validateProfile, accountsFor, missingDocuments, documentsFor, nextMatricule,
+  SCHOOL_SYSTEMS, DNB_STATUS, schoolDirectory, knownSchool,
 } from '../rules/enrollment.js';
 import { loadProfiles, saveProfiles, profileKey } from '../profilesStore.js';
 import { loadRequests, updateOnlinePrereg, loadCampaign, saveCampaign } from '../requestsStore.js';
@@ -148,6 +149,11 @@ function ProfileForm({ initial, kind, onSave, onCancel }) {
   const setG = (i, patch) => set({ guardians: p.guardians.map((g, k) => (k === i ? { ...g, ...patch } : patch.payer ? { ...g, payer: false } : g)) });
   const toggleDoc = (id) => set({ documents: p.documents.includes(id) ? p.documents.filter((d) => d !== id) : [...p.documents, id] });
   const input = (k, extra = {}) => <input value={p[k]} onChange={(e) => set({ [k]: e.target.value })} className={`w-full ${inputCls}`} {...extra} />;
+  // écoles d'origine déjà rencontrées : proposées à la saisie, avec leur système
+  const directory = useMemo(() => schoolDirectory([...loadProfiles(), ...PREREGISTRATIONS, ...loadRequests().prereg ?? []]), []);
+  const known = knownSchool(directory, p.previousSchool);
+  const setSchool = (name) => { const k = knownSchool(directory, name); set({ previousSchool: name, ...(k?.system && !p.previousSystem ? { previousSystem: k.system } : {}) }); };
+  const isNew = kind === 'INSCRIPTION';
   return (
     <div className="space-y-5">
       <Card title={kind === 'REINSCRIPTION' ? `Réinscription 2027-2028 — ${p.firstName} ${p.lastName}` : kind === 'COMPLETER' ? `Compléter la fiche — ${p.firstName} ${p.lastName}` : 'Inscription — nouvelle fiche élève'}
@@ -190,7 +196,26 @@ function ProfileForm({ initial, kind, onSave, onCancel }) {
           </Field>
           <Field label="Entrée dans l'établissement">{input('enteredOn', { type: 'date' })}
             <span className="mt-1 block text-[11px] text-slate-500">{seniority(p.enteredOn)?.label ?? 'Nouveau ou ancien : indiquer la date d\'entrée'}</span></Field>
-          <Field label="Établissement d'origine">{input('previousSchool')}</Field>
+          <Field label="Établissement d'origine">
+            <input value={p.previousSchool} onChange={(e) => setSchool(e.target.value)} list="ecoles-origine" className={`w-full ${inputCls}`} />
+            <datalist id="ecoles-origine">{directory.map((e) => <option key={e.name} value={e.name}>{e.system ? SCHOOL_SYSTEMS[e.system] : ''}</option>)}</datalist>
+            {known && <span className="mt-1 block text-[11px] text-slate-600">Déjà connue : {known.count} élève{known.count > 1 ? 's' : ''} venu{known.count > 1 ? 's' : ''} de cette école{known.system ? ` · ${SCHOOL_SYSTEMS[known.system].toLowerCase()}` : ''}</span>}
+          </Field>
+          <Field label="Système de cette école">
+            <select value={p.previousSystem ?? ''} onChange={(e) => set({ previousSystem: e.target.value || undefined })} className={`w-full ${inputCls}`}>
+              <option value="">{isNew ? 'Choisir…' : 'Non renseigné'}</option>{Object.entries(SCHOOL_SYSTEMS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            </select>
+          </Field>
+          {p.cls.startsWith('2de') && isNew && (
+            <Field label="Brevet (DNB)">
+              <select value={p.dnb ?? ''} onChange={(e) => set({ dnb: e.target.value || undefined })} className={`w-full ${inputCls}`}>
+                <option value="">Choisir…</option>{Object.entries(DNB_STATUS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+              </select>
+            </Field>
+          )}
+          {/^(1re|Terminale)/.test(p.cls) && (
+            <label className="flex items-center gap-2 self-end pb-2 text-sm text-slate-700"><input type="checkbox" checked={!!p.repeating} onChange={(e) => set({ repeating: e.target.checked })} />Redouble cette classe</label>
+          )}
         </div>
         {SPECIALTY_COUNT[p.cls] && (
           <Field label={`Spécialités (${SPECIALTY_COUNT[p.cls]} à choisir)`} className="mt-3">
@@ -242,7 +267,7 @@ function ProfileForm({ initial, kind, onSave, onCancel }) {
           <div>
             <h4 className="mb-2 text-sm font-semibold text-slate-800">Pièces déposées au secrétariat</h4>
             <ul className="space-y-1">
-              {documentsFor(kind === 'INSCRIPTION' ? 'INSCRIPTION' : 'REINSCRIPTION', p.cls).map((d) => (
+              {documentsFor(kind === 'INSCRIPTION' ? 'INSCRIPTION' : 'REINSCRIPTION', p.cls, p).map((d) => (
                 <li key={d.id}><label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={p.documents.includes(d.id)} onChange={() => toggleDoc(d.id)} /><span>{d.label}{d.detail && <span className="block text-[11px] text-slate-500">{d.detail}</span>}</span></label></li>
               ))}
             </ul>
@@ -374,7 +399,7 @@ export default function InscriptionsModule({ role }) {
     const base = emptyProfile();
     if (from) {
       const [last, ...first] = from.child.split(' ');
-      base.lastName = last; base.firstName = first.join(' '); base.birthDate = from.birthDate ?? ''; base.cls = from.cls; base.previousSchool = from.previousSchool;
+      base.lastName = last; base.firstName = first.join(' '); base.birthDate = from.birthDate ?? ''; base.cls = from.cls; base.previousSchool = from.previousSchool; base.previousSystem = from.previousSystem; base.dnb = from.dnb; base.repeating = from.repeating;
       base.guardians = [{ ...emptyGuardian(), name: from.contact, relation: /^M\.? /.test(from.contact) ? 'Père' : 'Mère', phone: from.phone, email: from.email ?? '', whatsapp: true, payer: true }];
     }
     setForm({ initial: base, kind: 'INSCRIPTION', preregId: from?.id });

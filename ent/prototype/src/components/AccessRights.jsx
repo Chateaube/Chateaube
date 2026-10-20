@@ -4,9 +4,11 @@ import ScreenTabs from './ScreenTabs.jsx';
 import { STAFF } from '../data/people.js';
 import { staffStatus } from './StaffModule.jsx';
 import { LEVELS, STAFF_PROFILES, baseLevel, levelFor, setLevel, exceptionsOf } from '../rules/access.js';
+import { FEATURES, MODES, featureMode } from '../features.js';
 
 // Droits d'accès (Direction) : qui voit quoi et qui peut modifier, écran par écran.
 // Par profil (Secrétariat, CPE, Enseignant), puis exceptions par personne (niveau d'accréditation).
+// Rubriques de l'école : éteindre une rubrique pour tout le monde (ou la garder pour la Direction).
 // Les écrans propres à un profil (accueil, appel, carnet de notes) et ceux de la Direction ne se règlent pas ici.
 
 const PERSON_PROFILE = { PROFESSEUR: 'ENSEIGNANT', BUREAU: 'BUREAU', VIE_SCOLAIRE: 'VIE_SCOLAIRE' };
@@ -69,6 +71,7 @@ export default function AccessRights({ settings, onChange, catalogue, baseNavs }
       <ScreenTabs label="Droits d'accès" value={tab} onChange={setTab} tabs={[
         ['profiles', 'Par profil', byProfile],
         ['people', 'Par personne', <People key="people" access={access} save={save} catalogue={catalogue} groups={groups} baseNavs={baseNavs} />],
+        ['features', 'Rubriques de l\'école', <Features key="features" settings={settings} onChange={onChange} />],
       ]} />
     </div>
   );
@@ -126,6 +129,28 @@ function People({ access, save, catalogue, groups, baseNavs }) {
           ))}
         </table>
       </div>
+    </Card>
+  );
+}
+
+/** Rubriques de l'école : éteindre une rubrique pour tout le monde, ou la réserver à la Direction. */
+function Features({ settings, onChange }) {
+  return (
+    <Card title="Rubriques de l'école" subtitle="Pour éteindre une rubrique dont l'école ne se sert pas (ou la garder pour la Direction). Rien n'est effacé : on peut la rallumer à tout moment. Pour régler qui voit quoi, ce sont les onglets « Par profil » et « Par personne ».">
+      <ul className="divide-y divide-slate-100">
+        {FEATURES.map((f) => (
+          <li key={f.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+            <span className="min-w-0"><span className="text-sm font-medium text-slate-900">{f.label}</span> <span className="text-xs text-slate-600">· {f.where}</span>
+              {f.note && <span className="block text-xs text-slate-600">{f.note}</span>}</span>
+            <span className="flex gap-1">
+              {Object.entries(MODES).map(([m, l]) => (
+                <button key={m} type="button" aria-pressed={featureMode(settings, f.id) === m} onClick={() => onChange({ ...settings, features: { ...(settings.features ?? {}), [f.id]: m } })}
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${featureMode(settings, f.id) === m ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-700 ring-slate-300'}`}>{l}</button>
+              ))}
+            </span>
+          </li>
+        ))}
+      </ul>
     </Card>
   );
 }

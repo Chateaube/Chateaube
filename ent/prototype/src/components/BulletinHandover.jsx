@@ -7,7 +7,7 @@ import { manualBlocks } from '../rules/manuals.js';
 import { formatAr } from '../rules/finance.js';
 import { loadManuals } from '../manualsStore.js';
 import { loadLibrary } from '../libraryStore.js';
-import { overdueLoans } from '../rules/library.js';
+import { toBill } from '../rules/library.js';
 import { pickupStatus, pickupUntil, PICKUP_LABEL } from '../rules/bulletinPickup.js';
 import { publishAnnouncement } from '../announcementsStore.js';
 import { loadProfiles, profileKey } from '../profilesStore.js';
@@ -44,8 +44,8 @@ export function handoverBlocks(student, settings, manualsData) {
     if (overdue.length) reasons.push(`Frais impayés : ${overdue.map((i) => i.short ?? i.label).join(', ')} (${formatAr(overdue.reduce((s, i) => s + i.amount, 0))})`);
   }
   // livres de la salle d'étude en retard : bloquent comme un manuel
-  const late = overdueLoans(loadLibrary().loans, TODAY).filter((l) => l.borrower === student);
-  if (late.length) reasons.push(`Livre de la salle d'étude non rendu : ${late.map((l) => l.code).join(', ')}`);
+  const late = toBill(loadLibrary().loans, TODAY).filter((l) => l.borrower === student);
+  if (late.length) reasons.push(`Livre de la salle d'étude non rendu, facturé et non réglé : ${late.map((l) => l.code).join(', ')}`);
   return [...reasons, ...manualBlocks(student, manualsData.loans, manualsData.manuals, TODAY)];
 }
 

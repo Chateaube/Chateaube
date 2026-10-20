@@ -517,7 +517,7 @@ test('inscriptions : pré-inscription, fiche élève, comptes', () => {
   assert.equal(nextClass('3e'), '2de');
   assert.equal(nextClass('1re STMG'), 'Terminale STMG');
   assert.equal(nextClass('Terminale Générale'), null);
-  const p = { lastName: 'RAKOTO', firstName: 'Éléa', birthDate: '2013-04-02', nationalities: ['MG'], cls: '6e', previousSchool: 'EPP Tamatave',
+  const p = { lastName: 'RAKOTO', firstName: 'Éléa', birthDate: '2013-04-02', nationalities: ['MG'], cls: '6e', previousSchool: 'EPP Tamatave', previousSystem: 'MALGACHE',
     guardians: [{ name: 'Mme Rakoto Voahangy', relation: 'Mère', phone: '+261 34 12 345 67', email: 'voahangy@gmail.com', payer: true }, { name: 'M. Rakoto', relation: 'Père', phone: '+261 32 11 222 33' }] };
   assert.deepEqual(validateProfile(p), []);
   assert.ok(validateProfile({ ...p, guardians: [{ ...p.guardians[0], payer: false }] }).includes('Indiquer le responsable qui règle les frais.'));
@@ -1559,4 +1559,76 @@ test('ambiances : le message de la bande ne répète ni le libellé ni sa date',
     assert.ok(!a.greeting.toLowerCase().includes(a.label.toLowerCase()), `${a.id} : le message reprend le libellé`);
     (a.label.match(/\d+/g) ?? []).forEach((n) => assert.ok(!a.greeting.includes(n), `${a.id} : la date ${n} est répétée`));
   });
+});
+
+import { fullBacTranscript } from '../src/rules/mockExam.js';
+test('relevé complet de Terminale : notes officielles de 1re + bac blanc, total sur 100', () => {
+  const official = { FR_E: 8, FR_O: 12, MA_EA: 10, SGN: 2, HG: 11, EMC: 14, MA: 9, LVA: 13, LVB: 12 };
+  const blanc = { PHI: 10, MSGN: 16, DE: 11, GO: 12, HG: 10, EMC: 12, MA: 10, LVA: 14, LVB: 11, EPS: 15 };
+  const t = fullBacTranscript('BAC_STMG', { official, blanc });
+  assert.equal(t.total, 100);
+  assert.equal(t.sections[0].coef + t.sections[1].coef, 100);
+  assert.equal(t.sections[0].rows.find((r) => r.id === 'SGN').points, 16); // 2 × coef 8
+  assert.ok(t.complete);
+  assert.equal(t.coef, 100);
+  assert.equal(t.average, Math.round(t.points) / 100); // points sur 100 coefficients
+  const partial = fullBacTranscript('BAC_STMG', { official: {}, blanc });
+  assert.ok(partial.officialMissing);
+  assert.equal(partial.decision, '');
+});
+
+import { importOfficial, officialHeaders } from '../src/rules/mockExam.js';
+test('import des notes officielles de 1re : par libellé d\'épreuve, élève de la classe, notes sur 20', () => {
+  const h = officialHeaders('BAC_STMG');
+  assert.equal(h[0], 'Élève (NOM Prénom)');
+  assert.ok(h.some((x) => x.startsWith('Français — écrit')));
+  const row = (line, name, fr, ma) => ({ line, [h[0]]: name, [h[1]]: fr, [h.find((x) => x.startsWith('Mathématiques (épreuve'))]: ma });
+  const r = importOfficial([row(2, 'RAKOTO Aina', '12,5', 'abs'), row(3, 'INCONNU Paul', '10', ''), row(4, 'RABE Lina', '25', '')], 'BAC_STMG', ['RAKOTO Aina', 'RABE Lina']);
+  assert.deepEqual(r.official['RAKOTO Aina'], { FR_E: 12.5, MA_EA: 'ABS' });
+  assert.equal(r.errors.length, 2);
+  assert.match(r.errors[0], /INCONNU Paul/);
+  assert.match(r.errors[1], /« 25 »/);
+});
+
+import { documentsFor as docsFor, schoolDirectory, knownSchool, validateProfile as vp } from '../src/rules/enrollment.js';
+test('inscription : pièces selon la classe (brevet, épreuves anticipées, redoublants) et annuaire des écoles', () => {
+  const ids = (k, c, o) => docsFor(k, c, o).map((d) => d.id);
+  assert.ok(ids('INSCRIPTION', '2de', { dnb: 'OBTENU' }).includes('RELEVE_DNB'));
+  assert.ok(!ids('INSCRIPTION', '2de', { dnb: 'NON_PRESENTE' }).includes('RELEVE_DNB'));
+  assert.ok(ids('INSCRIPTION', 'Terminale STMG').includes('RELEVE_ANTICIPEES'));
+  assert.ok(!ids('REINSCRIPTION', 'Terminale STMG').includes('RELEVE_ANTICIPEES'));
+  assert.ok(ids('REINSCRIPTION', '1re Générale', { repeating: true }).includes('RELEVES_REDOUBLANT'));
+  assert.ok(!ids('INSCRIPTION', '4e', { repeating: true }).includes('RELEVES_REDOUBLANT'));
+  const dir = schoolDirectory([{ previousSchool: 'Le Petit Prince', previousSystem: 'FRANCAIS' }, { previousSchool: 'le petit prince', previousSystem: 'FRANCAIS' }, { previousSchool: 'EPP Tanambao', previousSystem: 'MALGACHE' }]);
+  assert.deepEqual(dir[0], { name: 'Le Petit Prince', count: 2, system: 'FRANCAIS' });
+  assert.equal(knownSchool(dir, 'LE PETIT PRINCE').system, 'FRANCAIS');
+  assert.equal(knownSchool(dir, 'Inconnue'), null);
+  const base = { lastName: 'A', firstName: 'B', birthDate: '2010-01-01', nationalities: ['MG'], cls: '2de', guardians: [{ name: 'X', phone: '+261 34 00 000 00', payer: true }], previousSchool: 'Le Petit Prince' };
+  assert.ok(vp(base).some((e) => /système/.test(e)));
+  assert.ok(vp({ ...base, previousSystem: 'FRANCAIS' }).some((e) => /brevet/.test(e)));
+  assert.deepEqual(vp({ ...base, previousSystem: 'FRANCAIS', dnb: 'OBTENU' }), []);
+});
+
+import { toBill, billAmount, settleBill } from '../src/rules/library.js';
+test('bibliothèque : livre non rendu après 30 jours facturé au prix du livre, réglé avec un reçu', () => {
+  const books = [{ id: 'k1', price: 30000, copies: [{ code: 'ROM-0001' }] }, { id: 'k2', copies: [{ code: 'ROM-0002' }] }];
+  const loans = [{ id: 'a', code: 'ROM-0001', kind: 'ELEVE', due: '2026-10-08' }, { id: 'b', code: 'ROM-0002', kind: 'ELEVE', due: '2026-10-20' }, { id: 'c', code: 'ROM-0002', kind: 'ELEVE', due: '2026-10-01', returnedOn: '2026-10-02' }];
+  assert.deepEqual(toBill(loans, '2026-10-13').map((l) => l.id), ['a']);
+  assert.equal(billAmount(loans[0], books), 30000);
+  assert.equal(billAmount(loans[1], books), null);
+  assert.ok(settleBill(loans[0], '123').error);
+  const r = settleBill(loans[0], 'ANX-TMV-00300', '2026-10-13');
+  assert.equal(toBill([r.loan], '2026-10-13').length, 0);
+});
+
+import { editItem, usages, consume as useItem } from '../src/rules/inventory.js';
+test('inventaire : corriger une fiche, utilisations de la trousse visibles', () => {
+  const it = { id: 'i1', name: 'Pansements', qty: 20, broken: 0, log: [] };
+  const e = editItem(it, { name: 'Pansements (boîte)', qty: 18 }, 'Direction', '2026-10-13T10:00');
+  assert.equal(e.qty, 18);
+  assert.equal(e.log[0].kind, 'CORRECTION');
+  assert.throws(() => editItem({ ...it, broken: 3 }, { qty: 2 }, 'x', 'y'), /cassé/);
+  const used = useItem(it, 2, 'Mme Hanta', '2026-10-13T11:00', 'RAZAKA Feno — genou écorché');
+  assert.equal(used.qty, 18);
+  assert.deepEqual(usages([used]).map((u) => [u.item, u.n, u.by]), [['Pansements', 2, 'Mme Hanta']]);
 });

@@ -122,3 +122,61 @@ export function bacProjection(kind, { official = {}, blanc = {} }) {
 
 /** Coefficient proposé au professeur pour compter l'examen blanc dans son carnet : au-dessus de ses autres évaluations. */
 export const suggestedCoef = (evaluations = []) => Math.max(1, ...evaluations.map((e) => Number(e.coef) || 1)) + 1;
+
+/**
+ * Relevé COMPLET d'un bac blanc de Terminale, comme le relevé officiel : les notes officielles de 1re (déjà
+ * acquises) puis les notes du bac blanc, avec les points (note × coefficient) et le total sur 100.
+ * Un 16 coefficient 4 ne compense pas un 2 coefficient 16 : la colonne des points le montre.
+ */
+export function fullBacTranscript(kind, { official = {}, blanc = {} }) {
+  const section = (title, parts, marks, source) => {
+    const rows = parts.map((p) => {
+      const v = partMark(p, marks ?? {});
+      const mark = v == null || v === '' ? null : v;
+      return { ...p, mark, points: mark == null ? null : round2(num(mark) * p.coef), source };
+    });
+    const known = rows.filter((r) => r.mark != null);
+    return { title, rows, coef: parts.reduce((t, p) => t + p.coef, 0), points: round2(known.reduce((t, r) => t + r.points, 0)), missing: rows.filter((r) => r.mark == null).map((r) => r.label) };
+  };
+  const first = section('Épreuves de 1re — notes officielles (relevé de juin)', EXAMS[EXAMS[kind].first].parts, official, 'OFFICIEL');
+  const final = section('Épreuves de Terminale — bac blanc', EXAMS[kind].parts, blanc, 'BLANC');
+  const rows = [...first.rows, ...final.rows].filter((r) => r.mark != null);
+  const coef = rows.reduce((t, r) => t + r.coef, 0);
+  const points = round2(rows.reduce((t, r) => t + r.points, 0));
+  const average = coef ? round2(points / coef) : null;
+  const complete = !first.missing.length && !final.missing.length;
+  return { sections: [first, final], total: first.coef + final.coef, coef, points, average, complete, officialMissing: first.missing.length === first.rows.length,
+    decision: complete ? decision(average, kind) : '', mention: complete ? mention(average) : '' };
+}
+
+const norm = (t) => String(t ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+/** En-têtes du modèle Excel des notes officielles de 1re : l'élève, puis une colonne par épreuve. */
+export const officialHeaders = (kind) => ['Élève (NOM Prénom)', ...EXAMS[EXAMS[kind].first].parts.map((p) => `${p.label} (coef. ${p.coef})`)];
+
+/**
+ * Import des notes officielles de 1re (relevé de juin) depuis le modèle Excel : une ligne par élève.
+ * Colonnes reconnues par le libellé exact de l'épreuve (accents, majuscules et « (coef. n) » ignorés). Note vide : non saisie.
+ */
+export function importOfficial(rows, kind, students) {
+  const parts = EXAMS[EXAMS[kind].first].parts;
+  const official = {}; const errors = [];
+  rows.forEach((r) => {
+    const keys = Object.keys(r).filter((k) => k !== 'line');
+    const nameKey = keys.find((k) => /^eleve|^nom/.test(norm(k)));
+    const name = String(r[nameKey] ?? '').trim();
+    const student = students.find((s) => norm(s) === norm(name));
+    if (!student) { errors.push(`Ligne ${r.line} : élève « ${name} » introuvable dans la classe.`); return; }
+    const marks = {};
+    parts.forEach((p) => {
+      const head = (h) => norm(String(h).replace(/\(coef[^)]*\)/i, ''));
+      const k = keys.find((h) => head(h) === norm(p.label) || head(h) === norm(p.id));
+      const raw = String(r[k] ?? '').trim().replace(',', '.');
+      if (!raw) return;
+      const v = /^abs/i.test(raw) ? 'ABS' : Number(raw);
+      if (!validMark(v)) { errors.push(`Ligne ${r.line} : ${p.label} « ${raw} » n'est pas une note sur 20.`); return; }
+      marks[p.id] = v;
+    });
+    official[student] = marks;
+  });
+  return { official, errors };
+}

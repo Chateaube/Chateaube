@@ -1671,5 +1671,27 @@ DO $$ DECLARE e uuid := '30000000-0000-0000-0000-000000000001'; a uuid; f uuid; 
   END;
 END $$;
 
+-- T61 — annuaire des écoles d'origine, livre non rendu à facturer
+DO $$ DECLARE b uuid; e uuid := '30000000-0000-0000-0000-000000000001'; l uuid; BEGIN
+  UPDATE student SET previous_school = 'Le Petit Prince', previous_system = 'FRANCAIS' WHERE id IN (SELECT id FROM student ORDER BY id LIMIT 2);
+  IF (SELECT (students, system) FROM v_school_directory WHERE key = 'le petit prince') <> (2::bigint, 'FRANCAIS'::text) THEN RAISE EXCEPTION 'T61: annuaire des écoles'; END IF;
+  BEGIN
+    UPDATE student SET previous_system = 'BELGE' WHERE id = (SELECT id FROM student LIMIT 1);
+    RAISE EXCEPTION 'T61: système inconnu accepté';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO library_book (site_id, kind, title, editor, price) SELECT id, 'ROMAN', 'Le Petit Prince', 'Gallimard', 15000 FROM site WHERE code = 'TMV' RETURNING id INTO b;
+  INSERT INTO library_copy (code, book_id) VALUES ('ROM-0900', b);
+  INSERT INTO library_loan (copy_code, enrollment_id, out_on, due_on) VALUES ('ROM-0900', e, current_date - 40, current_date - 10) RETURNING id INTO l;
+  IF (SELECT price FROM v_library_to_bill WHERE loan_id = l) <> 15000 THEN RAISE EXCEPTION 'T61: livre à facturer'; END IF;
+  BEGIN
+    UPDATE library_loan SET billed_receipt = '123', billed_on = current_date WHERE id = l;
+    RAISE EXCEPTION 'T61: reçu sans numéro de caisse';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE library_loan SET billed_receipt = 'ANX-TMV-00300', billed_on = current_date WHERE id = l;
+  IF EXISTS (SELECT 1 FROM v_library_to_bill WHERE loan_id = l) THEN RAISE EXCEPTION 'T61: facture réglée encore due'; END IF;
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T60 passent'
+\echo 'OK — tous les scénarios T1 à T61 passent'

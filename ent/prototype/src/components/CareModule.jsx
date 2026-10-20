@@ -26,10 +26,12 @@ export function allergiesOf(student) {
 const firstNameOf = (student) => loadProfiles().find((p) => profileKey(p) === student)?.firstName ?? student.split(' ').slice(1).join(' ');
 
 export default function CareModule({ role = 'BUREAU' }) {
-  const canGive = role === 'BUREAU';
+  const canGive = ['BUREAU', 'DIRECTION'].includes(role); // la trousse est au secrétariat ; la Direction peut aussi enregistrer
   const [visits, setVisits] = useState(loadVisits);
   const [inv, setInv] = useState(loadInventory);
-  const blank = { student: '', reason: '', detail: '', paracetamol: false, dose: '1 comprimé 500 mg', outcome: '', at: NOW };
+  const blank = { student: '', reason: '', detail: '', paracetamol: false, dose: '1 comprimé 500 mg', outcome: '', at: NOW, products: {} };
+  const who = role === 'DIRECTION' ? 'Direction' : 'Mme Hanta';
+  const kit = inv.filter((i) => i.cat === 'Trousse de secours' && !i.paracetamol);
   const [d, setD] = useState(blank);
   const [tried, setTried] = useState(false);
   const [msg, setMsg] = useState('');
@@ -42,9 +44,16 @@ export default function CareModule({ role = 'BUREAU' }) {
   const save = () => {
     setTried(true);
     if (errors.length) return;
-    const v = { ...d, id: `c${Date.now()}`, by: 'Mme Hanta', notice: parentNotice(d, firstNameOf(d.student)) };
+    const used = Object.entries(d.products ?? {}).filter(([, n]) => n > 0);
+    for (const [id, n] of used) { const it = inv.find((i) => i.id === id); if (n > usable(it)) { setMsg(`Plus assez de « ${it.name} » dans la trousse (${usable(it)} restant).`); return; } }
+    const v = { ...d, id: `c${Date.now()}`, by: who, products: used.map(([id, n]) => ({ name: inv.find((i) => i.id === id).name, n })), notice: parentNotice(d, firstNameOf(d.student)) };
     const next = [v, ...visits]; setVisits(next); saveVisits(next);
-    if (d.paracetamol && doli) { const nextInv = inv.map((i) => (i.id === doli.id ? consume(i, 1, 'Mme Hanta', d.at, d.student) : i)); setInv(nextInv); saveInventory(nextInv); }
+    const note = `${d.student} (${d.reason === 'Autre' ? d.detail : d.reason.toLowerCase()})`;
+    const nextInv = inv.map((i) => {
+      if (d.paracetamol && doli && i.id === doli.id) return consume(i, 1, who, d.at, note);
+      const n = d.products?.[i.id]; return n > 0 ? consume(i, n, who, d.at, note) : i;
+    });
+    setInv(nextInv); saveInventory(nextInv);
     setMsg(`Passage enregistré ; les parents de ${d.student} sont prévenus dans l'application.`);
     setD(blank); setTried(false);
   };
@@ -76,7 +85,7 @@ export default function CareModule({ role = 'BUREAU' }) {
               <li key={v.id} className="flex flex-wrap items-start justify-between gap-2 py-2">
                 <span className="min-w-0"><span className="font-medium text-slate-900">{v.student}</span> <span className="text-slate-500">· {classOf(v.student) ?? ''}</span>
                   <span className="block text-xs text-slate-500">{fmtDT(v.at)} · {v.reason === 'Autre' ? v.detail : v.reason}{v.detail && v.reason !== 'Autre' ? ` (${v.detail})` : ''} · {CARE_OUTCOMES[v.outcome]} · {v.by}</span></span>
-                {v.paracetamol ? <Badge tone="navy">Doliprane · {v.dose}</Badge> : <Badge>sans médicament</Badge>}
+                <span className="flex flex-wrap justify-end gap-1">{v.paracetamol ? <Badge tone="navy">Doliprane · {v.dose}</Badge> : <Badge>sans médicament</Badge>}{(v.products ?? []).map((x) => <Badge key={x.name} tone="slate">{x.n} × {x.name}</Badge>)}</span>
               </li>
             ))}
           </ul>
@@ -91,6 +100,14 @@ export default function CareModule({ role = 'BUREAU' }) {
               </label>
               <label className="block text-xs text-slate-600">{d.reason === 'Autre' ? 'Préciser' : 'Précision (facultatif)'}<input value={d.detail} onChange={(e) => setD({ ...d, detail: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>
               <label className="flex items-center gap-2 text-xs text-slate-700"><input type="checkbox" checked={d.paracetamol} disabled={allergicToParacetamol(allergies)} onChange={(e) => setD({ ...d, paracetamol: e.target.checked })} />Doliprane donné</label>
+              {kit.length > 0 && (
+                <fieldset className="rounded-md bg-slate-50 p-2 text-xs text-slate-700">
+                  <legend className="px-1 font-medium">Utilisé dans la trousse (déduit du stock)</legend>
+                  <div className="grid grid-cols-2 gap-1">{kit.map((i) => (
+                    <label key={i.id} className="flex items-center gap-1.5"><input type="number" min={0} max={usable(i)} value={d.products?.[i.id] ?? 0} onChange={(e) => setD({ ...d, products: { ...d.products, [i.id]: Math.max(0, Number(e.target.value) || 0) } })} aria-label={`${i.name} utilisé`} className="w-12 rounded border border-slate-300 px-1 py-0.5 text-right" />{i.name} <span className="text-slate-500">({usable(i)})</span></label>
+                  ))}</div>
+                </fieldset>
+              )}
               {d.paracetamol && <label className="block text-xs text-slate-600">Dose<input value={d.dose} onChange={(e) => setD({ ...d, dose: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>}
               <label className="block text-xs text-slate-600">Suite
                 <select value={d.outcome} onChange={(e) => setD({ ...d, outcome: e.target.value })} className={`mt-1 w-full ${inputCls}`}><option value="">Choisir…</option>{Object.entries(CARE_OUTCOMES).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
@@ -101,7 +118,7 @@ export default function CareModule({ role = 'BUREAU' }) {
               <Button className="w-full" onClick={save}>Enregistrer et prévenir les parents</Button>
             </div>
           </Card>
-        ) : <Card title="Enregistrer un passage"><p className="text-sm text-slate-500">C'est le secrétariat qui garde la trousse de secours et le Doliprane, et qui enregistre les passages.</p></Card>}
+        ) : <Card title="Enregistrer un passage"><p className="text-sm text-slate-500">C'est le secrétariat qui garde la trousse de secours et le Doliprane, et qui enregistre les passages. Ce qui a été utilisé se voit dans Inventaire → Trousse de secours.</p></Card>}
       </div>
     </div>
   );
