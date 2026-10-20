@@ -15,7 +15,7 @@ export const MOCK_SESSIONS = [
   { id: 'x1', kind: 'BAC_STMG', cls: 'Terminale STMG', title: 'Bac blanc n°1', date: '2026-10-05', counts: {}, marks: fill('Terminale STMG', marks('BAC_STMG', [12.5, 9.5, 15, 7.5, 12, 11])) },
   { id: 'x2', kind: 'BAC_G', cls: 'Terminale Générale', title: 'Bac blanc n°1', date: '2026-10-06', counts: {}, marks: fill('Terminale Générale', marks('BAC_G', [13, 10, 16])) },
   { id: 'x3', kind: 'DNB', cls: '3e', title: 'Brevet blanc n°1', date: '2026-10-08', counts: {}, marks: fill('3e', marks('DNB', [13, 9, 16, 11])) },
-  { id: 'x4', kind: 'PREMIERE_STMG', cls: '1re STMG', title: 'Épreuves de 1re blanches n°1', date: '2026-10-21', counts: {}, marks: {} },
+  { id: 'x4', kind: 'PREMIERE_STMG', cls: '1re STMG', title: 'Épreuves de 1re blanches n°1', date: '2026-10-09', counts: {}, marks: fill('1re STMG', marks('PREMIERE_STMG', [11, 13.5, 9, 14, 10.5])), published: { at: '2026-10-12', by: 'Direction' } },
 ];
 MOCK_SESSIONS[0].marks['RAMANANTSOA Nathan'].GO = 'ABS';
 

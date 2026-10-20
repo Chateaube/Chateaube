@@ -39,6 +39,7 @@ import SignaturesModule from './components/SignaturesModule.jsx';
 import { PublicPreregistration } from './components/FamilyRequests.jsx';
 import SchoolLifeModule from './components/SchoolLifeModule.jsx';
 import MandatesAdmin from './components/MandatesAdmin.jsx';
+import CpeHome from './components/CpeHome.jsx';
 import { notificationsFor, countsByScreen, markSeen } from './notify.js';
 import { useAmbiance } from './ambianceRuntime.js';
 import AmbianceBand from './components/AmbianceNote.jsx';
@@ -57,7 +58,7 @@ import { DIRECTION_ACCOUNTS } from './data/demo.js';
 // avec accès à la Vie scolaire ; la Vie scolaire n'a pas accès au Bureau.
 // Les entrées sans `screen` existent dans l'architecture mais pas dans ce prototype.
 const VIE_SCOLAIRE = { id: 'vs', label: 'Absences, retards et punitions', icon: 'users', screen: VieScolaireModule };
-const COUNCIL = { id: 'council', label: 'Conseils de classe et grilles', icon: 'cap', screen: CouncilScreen };
+const COUNCIL = { id: 'council', label: 'Conseils de classe', icon: 'cap', screen: CouncilScreen };
 const BULLETINS = { id: 'bulletins', label: 'Bulletins', icon: 'pen', screen: BulletinsModule };
 const BOOKING = { id: 'booking', label: 'Réservations de matériel', icon: 'calendar', screen: BookingModule, feature: 'reservations' };
 const INSCRIPTIONS = { id: 'enrol', label: 'Inscriptions et fiches élèves', icon: 'users', screen: InscriptionsModule };
@@ -127,9 +128,9 @@ const PROFILES = {
   VIE_SCOLAIRE: {
     label: 'CPE',
     title: 'CPE — vie scolaire',
-    home: 'vs',
+    home: 'cpe-home',
     nav: [
-      { group: 'Aujourd\'hui', items: [VIE_SCOLAIRE, CARE, HOURS, TT_CHANGES] }, // CPE : annulation du jour seulement
+      { group: 'Aujourd\'hui', items: [{ id: 'cpe-home', label: 'Ma journée', icon: 'home', screen: CpeHome }, VIE_SCOLAIRE, CARE, HOURS, TT_CHANGES] }, // CPE : annulation du jour seulement
       { group: 'Élèves', items: [ro(STUDENT_LIST)] },
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, ro(AGENDA), RESOURCES] },
       { group: 'Ressources', items: [ro(BOOKING), ro({ id: 'books-cpe', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who="M. Be" kind="CPE" /> }), ro(OVERSIGHT[1])] },

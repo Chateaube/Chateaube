@@ -84,9 +84,9 @@ export default function DirectionDashboard({ account, settings, go, site: header
         <p className="text-sm text-slate-600">{decisionsToTake.length ? `${decisionsToTake.length} décision${decisionsToTake.length > 1 ? 's' : ''} vous attend${decisionsToTake.length > 1 ? 'ent' : ''}.` : 'Aucune décision en attente.'}</p>
       </div>
 
-      <TodoList who="DIRECTION" title="Mes tâches du jour" />
-
-      <Card title="Vos décisions" subtitle="Ce qui attend la Direction, du plus urgent au moins urgent">
+      {/* Ma journée : les décisions à prendre (à gauche) et les tâches (à droite), côte à côte */}
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 xl:grid-cols-2">
+      <Card title="Mes décisions" subtitle="Ce qui attend la Direction, du plus urgent au moins urgent">
         {decisionsToTake.length === 0 ? <p className="text-sm text-slate-600">Rien à décider pour l'instant ✓</p> : (
           <ul className="divide-y divide-slate-100">
             {decisionsToTake.map((d, k) => (
@@ -98,6 +98,8 @@ export default function DirectionDashboard({ account, settings, go, site: header
           </ul>
         )}
       </Card>
+      <TodoList who="DIRECTION" title="Mes tâches" />
+      </div>
 
       <h2 className="pt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">L'école en un coup d'œil</h2>
       {/* Indicateurs */}

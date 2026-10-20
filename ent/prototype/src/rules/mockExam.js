@@ -33,7 +33,7 @@ export const EXAMS = {
     P('HG', 'Histoire-géographie', 3, 'Histoire-géographie'), P('EMC', 'Enseignement moral et civique', 1, 'EMC'), P('ES', 'Enseignement scientifique', 3, 'Enseignement scientifique'),
     P('LVA', 'Langue vivante A (anglais)', 3, 'Anglais'), P('LVB', 'Langue vivante B (espagnol)', 3, 'Espagnol'), P('EPS', 'Éducation physique et sportive', 6, 'EPS')] },
   BAC_STMG: { label: 'Bac blanc', official: 'Baccalauréat technologique STMG', levels: /^Terminale STMG/, first: 'PREMIERE_STMG', parts: [
-    P('PHI', 'Philosophie', 4, 'Philosophie'), P('MSGN', 'Management, sciences de gestion et numérique', 16, 'Management'), P('DE', 'Droit et économie', 16, 'Droit et économie'),
+    P('PHI', 'Philosophie', 4, 'Philosophie'), P('MSGN', 'Management, sciences de gestion et numérique — mercatique', 16, 'Management'), P('DE', 'Droit et économie', 16, 'Droit et économie'),
     P('GO', 'Grand oral', 12, 'Grand oral'), P('HG', 'Histoire-géographie', 3, 'Histoire-géographie'), P('EMC', 'Enseignement moral et civique', 1, 'EMC'), P('MA', 'Mathématiques', 3, 'Mathématiques'),
     P('LVA', 'Langue vivante A (anglais)', 3, 'Anglais'), P('LVB', 'Langue vivante B (espagnol)', 3, 'Espagnol'), P('EPS', 'Éducation physique et sportive', 6, 'EPS')] },
 };

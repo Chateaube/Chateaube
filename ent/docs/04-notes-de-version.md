@@ -44,3 +44,31 @@
   Un ancien fichier avec une seule colonne « Histoire-géo et EMC » reste accepté (même note pour les deux).
 - **Projection au bac** : encadré « Comment se lit la projection ? » (acquis de 1re, Terminale estimée par le bac
   blanc, moyenne à obtenir pour 10 / 12 / 14).
+
+## 20 octobre 2026 (soir) — accueils, conseils, relevés sans papier
+
+- **Accueil Direction** : « Mes décisions » et « Mes tâches » côte à côte, en haut de page.
+- **Accueil pour chaque profil** : la CPE a maintenant son accueil (« Ma journée ») : ses tâches, puis ce qui
+  attend la vie scolaire (urgences, familles à prévenir, colles, relectures), et des accès rapides.
+  Chez l'enseignant, les tâches passent en premier.
+- **Conseils de classe** : l'écran « Grilles de notes » disparaît (Direction, secrétariat) : la grille s'imprime
+  en bas du conseil, avec le choix des colonnes. Les enseignants gardent leurs grilles de classe.
+- **Bulletins** : seule la Direction imprime. Le secrétariat prépare et clique « Prévenir la Direction :
+  bulletins prêts » (une tâche apparaît chez la Direction).
+- **Relevés d'examens blancs sans papier** : la Direction clique « Publier aux élèves et aux parents » ; chaque
+  élève et ses parents voient son relevé dans Notes. En 1re : rappel que ces notes comptent déjà pour le bac
+  (33 coefficients sur 100, définitives) et liste de ce qui reste à passer en Terminale. Brevet blanc : les trois
+  sciences sont affichées, les deux meilleures retenues.
+- **Bac STMG** : la spécialité de Terminale est « Management, sciences de gestion et numérique — mercatique ».
+
+### Réformes vérifiées (octobre 2026)
+
+- **Brevet, depuis la session 2026** : note sur 20. Élèves scolarisés : 60 % épreuves, 40 % contrôle continu.
+  **Candidats individuels (notre cas) : seules les épreuves comptent** — cinq épreuves écrites (français,
+  mathématiques, histoire-géographie-EMC avec HG 1,5 + EMC 0,5, sciences, langue vivante), coef. 2 chacune.
+  Sciences officielles : deux disciplines tirées au sort parmi physique-chimie, SVT, technologie (le brevet blanc
+  de l'école garde les trois, deux meilleures retenues). Le brevet n'est pas obligatoire pour entrer en seconde
+  (mesure abandonnée en janvier 2025).
+- **Bac, session 2027** : épreuve anticipée de mathématiques en 1re (coef. 2) ; grand oral 8 en voie générale
+  (au lieu de 10), 12 en technologique (au lieu de 14) ; philosophie 8 en générale, 4 en technologique ; total
+  toujours 100. C'est ce que calcule l'ENT. Date de l'épreuve de maths à confirmer avec l'académie.

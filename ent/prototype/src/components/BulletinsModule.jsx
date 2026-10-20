@@ -13,6 +13,7 @@ import { loadImport, saveImport } from '../importStore.js';
 import { demoAppreciation, accord } from '../rules/documents.js';
 import { formatDateFr } from '../rules/calendar.js';
 import { printOnly } from '../print.js';
+import { loadTasks, saveTasks } from '../tasksStore.js';
 import BulletinHandover from './BulletinHandover.jsx';
 import { loadEngagements, loadValidation } from '../engagementsStore.js';
 import { engagementLabels, attestationLabels } from '../rules/engagements.js';
@@ -131,6 +132,7 @@ const classesNow = () => (importedTleG().length ? [[IMPORTED, buildImported], ..
 
 export default function BulletinsModule({ settings, role, go }) {
   const [mode, setMode] = useState('print'); // impression ou remise en main propre
+  const [readyAsked, setReadyAsked] = useState(false);
   const [CLASSES] = useState(classesNow);
   const [cls, setCls] = useState(CLASSES[0][0]);
   const [version, setVersion] = useState(0); // spécialités modifiées
@@ -169,10 +171,18 @@ export default function BulletinsModule({ settings, role, go }) {
           <h1 className="text-2xl font-semibold text-navy-900">Bulletins</h1>
           <p className="text-sm text-slate-500">Une page A4 par élève, sur le modèle de l'établissement. Chaque bulletin ne garde que les matières de l'élève.</p>
         </div>
-        <span className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => printOnly('.bulletin-one', 'size: A4 portrait; margin: 8mm;')}>Imprimer ce bulletin</Button>
-          <Button onClick={() => printOnly('.bulletins-all', 'size: A4 portrait; margin: 8mm;')}>Imprimer toute la classe ({bulletins.length})</Button>
-        </span>
+        {/* Impression : la Direction seule. Le secrétariat prépare et prévient la Direction (tâche). */}
+        {role === 'DIRECTION' ? (
+          <span className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => printOnly('.bulletin-one', 'size: A4 portrait; margin: 8mm;')}>Imprimer ce bulletin</Button>
+            <Button onClick={() => printOnly('.bulletins-all', 'size: A4 portrait; margin: 8mm;')}>Imprimer toute la classe ({bulletins.length})</Button>
+          </span>
+        ) : (
+          <span className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
+            L'impression est faite par la Direction.
+            <Button variant="secondary" disabled={readyAsked} onClick={() => { saveTasks([{ id: `t${Date.now()}`, title: `Imprimer les bulletins — ${cls} (${TERM.label})`, assignee: 'DIRECTION', priority: 'HAUTE', due: null, done: false, createdBy: role, createdAt: new Date().toISOString().slice(0, 16) }, ...loadTasks()]); setReadyAsked(true); }}>{readyAsked ? 'Direction prévenue ✓' : 'Prévenir la Direction : bulletins prêts'}</Button>
+          </span>
+        )}
       </div>
       <div className="flex gap-1 rounded-lg bg-slate-100 p-1" role="tablist">
         {[['print', 'Préparer et imprimer'], ['handover', 'Remise en main propre']].map(([id, label]) => (

@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from 'react';
+import ExamResultCard from './ExamResultCard.jsx';
+import { loadMockExams } from '../mockExamStore.js';
 import { FAMILY_SECTIONS } from '../rules/navigation.js';
 import { AmbianceHomeCard } from './AmbianceNote.jsx';
 import StudentMandates from './StudentMandates.jsx';
@@ -224,8 +226,16 @@ function Notes({ child, audience, settings }) {
     for (const k of Object.keys(out)) out[k].sort((a, b) => a.date.localeCompare(b.date));
     return Object.entries(out).sort(([a], [b]) => a.localeCompare(b));
   }, [child, audience, settings]);
+  // examens blancs publiés par la Direction : le relevé de l'élève, sans papier
+  const exams = loadMockExams().sessions.filter((x) => x.published && x.marks[fullName(child)]).sort((a, b) => b.date.localeCompare(a.date));
   return (
     <>
+      {exams.length > 0 && (
+        <details open className="rounded-2xl bg-white/70 p-2 shadow-soft">
+          <summary className="cursor-pointer px-2 py-1.5 text-sm font-semibold text-slate-800">Examens blancs ({exams.length})</summary>
+          <div className="mt-2 space-y-3">{exams.map((x) => <ExamResultCard key={x.id} session={x} student={fullName(child)} />)}</div>
+        </details>
+      )}
       <div className="grid grid-cols-3 gap-1 rounded-full bg-white p-1 shadow-soft">
         {['T1', 'T2', 'T3'].map((t) => (
           <button key={t} onClick={() => setTerm(t)} className={`rounded-md py-1.5 text-sm font-medium ${term === t ? 'bg-navy-500 text-white' : 'text-slate-600'}`}>{t.replace('T', '')}{t === 'T1' ? 'er' : 'e'} trimestre</button>

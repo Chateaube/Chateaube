@@ -51,6 +51,7 @@ export default function TeacherPortal({ go }) {
         <h1 className="text-2xl font-semibold text-navy-900">Bonjour {TEACHER.name}</h1>
         <p className="text-sm text-slate-500">{TEACHER.subjects} · {TEACHER.site}</p>
       </div>
+      <TodoList who="ENSEIGNANT" title="Mes tâches" />
 
       {current && !open && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-navy-900 p-5 text-white shadow-soft">
@@ -58,7 +59,6 @@ export default function TeacherPortal({ go }) {
           <button type="button" onClick={() => (go ? go('appel') : setOpen(current))} className="rounded-xl bg-white px-5 py-3 text-base font-semibold text-navy-900 shadow hover:bg-navy-50">Faire l'appel</button>
         </div>
       )}
-      <TodoList who="ENSEIGNANT" title="Tâches confiées par la Direction" />
       {toast && <p role="status" className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800"><Icon name="check" />{toast}</p>}
 
       <div className="grid gap-5 xl:grid-cols-[1fr_380px] xl:items-start">

@@ -41,7 +41,7 @@ export function notificationsFor(role, { account } = {}) {
   const collesToGive = Object.values(CLASSES).flat().reduce((t, st) => t + passport(st, { attendance: ATTENDANCE, ...loadPassport() }).toGive.length, 0);
   const news = loadAnnouncements().list;
   // tâches confiées (ou notées) : celles du jour et en retard
-  const HOME = { DIRECTION: 'dashboard', BUREAU: 'bureau', VIE_SCOLAIRE: 'vs', ENSEIGNANT: 'teacher' };
+  const HOME = { DIRECTION: 'dashboard', BUREAU: 'bureau', VIE_SCOLAIRE: 'cpe-home', ENSEIGNANT: 'teacher' };
   if (HOME[role]) {
     const now = new Date(); const day = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const due = loadTasks().filter((t) => t.assignee === role && !t.done && t.due && t.due <= day).length;

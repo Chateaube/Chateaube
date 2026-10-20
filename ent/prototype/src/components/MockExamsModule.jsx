@@ -191,7 +191,7 @@ function EntryTab({ data, setData, role }) {
   );
 }
 
-function TranscriptsTab({ data }) {
+function TranscriptsTab({ data, setData, role }) {
   const [id, setId] = useState(data.sessions[0]?.id);
   const [who, setWho] = useState('');
   const [withProj, setWithProj] = useState(true);
@@ -207,8 +207,19 @@ function TranscriptsTab({ data }) {
           </select>
           <select value={who} onChange={(e) => setWho(e.target.value)} aria-label="Élève" className={inputCls}><option value="">Toute la classe</option>{(CLASSES[s?.cls] ?? []).map((n) => <option key={n}>{n}</option>)}</select>
           {bac && <label className="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={withProj} onChange={(e) => setWithProj(e.target.checked)} />Ajouter la projection au bac</label>}
-          <Button className="ml-auto" onClick={() => printOnly('.transcripts-print', 'size: A4 portrait; margin: 8mm;')}>Imprimer {students.length > 1 ? `les ${students.length} relevés` : 'le relevé'}</Button>
+          <Button variant="secondary" className="ml-auto" onClick={() => printOnly('.transcripts-print', 'size: A4 portrait; margin: 8mm;')}>Imprimer {students.length > 1 ? `les ${students.length} relevés` : 'le relevé'}</Button>
         </div>
+        {/* Sans papier : la Direction publie les relevés, chaque élève et ses parents voient le sien dans l'application */}
+        {s && (
+          <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3 text-sm">
+            {s.published ? <span className="text-emerald-800">Relevés visibles par les élèves et leurs parents depuis le {s.published.at.split('-').reverse().join('/')} (Notes de l'application).</span>
+              : <span className="text-slate-700">Pas encore visibles par les familles.</span>}
+            {role === 'DIRECTION' && (s.published
+              ? <Button variant="secondary" className="ml-auto" onClick={() => { const next = { ...data, sessions: data.sessions.map((x) => (x.id === s.id ? { ...x, published: null } : x)) }; setData(next); saveMockExams(next); }}>Retirer de l'application</Button>
+              : <Button className="ml-auto" onClick={() => { const next = { ...data, sessions: data.sessions.map((x) => (x.id === s.id ? { ...x, published: { at: new Date().toISOString().slice(0, 10), by: 'Direction' } } : x)) }; setData(next); saveMockExams(next); }}>Publier aux élèves et aux parents</Button>)}
+            {role !== 'DIRECTION' && !s.published && <span className="text-xs text-slate-600">La Direction publie les relevés.</span>}
+          </div>
+        )}
       </Card>
       <div className="transcripts-print">
         {s && students.map((st) => <Transcript key={st} session={s} student={st}
@@ -298,7 +309,7 @@ export default function MockExamsModule({ role }) {
         </div>
       )}
       {tab === 'entry' && <EntryTab data={data} setData={setData} role={role} />}
-      {tab === 'transcripts' && <TranscriptsTab data={data} />}
+      {tab === 'transcripts' && <TranscriptsTab data={data} setData={setData} role={role} />}
       {tab === 'projection' && <ProjectionTab data={data} setData={setData} />}
     </div>
   );
