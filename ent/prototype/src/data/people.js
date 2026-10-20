@@ -1,7 +1,7 @@
 // Données de démonstration — personnel et portails (noms FICTIFS).
 
 export const POSTES = [
-  'Enseignant.e', 'Intervenant.e', 'Surveillant.e', 'Secrétaire-comptable', 'Agent d\'entretien', 'Gardien.ne', 'Chauffeur', 'Autre',
+  'Enseignant.e', 'Intervenant.e', 'CPE', 'Surveillant.e', 'Secrétaire-comptable', 'Agent d\'entretien', 'Gardien.ne', 'Chauffeur', 'Autre',
 ];
 export const CONTRATS = ['CDI', 'CDD', 'Vacataire', 'Stagiaire'];
 // Les professeurs sont automatiquement vacataires : payés à l'heure de cours effectuée,
@@ -16,8 +16,8 @@ export const STAFF = [
   { id: 'p4', name: 'HERY Nomena', poste: 'Enseignant.e', detail: 'Anglais', contrat: 'Vacataire', entry: '2022-09-01', exit: null, email: 'n.hery@exemple.mg', access: 'PROFESSEUR' },
   { id: 'p5', name: 'TOJO Andry', poste: 'Enseignant.e', detail: 'Mathématiques, Parcours Numérique', contrat: 'Vacataire', entry: '2023-09-01', exit: null, email: 'a.tojo@exemple.mg', access: 'PROFESSEUR' },
   { id: 'p6', name: 'FALY Rado', poste: 'Intervenant.e', detail: 'Parcours Art (musique)', contrat: 'Vacataire', entry: '2025-10-01', exit: null, email: 'r.faly@exemple.mg', access: 'PROFESSEUR' },
-  { id: 'p7', name: 'SOA Miora', poste: 'Secrétaire-comptable', detail: 'Caisse et accueil', contrat: 'CDI', entry: '2021-08-16', exit: null, email: 'm.soa@exemple.mg', access: 'BUREAU' },
-  { id: 'p8', name: 'BE Tahina', poste: 'Surveillant.e', detail: 'Vie scolaire', contrat: 'CDI', entry: '2022-01-10', exit: null, email: 't.be@exemple.mg', access: 'VIE_SCOLAIRE' },
+  { id: 'p7', name: 'HANTA Soa', poste: 'Secrétaire-comptable', detail: 'Caisse et accueil', contrat: 'CDI', entry: '2021-08-16', exit: null, email: 'm.soa@exemple.mg', access: 'BUREAU' },
+  { id: 'p8', name: 'BE Tahina', poste: 'CPE', detail: 'Vie scolaire', contrat: 'CDI', entry: '2022-01-10', exit: null, email: 't.be@exemple.mg', access: 'VIE_SCOLAIRE' },
   { id: 'p9', name: 'NAINA Paul', poste: 'Agent d\'entretien', detail: 'Bâtiments et salles', contrat: 'CDI', entry: '2023-03-01', exit: null, email: null, access: null },
   { id: 'p10', name: 'KOTO Jean-Marie', poste: 'Gardien.ne', detail: 'Nuit', contrat: 'CDI', entry: '2021-08-01', exit: null, email: null, access: null },
   { id: 'p11', name: 'LANTO Haja', poste: 'Surveillant.e', detail: 'Vie scolaire', contrat: 'CDD', entry: '2024-09-02', exit: '2026-07-31', exitReason: 'Fin de contrat', email: 'h.lanto@exemple.mg', access: 'VIE_SCOLAIRE' },

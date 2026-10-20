@@ -1586,5 +1586,29 @@ DO $$ DECLARE a uuid; b uuid; ev uuid; tmv uuid := (SELECT id FROM site WHERE co
   PERFORM set_config('app.user_id', '', true);
 END $$;
 
+-- T59 — droits d'accès par écran : réglés par la Direction seule, exception par personne
+DO $$ BEGIN
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-000000000001', true);
+  INSERT INTO screen_access_role (role, screen, level) VALUES ('VIE_SCOLAIRE', 'resources', 'ECRITURE'), ('VIE_SCOLAIRE', 'care', 'AUCUN'), ('VIE_SCOLAIRE', 'booking', 'LECTURE');
+  IF screen_level('00000000-0000-0000-0000-00000000000c', 'resources') <> 'ECRITURE' THEN RAISE EXCEPTION 'T59: ressources pour la CPE'; END IF;
+  IF screen_level('00000000-0000-0000-0000-00000000000c', 'care') <> 'AUCUN' THEN RAISE EXCEPTION 'T59: soins retirés à la CPE'; END IF;
+  INSERT INTO screen_access_user (user_id, screen, level) VALUES ('00000000-0000-0000-0000-00000000000c', 'care', 'LECTURE');
+  IF screen_level('00000000-0000-0000-0000-00000000000c', 'care') <> 'LECTURE' THEN RAISE EXCEPTION 'T59: exception de la personne'; END IF;
+  IF (SELECT set_by FROM screen_access_user WHERE user_id = '00000000-0000-0000-0000-00000000000c') <> '00000000-0000-0000-0000-000000000001' THEN RAISE EXCEPTION 'T59: auteur du réglage'; END IF;
+  IF screen_level('00000000-0000-0000-0000-000000000001', 'care') <> 'ECRITURE' OR screen_level('00000000-0000-0000-0000-00000000000c', 'settings') <> 'AUCUN' THEN RAISE EXCEPTION 'T59: Direction'; END IF;
+  BEGIN
+    INSERT INTO screen_access_role (role, screen, level) VALUES ('BUREAU', 'settings', 'ECRITURE');
+    RAISE EXCEPTION 'T59: paramètres délégués';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-00000000000c', true);
+  BEGIN
+    UPDATE screen_access_user SET level = 'ECRITURE' WHERE user_id = '00000000-0000-0000-0000-00000000000c';
+    RAISE EXCEPTION 'T59: la CPE change ses propres droits';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T59:%' THEN RAISE; END IF;
+  END;
+  PERFORM set_config('app.user_id', '', true);
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T58 passent'
+\echo 'OK — tous les scénarios T1 à T59 passent'

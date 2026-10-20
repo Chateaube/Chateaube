@@ -45,6 +45,9 @@ import { useAmbiance } from './ambianceRuntime.js';
 import AmbianceBand from './components/AmbianceNote.jsx';
 import AmbianceEffects from './components/AmbianceEffects.jsx';
 import { featureVisible } from './features.js';
+import AccessRights from './components/AccessRights.jsx';
+import ReadOnlyGuard from './components/ReadOnlyGuard.jsx';
+import { applyAccess, DIRECTION_ONLY } from './rules/access.js';
 import { DIRECTION_TREE, arrangeNav } from './rules/navigation.js';
 import pillar from './assets/pilier.png';
 import { useScreenGuard } from './screenGuard.js';
@@ -92,6 +95,7 @@ const SIGNATURES = { id: 'signatures', label: 'Documents à signer', icon: 'pen'
 const FOLLOW_UP = { id: 'followup', label: 'Documents, stages et orientation', icon: 'pen', screen: FollowUpModule };
 const ACCOUNTING = { id: 'accounting', label: 'Caisse et comptabilité', icon: 'wallet', screen: AccountingModule };
 const MANDATES = { id: 'mandates', label: 'Engagements et attestations', icon: 'users', screen: MandatesAdmin };
+const ACCESS = { id: 'access', label: 'Droits d\'accès', icon: 'settings', screen: (p) => <AccessRights {...p} catalogue={catalogue()} baseNavs={baseNavs()} /> };
 const ro = (item, label) => ({ ...item, ...(label ? { label } : {}), readOnly: true }); // consultation seulement
 
 // Menu latéral par profil : mêmes noms et même place pour une fonction partagée entre rôles.
@@ -108,7 +112,7 @@ const PROFILES = {
       { group: 'Finances', items: [ACCOUNTING] },
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, AGENDA] },
       { group: 'Équipe et matériel', items: [{ id: 'staff', label: 'Gestion des agents', icon: 'users', screen: StaffModule }, RESOURCES, INVENTORY, MANUALS, LIBRARY, BOOKING] },
-      { group: 'Réglages', items: [IMPORT, { id: 'settings', label: 'Paramètres', icon: 'settings', screen: SettingsModule }] },
+      { group: 'Réglages', items: [IMPORT, { id: 'settings', label: 'Paramètres', icon: 'settings', screen: SettingsModule }, ACCESS] },
     ]),
   },
   BUREAU: {
@@ -175,6 +179,12 @@ const PROFILES = {
   },
 };
 
+// Droits d'accès : écrans partagés réglables par la Direction (rubrique de la Direction comme groupe),
+// et menus d'origine des profils du personnel. Personne du registre derrière chaque profil de démonstration.
+const catalogue = () => PROFILES.DIRECTION.nav.flatMap((g) => g.items.filter((it) => it.screen && !DIRECTION_ONLY.includes(it.id)).map((it) => ({ ...it, group: g.group })));
+const baseNavs = () => ({ BUREAU: PROFILES.BUREAU.nav, VIE_SCOLAIRE: PROFILES.VIE_SCOLAIRE.nav, ENSEIGNANT: PROFILES.ENSEIGNANT.nav });
+const PERSON_OF = { BUREAU: 'p7', VIE_SCOLAIRE: 'p8', ENSEIGNANT: 'p1' };
+
 // Personne connectée, par profil (démonstration)
 const PERSONAS = {
   BUREAU: { name: 'Mme Hanta', short: 'Mme Hanta', detail: 'Secrétariat (accueil, caisse…) · Tamatave' },
@@ -207,7 +217,7 @@ export default function App() {
   const [accountId, setAccountId] = useState('u1');
   const account = DIRECTION_ACCOUNTS.find((a) => a.id === accountId);
   // rubriques masquées par la Direction (Paramètres → Rubriques affichées) : retirées du menu
-  const NAV = PROFILES[profile].nav.map((g) => ({ ...g, items: g.items.filter((it) => featureVisible(settings, it.feature, profile)) })).filter((g) => g.items.length);
+  const NAV = applyAccess({ profile, person: PERSON_OF[profile], baseNav: PROFILES[profile].nav, catalogue: catalogue(), access: settings.access }).map((g) => ({ ...g, items: g.items.filter((it) => featureVisible(settings, it.feature, profile)) })).filter((g) => g.items.length);
   const Current = (NAV.flatMap((g) => g.items).find((i) => i.id === screen) ?? NAV[0].items[0]).screen;
   const switchProfile = (p) => { setProfile(p); setScreen(PROFILES[p].home); };
 
@@ -433,9 +443,11 @@ export default function App() {
             </div>
           )}
           {currentItem?.readOnly && <p className="mb-3 inline-block rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">Consultation seulement</p>}
+          <ReadOnlyGuard key={`${profile}-${screen}-guard`} active={!!currentItem?.readOnly}>
           {profile === 'ENSEIGNANT'
             ? <TermsGate viewer="ENSEIGNANT" account="mme-ranaivo"><Current key={`${profile}-${screen}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={goTo} role={profile} site={site} /></TermsGate>
-            : <Current key={`${profile}-${screen}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={goTo} role={profile} site={site} ambiance={ambiance} />}
+            : <Current key={`${profile}-${screen}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={goTo} role={profile} site={site} ambiance={ambiance} readOnly={!!currentItem?.readOnly} />}
+          </ReadOnlyGuard>
         </main>
       </div>
       {hidden && (

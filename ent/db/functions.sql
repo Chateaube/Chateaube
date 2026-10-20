@@ -1366,3 +1366,27 @@ CREATE FUNCTION council_feedback_guard() RETURNS trigger AS $$ BEGIN
   RETURN NEW;
 END $$ LANGUAGE plpgsql;
 CREATE TRIGGER council_feedback_check BEFORE INSERT ON council_feedback FOR EACH ROW EXECUTE FUNCTION council_feedback_guard();
+
+-- Droits d'accès par écran : seule la Direction les change ; la personne qui change est notée.
+CREATE FUNCTION screen_access_guard() RETURNS trigger AS $$
+BEGIN
+  IF current_app_user() IS NOT NULL AND NOT has_role(current_app_user(), 'DIRECTION') THEN
+    RAISE EXCEPTION 'Seule la Direction règle les droits d''accès';
+  END IF;
+  IF TG_OP <> 'DELETE' THEN NEW.set_by := current_app_user(); NEW.set_at := now(); RETURN NEW; END IF;
+  RETURN OLD;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER screen_access_role_guard BEFORE INSERT OR UPDATE OR DELETE ON screen_access_role FOR EACH ROW EXECUTE FUNCTION screen_access_guard();
+CREATE TRIGGER screen_access_user_guard BEFORE INSERT OR UPDATE OR DELETE ON screen_access_user FOR EACH ROW EXECUTE FUNCTION screen_access_guard();
+
+-- Niveau d'une personne sur un écran : Direction → tout ; exception de la personne ; sinon le meilleur de ses rôles.
+CREATE FUNCTION screen_level(u uuid, s text) RETURNS access_level AS $$
+  SELECT CASE
+    WHEN has_role(u, 'DIRECTION') THEN 'ECRITURE'::access_level
+    WHEN s IN ('dashboard', 'settings', 'staff', 'access', 'mandates', 'feedback') THEN 'AUCUN'
+    ELSE coalesce(
+      (SELECT level FROM screen_access_user WHERE user_id = u AND screen = s),
+      (SELECT max(r.level) FROM screen_access_role r JOIN user_role ur ON ur.role = r.role AND ur.user_id = u WHERE r.screen = s),
+      'AUCUN')
+  END
+$$ LANGUAGE sql STABLE;

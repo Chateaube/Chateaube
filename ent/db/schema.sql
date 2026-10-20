@@ -126,7 +126,8 @@ CREATE TABLE app_user (
 ALTER TABLE school_class
   ADD CONSTRAINT school_class_head_teacher_fk FOREIGN KEY (head_teacher_id) REFERENCES app_user(id);
 
--- RBAC : les droits sont portés par le RÔLE, jamais par la personne.
+-- RBAC : les droits sont portés par le RÔLE ; la Direction peut ajouter, écran par écran, une exception
+-- pour une personne (screen_access_user, en fin de fichier).
 -- La Cheffe d'établissement et la Directrice adjointe ont donc par construction
 -- exactement les mêmes droits (rôle DIRECTION, périmètre tous sites).
 CREATE TABLE user_role (
@@ -2179,4 +2180,28 @@ CREATE TABLE council_feedback (
   author_id     uuid NOT NULL REFERENCES app_user(id),
   body          text NOT NULL CHECK (length(trim(body)) > 0),
   created_at    timestamptz NOT NULL DEFAULT now()
+);
+
+-- -----------------------------------------------------------------------------
+-- Droits d'accès par écran, réglés par la Direction (écran « Droits d'accès »)
+-- Trois niveaux : AUCUN (écran absent), LECTURE (consulter), ECRITURE (modifier).
+-- Réglage par rôle, puis exception possible par personne (niveau d'accréditation).
+-- La Direction garde tout ; ses écrans propres ne se délèguent pas.
+-- -----------------------------------------------------------------------------
+CREATE TYPE access_level AS ENUM ('AUCUN', 'LECTURE', 'ECRITURE');
+CREATE TABLE screen_access_role (
+  role          role_code NOT NULL CHECK (role IN ('BUREAU', 'VIE_SCOLAIRE', 'PROFESSEUR')),
+  screen        text NOT NULL CHECK (screen NOT IN ('dashboard', 'settings', 'staff', 'access', 'mandates', 'feedback')),
+  level         access_level NOT NULL,
+  set_by        uuid REFERENCES app_user(id),
+  set_at        timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (role, screen)
+);
+CREATE TABLE screen_access_user (
+  user_id       uuid NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+  screen        text NOT NULL CHECK (screen NOT IN ('dashboard', 'settings', 'staff', 'access', 'mandates', 'feedback')),
+  level         access_level NOT NULL,
+  set_by        uuid REFERENCES app_user(id),
+  set_at        timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, screen)
 );

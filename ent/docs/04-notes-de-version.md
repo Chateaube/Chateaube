@@ -72,3 +72,19 @@
 - **Bac, session 2027** : épreuve anticipée de mathématiques en 1re (coef. 2) ; grand oral 8 en voie générale
   (au lieu de 10), 12 en technologique (au lieu de 14) ; philosophie 8 en générale, 4 en technologique ; total
   toujours 100. C'est ce que calcule l'ENT. Date de l'épreuve de maths à confirmer avec l'académie.
+
+## 20 octobre 2026 (suite) — droits d'accès réglables par la Direction
+
+- **Nouvel écran « Droits d'accès »** (Direction → Administration). Pour chaque écran partagé et chaque profil
+  (Secrétariat, CPE, Enseignant) : *Aucun accès* (l'écran disparaît du menu), *Consulter* (lecture seule) ou
+  *Modifier*. Un encadré orange signale ce qui diffère du réglage d'origine ; un bouton rétablit l'origine.
+- **Par personne (niveau d'accréditation)** : une exception pour une seule personne, en plus ou en moins de son
+  profil (ex. : un surveillant qui consulte les soins). « Comme son profil » retire l'exception.
+- **Consulter, c'est vraiment lire seulement** : saisies et boutons d'action désactivés ; onglets, filtres,
+  recherche, Voir/Imprimer/Exporter restent possibles.
+- Un écran accordé en plus apparaît dans un groupe « Accès accordés ». Paramètres, gestion des agents,
+  engagements et droits d'accès restent à la Direction. « Avis du pilote » passe dans « Aujourd'hui ».
+- **CPE et ressources** : la CPE avait déjà « Documents, ressources et idées » (partage compris) ; réservations,
+  bibliothèque et cahiers de textes sont en consultation. La Direction peut maintenant changer chacun.
+- Base : tables `screen_access_role` et `screen_access_user`, fonction `screen_level`, modification réservée à
+  la Direction (scénario T59).
