@@ -1483,3 +1483,41 @@ test('navigation : portail famille en 4 sections de 3 au plus, entrées réserv�
   const parentOnly = entries.filter((e) => e[3] === 'PARENT').map((e) => e[0]).sort();
   assert.deepEqual(parentOnly, ['fiche', 'payments', 'reenrol', 'signature', 'update']);
 });
+
+import { sortTasks, taskErrors, tasksFor, isOverdue } from '../src/rules/tasks.js';
+test('tâches : priorité, échéance facultative, retard en tête, chacun voit les siennes', () => {
+  const today = '2026-10-20';
+  const l = [
+    { id: 'a', title: 'A', assignee: 'BUREAU', priority: 'BASSE', due: null, done: false, createdBy: 'DIRECTION' },
+    { id: 'b', title: 'B', assignee: 'BUREAU', priority: 'HAUTE', due: '2026-10-25', done: false, createdBy: 'DIRECTION' },
+    { id: 'c', title: 'C', assignee: 'BUREAU', priority: 'NORMALE', due: '2026-10-18', done: false, createdBy: 'DIRECTION' },
+    { id: 'd', title: 'D', assignee: 'BUREAU', priority: 'HAUTE', due: null, done: true, createdBy: 'DIRECTION' },
+    { id: 'e', title: 'E', assignee: 'DIRECTION', priority: 'NORMALE', due: '2026-10-20', done: false, createdBy: 'DIRECTION' },
+  ];
+  assert.deepEqual(sortTasks(tasksFor(l, 'BUREAU'), today).map((t) => t.id), ['c', 'b', 'a', 'd']); // retard, haute, basse, fait
+  assert.equal(isOverdue(l[2], today), true);
+  assert.equal(tasksFor(l, 'DIRECTION').length, 5); // la Direction suit aussi ce qu'elle a confié
+  assert.equal(tasksFor(l, 'VIE_SCOLAIRE').length, 0);
+  assert.deepEqual(taskErrors({ title: 'x', assignee: 'BUREAU', priority: 'NORMALE', due: null }), []);
+  assert.equal(taskErrors({ title: ' ', assignee: 'X', priority: 'URGENT' }).length, 3);
+});
+
+import { backupSheets } from '../src/rules/backup.js';
+test('sauvegarde : un onglet par type de données, sommaire, photos exclues d\'Excel', () => {
+  const sheets = backupSheets([
+    ['ent-annonces-v2', { list: [{ id: 'n1', title: 'Sortie', photos: ['data:image/jpeg;base64,xx'] }], acks: { 'n1|a': true } }],
+    ['ent-taches-v1', [{ id: 't1', title: 'Relire', done: false, due: null }]],
+  ], '2026-10-20');
+  assert.deepEqual(sheets.map((s) => s.name), ['Sommaire', 'annonces.list', 'annonces', 'taches']);
+  assert.deepEqual(sheets[3].rows, [['id', 'title', 'done', 'due'], ['t1', 'Relire', 'non', '']]);
+  assert.equal(sheets[1].rows[1][2], '["[photo]"]'); // photos jamais dans Excel, même dans un tableau
+  assert.ok(!JSON.stringify(sheets).includes('base64'));
+  assert.deepEqual(sheets[0].rows.slice(2), [['annonces.list', 1], ['annonces', 1], ['taches', 1]]);
+});
+
+test('ambiances : le message de la bande ne répète ni le libellé ni sa date', () => {
+  AMBIANCES.forEach((a) => {
+    assert.ok(!a.greeting.toLowerCase().includes(a.label.toLowerCase()), `${a.id} : le message reprend le libellé`);
+    (a.label.match(/\d+/g) ?? []).forEach((n) => assert.ok(!a.greeting.includes(n), `${a.id} : la date ${n} est répétée`));
+  });
+});

@@ -6,7 +6,7 @@
 export const DIRECTION_TREE = [
   { group: 'Aujourd\'hui', ids: ['dashboard', 'messages', 'signatures'] },
   { group: 'Élèves et vie scolaire', ids: ['enrol', 'students-list', 'mandates', 'vs', 'followup', 'care', 'hours', 'tt-changes'] },
-  { group: 'Pédagogie', ids: ['council', 'bulletins', 'mock-exams', 'grade-sheets', 'oversight-grades', 'oversight-homework'] },
+  { group: 'Pédagogie', ids: ['council', 'bulletins', 'mock-exams', 'oversight-grades', 'oversight-homework'] }, // grilles : onglet des conseils
   { group: 'Communication', ids: ['news', 'school-life', 'agenda', 'resources'] },
   { group: 'Administration', ids: ['accounting', 'staff', 'inventory', 'manuals', 'library', 'booking', 'settings', 'import', 'feedback'] },
 ];

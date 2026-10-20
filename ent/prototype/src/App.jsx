@@ -4,7 +4,7 @@ import { Icon, Avatar } from './components/ui.jsx';
 import DirectionDashboard from './components/DirectionDashboard.jsx';
 import BookingModule from './components/BookingModule.jsx';
 import GradebookModule from './components/GradebookModule.jsx';
-import CouncilGrid from './components/CouncilGrid.jsx';
+import CouncilScreen from './components/CouncilScreen.jsx';
 import VieScolaireModule from './components/VieScolaireModule.jsx';
 import BureauHome from './components/BureauHome.jsx';
 import HomeworkModule from './components/HomeworkModule.jsx';
@@ -57,7 +57,7 @@ import { DIRECTION_ACCOUNTS } from './data/demo.js';
 // avec accès à la Vie scolaire ; la Vie scolaire n'a pas accès au Bureau.
 // Les entrées sans `screen` existent dans l'architecture mais pas dans ce prototype.
 const VIE_SCOLAIRE = { id: 'vs', label: 'Absences, retards et punitions', icon: 'users', screen: VieScolaireModule };
-const COUNCIL = { id: 'council', label: 'Conseils de classe', icon: 'cap', screen: CouncilGrid };
+const COUNCIL = { id: 'council', label: 'Conseils de classe et grilles', icon: 'cap', screen: CouncilScreen };
 const BULLETINS = { id: 'bulletins', label: 'Bulletins', icon: 'pen', screen: BulletinsModule };
 const BOOKING = { id: 'booking', label: 'Réservations de matériel', icon: 'calendar', screen: BookingModule, feature: 'reservations' };
 const INSCRIPTIONS = { id: 'enrol', label: 'Inscriptions et fiches élèves', icon: 'users', screen: InscriptionsModule };
@@ -74,7 +74,7 @@ const MESSAGES = { id: 'messages', label: 'Messages', icon: 'bell', screen: ({ r
 const MANUALS = { id: 'manuals', label: 'Manuels scolaires', icon: 'cap', screen: ManualsModule };
 const FEEDBACK = { id: 'feedback', label: 'Avis du pilote', icon: 'bell', screen: FeedbackModule };
 const LIBRARY = { id: 'library', label: 'Bibliothèque (salle d\'étude)', icon: 'pen', screen: LibraryModule, feature: 'bibliotheque' };
-const IMPORT = { id: 'import', label: 'Importer des données', icon: 'swap', screen: ImportModule };
+const IMPORT = { id: 'import', label: 'Importer et sauvegarder', icon: 'swap', screen: ImportModule };
 const GRADE_SHEETS = { id: 'grade-sheets', label: 'Grilles de notes', icon: 'pen', screen: GradeSheets };
 const BOOKS_FOR_TEACHER = { id: 'books', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who="Mme Ranaivo" kind="PROF" /> };
 const TT_CHANGES = { id: 'tt-changes', label: 'Changements d\'emploi du temps', icon: 'clock', screen: TimetableChanges };
@@ -90,7 +90,7 @@ const STUDENT_LIST = { id: 'students-list', label: 'Liste des élèves', icon: '
 const SIGNATURES = { id: 'signatures', label: 'Documents à signer', icon: 'pen', screen: SignaturesModule };
 const FOLLOW_UP = { id: 'followup', label: 'Documents, stages et orientation', icon: 'pen', screen: FollowUpModule };
 const ACCOUNTING = { id: 'accounting', label: 'Caisse et comptabilité', icon: 'wallet', screen: AccountingModule };
-const MANDATES = { id: 'mandates', label: 'Délégués et BDE', icon: 'users', screen: MandatesAdmin };
+const MANDATES = { id: 'mandates', label: 'Engagements et attestations', icon: 'users', screen: MandatesAdmin };
 const ro = (item, label) => ({ ...item, ...(label ? { label } : {}), readOnly: true }); // consultation seulement
 
 // Menu latéral par profil : mêmes noms et même place pour une fonction partagée entre rôles.
@@ -118,7 +118,7 @@ const PROFILES = {
       { group: 'Aujourd\'hui', items: [{ id: 'bureau', label: 'À traiter aujourd\'hui', icon: 'home', screen: BureauHome }] },
       { group: 'Caisse', items: [ACCOUNTING] },
       { group: 'Vie scolaire', items: [VIE_SCOLAIRE, CARE, HOURS, TT_CHANGES, FOLLOW_UP] },
-      { group: 'Notes et bulletins', items: [COUNCIL, BULLETINS, MOCK_EXAMS, GRADE_SHEETS, ...OVERSIGHT] },
+      { group: 'Notes et bulletins', items: [COUNCIL, BULLETINS, MOCK_EXAMS, ...OVERSIGHT] }, // grilles : onglet des conseils
       { group: 'Élèves', items: [INSCRIPTIONS, STUDENT_LIST, SIGNATURES, IMPORT] },
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, AGENDA, RESOURCES] },
       { group: 'Matériel et bibliothèque', items: [MANUALS, LIBRARY, BOOKING, INVENTORY] },

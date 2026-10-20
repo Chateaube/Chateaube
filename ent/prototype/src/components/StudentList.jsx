@@ -17,6 +17,7 @@ export default function StudentList({ role }) {
   const [profiles] = useState(loadProfiles);
   const [cls, setCls] = useState('');
   const [query, setQuery] = useState('');
+  const [preview, setPreview] = useState(null); // aperçu à l'écran : 'trombi' | 'codes'
   const classes = useMemo(() => [...new Set(profiles.map((p) => p.cls))].sort(), [profiles]);
   const list = useMemo(() => filterStudents(profiles, { cls, query }), [profiles, cls, query]);
   const title = `Liste des élèves${cls ? ` — ${cls}` : ''} · 2026-2027 · Chateaubriand Tamatave`;
@@ -46,8 +47,8 @@ export default function StudentList({ role }) {
         {readOnly ? <p className="text-xs text-slate-500">Consultation seulement : impression et export réservés au secrétariat et à la Direction.</p> : <div className="flex flex-wrap gap-2">
           <Button onClick={() => saveFile(`eleves${cls ? `-${cls.replace(/\s+/g, '-')}` : ''}.csv`, studentsCsv(list, title))}>Exporter (Excel)</Button>
           <Button variant="secondary" onClick={() => printOnly('.students-print', 'size: A4 landscape;', title)}>Imprimer la liste</Button>
-          <Button variant="secondary" onClick={() => printOnly('.trombi-print', 'size: A4 portrait;', `Trombinoscope${cls ? ` — ${cls}` : ''}`)}>Trombinoscope</Button>
-          {canCodes && <Button variant="secondary" onClick={() => printOnly('.codes-print', 'size: A4 portrait;', 'Codes d\'accès des parents')}>Codes d'accès des parents</Button>}
+          <Button variant="secondary" aria-pressed={preview === 'trombi'} onClick={() => setPreview(preview === 'trombi' ? null : 'trombi')}>Trombinoscope</Button>
+          {canCodes && <Button variant="secondary" aria-pressed={preview === 'codes'} onClick={() => setPreview(preview === 'codes' ? null : 'codes')}>Codes d'accès des parents</Button>}
         </div>}
       </div>
 
@@ -96,9 +97,17 @@ export default function StudentList({ role }) {
         </div>
       </Card>
 
-      {/* Documents imprimés (cachés à l'écran) : uniquement les données */}
-      <div className="hidden">
-        <div className="students-print">
+      {/* Aperçu à l'écran du trombinoscope ou des codes, avant impression */}
+      {preview && (
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-navy-50 px-4 py-2 text-sm text-navy-900">
+          <strong>{preview === 'trombi' ? 'Trombinoscope' : 'Codes d\'accès des parents'}</strong> — aperçu de la page imprimée
+          <Button className="ml-auto" onClick={() => (preview === 'trombi' ? printOnly('.trombi-print', 'size: A4 portrait;', `Trombinoscope${cls ? ` — ${cls}` : ''}`) : printOnly('.codes-print', 'size: A4 portrait;', 'Codes d\'accès des parents'))}>Imprimer</Button>
+          <Button variant="secondary" onClick={() => setPreview(null)}>Fermer l'aperçu</Button>
+        </div>
+      )}
+      {/* Documents imprimés : uniquement les données (la liste est cachée à l'écran, le reste en aperçu) */}
+      <div>
+        <div className="hidden"><div className="students-print">
           <div style={{ fontFamily: 'Poppins, sans-serif', fontSize: '10px', color: '#000' }}>
             <p style={{ fontSize: '13px', fontWeight: 700 }}>{title}</p>
             <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '6px' }}>
@@ -112,8 +121,8 @@ export default function StudentList({ role }) {
               </tbody>
             </table>
           </div>
-        </div>
-        <div className="trombi-print">
+        </div></div>
+        <div className={preview === 'trombi' ? 'rounded-2xl bg-white p-4 shadow-soft' : 'hidden'}><div className="trombi-print">
           <div style={{ fontFamily: 'Poppins, sans-serif', color: '#000' }}>
             <p style={{ fontSize: '13px', fontWeight: 700 }}>Trombinoscope{cls ? ` — ${cls}` : ''} · 2026-2027</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '8px', marginTop: '8px' }}>
@@ -127,8 +136,9 @@ export default function StudentList({ role }) {
             </div>
           </div>
         </div>
+        </div>
         {canCodes && (
-          <div className="codes-print">
+          <div className={preview === 'codes' ? 'rounded-2xl bg-white p-4 shadow-soft' : 'hidden'}><div className="codes-print">
             <div style={{ fontFamily: 'Poppins, sans-serif', color: '#000', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
               {slips.map((s) => (
                 <div key={s.code} style={{ border: '1px dashed #000', padding: '8px', fontSize: '10.5px', breakInside: 'avoid' }}>
@@ -141,7 +151,7 @@ export default function StudentList({ role }) {
                 </div>
               ))}
             </div>
-          </div>
+          </div></div>
         )}
       </div>
     </div>

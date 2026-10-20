@@ -4,6 +4,7 @@
 //  - INFO : annonces, publications (sans badge rouge).
 // Le rouge est réservé à l'urgent.
 import { ATTENDANCE, CLASSES } from './data/schoollife.js';
+import { loadTasks } from './tasksStore.js';
 import { loadEventProposals, loadCouncilFeedback } from './studentInitiativesStore.js';
 import { loadVisits } from './careStore.js';
 import { loadInventory } from './careStore.js';
@@ -39,6 +40,13 @@ export function notificationsFor(role, { account } = {}) {
   const pendingPosts = loadPosts().filter((p) => p.status === 'EN_ATTENTE').length;
   const collesToGive = Object.values(CLASSES).flat().reduce((t, st) => t + passport(st, { attendance: ATTENDANCE, ...loadPassport() }).toGive.length, 0);
   const news = loadAnnouncements().list;
+  // tâches confiées (ou notées) : celles du jour et en retard
+  const HOME = { DIRECTION: 'dashboard', BUREAU: 'bureau', VIE_SCOLAIRE: 'vs', ENSEIGNANT: 'teacher' };
+  if (HOME[role]) {
+    const now = new Date(); const day = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const due = loadTasks().filter((t) => t.assignee === role && !t.done && t.due && t.due <= day).length;
+    add(due, { id: 'tasks', to: HOME[role], count: due, text: `${due} tâche${due > 1 ? 's' : ''} pour aujourd'hui ou en retard`, action: 'Voir' });
+  }
   if (role === 'DIRECTION') {
     const toValidate = news.filter((a) => a.status === 'EN_ATTENTE').length;
     add(toValidate, { id: 'news', to: 'news', count: toValidate, text: `${toValidate} annonce${toValidate > 1 ? 's' : ''} à valider (secrétariat, CPE, délégués, BDE)`, action: 'Valider' });

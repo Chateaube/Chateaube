@@ -5,6 +5,7 @@ const MIME = {
   csv: 'text/csv;charset=utf-8',
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   ics: 'text/calendar;charset=utf-8',
+  html: 'text/html;charset=utf-8',
 };
 
 /** data : texte ou octets (Uint8Array). Renvoie false si le format n'est pas proposé dans cette vue. */

@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Badge, Button, Card, StudentSelect } from './ui.jsx';
 import { BulletinSheet } from './Bulletin.jsx';
 import { TERM, EVALUATIONS, GRADES, CLASS_SUBJECTS, OTHER_AVERAGES, ABSENCES, TEACHER_COMPETENCIES } from '../data/grades.js';
@@ -14,8 +14,8 @@ import { demoAppreciation, accord } from '../rules/documents.js';
 import { formatDateFr } from '../rules/calendar.js';
 import { printOnly } from '../print.js';
 import BulletinHandover from './BulletinHandover.jsx';
-import { loadEngagements, saveEngagements } from '../engagementsStore.js';
-import { ENGAGEMENTS, ATTESTATIONS, engagementLabels, attestationLabels, engagementErrors } from '../rules/engagements.js';
+import { loadEngagements, loadValidation } from '../engagementsStore.js';
+import { engagementLabels, attestationLabels } from '../rules/engagements.js';
 
 
 // Bulletins du trimestre (Direction, Bureau) : une page A4 par élève, selon la matrice de l'établissement.
@@ -129,7 +129,7 @@ function SpecialtiesPanel({ onChange }) {
 const DEMO_CLASSES = [['1re STMG', buildPremiereSTMG], ['Terminale Générale', buildTerminaleG]];
 const classesNow = () => (importedTleG().length ? [[IMPORTED, buildImported], ...DEMO_CLASSES] : DEMO_CLASSES);
 
-export default function BulletinsModule({ settings, role }) {
+export default function BulletinsModule({ settings, role, go }) {
   const [mode, setMode] = useState('print'); // impression ou remise en main propre
   const [CLASSES] = useState(classesNow);
   const [cls, setCls] = useState(CLASSES[0][0]);
@@ -142,27 +142,22 @@ export default function BulletinsModule({ settings, role }) {
   const [duplex, setDuplex] = useState(true);
   const [pages, setPages] = useState({}); // élève → nombre de pages imprimées (mesuré)
   const measureRef = useRef(null);
-  const [engagements, setEngagements] = useState(loadEngagements);
-  useEffect(() => saveEngagements(engagements), [engagements]); // mêmes engagements que l'écran « Délégués et BDE »
-  const enrich = (x) => ({ ...x, showGeneral, compact: pages[x.student]?.useCompact ?? false, generalAppreciation: general[`${cls}:${x.student}`] ?? '', engagements: engagementLabels(engagements[x.student], x.sex), attestations: attestationLabels(engagements[x.student]) });
-  const classEngagements = Object.fromEntries(bulletins.map((x) => [x.student, engagements[x.student] ?? []]));
-  const toggleEngagement = (id) => {
-    const cur = engagements[current.student] ?? [];
-    setEngagements({ ...engagements, [current.student]: cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id] });
-  };
+  // engagements et attestations : saisis et validés chaque trimestre dans « Engagements et attestations »
+  const [engagements] = useState(loadEngagements);
+  const validated = loadValidation()[TERM.id];
+  const enrich = (x) => ({ ...x, showGeneral, generalAppreciation: general[`${cls}:${x.student}`] ?? '', engagements: engagementLabels(engagements[x.student], x.sex), attestations: attestationLabels(engagements[x.student]) });
   // Mesure de chaque bulletin à la taille d'impression : 1 page (recto) ou 2 (recto-verso), jamais plus
   useLayoutEffect(() => {
     const el = measureRef.current;
     if (!el) return;
     const out = {};
     el.querySelectorAll('[data-student]').forEach((n) => {
-      const [normal, compact] = [...n.querySelectorAll('.bulletin')].map((b) => Math.ceil(b.offsetHeight / PAGE_H));
-      // police réduite si elle évite une page (déborde de peu) ou si le bulletin dépasse 2 pages
-      const useCompact = (normal > 1 && compact === 1) || normal > 2;
-      out[n.dataset.student] = { normal, useCompact, printed: useCompact ? compact : normal };
+      // mise en page fixe : on compte seulement les pages (jamais de police réduite)
+      const normal = Math.ceil(n.querySelector('.bulletin').offsetHeight / PAGE_H);
+      out[n.dataset.student] = { normal, printed: normal };
     });
     setPages(out);
-  }, [bulletins, showGeneral, general, engagements]);
+  }, [bulletins, showGeneral, general]);
   const pagesOf = (name) => pages[name]?.printed ?? 1;
   const tooLong = bulletins.filter((x) => pagesOf(x.student) > 2);
 
@@ -211,24 +206,13 @@ export default function BulletinsModule({ settings, role }) {
             className="mt-1 w-full rounded-xl border border-slate-200 p-2 text-sm" placeholder="Ex. Très bonne progression globale sur l'année. Investissement sérieux et résultats solides." />
         </label>
         {cls === IMPORTED && <p className="mt-2 text-xs text-slate-500">Élèves importés : moyennes et appréciations vides tant que les enseignants n'ont pas saisi leurs notes. La mise en page et les spécialités sont celles du vrai bulletin.</p>}
-        <div className="mt-3">
-          {[['Engagements', ENGAGEMENTS], ['Attestations de l\'établissement (internes, non officielles)', ATTESTATIONS]].map(([title, list]) => (
-            <div key={title} className="mb-2">
-              <p className="text-xs font-medium text-slate-600">{title} — {current.student}</p>
-              <div className="mt-1 flex flex-wrap gap-1.5">
-                {list.map((e) => {
-                  const on = (engagements[current.student] ?? []).includes(e.id);
-                  return <button key={e.id} type="button" aria-pressed={on} onClick={() => toggleEngagement(e.id)}
-                    className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${on ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-600 ring-slate-300'}`}>{e.neutral}</button>;
-                })}
-              </div>
-            </div>
-          ))}
-          <p className="text-[11px] text-slate-500">Imprimés à droite des absences. Éco-délégué : élève chargé des gestes écologiques de la classe (tri, économies d'eau et d'énergie, projets environnement).</p>
-          {engagementErrors(classEngagements).map((e) => <p key={e} className="mt-1 text-xs text-red-700">{e}</p>)}
+        <div className={`mt-3 rounded-lg px-3 py-2 text-xs ${validated ? 'bg-emerald-50 text-emerald-900' : 'bg-amber-50 text-amber-900'}`}>
+          <strong>Engagements et attestations — {current.student} :</strong> {[...engagementLabels(engagements[current.student], current.sex), ...attestationLabels(engagements[current.student])].join(' · ') || 'aucun'}.
+          {' '}{validated ? `Validés pour le ${TERM.label} le ${validated.at.split('-').reverse().join('/')}.` : `Pas encore validés pour le ${TERM.label} : à faire dans « Engagements et attestations ».`}
+          {go && <button type="button" onClick={() => go('mandates')} className="ml-2 font-semibold underline">Ouvrir</button>}
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-600">
-          <span>Ce bulletin : <strong>{pagesOf(current.student) === 1 ? '1 page (recto)' : `${pagesOf(current.student)} pages (recto-verso)`}</strong>{pages[current.student]?.useCompact ? ' · police légèrement réduite pour gagner une page' : ''}</span>
+          <span>Ce bulletin : <strong>{pagesOf(current.student) === 1 ? '1 page (recto)' : `${pagesOf(current.student)} pages (recto-verso)`}</strong></span>
           <label className="flex items-center gap-1.5"><input type="checkbox" checked={duplex} onChange={(e) => setDuplex(e.target.checked)} />Imprimante en recto-verso (une page blanche après les bulletins d'une page, pour que chaque élève commence sur une nouvelle feuille)</label>
           {tooLong.length > 0 && <Badge tone="red">{tooLong.length} bulletin{tooLong.length > 1 ? 's' : ''} encore trop long{tooLong.length > 1 ? 's' : ''} : raccourcir compétences ou appréciations</Badge>}
         </div>
@@ -247,8 +231,7 @@ export default function BulletinsModule({ settings, role }) {
       <div ref={measureRef} className="bulletin-measure pointer-events-none fixed -left-[5000px] top-0" style={{ width: PAGE_W }} aria-hidden="true">
         {bulletins.map((x) => (
           <div key={x.student} data-student={x.student}>
-            <BulletinSheet b={{ ...enrich(x), compact: false }} />
-            <BulletinSheet b={{ ...enrich(x), compact: true }} />
+            <BulletinSheet b={enrich(x)} />
           </div>
         ))}
       </div>

@@ -116,7 +116,7 @@ export default function CouncilGrid({ settings, role, go }) {
           <p className="text-sm text-slate-500">Tamatave · conseil le {TERM.council}</p>
         </div>
         <div className="flex flex-wrap gap-2 print:hidden">
-          <label className="flex items-center gap-1.5 text-sm text-slate-600"><input type="checkbox" checked={finalTerm} onChange={(e) => setFinalTerm(e.target.checked)} />Démonstration : voir le conseil du 3e trimestre (passage, rang)</label>
+          <label className="flex items-center gap-1.5 text-sm text-slate-600"><input type="checkbox" className="h-6 w-6" checked={finalTerm} onChange={(e) => setFinalTerm(e.target.checked)} />Démonstration : voir le conseil du 3e trimestre (passage, rang)</label>
           <Button variant="secondary" onClick={exportCsv}>Exporter (Excel)</Button>
           <Button variant="secondary" onClick={() => printOnly('.council-print', 'size: A4 landscape;', `Grille du conseil de classe — 1re STMG — ${TERM.label}`)}>Imprimer la grille</Button>
           <Button variant="secondary" onClick={() => go?.('bulletins')}>Bulletins</Button>
@@ -282,10 +282,10 @@ export default function CouncilGrid({ settings, role, go }) {
           <span className="font-semibold">Matières :</span>
           {avgData.subjects.map((x) => (
             <button key={x.id} type="button" aria-pressed={!hiddenSubjects.includes(x.id)} onClick={() => setHiddenSubjects(hiddenSubjects.includes(x.id) ? hiddenSubjects.filter((y) => y !== x.id) : [...hiddenSubjects, x.id])}
-              className={`rounded-full px-2.5 py-0.5 font-medium ring-1 ${hiddenSubjects.includes(x.id) ? 'bg-white ring-slate-300' : 'bg-navy-500 text-white ring-navy-500'}`}>{x.short ?? x.label}</button>
+              className={`min-h-6 rounded-full px-2.5 py-1 font-medium ring-1 ${hiddenSubjects.includes(x.id) ? 'bg-white ring-slate-300' : 'bg-navy-500 text-white ring-navy-500'}`}>{x.short ?? x.label}</button>
           ))}
-          <label className="ml-2 flex items-center gap-1"><input type="checkbox" checked={printAbs} onChange={(e) => setPrintAbs(e.target.checked)} />Absences et retards</label>
-          <label className="flex items-center gap-1"><input type="checkbox" checked={printAvis} onChange={(e) => setPrintAvis(e.target.checked)} />Avis des enseignants</label>
+          <label className="ml-2 flex items-center gap-1.5"><input type="checkbox" className="h-6 w-6" checked={printAbs} onChange={(e) => setPrintAbs(e.target.checked)} />Absences et retards</label>
+          <label className="flex items-center gap-1.5"><input type="checkbox" className="h-6 w-6" checked={printAvis} onChange={(e) => setPrintAvis(e.target.checked)} />Avis des enseignants</label>
         </div>
         <p className="mt-1 text-xs text-slate-500">La décision n'est pas imprimée : elle se prend pendant le conseil. Le rang apparaît seul au 3e trimestre.</p>
       </Card>

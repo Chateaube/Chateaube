@@ -3,7 +3,6 @@ import { Badge, Button, Card, Stat } from './ui.jsx';
 import { CLASSES } from '../data/schoollife.js';
 import { STAFF } from '../data/people.js';
 import { BOOK_TYPES, LOAN_DAYS, nextCode, designation, openLoan, borrow, renew, giveBackBook, overdueLoans, availability, expiredReservations, RESERVATION_HOLD_DAYS, dueSoonLoans, REMINDER_DAYS_BEFORE, gamesOut, takeGame, returnGame, gameStats, gameIncidents } from '../rules/library.js';
-import BookCatalog from './BookCatalog.jsx';
 import { GAMES, GAME_LOG } from '../data/games.js';
 import { CONDITIONS, conditionLabel } from '../rules/manuals.js';
 import { loadLibrary, saveLibrary } from '../libraryStore.js';
@@ -18,7 +17,8 @@ const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-s
 const fmt = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
 const daysLate = (due) => Math.round((Date.parse(TODAY) - Date.parse(due)) / 86_400_000);
 const TEACHERS = STAFF.filter((s) => /Enseignant|Intervenant/.test(s.poste)).map((s) => s.name);
-const TABS = [['desk', 'Prêt et retour'], ['reservations', 'Réservations'], ['late', 'Rappels et retards'], ['games', 'Jeux de société'], ['search', 'Rechercher'], ['catalog', 'Gérer le catalogue'], ['labels', 'Étiquettes']];
+// Prêt et retour (avec recherche) ; suivi des prêts (réservations, rappels, retards) ; jeux ; catalogue et étiquettes.
+const TABS = [['desk', 'Prêt et retour'], ['follow', 'Suivi des prêts'], ['games', 'Jeux de société'], ['catalog', 'Catalogue et étiquettes']];
 
 /* ---------- Réservations des élèves et des professeurs ---------- */
 function ReservationsTab({ data, setData }) {
@@ -91,7 +91,7 @@ function DeskTab({ books, loans, setLoans }) {
   const done = (text) => { setMsg(text); setPresented(false); };
   return (
     <div className="grid gap-5 xl:grid-cols-[1fr_380px] xl:items-start">
-      <Card title="Prêt et retour" subtitle="Saisir ou scanner la cote de l'étiquette (ex. ROM-0004), ou chercher un titre, un auteur, un ISBN">
+      <Card title="Prêt et retour" subtitle="Taper la cote du livre (ex. ROM-0004), ou chercher un titre, un auteur, un ISBN">
         <input value={code} onChange={(e) => { setCode(e.target.value); setMsg(null); }} placeholder="Cote, titre, auteur ou ISBN" className={`w-full ${inputCls}`} aria-label="Cote ou recherche" autoFocus />
         {search.length > 0 && (
           <ul className="mt-2 divide-y divide-slate-100 rounded-lg border border-slate-200 text-sm">
@@ -367,12 +367,9 @@ export default function LibraryModule() {
         ))}
       </div>
       {tab === 'desk' && <DeskTab books={data.books} loans={data.loans} setLoans={setLoans} />}
-      {tab === 'late' && <LateTab books={data.books} loans={data.loans} />}
-      {tab === 'reservations' && <ReservationsTab data={data} setData={setData} />}
+      {tab === 'follow' && <div className="space-y-5"><LateTab books={data.books} loans={data.loans} /><ReservationsTab data={data} setData={setData} /></div>}
       {tab === 'games' && <GamesTab data={data} setData={setData} />}
-      {tab === 'search' && <BookCatalog key="search" who="Secrétariat" kind="STAFF" compact />}
-      {tab === 'catalog' && <CatalogTab books={data.books} setBooks={setBooks} loans={data.loans} />}
-      {tab === 'labels' && <LabelsTab books={data.books} />}
+      {tab === 'catalog' && <div className="space-y-5"><CatalogTab books={data.books} setBooks={setBooks} loans={data.loans} /><LabelsTab books={data.books} /></div>}
     </div>
   );
 }

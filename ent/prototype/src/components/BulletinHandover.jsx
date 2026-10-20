@@ -10,6 +10,12 @@ import { loadLibrary } from '../libraryStore.js';
 import { overdueLoans } from '../rules/library.js';
 import { pickupStatus, pickupUntil, PICKUP_LABEL } from '../rules/bulletinPickup.js';
 import { publishAnnouncement } from '../announcementsStore.js';
+import { loadProfiles, profileKey } from '../profilesStore.js';
+import { STUDENT_PROFILES } from '../data/enrollment.js';
+
+/** Responsables connus de l'élève (fiche) : on les choisit au lieu de taper le nom. */
+const guardiansOf = (s) => ([...loadProfiles(), ...STUDENT_PROFILES].find((p) => profileKey(p) === s)?.guardians ?? []);
+const firstChoice = (s) => (guardiansOf(s).length ? 'G0' : 'ELEVE');
 
 // Fenêtre de retrait par trimestre et par classe (démonstration : gardée dans ce navigateur)
 const WKEY = 'ent-bulletin-dispo-v1';
@@ -54,7 +60,7 @@ export default function BulletinHandover({ cls, students, settings, role, term }
   const rows = students.map((s) => ({ s, blocks: handoverBlocks(s, settings, manualsData), rec: records[key(s)] }));
   const given = rows.filter((r) => r.rec?.givenAt).length;
   const blocked = rows.filter((r) => r.blocks.length && !r.rec?.override && !r.rec?.givenAt).length;
-  const set = (s, patch) => setForm({ ...form, [s]: { to: 'PARENT', name: '', motif: '', ...form[s], ...patch } });
+  const set = (s, patch) => setForm({ ...form, [s]: { to: firstChoice(s), name: '', motif: '', ...form[s], ...patch } });
   const [windows, setWindows] = useState(loadWindows);
   const wKey = `${term}|${cls}`;
   const w = windows[wKey];
@@ -87,7 +93,9 @@ export default function BulletinHandover({ cls, students, settings, role, term }
       action={<span className="flex gap-2"><Badge tone="green">{given} remis</Badge>{blocked > 0 && <Badge tone="red">{blocked} bloqué{blocked > 1 ? 's' : ''}</Badge>}</span>}>
       <ul className="divide-y divide-slate-100">
         {rows.map(({ s, blocks, rec }) => {
-          const f = form[s] ?? { to: 'PARENT', name: '', motif: '' };
+          const f = { to: firstChoice(s), name: '', motif: '', ...form[s] };
+          const gs = guardiansOf(s);
+          const givenTo = f.to === 'ELEVE' ? `l'élève (${s})` : f.to === 'AUTRE' ? f.name.trim() : `${gs[Number(f.to.slice(1))]?.name} (${gs[Number(f.to.slice(1))]?.relation?.toLowerCase() ?? 'responsable'})`;
           const canGive = !blocks.length || rec?.override;
           return (
             <li key={s} className="py-3 text-sm">
@@ -101,10 +109,11 @@ export default function BulletinHandover({ cls, students, settings, role, term }
                 {rec?.givenAt ? <Badge tone="green">Remis</Badge> : canGive ? (
                   <span className="flex flex-wrap items-center gap-1">
                     <select value={f.to} onChange={(e) => set(s, { to: e.target.value })} className="rounded-md border border-slate-300 px-1.5 py-1 text-xs" aria-label={`Remis à — ${s}`}>
-                      <option value="PARENT">au parent</option><option value="ELEVE">à l'élève</option><option value="AUTRE">à une autre personne</option>
+                      {gs.map((g, i) => <option key={g.name} value={`G${i}`}>à {g.name} ({g.relation?.toLowerCase() ?? 'responsable'}){g.pickup === false ? ' — non autorisé(e) à récupérer' : ''}</option>)}
+                      <option value="ELEVE">à l'élève</option><option value="AUTRE">à une autre personne…</option>
                     </select>
-                    {f.to !== 'ELEVE' && <input value={f.name} onChange={(e) => set(s, { name: e.target.value })} placeholder="Nom" className="w-36 rounded-md border border-slate-300 px-2 py-1 text-xs" aria-label={`Nom — ${s}`} />}
-                    <Button className="!px-2 !py-1 text-xs" disabled={f.to !== 'ELEVE' && !f.name.trim()} onClick={() => setRecords({ ...records, [key(s)]: { ...rec, givenAt: '13/10/2026', givenBy: actor, givenTo: f.to === 'ELEVE' ? `l'élève (${s})` : f.name.trim() } })}>Remis en main propre</Button>
+                    {f.to === 'AUTRE' && <input value={f.name} onChange={(e) => set(s, { name: e.target.value })} placeholder="Nom et lien avec l'élève" className="w-44 rounded-md border border-slate-300 px-2 py-1 text-xs" aria-label={`Nom — ${s}`} />}
+                    <Button className="!px-2 !py-1 text-xs" disabled={f.to === 'AUTRE' && !f.name.trim()} onClick={() => setRecords({ ...records, [key(s)]: { ...rec, givenAt: '13/10/2026', givenBy: actor, givenTo } })}>Remis en main propre</Button>
                   </span>
                 ) : isDirection ? (
                   <span className="flex flex-wrap items-center gap-1">

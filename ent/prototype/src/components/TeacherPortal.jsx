@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import TodoList from './TodoList.jsx';
 import { Badge, Button, Card, Icon } from './ui.jsx';
 import { TEACHER, CLASS_LIST } from '../data/people.js';
 
@@ -57,6 +58,7 @@ export default function TeacherPortal({ go }) {
           <button type="button" onClick={() => (go ? go('appel') : setOpen(current))} className="rounded-xl bg-white px-5 py-3 text-base font-semibold text-navy-900 shadow hover:bg-navy-50">Faire l'appel</button>
         </div>
       )}
+      <TodoList who="ENSEIGNANT" title="Tâches confiées par la Direction" />
       {toast && <p role="status" className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800"><Icon name="check" />{toast}</p>}
 
       <div className="grid gap-5 xl:grid-cols-[1fr_380px] xl:items-start">

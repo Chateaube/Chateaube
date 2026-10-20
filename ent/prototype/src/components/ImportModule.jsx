@@ -8,6 +8,7 @@ import { readXlsx } from '../xlsxRead.js';
 import { bookToImport, withExtras, SHEET_NAMES } from '../rules/templateImport.js';
 import { loadMockExams, saveMockExams } from '../mockExamStore.js';
 import { saveInventory } from '../careStore.js';
+import BackupCard from './BackupCard.jsx';
 
 // Onglets du modèle pris en compte dès maintenant ; les autres seront repris par la version serveur
 const USED = { '1 Élèves': 'fiches élèves', '2 Responsables': 'responsables des élèves', '3 Personnel': 'professeurs et enseignements', '6 Notes officielles 1re': 'projection au bac', '10 Inventaire': 'inventaire' };
@@ -31,7 +32,7 @@ function TemplateZone({ onBook, extras }) {
           {SHEET_NAMES.map((n) => (
             <li key={n} className="flex items-center justify-between gap-2 px-3 py-1.5">
               <span>{n} <span className="text-slate-500">· {extras.counts[n] ?? 0} ligne{(extras.counts[n] ?? 0) > 1 ? 's' : ''}</span></span>
-              {!extras.counts[n] ? <Badge>vide</Badge> : USED[n] ? <Badge tone="green">{USED[n]}</Badge> : <Badge tone="slate">gardé pour la version en ligne</Badge>}
+              {!extras.counts[n] ? <Badge>vide — ignoré</Badge> : USED[n] ? <Badge tone="green">{USED[n]}</Badge> : <Badge tone="slate">gardé pour la version en ligne</Badge>}
             </li>
           ))}
         </ul>
@@ -42,30 +43,12 @@ function TemplateZone({ onBook, extras }) {
   );
 }
 
-// Import des données existantes (Direction, Bureau) : coller le tableau Excel des élèves de
-// l'année en cours et celui des enseignements, vérifier, puis importer.
-// Les données restent dans CE navigateur : elles ne sont ni publiées ni partagées.
+// Import des données existantes (Direction, Bureau) : UN seul fichier, le modèle Excel de l'école.
+// Un onglet vide est ignoré (on peut n'importer que les élèves). Vérifier, puis importer.
+// Les données restent dans CE navigateur : elles ne sont ni publiées ni partagées. Sauvegarde en bas de page.
 
 const fmt = (iso) => (iso ? iso.split('-').reverse().join('/') : '—');
 const ORDER = ['6e', '5e', '4e', '3e', '2de', '1re Générale', '1re STMG', 'Terminale Générale', 'Terminale STMG'];
-
-function PasteZone({ label, placeholder, value, onChange }) {
-  const file = useRef(null);
-  return (
-    <div>
-      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-medium text-slate-600">{label}</p>
-        <span className="flex gap-2">
-          <input ref={file} type="file" accept=".csv,.tsv,.txt" className="hidden" onChange={async (e) => { const f = e.target.files[0]; if (f) onChange(await f.text()); e.target.value = ''; }} />
-          <Button variant="secondary" className="!py-1 text-xs" onClick={() => file.current.click()}>Ouvrir un fichier CSV</Button>
-          {value && <Button variant="ghost" className="!py-1 text-xs" onClick={() => onChange('')}>Vider</Button>}
-        </span>
-      </div>
-      <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={7} placeholder={placeholder}
-        className="w-full rounded-xl border border-slate-200 bg-white p-3 font-mono text-xs" spellCheck={false} />
-    </div>
-  );
-}
 
 export default function ImportModule() {
   const [current, setCurrent] = useState(loadImport);
@@ -117,8 +100,8 @@ export default function ImportModule() {
     <div className="space-y-5">
       <div>
         <p className="text-sm font-semibold text-navy-500">Reprise des données existantes · année 2026-2027</p>
-        <h1 className="text-2xl font-semibold text-navy-900">Importer des données</h1>
-        <p className="text-sm text-slate-500">Importez le modèle Excel de l'école, ou copiez un tableau Excel (ligne de titres comprise) et collez-le plus bas.</p>
+        <h1 className="text-2xl font-semibold text-navy-900">Importer et sauvegarder</h1>
+        <p className="text-sm text-slate-600">Un seul fichier : le modèle Excel de l'école. Remplissez les onglets que vous avez ; un onglet vide est simplement ignoré.</p>
       </div>
       <p className="rounded-2xl bg-amber-50 p-3 text-sm text-amber-900">
         Confidentialité : les données importées restent <strong>dans ce navigateur</strong> (cet ordinateur ou ce téléphone).
@@ -134,20 +117,13 @@ export default function ImportModule() {
       {done && <p className="rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-800">{done} Rechargez la page si un écran était déjà ouvert.</p>}
       <TemplateZone onBook={onBook} extras={extras} />
 
-      <div className="grid gap-5 xl:grid-cols-2">
-        <Card title="1. Élèves de l'année en cours" subtitle="Colonnes reconnues : N°, Classe, Nom, Prénom, Née le, Lieu de naissance, Nationalité, Examen, Adresse @, Contact">
-          <PasteZone label="Tableau des élèves" value={studentsText} onChange={setStudentsText}
-            placeholder={'N°\tClasse\tNom\tPrénom\tNée le\tLieu de naissance\tNationalité\tExamen FR\tAdresse @\tContact\n3E-001\t3e\tRAKOTO\tFanja\t12/03/2012\tToamasina, Madagascar\tMalgache\tDNB\tfanja@gmail.com\t03 40 00 00 00'} />
+      {assignments && (
+        <Card title={`Professeurs et enseignements (${assignments.length})`} subtitle="Lus dans l'onglet « 3 Personnel » du modèle">
+          <ul className="max-h-56 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200 text-sm">
+            {assignments.map((a) => <li key={a.name} className="px-3 py-1.5"><span className="font-medium">{a.name}</span> · {a.subjects.join(', ')}<span className="block text-xs text-slate-500">{a.classes.join(' · ')}</span></li>)}
+          </ul>
         </Card>
-        <Card title="2. Professeurs et enseignements" subtitle="Colonnes : Nom, Matière, Classe (classes séparées par « - »)">
-          <PasteZone label="Tableau des enseignements" value={staffText} onChange={setStaffText} placeholder={'NOM\tMatière\tClasse\nMme Rabe\tFrançais\t6e - 5e - 4e'} />
-          {assignments && (
-            <ul className="mt-3 max-h-56 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200 text-sm">
-              {assignments.map((a) => <li key={a.name} className="px-3 py-1.5"><span className="font-medium">{a.name}</span> · {a.subjects.join(', ')}<span className="block text-xs text-slate-500">{a.classes.join(' · ')}</span></li>)}
-            </ul>
-          )}
-        </Card>
-      </div>
+      )}
 
       {analysis && (
         <>
@@ -204,6 +180,7 @@ export default function ImportModule() {
         </>
       )}
 
+      {!analysis && !assignments && !extras && <p className="text-sm text-slate-600">Choisissez le fichier Excel rempli : les élèves et les professeurs s'affichent ici pour vérification avant l'import.</p>}
       {(analysis || assignments) && (
         <div className="flex flex-wrap items-center gap-3">
           <Button onClick={doImport}>
@@ -216,6 +193,8 @@ export default function ImportModule() {
           {count('error') > 0 && <p className="text-xs text-red-700">{count('error')} ligne(s) avec erreur seront importées telles quelles : corrigez-les ensuite dans les fiches élèves.</p>}
         </div>
       )}
+
+      <BackupCard />
     </div>
   );
 }

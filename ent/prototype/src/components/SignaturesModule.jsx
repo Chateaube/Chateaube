@@ -39,6 +39,7 @@ function SignatureSetup({ me, data, refresh }) {
   const [draft, setDraft] = useState(null);
   const [redo, setRedo] = useState(false);
   const stampRef = useRef(null);
+  const sigRef = useRef(null);
   const mine = data.officials[me.id];
   return (
     <Card title="Ma signature et le tampon" subtitle="Déposés une fois ; utilisés seulement quand vous validez un document">
@@ -48,12 +49,23 @@ function SignatureSetup({ me, data, refresh }) {
           {mine && !redo ? (
             <>
               <img src={mine.dataUrl} alt="Ma signature" className="h-24 w-full rounded-xl border border-slate-200 bg-white object-contain" />
-              <button type="button" className="mt-1 text-xs font-medium text-navy-500" onClick={() => setRedo(true)}>Refaire ma signature</button>
+              <button type="button" className="mt-1 text-xs font-medium text-navy-700" onClick={() => setRedo(true)}>Changer ma signature</button>
             </>
           ) : (
             <>
-              <SignaturePad onChange={setDraft} label="Signez au doigt ou à la souris" />
-              <Button className="mt-2" disabled={!draft} onClick={() => { setOfficialSignature(me.id, draft); setRedo(false); refresh(); }}>Enregistrer ma signature</Button>
+              {/* Le plus simple : signer sur une feuille blanche et la photographier de près */}
+              <div className="flex h-24 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white">
+                <p className="px-4 text-center text-xs text-slate-600">Signez sur une feuille blanche, prenez-la en photo de près (bien éclairée) et déposez-la.</p>
+              </div>
+              <Button className="mt-2" onClick={() => sigRef.current.click()}>Déposer la photo de ma signature</Button>
+              <input ref={sigRef} type="file" accept="image/*" aria-label="Photo de ma signature" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) { setOfficialSignature(me.id, await imageToDataUrl(f, 800, 0.9)); setRedo(false); refresh(); } }} />
+              <details className="mt-3 text-sm">
+                <summary className="cursor-pointer text-xs font-medium text-navy-700">Ou signer à l'écran</summary>
+                <div className="mt-2">
+                  <SignaturePad onChange={setDraft} label="Signez au doigt ou à la souris" />
+                  <Button className="mt-2" disabled={!draft} onClick={() => { setOfficialSignature(me.id, draft); setRedo(false); refresh(); }}>Enregistrer ma signature</Button>
+                </div>
+              </details>
             </>
           )}
         </div>

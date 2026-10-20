@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import TodoList from './TodoList.jsx';
 import { Badge, Button, Card, Icon, Stat } from './ui.jsx';
 import { CLASSES, classOf, STAFF_NAMES, ATTENDANCE, MEASURES_LOG, PHONES } from '../data/schoollife.js';
 import { isMinor, leaveErrors } from '../rules/earlyLeave.js';
@@ -342,6 +343,7 @@ export default function VieScolaireModule({ settings, role = 'VIE_SCOLAIRE' }) {
         <Stat label="Parents pas encore informés" value={log.filter((m) => !m.parentAck).length} tone="amber" />
         <Stat label="Téléphones en garde" value={phones.filter((p) => p.action !== 'AVERTISSEMENT' && !p.returned).length} />
       </div>}
+      {role === 'VIE_SCOLAIRE' && <TodoList who="VIE_SCOLAIRE" title="Tâches confiées par la Direction" />}
       {message && <p role="status" className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800"><Icon name="check" />{message}</p>}
       <div className="flex gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1" role="tablist">
         {tabs.map(([id, label]) => (

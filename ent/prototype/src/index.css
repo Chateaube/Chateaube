@@ -164,7 +164,6 @@ main .bulletin thead th { color: #000; }
 .blank-page { display: none; }
 /* Mesure des bulletins : mêmes réglages qu'à l'impression */
 .bulletin-measure .bulletin { padding: 0; max-width: none; box-shadow: none; font-size: 9px; line-height: 1.25; }
-.bulletin-measure .bulletin-compact { font-size: 8px; }
 @media print { #print-root { display: block; } #print-root .print-only { display: block; } }
 
 .hatched {

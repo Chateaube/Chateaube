@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import TodoList from './TodoList.jsx';
 import { Badge, Button, Card, Icon, Progress, Stat } from './ui.jsx';
 import {
   SITES, SITE_KPIS, DUNNING_CASES, EXAM_FEES, CANDIDATE_FILES, TRANSFER, YEAR_MILESTONES, TODAY,
@@ -82,6 +83,8 @@ export default function DirectionDashboard({ account, settings, go, site: header
         <h1 className="text-2xl font-semibold text-navy-900">Bonjour {account.name.replace(/ \(.*\)$/, '')}</h1>
         <p className="text-sm text-slate-600">{decisionsToTake.length ? `${decisionsToTake.length} décision${decisionsToTake.length > 1 ? 's' : ''} vous attend${decisionsToTake.length > 1 ? 'ent' : ''}.` : 'Aucune décision en attente.'}</p>
       </div>
+
+      <TodoList who="DIRECTION" title="Mes tâches du jour" />
 
       <Card title="Vos décisions" subtitle="Ce qui attend la Direction, du plus urgent au moins urgent">
         {decisionsToTake.length === 0 ? <p className="text-sm text-slate-600">Rien à décider pour l'instant ✓</p> : (

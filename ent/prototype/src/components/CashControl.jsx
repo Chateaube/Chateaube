@@ -65,6 +65,7 @@ export default function CashControl({ role, actor, receipts, setReceipts, audit,
   const [cancelling, setCancelling] = useState(null);
   const [duplicate, setDuplicate] = useState(null);
   const [counts, setCounts] = useState({});
+  const [total, setTotal] = useState(''); // montant compté saisi directement (le détail par billet est facultatif)
   const [explanation, setExplanation] = useState('');
   const [tried, setTried] = useState(false);
   const [deposit, setDeposit] = useState({ amount: null, bank: 'BOA Madagascar', slip: '' });
@@ -110,7 +111,8 @@ export default function CashControl({ role, actor, receipts, setReceipts, audit,
     return null;
   };
 
-  const counted = countTotal(counts);
+  const byNotes = countTotal(counts);
+  const counted = byNotes > 0 ? byNotes : Number(String(total).replace(/\D/g, '')) || 0;
   const check = closingCheck(cash, counted, explanation);
   const close = () => {
     setTried(true);
@@ -217,13 +219,19 @@ export default function CashControl({ role, actor, receipts, setReceipts, audit,
           ) : (
             <>
               <p className="mb-2 text-sm text-slate-600">Espèces attendues : <strong>{formatAr(cash)}</strong> <span className="text-xs text-slate-500">(ouverture {formatAr(safe.morning)} + encaissements − sorties et versements en espèces)</span></p>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {DENOMINATIONS.map((d) => (
-                  <label key={d} className="text-xs text-slate-600">{new Intl.NumberFormat('fr-FR').format(d).replace(/ | /g, ' ')} Ar
-                    <input type="number" min={0} inputMode="numeric" value={counts[d] ?? ''} onChange={(e) => setCounts({ ...counts, [d]: e.target.value })} className={`mt-1 w-full ${inputCls}`} aria-label={`Nombre de ${d} Ar`} />
-                  </label>
-                ))}
-              </div>
+              <label className="block text-xs text-slate-600">Espèces comptées (Ar)
+                <input inputMode="numeric" value={byNotes > 0 ? new Intl.NumberFormat('fr-FR').format(byNotes) : total} disabled={byNotes > 0} onChange={(e) => setTotal(e.target.value)} placeholder="ex. 1 250 000" className={`mt-1 w-full text-base ${inputCls}`} />
+              </label>
+              <details className="mt-2 text-sm">
+                <summary className="cursor-pointer text-xs font-medium text-navy-700">Compter billet par billet (facultatif)</summary>
+                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {DENOMINATIONS.map((d) => (
+                    <label key={d} className="text-xs text-slate-600">{new Intl.NumberFormat('fr-FR').format(d).replace(/ | /g, ' ')} Ar
+                      <input type="number" min={0} inputMode="numeric" value={counts[d] ?? ''} onChange={(e) => setCounts({ ...counts, [d]: e.target.value })} className={`mt-1 w-full ${inputCls}`} aria-label={`Nombre de ${d} Ar`} />
+                    </label>
+                  ))}
+                </div>
+              </details>
               <div className="mt-3 flex flex-wrap items-baseline justify-between gap-2 border-t border-slate-100 pt-3 text-sm">
                 <span>Compté : <strong className="tabular-nums">{formatAr(counted)}</strong></span>
                 {counted > 0 && <Badge tone={check.diff === 0 ? 'green' : 'red'}>{check.diff === 0 ? 'Caisse juste' : `${check.diff > 0 ? 'Excédent' : 'Manquant'} ${formatAr(Math.abs(check.diff))}`}</Badge>}
@@ -233,7 +241,7 @@ export default function CashControl({ role, actor, receipts, setReceipts, audit,
                   <textarea rows={2} value={explanation} onChange={(e) => setExplanation(e.target.value)} className={`mt-1 w-full ${inputCls}`} />
                 </label>
               )}
-              {tried && (counted === 0 ? <p className="mt-1 text-xs text-red-700">Saisir le comptage des billets.</p> : check.errors.map((e) => <p key={e} className="mt-1 text-xs text-red-700">{e}</p>))}
+              {tried && (counted === 0 ? <p className="mt-1 text-xs text-red-700">Saisir le montant compté.</p> : check.errors.map((e) => <p key={e} className="mt-1 text-xs text-red-700">{e}</p>))}
               <Button className="mt-3 w-full" onClick={close}>Clôturer la caisse du 13/10/2026</Button>
             </>
           )}

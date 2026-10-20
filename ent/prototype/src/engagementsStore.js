@@ -7,3 +7,9 @@ export const DEMO_ENGAGEMENTS = {
 };
 export const loadEngagements = () => { try { return JSON.parse(localStorage.getItem(KEY)) ?? DEMO_ENGAGEMENTS; } catch { return DEMO_ENGAGEMENTS; } };
 export const saveEngagements = (d) => { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch { /* stockage indisponible */ } };
+
+// Validation par trimestre (Direction) : { T1: { at, by } }. Une fois validés, les engagements du trimestre
+// sont ceux qui partent sur les bulletins ; on peut rouvrir pour corriger.
+const VKEY = 'ent-engagements-valides-v1';
+export const loadValidation = () => { try { return JSON.parse(localStorage.getItem(VKEY)) ?? {}; } catch { return {}; } };
+export const saveValidation = (v) => { try { localStorage.setItem(VKEY, JSON.stringify(v)); } catch { /* stockage indisponible */ } };

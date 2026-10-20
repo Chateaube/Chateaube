@@ -13,9 +13,26 @@ export function footerCss(title) {
     @bottom-right { content: counter(page) "/" counter(pages); ${box} }`;
 }
 
+const inFrame = () => { try { return window.self !== window.top; } catch { return true; } };
+const slug = (t) => (t || 'document').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
+
+/**
+ * Dans l'aperçu publié sur claude.ai, la page est dans un cadre qui interdit l'impression : on propose
+ * alors un fichier .html autonome (mêmes styles) qui s'ouvre et lance l'impression tout seul.
+ */
+async function printViaFile(source, pageCss, title) {
+  const css = [...document.querySelectorAll('style')].map((s) => s.textContent).join('\n');
+  const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${title ?? 'Impression'}</title>`
+    + `<style>${css}</style><style>body{background:#fff;margin:0}@page{${pageCss} ${title ? footerCss(title) : ''}}</style></head>`
+    + `<body>${source.innerHTML}<script>window.addEventListener('load',function(){setTimeout(function(){window.print()},400)})<\/script></body></html>`;
+  const { saveFile } = await import('./download.js');
+  return saveFile(`${slug(title)}.html`, html);
+}
+
 export function printOnly(selector, pageCss, title) {
   const source = document.querySelector(selector);
   if (!source) return;
+  if (inFrame()) { printViaFile(source, pageCss, title); return; }
   const copy = document.createElement('div');
   copy.id = 'print-root';
   copy.innerHTML = source.innerHTML;

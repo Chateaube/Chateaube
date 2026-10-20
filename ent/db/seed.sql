@@ -213,20 +213,20 @@ INSERT INTO internship_type (code, level_code, label, school_days) VALUES
 
 -- Ambiances (école laïque ; mêmes ambiances que l'interface, rules/ambiances.js ; notes complètes côté interface)
 INSERT INTO season (code, label, category, from_md, to_md, palette, motif, symbol, greeting, note_title, note_body) VALUES
-  ('RENTREE', 'Rentrée', 'SCOLAIRE', '09-01', '09-12', 'ciel', 'etoiles', '✏️', 'Bonne rentrée à toutes et à tous !', NULL, NULL),
-  ('PRINTEMPS', 'Printemps', 'SAISON', '09-20', '09-30', 'vert', 'petales', '🌸', 'Le printemps austral est arrivé.', 'Pourquoi le printemps en septembre ?', 'Madagascar est dans l''hémisphère sud : l''équinoxe de septembre y marque le début du printemps.'),
-  ('OCTOBRE_ROSE', 'Octobre rose', 'CIVIQUE', '10-01', '10-31', 'rose', 'petales', '🎀', 'Octobre rose : toute l''école se mobilise.', 'Octobre rose', 'Campagne de sensibilisation au dépistage du cancer du sein.'),
-  ('ARMISTICE', 'Armistice du 11 novembre', 'HISTORIQUE', '11-04', '11-11', 'sobre', 'aucun', '🕊️', '11 novembre : journée de mémoire.', '11 novembre 1918', 'L''armistice met fin aux combats de la Première Guerre mondiale.'),
-  ('DROITS_ENFANT', 'Droits de l''enfant', 'CIVIQUE', '11-14', '11-20', 'ciel', 'etoiles', '🧒', '20 novembre : journée internationale des droits de l''enfant.', 'Convention internationale des droits de l''enfant', 'Adoptée par l''ONU le 20 novembre 1989.'),
+  ('RENTREE', 'Rentrée', 'SCOLAIRE', '09-01', '09-12', 'ciel', 'etoiles', '✏️', 'Bienvenue à toutes et à tous !', NULL, NULL),
+  ('PRINTEMPS', 'Printemps', 'SAISON', '09-20', '09-30', 'vert', 'petales', '🌸', 'Les jours rallongent.', 'Pourquoi le printemps en septembre ?', 'Madagascar est dans l''hémisphère sud : l''équinoxe de septembre y marque le début du printemps.'),
+  ('OCTOBRE_ROSE', 'Octobre rose', 'CIVIQUE', '10-01', '10-31', 'rose', 'petales', '🎀', 'Toute l''école se mobilise.', 'Octobre rose', 'Campagne de sensibilisation au dépistage du cancer du sein.'),
+  ('ARMISTICE', 'Armistice du 11 novembre', 'HISTORIQUE', '11-04', '11-11', 'sobre', 'aucun', '🕊️', 'Journée de mémoire.', '11 novembre 1918', 'L''armistice met fin aux combats de la Première Guerre mondiale.'),
+  ('DROITS_ENFANT', 'Droits de l''enfant', 'CIVIQUE', '11-14', '11-20', 'ciel', 'etoiles', '🧒', 'Journée internationale, le 20 novembre.', 'Convention internationale des droits de l''enfant', 'Adoptée par l''ONU le 20 novembre 1989.'),
   ('NOUVEL_AN', 'Nouvel An', 'CIVIQUE', '12-28', '01-06', 'or', 'confettis', '✨', 'Bonne année !', 'Nouvelle année civile', 'Le 1er janvier ouvre l''année du calendrier grégorien.'),
   ('NOUVEL_AN_LUNAIRE', 'Nouvel An lunaire', 'CULTUREL', NULL, NULL, 'rouge', 'confettis', '🏮', 'Bonne année lunaire !', 'Le Nouvel An lunaire', 'Sa date suit un calendrier luni-solaire et change chaque année.'),
-  ('FEMMES', 'Droits des femmes', 'CIVIQUE', '03-01', '03-08', 'violet', 'petales', '💜', '8 mars : journée internationale des droits des femmes.', 'Le 8 mars', 'Journée reconnue par l''ONU en 1977.'),
-  ('FRANCOPHONIE', 'Francophonie', 'CULTUREL', '03-14', '03-20', 'ciel', 'etoiles', '📖', '20 mars : journée internationale de la Francophonie.', 'La Francophonie', 'Madagascar est membre de l''Organisation internationale de la Francophonie.'),
-  ('AUTOMNE', 'Automne', 'SAISON', '03-21', '04-04', 'ambre', 'feuilles', '🍂', 'L''automne austral commence.', 'L''équinoxe de mars', 'Dans l''hémisphère sud, elle marque le début de l''automne.'),
-  ('MEMOIRE_1947', 'Commémoration du 29 mars 1947', 'HISTORIQUE', '03-25', '03-29', 'sobre', 'aucun', '🕊️', '29 mars : journée de commémoration nationale.', 'Le 29 mars 1947', 'Début de l''insurrection malgache contre la colonisation.'),
-  ('ENVIRONNEMENT', 'Journée de l''environnement', 'CIVIQUE', '05-30', '06-05', 'vert', 'feuilles', '🌱', '5 juin : journée mondiale de l''environnement.', 'Agir pour l''environnement', 'Instituée par l''ONU en 1972.'),
-  ('INDEPENDANCE', 'Fête de l''Indépendance', 'HISTORIQUE', '06-20', '06-26', 'vert', 'confettis', '🇲🇬', 'Bonne fête de l''Indépendance !', '26 juin 1960', 'Proclamation de l''indépendance de Madagascar.'),
-  ('VACANCES', 'Grandes vacances', 'SCOLAIRE', '06-27', '07-10', 'ciel', 'aucun', '☀️', 'Bonnes vacances !', NULL, NULL);
+  ('FEMMES', 'Droits des femmes', 'CIVIQUE', '03-01', '03-08', 'violet', 'petales', '💜', 'Journée internationale, le 8 mars.', 'Le 8 mars', 'Journée reconnue par l''ONU en 1977.'),
+  ('FRANCOPHONIE', 'Francophonie', 'CULTUREL', '03-14', '03-20', 'ciel', 'etoiles', '📖', 'Journée internationale, le 20 mars.', 'La Francophonie', 'Madagascar est membre de l''Organisation internationale de la Francophonie.'),
+  ('AUTOMNE', 'Automne', 'SAISON', '03-21', '04-04', 'ambre', 'feuilles', '🍂', 'Les jours raccourcissent.', 'L''équinoxe de mars', 'Dans l''hémisphère sud, elle marque le début de l''automne.'),
+  ('MEMOIRE_1947', 'Commémoration du 29 mars 1947', 'HISTORIQUE', '03-25', '03-29', 'sobre', 'aucun', '🕊️', 'Journée de mémoire nationale.', 'Le 29 mars 1947', 'Début de l''insurrection malgache contre la colonisation.'),
+  ('ENVIRONNEMENT', 'Journée de l''environnement', 'CIVIQUE', '05-30', '06-05', 'vert', 'feuilles', '🌱', 'Le 5 juin : chaque geste compte.', 'Agir pour l''environnement', 'Instituée par l''ONU en 1972.'),
+  ('INDEPENDANCE', 'Fête de l''Indépendance', 'HISTORIQUE', '06-20', '06-26', 'vert', 'confettis', '🇲🇬', 'Bonne fête nationale !', '26 juin 1960', 'Proclamation de l''indépendance de Madagascar.'),
+  ('VACANCES', 'Grandes vacances', 'SCOLAIRE', '06-27', '07-10', 'ciel', 'aucun', '☀️', 'Bon repos, à la rentrée !', NULL, NULL);
 INSERT INTO season_date (code, year, from_date, to_date) VALUES
   ('NOUVEL_AN_LUNAIRE', 2026, '2026-02-14', '2026-02-21'), ('NOUVEL_AN_LUNAIRE', 2027, '2027-02-03', '2027-02-10'),
   ('NOUVEL_AN_LUNAIRE', 2028, '2028-01-23', '2028-01-30'), ('NOUVEL_AN_LUNAIRE', 2029, '2029-02-10', '2029-02-17'),

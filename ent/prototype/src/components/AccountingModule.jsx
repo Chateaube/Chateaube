@@ -239,12 +239,13 @@ function MonthlyCashExport({ movements }) {
 }
 
 function CashTab({ movements, setMovements }) {
-  const [draft, setDraft] = useState({ dir: 'OUT', nature: CASH_NATURES.OUT[0], journal: 'ECOLAGE', label: '', method: 'Espèces', amount: null, agent: 'Mme Soa' });
+  const [draft, setDraft] = useState({ dir: 'OUT', nature: MANUAL_NATURES.OUT[0], journal: 'ECOLAGE', label: '', method: 'Espèces', amount: null, agent: 'Mme Soa' });
   const balance = cashBalance(CASH_OPENING, movements);
   const sum = (dir) => movements.filter((m) => m.dir === dir).reduce((s, m) => s + m.amount, 0);
   const ok = draft.label.trim() && draft.amount > 0 && (draft.dir === 'IN' || (balance[draft.journal] ?? 0) >= draft.amount);
   return (
     <div className="space-y-5">
+      <p className="rounded-lg bg-navy-50 px-3 py-2 text-sm text-navy-900">Ici, seulement ce qui n'est ni un paiement de famille (onglet <strong>Encaisser</strong>, avec reçu) ni un achat (onglet <strong>Dépenses & fournisseurs</strong>, avec facture) : fond de caisse, retrait ou dépôt en banque, remboursement, reversement au centre d'examen. Le tableau reprend tous les mouvements du jour.</p>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Entrées du jour" value={formatAr(sum('IN'))} tone="green" />
         <Stat label="Sorties du jour" value={formatAr(sum('OUT'))} tone="red" />
@@ -276,13 +277,13 @@ function CashTab({ movements, setMovements }) {
         </div>
         <div className="mt-4 grid gap-2 rounded-lg bg-slate-50 p-3 sm:grid-cols-3 lg:grid-cols-[110px_1fr_1fr_1.5fr_130px_auto] lg:items-end">
           <label className="text-xs text-slate-600">Sens
-            <select value={draft.dir} onChange={(e) => setDraft({ ...draft, dir: e.target.value, nature: CASH_NATURES[e.target.value][0] })} className={`mt-1 w-full bg-white ${inputCls}`}>
+            <select value={draft.dir} onChange={(e) => setDraft({ ...draft, dir: e.target.value, nature: MANUAL_NATURES[e.target.value][0] })} className={`mt-1 w-full bg-white ${inputCls}`}>
               <option value="IN">Entrée</option><option value="OUT">Sortie</option>
             </select>
           </label>
           <label className="text-xs text-slate-600">Nature
             <select value={draft.nature} onChange={(e) => setDraft({ ...draft, nature: e.target.value })} className={`mt-1 w-full bg-white ${inputCls}`}>
-              {CASH_NATURES[draft.dir].map((n) => <option key={n}>{n}</option>)}
+              {MANUAL_NATURES[draft.dir].map((n) => <option key={n}>{n}</option>)}
             </select>
           </label>
           <label className="text-xs text-slate-600">Journal
@@ -313,10 +314,20 @@ function CashTab({ movements, setMovements }) {
 
 // Onglets optionnels : affichage réglé par la Direction (features.js)
 const TAB_FEATURE = { fees: 'caisse.tarifs', articles: 'caisse.articles', reductions: 'caisse.reductions' };
-const TABS = [['collect', 'Encaisser'], ['receipts', 'Reçus & clôture'], ['fees', 'Classes & tarifs'], ['articles', 'Articles & services'], ['reductions', 'Réductions'], ['salaries', 'Salaires'], ['expenses', 'Dépenses & fournisseurs'], ['cash', 'Caisse : entrées / sorties'], ['treasury', 'Trésorerie', 'DIRECTION']];
+// Ordre : le quotidien d'abord ; le paramétrage de l'année (fixé une fois puis verrouillé) à la fin.
+const TABS = [['collect', 'Encaisser'], ['receipts', 'Reçus & clôture'], ['expenses', 'Dépenses & fournisseurs'], ['cash', 'Autres mouvements d\'espèces'], ['salaries', 'Salaires'], ['treasury', 'Trésorerie', 'DIRECTION'], ['fees', 'Classes & tarifs'], ['articles', 'Articles & services'], ['reductions', 'Réductions']];
+const SETUP_TABS = ['fees', 'articles', 'reductions'];
+// Paramétrage verrouillé pour l'année (Direction) : plus de modification jusqu'à la fin de l'année scolaire.
+const LOCK_KEY = 'ent-tarifs-verrou-v1';
+const loadLock = () => { try { return JSON.parse(localStorage.getItem(LOCK_KEY)); } catch { return null; } };
+const saveLock = (v) => { try { if (v) localStorage.setItem(LOCK_KEY, JSON.stringify(v)); else localStorage.removeItem(LOCK_KEY); } catch { /* stockage indisponible */ } };
+// Saisie libre d'un mouvement : ni encaissement d'une famille (onglet Encaisser, avec reçu) ni dépense
+// avec facture (onglet Dépenses & fournisseurs) ; seulement fond de caisse, banque, remboursement…
+const MANUAL_NATURES = { IN: CASH_NATURES.IN.filter((n) => n !== 'Encaissement famille'), OUT: CASH_NATURES.OUT.filter((n) => n !== 'Dépense de fonctionnement') };
 
 export default function AccountingModule({ settings, role }) {
-  const canEdit = role === 'DIRECTION'; // classes, tarifs, articles et services : Direction uniquement
+  const [lock, setLock] = useState(loadLock);
+  const canEdit = role === 'DIRECTION' && !lock; // classes, tarifs, articles et services : Direction uniquement, tant que ce n'est pas verrouillé
   const [tab, setTab] = useState('collect');
   const [fees, setFees] = useState(CLASS_FEES);
   const [articles, setArticles] = useState(ARTICLES);
@@ -377,6 +388,15 @@ export default function AccountingModule({ settings, role }) {
       {tab === 'collect' && <CollectPayment settings={settings} articles={articles} accounts={accounts} setAccounts={setAccounts} reductionTypes={reductionTypes} onCollected={onCollected} cashier={actor} closed={closed} />}
       {tab === 'receipts' && <CashControl role={role} actor={actor} receipts={receipts} setReceipts={setReceipts} audit={audit} setAudit={setAudit} movements={movements} setMovements={setMovements} accounts={accounts} setAccounts={setAccounts} closings={closings} setClosings={setClosings} safe={CASH_SAFE} settings={settings} salariesPaid={cashSalariesPaid(payroll, salaryPayments)} />}
       {tab === 'salaries' && <Salaries role={role} actor={actor} settings={settings} payroll={payroll} setPayroll={setPayroll} rates={rates} setRates={setRates} payments={salaryPayments} setPayments={setSalaryPayments} validated={payrollValidated} setValidated={setPayrollValidated} movements={movements} setMovements={setMovements} setAudit={setAudit} safe={CASH_SAFE} />}
+      {SETUP_TABS.includes(tab) && (
+        <div className={`flex flex-wrap items-center gap-3 rounded-2xl px-4 py-2.5 text-sm ${lock ? 'bg-slate-100 text-slate-800' : 'bg-amber-50 text-amber-900'}`}>
+          {lock ? <span>🔒 Paramétrage {lock.year} verrouillé le {lock.at.split('-').reverse().join('/')} par {lock.by} : il ne change plus jusqu'à la fin de l'année.</span>
+            : <span>Paramétrage de l'année {settings?.year ?? '2026-2027'} : à fixer une fois, puis à verrouiller.</span>}
+          {role === 'DIRECTION' && (lock
+            ? <Button variant="secondary" className="ml-auto" onClick={() => { if (window.confirm('Déverrouiller les tarifs de l\'année ? Toute modification touche les familles déjà facturées.')) { setLock(null); saveLock(null); } }}>Déverrouiller</Button>
+            : <Button className="ml-auto" onClick={() => { const v = { year: settings?.year ?? '2026-2027', at: new Date().toISOString().slice(0, 10), by: actor }; setLock(v); saveLock(v); }}>Verrouiller pour l'année</Button>)}
+        </div>
+      )}
       {tab === 'reductions' && <Reductions canEdit={canEdit} actor={actor} types={reductionTypes} setTypes={setReductionTypes} accounts={accounts} setAccounts={setAccounts} />}
       {tab === 'fees' && <FeesTab fees={fees} setFees={setFees} settings={settings} canEdit={canEdit} />}
       {tab === 'articles' && <ArticlesTab articles={articles} setArticles={setArticles} canEdit={canEdit} />}
