@@ -1,5 +1,7 @@
-// Examens blancs « comme à l'examen ». L'école présente ses élèves en candidats libres (individuels) :
-// pas de contrôle continu, tout se joue aux épreuves de fin d'année.
+// Examens blancs « comme à l'examen ». L'école présente ses élèves en candidats individuels (établissement
+// hors contrat) : pas de contrôle continu ; il est remplacé par des « évaluations ponctuelles » en fin de 1re
+// et en fin de Terminale (même liste de matières, notées une fois chacune). Structure vérifiée sur de vrais
+// relevés (bac 2026, pré-bac 2026, DNB 2026) : histoire-géographie et EMC sont deux notes séparées.
 // - Brevet blanc (3e) : épreuves écrites des candidats libres, coef. 2 chacune ; en sciences, trois notes
 //   (physique-chimie, SVT, technologie) sont affichées, seules les deux meilleures comptent.
 // - Épreuves de 1re blanches : épreuves anticipées (français écrit et oral, mathématiques) et épreuves
@@ -17,22 +19,22 @@ const SCIENCES = P('SCI', 'Sciences (les 2 meilleures notes sur 3)', 2, 'Science
 export const EXAMS = {
   DNB: { label: 'Brevet blanc', official: 'Diplôme national du brevet (candidat libre)', levels: /^3e/, parts: [
     P('FR', 'Français', 2, 'Français'), P('MA', 'Mathématiques', 2, 'Mathématiques'),
-    P('HG', 'Histoire-géographie et EMC', 2, 'Histoire-géographie'), SCIENCES, P('ANG', 'Anglais (écrit)', 2, 'Anglais')] },
+    P('HG', 'Histoire-géographie', 1.5, 'Histoire-géographie'), P('EMC', 'Enseignement moral et civique', 0.5, 'EMC'), SCIENCES, P('ANG', 'Anglais (écrit)', 2, 'Anglais')] },
   PREMIERE_G: { label: 'Épreuves de 1re blanches', official: 'Baccalauréat général — épreuves de 1re', levels: /^1re G/, parts: [
     P('FR_E', 'Français — écrit', 5, 'Français'), P('FR_O', 'Français — oral', 5, 'Français'), P('MA_EA', 'Mathématiques (épreuve anticipée)', 2, 'Mathématiques'),
-    P('SPE_AB', 'Spécialité abandonnée en fin de 1re', 8, 'Spécialité'), P('HG', 'Histoire-géographie et EMC', 4, 'Histoire-géographie'),
+    P('SPE_AB', 'Spécialité abandonnée en fin de 1re', 8, 'Spécialité'), P('HG', 'Histoire-géographie', 3, 'Histoire-géographie'), P('EMC', 'Enseignement moral et civique', 1, 'EMC'),
     P('ES', 'Enseignement scientifique', 3, 'Enseignement scientifique'), P('LVA', 'Langue vivante A (anglais)', 3, 'Anglais'), P('LVB', 'Langue vivante B (espagnol)', 3, 'Espagnol')] },
   PREMIERE_STMG: { label: 'Épreuves de 1re blanches', official: 'Baccalauréat STMG — épreuves de 1re', levels: /^1re STMG/, parts: [
     P('FR_E', 'Français — écrit', 5, 'Français'), P('FR_O', 'Français — oral', 5, 'Français'), P('MA_EA', 'Mathématiques (épreuve anticipée)', 2, 'Mathématiques'),
-    P('SGN', 'Sciences de gestion et numérique (abandonnée en fin de 1re)', 8, 'Sciences de gestion et numérique'), P('HG', 'Histoire-géographie et EMC', 4, 'Histoire-géographie'),
+    P('SGN', 'Sciences de gestion et numérique (abandonnée en fin de 1re)', 8, 'Sciences de gestion et numérique'), P('HG', 'Histoire-géographie', 3, 'Histoire-géographie'), P('EMC', 'Enseignement moral et civique', 1, 'EMC'),
     P('MA', 'Mathématiques', 3, 'Mathématiques'), P('LVA', 'Langue vivante A (anglais)', 3, 'Anglais'), P('LVB', 'Langue vivante B (espagnol)', 3, 'Espagnol')] },
   BAC_G: { label: 'Bac blanc', official: 'Baccalauréat général', levels: /^Terminale G/, first: 'PREMIERE_G', parts: [
     P('PHI', 'Philosophie', 8, 'Philosophie'), P('SPE1', 'Spécialité 1', 16, 'Spécialité'), P('SPE2', 'Spécialité 2', 16, 'Spécialité'), P('GO', 'Grand oral', 8, 'Grand oral'),
-    P('HG', 'Histoire-géographie et EMC', 4, 'Histoire-géographie'), P('ES', 'Enseignement scientifique', 3, 'Enseignement scientifique'),
+    P('HG', 'Histoire-géographie', 3, 'Histoire-géographie'), P('EMC', 'Enseignement moral et civique', 1, 'EMC'), P('ES', 'Enseignement scientifique', 3, 'Enseignement scientifique'),
     P('LVA', 'Langue vivante A (anglais)', 3, 'Anglais'), P('LVB', 'Langue vivante B (espagnol)', 3, 'Espagnol'), P('EPS', 'Éducation physique et sportive', 6, 'EPS')] },
   BAC_STMG: { label: 'Bac blanc', official: 'Baccalauréat technologique STMG', levels: /^Terminale STMG/, first: 'PREMIERE_STMG', parts: [
     P('PHI', 'Philosophie', 4, 'Philosophie'), P('MSGN', 'Management, sciences de gestion et numérique', 16, 'Management'), P('DE', 'Droit et économie', 16, 'Droit et économie'),
-    P('GO', 'Grand oral', 12, 'Grand oral'), P('HG', 'Histoire-géographie et EMC', 4, 'Histoire-géographie'), P('MA', 'Mathématiques', 3, 'Mathématiques'),
+    P('GO', 'Grand oral', 12, 'Grand oral'), P('HG', 'Histoire-géographie', 3, 'Histoire-géographie'), P('EMC', 'Enseignement moral et civique', 1, 'EMC'), P('MA', 'Mathématiques', 3, 'Mathématiques'),
     P('LVA', 'Langue vivante A (anglais)', 3, 'Anglais'), P('LVB', 'Langue vivante B (espagnol)', 3, 'Espagnol'), P('EPS', 'Éducation physique et sportive', 6, 'EPS')] },
 };
 

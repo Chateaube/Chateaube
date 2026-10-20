@@ -59,9 +59,9 @@ SHEETS = [
     ('6 Notes officielles 1re', 'Élèves de Terminale : notes OFFICIELLES obtenues en fin de 1re (relevé de juin). Sert à la projection au bac.', [
         ('N° élève (matricule)', 16, None, None), ('Nom de l\'élève', 22, None, None),
         ('Français écrit', 10, None, None), ('Français oral', 10, None, None), ('Mathématiques (anticipée)', 13, None, None),
-        ('Spécialité abandonnée (ou SGN)', 15, None, None), ('Histoire-géo et EMC', 12, None, None),
+        ('Spécialité abandonnée (ou SGN)', 15, None, None), ('Histoire-géographie', 12, None, None), ('EMC', 8, None, None),
         ('Ens. scientifique (ou maths STMG)', 15, None, None), ('LVA', 8, None, None), ('LVB', 8, None, None)],
-        ['Exemple', 'RAKOTO Hery', '11', '13', '12', '10,5', '12', '9', '14', '12']),
+        ['Exemple', 'RAKOTO Hery', '11', '13', '12', '10,5', '12', '11', '9', '14', '12']),
     ('7 Paiements', 'Paiements déjà reçus cette année.', [
         ('N° élève (matricule)', 16, None, None), ('Nom de l\'élève', 22, None, None), ('Article', 24, None, 'Ex. Frais de scolarité octobre'),
         ('Montant (Ar)', 13, None, None), ('Date', 12, None, 'JJ/MM/AAAA'), ('Mode', 13, 'mode', None), ('N° de reçu', 12, None, None), ('Payé par', 18, None, None)],

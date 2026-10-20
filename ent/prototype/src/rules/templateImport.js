@@ -32,7 +32,8 @@ export function bookToImport(book) {
   sheetRows(find(book, 6)).forEach((r) => {
     const k = studentKey(r); const stmg = /STMG/i.test(classOf[k] ?? classOf[key(r['N° élève (matricule)'])] ?? '');
     const marks = { FR_E: r['Français écrit'], FR_O: r['Français oral'], MA_EA: r['Mathématiques (anticipée)'], [stmg ? 'SGN' : 'SPE_AB']: r['Spécialité abandonnée (ou SGN)'],
-      HG: r['Histoire-géo et EMC'], [stmg ? 'MA' : 'ES']: r['Ens. scientifique (ou maths STMG)'], LVA: r.LVA, LVB: r.LVB };
+      // HG et EMC : deux notes (colonnes séparées) ; ancien modèle à une colonne : la même note pour les deux
+      HG: r['Histoire-géographie'] ?? r['Histoire-géo et EMC'], EMC: r.EMC ?? r['Histoire-géo et EMC'], [stmg ? 'MA' : 'ES']: r['Ens. scientifique (ou maths STMG)'], LVA: r.LVA, LVB: r.LVB };
     const o = {};
     Object.entries(marks).forEach(([id, v]) => { const n = num(v); if (n === undefined) officialErrors.push(`Ligne ${r.line} : note « ${v} » illisible.`); else if (n != null) o[id] = n; });
     official[k] = o;

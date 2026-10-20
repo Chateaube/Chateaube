@@ -35,3 +35,12 @@
 - **Bibliothèque** : 4 onglets (Prêt et retour · Suivi des prêts · Jeux · Catalogue et étiquettes).
 - **Import** : un seul fichier, le modèle Excel ; un onglet vide est ignoré.
 - **Ambiances** : le message de la bande ne répète plus la date ni le nom.
+
+## 20 octobre 2026 (suite) — examens blancs et projection, d'après de vrais relevés
+
+- **Histoire-géographie et EMC séparés** (comme sur les relevés officiels) : brevet HG coef. 1,5 + EMC 0,5 ;
+  1re et Terminale HG 3 + EMC 1 chacune. Totaux inchangés (bac sur 100 : 33 acquis en 1re, 67 en Terminale).
+- **Modèle d'import**, onglet « 6 Notes officielles 1re » : deux colonnes « Histoire-géographie » et « EMC ».
+  Un ancien fichier avec une seule colonne « Histoire-géo et EMC » reste accepté (même note pour les deux).
+- **Projection au bac** : encadré « Comment se lit la projection ? » (acquis de 1re, Terminale estimée par le bac
+  blanc, moyenne à obtenir pour 10 / 12 / 14).

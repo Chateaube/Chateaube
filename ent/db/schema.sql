@@ -1964,7 +1964,7 @@ CREATE TABLE mock_exam_mark (
 CREATE TABLE official_exam_mark (
   student_id    uuid REFERENCES student(id),
   session_year  smallint NOT NULL,
-  code          text NOT NULL CHECK (code IN ('FR_E', 'FR_O', 'MA_EA', 'SPE_AB', 'SGN', 'HG', 'ES', 'MA', 'LVA', 'LVB')),
+  code          text NOT NULL CHECK (code IN ('FR_E', 'FR_O', 'MA_EA', 'SPE_AB', 'SGN', 'HG', 'EMC', 'ES', 'MA', 'LVA', 'LVB')),
   coef          numeric(4,1) NOT NULL CHECK (coef > 0),
   mark          numeric(4,2) NOT NULL CHECK (mark BETWEEN 0 AND 20),
   PRIMARY KEY (student_id, code)

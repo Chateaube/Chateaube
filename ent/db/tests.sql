@@ -1239,7 +1239,7 @@ DO $$ DECLARE tle uuid := '10000000-0000-0000-0000-000000000001'; c5 uuid; c3 uu
   -- bac blanc STMG (épreuves de Terminale, 67 coefficients)
   INSERT INTO mock_exam (class_id, kind, title, held_on, created_by) VALUES (tle, 'BAC_STMG', 'Bac blanc n°1', '2026-10-05', '00000000-0000-0000-0000-000000000001') RETURNING id INTO x;
   INSERT INTO mock_exam_part (mock_exam_id, code, label, coef, subject_id) VALUES (x, 'PHI', 'Philosophie', 4, NULL), (x, 'MSGN', 'Management, SGN', 16, mgmt), (x, 'DE', 'Droit et économie', 16, NULL),
-    (x, 'GO', 'Grand oral', 12, NULL), (x, 'HG', 'Histoire-géographie et EMC', 4, NULL), (x, 'MA', 'Mathématiques', 3, NULL), (x, 'LVA', 'Anglais', 3, NULL), (x, 'LVB', 'Espagnol', 3, NULL), (x, 'EPS', 'EPS', 6, NULL);
+    (x, 'GO', 'Grand oral', 12, NULL), (x, 'HG', 'Histoire-géographie', 3, NULL), (x, 'EMC', 'Enseignement moral et civique', 1, NULL), (x, 'MA', 'Mathématiques', 3, NULL), (x, 'LVA', 'Anglais', 3, NULL), (x, 'LVB', 'Espagnol', 3, NULL), (x, 'EPS', 'EPS', 6, NULL);
   -- le professeur de management saisit son épreuve, pas la philosophie
   INSERT INTO mock_exam_mark (part_id, enrollment_id, mark, entered_by) SELECT id, e, 13.5, '00000000-0000-0000-0000-000000000003' FROM mock_exam_part WHERE mock_exam_id = x AND code = 'MSGN';
   BEGIN
@@ -1248,7 +1248,7 @@ DO $$ DECLARE tle uuid := '10000000-0000-0000-0000-000000000001'; c5 uuid; c3 uu
   EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T53:%' THEN RAISE; END IF;
   END;
   INSERT INTO mock_exam_mark (part_id, enrollment_id, mark, absent, entered_by) SELECT p.id, e, v.m, v.m IS NULL, '00000000-0000-0000-0000-000000000001'
-  FROM mock_exam_part p JOIN (VALUES ('PHI', 11.0), ('DE', 12.0), ('GO', 14.0), ('HG', 10.0), ('MA', 9.0), ('LVA', 15.0), ('LVB', 12.0)) v(code, m) ON v.code = p.code WHERE p.mock_exam_id = x;
+  FROM mock_exam_part p JOIN (VALUES ('PHI', 11.0), ('DE', 12.0), ('GO', 14.0), ('HG', 10.0), ('EMC', 10.0), ('MA', 9.0), ('LVA', 15.0), ('LVB', 12.0)) v(code, m) ON v.code = p.code WHERE p.mock_exam_id = x;
   SELECT * INTO r FROM v_mock_exam_result WHERE mock_exam_id = x AND enrollment_id = e;
   IF r.complete OR r.coef_marked <> 61 THEN RAISE EXCEPTION 'T53: relevé incomplet faux (%)', r; END IF;
   INSERT INTO mock_exam_mark (part_id, enrollment_id, mark, absent) SELECT id, e, NULL, true FROM mock_exam_part WHERE mock_exam_id = x AND code = 'EPS'; -- absent : 0
@@ -1272,7 +1272,7 @@ DO $$ DECLARE tle uuid := '10000000-0000-0000-0000-000000000001'; c5 uuid; c3 uu
   IF (SELECT average FROM v_mock_exam_result WHERE mock_exam_id = b AND enrollment_id = e3) <> 13 THEN RAISE EXCEPTION 'T53: sciences = (14 + 12) / 2'; END IF;
   -- projection : notes officielles de 1re (33 coefficients) → moyenne à obtenir en Terminale
   INSERT INTO official_exam_mark VALUES (st, 2026, 'FR_E', 5, 10), (st, 2026, 'FR_O', 5, 13), (st, 2026, 'MA_EA', 2, 12), (st, 2026, 'SGN', 8, 11),
-    (st, 2026, 'HG', 4, 12), (st, 2026, 'MA', 3, 9), (st, 2026, 'LVA', 3, 14), (st, 2026, 'LVB', 3, 12);
+    (st, 2026, 'HG', 3, 12), (st, 2026, 'EMC', 1, 12), (st, 2026, 'MA', 3, 9), (st, 2026, 'LVA', 3, 14), (st, 2026, 'LVB', 3, 12);
   IF bac_needed(st, 10) <> 9.25 OR bac_needed(st, 12) <> 12.24 OR bac_needed(st, 18) IS NOT NULL THEN
     RAISE EXCEPTION 'T53: projection au bac fausse (%, %)', bac_needed(st, 10), bac_needed(st, 12);
   END IF;

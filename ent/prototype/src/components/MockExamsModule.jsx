@@ -234,9 +234,18 @@ function ProjectionTab({ data, setData }) {
   };
   const tone = (need, avg) => (need == null ? 'text-red-700' : avg == null ? '' : avg >= need ? 'text-emerald-700' : 'text-amber-700');
   return (
-    <Card title="Projection au bac" subtitle="Candidats libres : vraies notes de 1re (épreuves anticipées et de fin de 1re) + dernier bac blanc pour les épreuves de Terminale"
+    <Card title="Projection au bac" subtitle="Ce qui est déjà acquis en 1re + ce que le bac blanc laisse prévoir en Terminale"
       action={<select value={cls} onChange={(e) => { setCls(e.target.value); setEdit(null); }} aria-label="Classe" className={inputCls}>{terminales.map((c) => <option key={c}>{c}</option>)}</select>}>
-      <p className="mb-3 text-xs text-slate-500">Bac sur 100 coefficients : {firstParts.reduce((t, p) => t + p.coef, 0)} acquis en 1re (notes officielles), {EXAMS[kind].parts.reduce((t, p) => t + p.coef, 0)} en Terminale, estimés par {last ? `« ${last.title} » du ${formatDateFr(last.date).replace(/^\S+ /, '')}` : 'le bac blanc, pas encore passé'}. En vert : le niveau du bac blanc suffit ; en orange : il manque des points.</p>
+      <details className="mb-3 rounded-lg bg-navy-50 px-3 py-2 text-sm text-navy-900">
+        <summary className="cursor-pointer font-medium">Comment se lit la projection ?</summary>
+        <ol className="mt-2 list-decimal space-y-1 pl-5">
+          <li>Le bac compte <strong>100 coefficients</strong>. En candidat individuel, il n'y a pas de contrôle continu : chaque matière est notée par une épreuve, en fin de 1re puis en fin de Terminale.</li>
+          <li><strong>{firstParts.reduce((t, p) => t + p.coef, 0)} coefficients sont déjà acquis</strong> en 1re : ce sont les notes du relevé officiel de juin (français écrit et oral, mathématiques anticipées, spécialité abandonnée, histoire-géographie, EMC, langues…). Elles ne bougent plus.</li>
+          <li>Les <strong>{EXAMS[kind].parts.reduce((t, p) => t + p.coef, 0)} autres</strong> se jouent en Terminale (philosophie, spécialités, grand oral, et les épreuves de Terminale). On les estime avec le dernier bac blanc.</li>
+          <li>Les colonnes « Pour 10 / 12 / 14 » donnent la <strong>moyenne à obtenir en Terminale</strong> pour finir à 10 (admis), 12 (assez bien) ou 14 (bien). En vert : le bac blanc suffit ; en orange : il manque des points.</li>
+        </ol>
+      </details>
+      <p className="mb-3 text-xs text-slate-600">Bac sur 100 coefficients : {firstParts.reduce((t, p) => t + p.coef, 0)} acquis en 1re (notes officielles), {EXAMS[kind].parts.reduce((t, p) => t + p.coef, 0)} en Terminale, estimés par {last ? `« ${last.title} » du ${formatDateFr(last.date).replace(/^\S+ /, '')}` : 'le bac blanc, pas encore passé'}. En vert : le niveau du bac blanc suffit ; en orange : il manque des points.</p>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[820px] text-sm">
           <thead><tr className="border-b border-slate-200 text-left text-xs text-slate-500">

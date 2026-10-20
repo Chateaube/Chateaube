@@ -1184,9 +1184,9 @@ test('examens blancs : candidats libres, coefficients sur 100, sciences du breve
   const sci = EXAMS.DNB.parts.find((p) => p.id === 'SCI');
   assert.equal(partMark(sci, { PC: 8, SVT: 14, TECH: 12 }), 13); // PC écartée
   assert.equal(partMark(sci, { PC: 8 }), null);
-  const r = examResult(EXAMS.DNB.parts, { FR: 12, MA: 10, HG: 14, PC: 8, SVT: 14, TECH: 12, ANG: 16 });
+  const r = examResult(EXAMS.DNB.parts, { FR: 12, MA: 10, HG: 14, EMC: 14, PC: 8, SVT: 14, TECH: 12, ANG: 16 });
   assert.deepEqual([r.points, r.average, r.complete], [130, 13, true]);
-  assert.equal(examResult(EXAMS.DNB.parts, { FR: 12, MA: 'ABS', HG: 14, PC: 8, SVT: 14, TECH: 'ABS', ANG: 16 }).average, 10.6); // absent compté 0 ; sciences : 14 et 8 (techno absent : 0)
+  assert.equal(examResult(EXAMS.DNB.parts, { FR: 12, MA: 'ABS', HG: 14, EMC: 14, PC: 8, SVT: 14, TECH: 'ABS', ANG: 16 }).average, 10.6); // absent compté 0 ; sciences : 14 et 8 (techno absent : 0)
   assert.equal(mention(13), 'Assez bien');
   assert.deepEqual([decision(9, 'BAC_G'), decision(9, 'DNB'), decision(7.9, 'BAC_G')], ['Second groupe', 'Non admis', 'Non admis']);
   assert.deepEqual([examsForClass('3e'), examsForClass('1re STMG'), examsForClass('1re Générale'), examsForClass('Terminale STMG'), examsForClass('2de')], [['DNB'], ['PREMIERE_STMG'], ['PREMIERE_G'], ['BAC_STMG'], []]);
@@ -1194,7 +1194,7 @@ test('examens blancs : candidats libres, coefficients sur 100, sciences du breve
 });
 
 test('projection au bac : notes officielles de 1re + bac blanc, sans contrôle continu', () => {
-  const official = { FR_E: 10, FR_O: 13, MA_EA: 12, SGN: 11, HG: 12, MA: 9, LVA: 14, LVB: 12 }; // 33 coef.
+  const official = { FR_E: 10, FR_O: 13, MA_EA: 12, SGN: 11, HG: 12, EMC: 12, MA: 9, LVA: 14, LVB: 12 }; // 33 coef.
   const p = bacProjection('BAC_STMG', { official });
   assert.equal(p.total, 100);
   assert.deepEqual([p.acquired, p.acquiredCoef, p.remainingCoef], [380, 33, 67]);
@@ -1205,7 +1205,7 @@ test('projection au bac : notes officielles de 1re + bac blanc, sans contrôle c
   assert.equal(q.projected, 11.84); // (380 + 12 × 67) / 100
   assert.ok(q.complete);
   assert.equal(bacProjection('BAC_G', { official: { FR_E: 3, FR_O: 4 } }).needed[16], 17.39);
-  assert.equal(bacProjection('BAC_G', { official: { FR_E: 2, FR_O: 2, MA_EA: 2, SPE_AB: 2, HG: 2, ES: 2, LVA: 2, LVB: 2 } }).needed[16], null);
+  assert.equal(bacProjection('BAC_G', { official: { FR_E: 2, FR_O: 2, MA_EA: 2, SPE_AB: 2, HG: 2, EMC: 2, ES: 2, LVA: 2, LVB: 2 } }).needed[16], null);
 });
 
 import { passport, colleErrors, validateMeasure as vm2 } from '../src/rules/discipline.js';
@@ -1252,7 +1252,7 @@ test('modèle Excel : élèves, responsables, professeurs, notes officielles de 
   assert.ok(!r.studentsTsv.includes('Exemple'));
   assert.equal(r.staffTsv, 'Nom\tMatière\tClasse\nRAKOTO Mia\tManagement, Droit\t1re STMG, Terminale STMG'); // la CPE n'est pas un enseignement
   assert.equal(r.guardians['RABE JEAN LUC'][0].email, 'l@ex.mg');
-  assert.deepEqual(r.official['RABE JEAN LUC'], { FR_E: 11, FR_O: 13.5, MA_EA: 12, SGN: 9, HG: 10, MA: 8, LVA: 'ABS' }); // STMG : SGN et maths
+  assert.deepEqual(r.official['RABE JEAN LUC'], { FR_E: 11, FR_O: 13.5, MA_EA: 12, SGN: 9, HG: 10, EMC: 10, MA: 8, LVA: 'ABS' }); // STMG : SGN et maths
   assert.equal(r.officialErrors.length, 1); // 25 / 20
   assert.deepEqual([r.inventory[0].cat, r.inventory[0].expires, r.inventory[0].min], ['Trousse de secours', '2027-06-30', 5]);
   const [s] = withExtras([{ lastName: 'RABE', firstName: 'Jean Luc', guardians: [] }], r);
