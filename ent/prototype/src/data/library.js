@@ -21,4 +21,5 @@ export const LIBRARY_LOANS = [
   { id: 'b4', code: 'REF-0003', borrower: 'TOJO Andry', kind: 'PROF', cls: null, out: '2026-09-02', due: null, renewals: 0 },
   { id: 'b5', code: 'ROM-0010', borrower: 'RASOA Lova', kind: 'ELEVE', cls: '5e', out: '2026-09-01', due: '2026-10-01', renewals: 0 },
   { id: 'b6', code: 'ROM-0005', borrower: 'RAKOTOARISOA Toky', kind: 'ELEVE', cls: '5e', out: '2026-09-15', due: '2026-10-15', renewals: 0 },
+  { id: 'b7', code: 'ROM-0002', borrower: 'RAKOTOARISOA Aina', kind: 'ELEVE', cls: '1re STMG', out: '2026-09-01', due: '2026-10-01', renewals: 0, returnedOn: '2026-09-29', stateIn: 'BON' },
 ];

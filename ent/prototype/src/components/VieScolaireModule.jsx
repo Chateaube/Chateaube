@@ -3,11 +3,13 @@ import { Badge, Button, Card, Icon, Stat } from './ui.jsx';
 import { CLASSES, classOf, STAFF_NAMES, ATTENDANCE, MEASURES_LOG, PHONES } from '../data/schoollife.js';
 import { isMinor, leaveErrors } from '../rules/earlyLeave.js';
 import { loadProfiles } from '../profilesStore.js';
-import { MEASURES, AUTHORS, validateMeasure, phoneReturnAt, PHONE_DURATIONS, PHONE_ACTIONS, phoneDurationFor, validateReturn, ackReminderDue } from '../rules/discipline.js';
+import { MEASURES, AUTHORS, validateMeasure, phoneReturnAt, PHONE_DURATIONS, PHONE_ACTIONS, phoneDurationFor, validateReturn, ackReminderDue, OBJECTS, objectOf, HANDED_TO, canDecideDuration, objectState } from '../rules/discipline.js';
+import { justification } from '../rules/attendance.js';
+import { logActivity, ACTOR } from '../activityStore.js';
 import { formatDateFr } from '../rules/calendar.js';
 import PassportTab from './PassportTab.jsx';
 
-// Vie scolaire : absences / retards, punitions et sanctions, téléphones confisqués.
+// Vie scolaire : absences / retards, punitions et sanctions, objets confisqués.
 // Accessible à la Vie scolaire, au Bureau et à la Direction.
 
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
@@ -41,17 +43,24 @@ const Ack = ({ at }) => (at
   : <span className="text-xs text-amber-700">En attente de « J'ai pris connaissance »</span>);
 
 /* ---------- Absences & retards ---------- */
-function AttendanceTab({ rows, setRows, toast }) {
+function AttendanceTab({ rows, setRows, toast, role }) {
   const [filter, setFilter] = useState('ALL');
   const [justifying, setJustifying] = useState(null);
-  const update = (ids, patch, msg) => { setRows(rows.map((r) => (ids.includes(r.id) ? { ...r, ...patch } : r))); toast(msg); };
+  const actor = ACTOR[role] ?? ACTOR.VIE_SCOLAIRE;
+  const update = (ids, patch, msg, log) => {
+    setRows(rows.map((r) => (ids.includes(r.id) ? { ...r, ...patch } : r))); toast(msg);
+    if (log) rows.filter((r) => ids.includes(r.id)).forEach((r) => logActivity({ who: actor, role, kind: log.kind, student: r.student, text: log.text(r) }));
+  };
+  const st = (r) => justification(r, NOW);
   const notInformed = rows.filter((r) => !r.notified);
-  const toJustify = rows.filter((r) => !r.justified);
-  const FILTERS = [['ALL', 'Tout', rows.length], ['PARENTS', 'Parents non prévenus', notInformed.length], ['JUSTIFY', 'À justifier', toJustify.length]];
-  const shown = filter === 'PARENTS' ? notInformed : filter === 'JUSTIFY' ? toJustify : rows;
+  const toJustify = rows.filter((r) => st(r).status === 'A_JUSTIFIER');
+  const late = rows.filter((r) => st(r).status === 'NON_JUSTIFIEE');
+  const FILTERS = [['ALL', 'Tout', rows.length], ['PARENTS', 'Parents non prévenus', notInformed.length], ['JUSTIFY', 'À justifier (24 h)', toJustify.length], ['LATE', 'Non justifiées', late.length]];
+  const shown = filter === 'PARENTS' ? notInformed : filter === 'JUSTIFY' ? toJustify : filter === 'LATE' ? late : rows;
+  const notifyLog = { kind: 'PARENTS', text: (r) => `Parents prévenus (${r.kind === 'ABSENCE' ? 'absence' : 'retard'})` };
   return (
-    <Card title="Absences et retards" subtitle="Issus de l'appel des enseignants en temps réel"
-      action={notInformed.length > 0 && <Button onClick={() => update(notInformed.map((r) => r.id), { notified: true }, `${notInformed.length} famille${notInformed.length > 1 ? 's' : ''} prévenue${notInformed.length > 1 ? 's' : ''} (e-mail + application).`)}><Icon name="bell" />Prévenir les {notInformed.length} parent{notInformed.length > 1 ? 's' : ''}</Button>}>
+    <Card title="Absences et retards" subtitle="Issus de l'appel des enseignants. Justification possible pendant 24 h après le début de l'absence ; ensuite, non justifiée automatiquement"
+      action={notInformed.length > 0 && <Button onClick={() => update(notInformed.map((r) => r.id), { notified: true }, `${notInformed.length} famille${notInformed.length > 1 ? 's' : ''} prévenue${notInformed.length > 1 ? 's' : ''} (e-mail + application).`, notifyLog)}><Icon name="bell" />Prévenir les {notInformed.length} parent{notInformed.length > 1 ? 's' : ''}</Button>}>
       <div className="mb-3 flex flex-wrap gap-2">
         {FILTERS.map(([k, l, n]) => (
           <button key={k} type="button" aria-pressed={filter === k} onClick={() => setFilter(k)}
@@ -73,13 +82,15 @@ function AttendanceTab({ rows, setRows, toast }) {
                 <td className="px-2">{r.kind === 'ABSENCE' ? <Badge tone="navy">Absence</Badge> : <Badge tone="slate">Retard</Badge>}</td>
                 <td className="px-2 text-slate-600">{formatDateFr(r.date).replace(/ \d{4}$/, '')}<br /><span className="text-xs">{r.slot}</span></td>
                 <td className="px-2">
-                  {r.justified ? <Badge tone="green">{r.reason ?? 'Justifié'}</Badge> : justifying === r.id ? (
-                    <span className="flex flex-wrap gap-1">{REASONS.map((x) => <button key={x} type="button" onClick={() => { update([r.id], { justified: true, reason: x }, `${r.kind === 'ABSENCE' ? 'Absence' : 'Retard'} de ${r.student} justifié.`); setJustifying(null); }} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs hover:bg-navy-50">{x}</button>)}</span>
-                  ) : <button type="button" onClick={() => setJustifying(r.id)} className="text-xs font-medium text-navy-700 underline decoration-dotted">Justifier</button>}
+                  {r.justified ? <Badge tone="green">{r.reason ?? 'Justifié'}</Badge> : st(r).status === 'NON_JUSTIFIEE' ? (
+                    <span><Badge tone="red">Non justifiée</Badge><span className="block text-[11px] text-slate-600">délai dépassé le {fmtDT(st(r).deadline)}</span></span>
+                  ) : justifying === r.id ? (
+                    <span className="flex flex-wrap gap-1">{REASONS.map((x) => <button key={x} type="button" onClick={() => { update([r.id], { justified: true, reason: x }, `${r.kind === 'ABSENCE' ? 'Absence' : 'Retard'} de ${r.student} justifié.`, { kind: 'JUSTIF', text: () => `${r.kind === 'ABSENCE' ? 'Absence' : 'Retard'} justifié : ${x.toLowerCase()}` }); setJustifying(null); }} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs hover:bg-navy-50">{x}</button>)}</span>
+                  ) : <span><button type="button" onClick={() => setJustifying(r.id)} className="text-xs font-medium text-navy-700 underline decoration-dotted">Justifier</button><span className="block text-[11px] text-amber-800">encore {st(r).hoursLeft} h (jusqu'au {fmtDT(st(r).deadline)})</span></span>}
                 </td>
                 <td className="px-2">{r.notified ? <Ack at={r.parentAck} /> : <span className="text-xs font-medium text-amber-800">Pas encore prévenus</span>}</td>
                 <td className="px-4 text-right">
-                  {!r.notified && <Button variant="secondary" onClick={() => update([r.id], { notified: true }, `Parents de ${r.student} prévenus (e-mail + application).`)}><Icon name="bell" />Prévenir les parents</Button>}
+                  {!r.notified && <Button variant="secondary" onClick={() => update([r.id], { notified: true }, `Parents de ${r.student} prévenus (e-mail + application).`, notifyLog)}><Icon name="bell" />Prévenir les parents</Button>}
                 </td>
               </tr>
             ))}
@@ -125,8 +136,8 @@ function MeasuresTab({ log, setLog, role, toast }) {
           <label className="block text-xs text-slate-600">Mesure
             <select value={draft.measureId} onChange={(e) => setDraft({ ...draft, measureId: e.target.value })} className={`mt-1 w-full ${inputCls}`}>
               {['PUNITION', 'SANCTION'].map((k) => (
-                <optgroup key={k} label={k === 'PUNITION' ? 'Punitions et avertissement (enseignant, CPE, secrétariat)' : 'Sanctions (Direction)'}>
-                  {MEASURES.filter((m) => m.kind === k).map((m) => <option key={m.id} value={m.id} disabled={k === 'SANCTION' && authorRole !== 'DIRECTION'}>{m.label}</option>)}
+                <optgroup key={k} label={k === 'PUNITION' ? 'Punitions et avertissement (enseignant, CPE, secrétariat, Direction)' : 'Sanctions (Direction)'}>
+                  {MEASURES.filter((m) => m.kind === k).map((m) => <option key={m.id} value={m.id} disabled={(k === 'SANCTION' || m.authors) && authorRole !== 'DIRECTION'}>{m.label}{m.authors ? ' — Direction' : ''}</option>)}
                 </optgroup>
               ))}
             </select>
@@ -143,6 +154,7 @@ function MeasuresTab({ log, setLog, role, toast }) {
           {draft.reason && errors.map((e) => <p key={e} className="text-xs text-red-700">{e}</p>)}
           <Button className="w-full" disabled={errors.length > 0} onClick={() => {
             setLog([{ id: `m${Date.now()}`, date: '2026-10-13', student: draft.student, measure: draft.measureId, reason: draft.reason.trim(), when: draft.when || null, author: draft.author, authorRole, parentAck: null }, ...log]);
+            logActivity({ who: draft.author, role, kind: 'PUNITION', student: draft.student, text: `${MEASURE[draft.measureId].label} : ${draft.reason.trim()}` });
             toast(`Mesure enregistrée ; le parent de ${draft.student} est notifié (e-mail + application).`);
             setDraft(blank);
           }}>Enregistrer et prévenir le parent</Button>
@@ -152,104 +164,146 @@ function MeasuresTab({ log, setLog, role, toast }) {
   );
 }
 
-/* ---------- Téléphones ---------- */
-function PhonesTab({ phones, setPhones, settings, toast }) {
-  const blank = { action: 'CONFISCATION', student: '', owner: '', otherOwner: false, at: NOW, duration: '24H', confiscatedBy: STAFF_NAMES[2], receivedBy: STAFF_NAMES[0], reason: '' };
+/* ---------- Objets confisqués ----------
+ * Téléphone, écouteurs sans fil, montre connectée, cigarette électronique… Le professeur (ou toute
+ * l'équipe) enregistre l'objet et à qui il l'a remis ; la Direction ou le secrétariat décident ensuite
+ * de la durée (proposition selon les faits précédents). */
+const STATE_LABEL = { A_DECIDER: ['amber', 'Durée à décider'], EN_GARDE: ['navy', 'En garde'], A_RENDRE: ['green', 'Peut être rendu'], RENDU: ['slate', 'Rendu'] };
+function PhonesTab({ phones, setPhones, settings, toast, role }) {
+  const actor = ACTOR[role] ?? ACTOR.VIE_SCOLAIRE;
+  const decider = canDecideDuration(role);
+  const blank = { action: 'CONFISCATION', object: OBJECTS[0], objectNote: '', student: '', owner: '', otherOwner: false, at: NOW, duration: '', confiscatedBy: role === 'ENSEIGNANT' ? 'Mme Ranaivo' : actor, receivedBy: HANDED_TO[0], reason: '' };
   const [draft, setDraft] = useState(blank);
   const [returning, setReturning] = useState(null);
-  const ok = draft.student && draft.at && draft.reason.trim() && (!draft.otherOwner || draft.owner);
+  const ok = draft.student && draft.at && draft.reason.trim() && (!draft.otherOwner || draft.owner) && (draft.object !== 'Autre' || draft.objectNote.trim());
   const isWarning = draft.action === 'AVERTISSEMENT';
   const recidive = draft.student ? phoneDurationFor(draft.student, phones) : { previous: 0 };
+  const toDecide = phones.filter((p) => objectState(p, NOW, settings) === 'A_DECIDER');
+  const decide = (p, duration) => {
+    setPhones(phones.map((x) => (x.id === p.id ? { ...x, duration, durationBy: actor } : x)));
+    logActivity({ who: actor, role, kind: 'OBJET', student: p.student, text: `Durée de confiscation décidée : ${PHONE_DURATIONS.find((d) => d.id === duration).label} (${objectOf(p).toLowerCase()})` });
+    toast(`${objectOf(p)} de ${p.student} : ${PHONE_DURATIONS.find((d) => d.id === duration).label}. Les parents sont prévenus.`);
+  };
   return (
     <div className="grid gap-5 xl:grid-cols-[1fr_380px] xl:items-start">
-      <Card title="Téléphones : avertissements et confiscations" subtitle="Restitution calculée sur les jours de classe (hors week-ends, fériés et vacances)">
-        <ul className="divide-y divide-slate-100">
-          {phones.map((p) => {
-            if (p.action === 'AVERTISSEMENT') {
+      <div className="space-y-5">
+        {toDecide.length > 0 && (
+          <Card title={`Durée à décider (${toDecide.length})`} subtitle={decider ? 'Vous décidez de la durée ; une proposition est faite selon les faits précédents de l\'élève' : 'Décidée par la Direction ou le secrétariat'}>
+            <ul className="divide-y divide-slate-100 text-sm">
+              {toDecide.map((p) => {
+                const prop = phoneDurationFor(p.student, phones.filter((x) => x.id !== p.id && x.at < p.at));
+                return (
+                  <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+                    <span className="min-w-0"><span className="font-medium text-slate-900">{objectOf(p)} — {p.student}</span> <span className="text-slate-600">· {classOf(p.student)}</span>
+                      <span className="block text-xs text-slate-600">{p.reason} · {fmtDT(p.at)} · par {p.confiscatedBy}, remis à {p.receivedBy}{prop.previous ? ` · ${prop.previous} fait${prop.previous > 1 ? 's' : ''} avant` : ' · premier fait'}</span></span>
+                    {decider ? (
+                      <span className="flex flex-wrap gap-1.5">{PHONE_DURATIONS.map((d) => <Button key={d.id} variant={d.id === prop.duration ? 'primary' : 'secondary'} className="!py-1 text-xs" onClick={() => decide(p, d.id)}>{d.label}{d.id === prop.duration ? ' (proposé)' : ''}</Button>)}</span>
+                    ) : <Badge tone="amber">En attente de décision</Badge>}
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
+        )}
+        <Card title="Objets confisqués et avertissements" subtitle="Restitution calculée sur les jours de classe (hors week-ends, fériés et vacances)">
+          <ul className="divide-y divide-slate-100">
+            {phones.filter((p) => objectState(p, NOW, settings) !== 'A_DECIDER').map((p) => {
+              if (p.action === 'AVERTISSEMENT') {
+                return (
+                  <li key={p.id} className="py-3 text-sm">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div><p className="font-medium text-slate-900">{p.student} <span className="font-normal text-slate-500">· {classOf(p.student)}</span></p><p className="text-slate-700">{objectOf(p)} · {p.reason}</p><p className="text-xs text-slate-500">Le {fmtDT(p.at)} par {p.confiscatedBy}</p></div>
+                      <Badge tone="amber">Avertissement</Badge>
+                    </div>
+                  </li>
+                );
+              }
+              const state = objectState(p, NOW, settings);
+              const due = phoneReturnAt(p.at, p.duration, settings);
               return (
                 <li key={p.id} className="py-3 text-sm">
                   <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div><p className="font-medium text-slate-900">{p.student} <span className="font-normal text-slate-500">· {classOf(p.student)}</span></p><p className="text-slate-700">{p.reason}</p><p className="text-xs text-slate-500">Le {fmtDT(p.at)} par {p.confiscatedBy}</p></div>
-                    <Badge tone="amber">Avertissement</Badge>
+                    <div>
+                      <p className="font-medium text-slate-900">{objectOf(p)} — {p.student} <span className="font-normal text-slate-500">· {classOf(p.student)}</span></p>
+                      <p className="text-slate-700">{p.reason}</p>
+                      {p.owner && p.owner !== p.student && <p className="text-xs text-amber-800">Appartient à {p.owner} ({classOf(p.owner)}) : rendu au propriétaire, les deux familles sont prévenues.</p>}
+                      <p className="text-xs text-slate-500">Confisqué le {fmtDT(p.at)} par {p.confiscatedBy} · remis à {p.receivedBy}{p.durationBy ? ` · durée décidée par ${p.durationBy}` : ''}</p>
+                    </div>
+                    <div className="text-right">
+                      <Badge tone={STATE_LABEL[state][0]}>{PHONE_DURATIONS.find((d) => d.id === p.duration).label}</Badge>
+                      {p.returned
+                        ? <p className="mt-1 text-xs text-emerald-700">Rendu le {fmtDT(p.returned.at)} à {p.returned.to}<br />par {p.returned.by}</p>
+                        : <p className={`mt-1 text-xs ${state === 'A_RENDRE' ? 'font-medium text-emerald-700' : 'text-slate-600'}`}>{state === 'A_RENDRE' ? 'Peut être rendu' : 'Restitution'} : {fmtDT(due)}</p>}
+                    </div>
                   </div>
+                  {!p.returned && role !== 'ENSEIGNANT' && returning?.id !== p.id && <Button variant="ghost" className="mt-1 !px-0" onClick={() => setReturning({ id: p.id, to: '', toRole: 'PARENT', by: actor })}>Enregistrer la restitution</Button>}
+                  {returning?.id === p.id && (
+                    <div className="mt-2 grid gap-2 rounded-lg bg-slate-50 p-3 sm:grid-cols-[150px_1fr_1fr_auto] sm:items-end">
+                      <label className="text-xs text-slate-600">Rendu à
+                        <select value={returning.toRole} onChange={(e) => setReturning({ ...returning, toRole: e.target.value })} className={`mt-1 w-full ${inputCls}`}>
+                          <option value="PARENT">Responsable légal</option>
+                          <option value="ELEVE" disabled={p.duration === '5J'}>{p.owner && p.owner !== p.student ? 'L\'élève propriétaire' : 'L\'élève'}{p.duration === '5J' ? ' (non : 5 jours)' : ''}</option>
+                        </select>
+                      </label>
+                      <label className="text-xs text-slate-600">Nom<input value={returning.to} onChange={(e) => setReturning({ ...returning, to: e.target.value })} placeholder={returning.toRole === 'PARENT' ? `Responsable de ${p.owner ?? p.student}` : p.owner ?? p.student} className={`mt-1 w-full ${inputCls}`} /></label>
+                      <label className="text-xs text-slate-600">Rendu et signé par
+                        <select value={returning.by} onChange={(e) => setReturning({ ...returning, by: e.target.value })} className={`mt-1 w-full ${inputCls}`}>{STAFF_NAMES.map((n) => <option key={n}>{n}</option>)}</select>
+                      </label>
+                      <Button disabled={validateReturn({ duration: p.duration, toRole: returning.toRole, toName: returning.to }).length > 0} onClick={() => {
+                        setPhones(phones.map((x) => (x.id === p.id ? { ...x, returned: { at: NOW, by: returning.by, to: returning.to.trim() } } : x)));
+                        logActivity({ who: returning.by, role, kind: 'OBJET', student: p.student, text: `${objectOf(p)} rendu à ${returning.to.trim()}` });
+                        setReturning(null); toast(`${objectOf(p)} de ${p.student} restitué.`);
+                      }}>Confirmer</Button>
+                    </div>
+                  )}
                 </li>
               );
-            }
-            const due = phoneReturnAt(p.at, p.duration, settings);
-            const ready = !p.returned && due <= NOW;
-            return (
-              <li key={p.id} className="py-3 text-sm">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <p className="font-medium text-slate-900">{p.student} <span className="font-normal text-slate-500">· {classOf(p.student)}</span></p>
-                    <p className="text-slate-700">{p.reason}</p>
-                    {p.owner && p.owner !== p.student && <p className="text-xs text-amber-800">Téléphone appartenant à {p.owner} ({classOf(p.owner)}) : rendu au propriétaire, les deux familles sont prévenues.</p>}
-                    <p className="text-xs text-slate-500">Confisqué le {fmtDT(p.at)} par {p.confiscatedBy} · reçu et signé par {p.receivedBy}</p>
-                  </div>
-                  <div className="text-right">
-                    <Badge tone="navy">{PHONE_DURATIONS.find((d) => d.id === p.duration).label}</Badge>
-                    {p.returned
-                      ? <p className="mt-1 text-xs text-emerald-700">Rendu le {fmtDT(p.returned.at)} à {p.returned.to}<br />par {p.returned.by}</p>
-                      : <p className={`mt-1 text-xs ${ready ? 'font-medium text-emerald-700' : 'text-slate-600'}`}>{ready ? 'Peut être rendu' : 'Restitution'} : {fmtDT(due)}</p>}
-                  </div>
-                </div>
-                {!p.returned && returning?.id !== p.id && <Button variant="ghost" className="mt-1 !px-0" onClick={() => setReturning({ id: p.id, to: '', toRole: 'PARENT', by: STAFF_NAMES[0] })}>Enregistrer la restitution</Button>}
-                {returning?.id === p.id && (
-                  <div className="mt-2 grid gap-2 rounded-lg bg-slate-50 p-3 sm:grid-cols-[150px_1fr_1fr_auto] sm:items-end">
-                    <label className="text-xs text-slate-600">Rendu à
-                      <select value={returning.toRole} onChange={(e) => setReturning({ ...returning, toRole: e.target.value })} className={`mt-1 w-full ${inputCls}`}>
-                        <option value="PARENT">Responsable légal</option>
-                        <option value="ELEVE" disabled={p.duration === '5J'}>{p.owner && p.owner !== p.student ? 'L\'élève propriétaire' : 'L\'élève'}{p.duration === '5J' ? ' (non : 5 jours)' : ''}</option>
-                      </select>
-                    </label>
-                    <label className="text-xs text-slate-600">Nom<input value={returning.to} onChange={(e) => setReturning({ ...returning, to: e.target.value })} placeholder={returning.toRole === 'PARENT' ? `Responsable de ${p.owner ?? p.student}` : p.owner ?? p.student} className={`mt-1 w-full ${inputCls}`} /></label>
-                    <label className="text-xs text-slate-600">Rendu et signé par
-                      <select value={returning.by} onChange={(e) => setReturning({ ...returning, by: e.target.value })} className={`mt-1 w-full ${inputCls}`}>{STAFF_NAMES.map((n) => <option key={n}>{n}</option>)}</select>
-                    </label>
-                    <Button disabled={validateReturn({ duration: p.duration, toRole: returning.toRole, toName: returning.to }).length > 0} onClick={() => {
-                      setPhones(phones.map((x) => (x.id === p.id ? { ...x, returned: { at: NOW, by: returning.by, to: returning.to.trim() } } : x)));
-                      setReturning(null); toast(`Téléphone de ${p.student} restitué.`);
-                    }}>Confirmer</Button>
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      </Card>
-      <Card title="Nouveau : téléphone">
+            })}
+          </ul>
+        </Card>
+      </div>
+      <Card title="Nouveau : objet confisqué ou avertissement">
         <div className="space-y-2 text-sm">
           <div className="flex gap-1.5">
-            {Object.entries(PHONE_ACTIONS).map(([k, l]) => <button key={k} type="button" aria-pressed={draft.action === k} onClick={() => setDraft({ ...draft, action: k })}
-              className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${draft.action === k ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-600 ring-slate-300'}`}>{k === 'AVERTISSEMENT' ? 'Avertissement' : l}</button>)}
+            {Object.keys(PHONE_ACTIONS).map((k) => <button key={k} type="button" aria-pressed={draft.action === k} onClick={() => setDraft({ ...draft, action: k })}
+              className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${draft.action === k ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-600 ring-slate-300'}`}>{k === 'AVERTISSEMENT' ? 'Avertissement' : 'Confiscation'}</button>)}
           </div>
-          <p className="text-xs font-semibold text-slate-500">Élève pris avec le téléphone</p>
-          <ClassStudentPicker value={draft.student} onChange={(student) => setDraft({ ...draft, student, duration: student ? phoneDurationFor(student, phones).duration : '24H' })} />
-          {recidive.previous > 0 && (
-            <p className="rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-900">Déjà {recidive.previous} fait{recidive.previous > 1 ? 's' : ''} cette année (avertissements compris) : durée proposée {PHONE_DURATIONS.find((d) => d.id === phoneDurationFor(draft.student, phones).duration).label}.</p>
-          )}
-          {!isWarning && <label className="flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" checked={draft.otherOwner} onChange={(e) => setDraft({ ...draft, otherOwner: e.target.checked, owner: '' })} />Le téléphone appartient à un autre élève</label>}
-          {!isWarning && draft.otherOwner && (<><p className="text-xs font-semibold text-slate-500">Propriétaire du téléphone</p><ClassStudentPicker value={draft.owner} onChange={(owner) => setDraft({ ...draft, owner })} /></>)}
-          <label className="block text-xs text-slate-600">Motif<input value={draft.reason} onChange={(e) => setDraft({ ...draft, reason: e.target.value })} placeholder="ex. Téléphone utilisé en cours" className={`mt-1 w-full ${inputCls}`} /></label>
           <div className="grid grid-cols-2 gap-2">
-            <label className="text-xs text-slate-600">Le<input type="datetime-local" value={draft.at} onChange={(e) => setDraft({ ...draft, at: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>
-            {!isWarning && <label className="text-xs text-slate-600">Durée
-              <select value={draft.duration} onChange={(e) => setDraft({ ...draft, duration: e.target.value })} className={`mt-1 w-full ${inputCls}`}>
-                {PHONE_DURATIONS.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
-              </select>
-            </label>}
+            <label className="text-xs text-slate-600">Objet
+              <select value={draft.object} onChange={(e) => setDraft({ ...draft, object: e.target.value })} className={`mt-1 w-full ${inputCls}`}>{OBJECTS.map((o) => <option key={o}>{o}</option>)}</select>
+            </label>
+            {draft.object === 'Autre' && <label className="text-xs text-slate-600">Lequel ?<input value={draft.objectNote} onChange={(e) => setDraft({ ...draft, objectNote: e.target.value })} placeholder="ex. enceinte" className={`mt-1 w-full ${inputCls}`} /></label>}
           </div>
+          <p className="text-xs font-semibold text-slate-500">Élève</p>
+          <ClassStudentPicker value={draft.student} onChange={(student) => setDraft({ ...draft, student })} />
+          {recidive.previous > 0 && <p className="rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-900">Déjà {recidive.previous} fait{recidive.previous > 1 ? 's' : ''} cette année (avertissements compris).</p>}
+          {!isWarning && <label className="flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" checked={draft.otherOwner} onChange={(e) => setDraft({ ...draft, otherOwner: e.target.checked, owner: '' })} />L'objet appartient à un autre élève</label>}
+          {!isWarning && draft.otherOwner && (<><p className="text-xs font-semibold text-slate-500">Propriétaire</p><ClassStudentPicker value={draft.owner} onChange={(owner) => setDraft({ ...draft, owner })} /></>)}
+          <label className="block text-xs text-slate-600">Motif<input value={draft.reason} onChange={(e) => setDraft({ ...draft, reason: e.target.value })} placeholder="ex. écouteurs portés pendant le cours" className={`mt-1 w-full ${inputCls}`} /></label>
+          <label className="block text-xs text-slate-600">Le<input type="datetime-local" value={draft.at} onChange={(e) => setDraft({ ...draft, at: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>
           <label className="block text-xs text-slate-600">{isWarning ? 'Donné par' : 'Confisqué par'}
-            <select value={draft.confiscatedBy} onChange={(e) => setDraft({ ...draft, confiscatedBy: e.target.value })} className={`mt-1 w-full ${inputCls}`}>{STAFF_NAMES.map((n) => <option key={n}>{n}</option>)}</select>
+            <select value={draft.confiscatedBy} onChange={(e) => setDraft({ ...draft, confiscatedBy: e.target.value })} className={`mt-1 w-full ${inputCls}`}>{[...new Set([draft.confiscatedBy, ...STAFF_NAMES])].map((n) => <option key={n}>{n}</option>)}</select>
           </label>
-          {!isWarning && <label className="block text-xs text-slate-600">Reçu et signé par (garde du téléphone)
-            <select value={draft.receivedBy} onChange={(e) => setDraft({ ...draft, receivedBy: e.target.value })} className={`mt-1 w-full ${inputCls}`}>{STAFF_NAMES.filter((n) => n.startsWith('Direction') || n.includes('CPE') || n.includes('secrétariat')).map((n) => <option key={n}>{n}</option>)}</select>
+          {!isWarning && <label className="block text-xs text-slate-600">Remis à
+            <select value={draft.receivedBy} onChange={(e) => setDraft({ ...draft, receivedBy: e.target.value })} className={`mt-1 w-full ${inputCls}`}>
+              <optgroup label="Service">{HANDED_TO.map((n) => <option key={n}>{n}</option>)}</optgroup>
+              <optgroup label="Personne">{STAFF_NAMES.map((n) => <option key={n}>{n}</option>)}</optgroup>
+            </select>
           </label>}
-          {draft.at && !isWarning && <p className="rounded-md bg-navy-50 px-2 py-1.5 text-xs text-navy-900">Restitution prévue : {fmtDT(phoneReturnAt(draft.at, draft.duration, settings))}</p>}
+          {!isWarning && (decider ? (
+            <label className="block text-xs text-slate-600">Durée (vous pouvez la décider plus tard)
+              <select value={draft.duration} onChange={(e) => setDraft({ ...draft, duration: e.target.value })} className={`mt-1 w-full ${inputCls}`}>
+                <option value="">À décider</option>{PHONE_DURATIONS.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+              </select>
+            </label>
+          ) : <p className="rounded-md bg-navy-50 px-2 py-1.5 text-xs text-navy-900">La durée de confiscation est décidée par la Direction ou le secrétariat.</p>)}
+          {draft.duration && !isWarning && <p className="rounded-md bg-navy-50 px-2 py-1.5 text-xs text-navy-900">Restitution prévue : {fmtDT(phoneReturnAt(draft.at, draft.duration, settings))}</p>}
           <Button className="w-full" disabled={!ok} onClick={() => {
             const { otherOwner, ...rest } = draft;
-            setPhones([{ ...rest, owner: otherOwner ? draft.owner : undefined, id: `p${Date.now()}`, reason: draft.reason.trim(), returned: null }, ...phones]);
-            toast(isWarning ? `Avertissement enregistré ; le parent de ${draft.student} est prévenu.` : `Confiscation enregistrée ; ${otherOwner ? `les parents de ${draft.student} et de ${draft.owner} sont prévenus` : `le parent de ${draft.student} est prévenu`}.`);
+            const item = { ...rest, owner: otherOwner ? draft.owner : undefined, id: `p${Date.now()}`, reason: draft.reason.trim(), objectNote: draft.objectNote.trim(), duration: isWarning ? undefined : draft.duration || null, durationBy: draft.duration ? actor : undefined, receivedBy: isWarning ? undefined : draft.receivedBy, returned: null };
+            setPhones([item, ...phones]);
+            logActivity({ who: draft.confiscatedBy, role, kind: 'OBJET', student: draft.student, text: isWarning ? `Avertissement (${objectOf(item).toLowerCase()}) : ${item.reason}` : `${objectOf(item)} confisqué, remis à ${draft.receivedBy}` });
+            toast(isWarning ? `Avertissement enregistré ; le parent de ${draft.student} est prévenu.` : `Confiscation enregistrée${draft.duration ? '' : ' ; la durée sera décidée par la Direction ou le secrétariat'}. ${otherOwner ? `Les parents de ${draft.student} et de ${draft.owner} sont prévenus` : `Le parent de ${draft.student} est prévenu`}.`);
             setDraft(blank);
           }}>Enregistrer</Button>
         </div>
@@ -258,7 +312,7 @@ function PhonesTab({ phones, setPhones, settings, toast }) {
   );
 }
 
-const TABS = [['attendance', 'Absences & retards'], ['passport', 'Passeport de vie scolaire'], ['measures', 'Punitions & sanctions'], ['phones', 'Téléphones'], ['leave', 'Sorties anticipées']];
+const TABS = [['attendance', 'Absences & retards'], ['passport', 'Passeport de vie scolaire'], ['measures', 'Punitions & sanctions'], ['phones', 'Objets confisqués'], ['leave', 'Sorties anticipées']];
 
 /* ---------- Sorties anticipées : un mineur ne part pas seul ---------- */
 const LEAVE_KEY = 'ent-sorties-v1';
@@ -340,7 +394,7 @@ export default function VieScolaireModule({ settings, role = 'VIE_SCOLAIRE' }) {
         <Stat label="Absences aujourd'hui" value={today.filter((r) => r.kind === 'ABSENCE').length} />
         <Stat label="Retards aujourd'hui" value={today.filter((r) => r.kind === 'RETARD').length} />
         <Stat label="Parents pas encore informés" value={log.filter((m) => !m.parentAck).length} tone="amber" />
-        <Stat label="Téléphones en garde" value={phones.filter((p) => p.action !== 'AVERTISSEMENT' && !p.returned).length} />
+        <Stat label="Objets en garde" value={phones.filter((p) => p.action !== 'AVERTISSEMENT' && !p.returned).length} hint={phones.some((p) => objectState(p, NOW, settings) === 'A_DECIDER') ? `${phones.filter((p) => objectState(p, NOW, settings) === 'A_DECIDER').length} durée à décider` : undefined} />
       </div>}
       {message && <p role="status" className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800"><Icon name="check" />{message}</p>}
       <div className="flex gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1" role="tablist">
@@ -349,11 +403,11 @@ export default function VieScolaireModule({ settings, role = 'VIE_SCOLAIRE' }) {
             className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ${tab === id ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>{label}</button>
         ))}
       </div>
-      {tab === 'attendance' && <AttendanceTab rows={rows} setRows={setRows} toast={setMessage} />}
+      {tab === 'attendance' && <AttendanceTab rows={rows} setRows={setRows} toast={setMessage} role={role} />}
       {tab === 'measures' && <MeasuresTab log={log} setLog={setLog} role={role} toast={setMessage} />}
       {tab === 'leave' && <EarlyLeaveTab toast={setMessage} />}
       {tab === 'passport' && <PassportTab role={role} toast={setMessage} />}
-      {tab === 'phones' && <PhonesTab phones={phones} setPhones={setPhones} settings={settings} toast={setMessage} />}
+      {tab === 'phones' && <PhonesTab phones={phones} setPhones={setPhones} settings={settings} toast={setMessage} role={role} />}
     </div>
   );
 }

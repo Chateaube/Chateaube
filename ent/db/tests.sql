@@ -1288,7 +1288,7 @@ DO $$ DECLARE e uuid := '30000000-0000-0000-0000-000000000001'; f uuid; BEGIN
   IF colles_due_for_lates(e) <> 1 THEN RAISE EXCEPTION 'T54: 3 retards = une colle'; END IF;
   INSERT INTO detention (enrollment_id, kind, cause, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'RETARDS', 2, '2026-10-14 13:00+03', '3 retards', '00000000-0000-0000-0000-00000000000c');
   IF colles_due_for_lates(e) <> 0 THEN RAISE EXCEPTION 'T54: colle des retards déjà donnée'; END IF;
-  INSERT INTO school_forget (enrollment_id, on_date, kind, note, reported_by) VALUES (e, '2026-10-07', 'MATERIEL', 'calculatrice', '00000000-0000-0000-0000-000000000003') RETURNING id INTO f;
+  INSERT INTO school_forget (enrollment_id, on_date, kind, note, reported_by, colle_requested) VALUES (e, '2026-10-07', 'MATERIEL', 'calculatrice', '00000000-0000-0000-0000-000000000003', true) RETURNING id INTO f;
   BEGIN
     INSERT INTO detention (enrollment_id, kind, cause, forget_id, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'OUBLI', f, 2, '2026-10-14 13:00+03', 'oubli', '00000000-0000-0000-0000-00000000000c');
     RAISE EXCEPTION 'T54: deux heures pour un oubli';
@@ -1305,7 +1305,12 @@ DO $$ DECLARE e uuid := '30000000-0000-0000-0000-000000000001'; f uuid; BEGIN
     RAISE EXCEPTION 'T54: TIG donné par un professeur';
   EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T54:%' THEN RAISE; END IF;
   END;
-  INSERT INTO detention (enrollment_id, kind, cause, scheduled_at, reason, given_by) VALUES (e, 'TIG', 'AUTRE', '2026-10-16 12:00+03', 'Nettoyage d''une table', '00000000-0000-0000-0000-00000000000c');
+  BEGIN
+    INSERT INTO detention (enrollment_id, kind, cause, scheduled_at, reason, given_by) VALUES (e, 'TIG', 'AUTRE', '2026-10-16 12:00+03', 'Nettoyage', '00000000-0000-0000-0000-00000000000c');
+    RAISE EXCEPTION 'T54: TIG donné par la CPE';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T54:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO detention (enrollment_id, kind, cause, scheduled_at, reason, given_by) VALUES (e, 'TIG', 'AUTRE', '2026-10-16 12:00+03', 'Nettoyage d''une table', '00000000-0000-0000-0000-000000000001');
   UPDATE detention SET status = 'FAITE' WHERE enrollment_id = e AND cause = 'RETARDS';
   IF (SELECT (hours_due, hours_done, tig) FROM v_passport WHERE enrollment_id = e) <> (1::bigint, 2::bigint, 1::bigint) THEN RAISE EXCEPTION 'T54: passeport faux'; END IF;
 END $$;
@@ -1610,5 +1615,61 @@ DO $$ BEGIN
   PERFORM set_config('app.user_id', '', true);
 END $$;
 
+-- T60 — justification sous 24 h, carnet de liaison selon l'ancienneté, oubli sans colle, objets confisqués
+DO $$ DECLARE e uuid := '30000000-0000-0000-0000-000000000001'; a uuid; f uuid; o uuid; d text; BEGIN
+  -- justification : dans les 24 h oui, après non
+  INSERT INTO attendance_event (enrollment_id, kind, occurred_at, recorded_by) VALUES (e, 'ABSENCE', now() - interval '3 hours', '00000000-0000-0000-0000-00000000000c') RETURNING id INTO a;
+  IF (SELECT status FROM v_attendance_status WHERE id = a) <> 'A_JUSTIFIER' THEN RAISE EXCEPTION 'T60: à justifier'; END IF;
+  UPDATE attendance_event SET justified = true WHERE id = a;
+  IF (SELECT status FROM v_attendance_status WHERE id = a) <> 'JUSTIFIEE' THEN RAISE EXCEPTION 'T60: justifiée'; END IF;
+  INSERT INTO attendance_event (enrollment_id, kind, occurred_at, recorded_by) VALUES (e, 'ABSENCE', now() - interval '30 hours', '00000000-0000-0000-0000-00000000000c') RETURNING id INTO a;
+  IF (SELECT status FROM v_attendance_status WHERE id = a) <> 'NON_JUSTIFIEE' THEN RAISE EXCEPTION 'T60: non justifiée après 24 h'; END IF;
+  BEGIN
+    UPDATE attendance_event SET justified = true WHERE id = a;
+    RAISE EXCEPTION 'T60: justifiée après 24 h';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T60:%' THEN RAISE; END IF;
+  END;
+  -- carnet de liaison : élève nouveau cette année → colle au 2e oubli
+  IF NOT is_new_student(e) THEN RAISE EXCEPTION 'T60: élève de démonstration supposé nouveau'; END IF;
+  INSERT INTO school_forget (enrollment_id, on_date, kind, reported_by) VALUES (e, '2026-10-12', 'CARNET', '00000000-0000-0000-0000-000000000003') RETURNING id INTO f;
+  IF carnet_colles_due(e) <> 0 THEN RAISE EXCEPTION 'T60: pas de colle au 1er carnet (nouvel élève)'; END IF;
+  BEGIN
+    INSERT INTO detention (enrollment_id, kind, cause, forget_id, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'OUBLI', f, 1, '2026-10-21 13:00+03', 'carnet', '00000000-0000-0000-0000-00000000000c');
+    RAISE EXCEPTION 'T60: colle au 1er carnet';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T60:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO school_forget (enrollment_id, on_date, kind, reported_by) VALUES (e, '2026-10-13', 'CARNET', '00000000-0000-0000-0000-000000000003') RETURNING id INTO f;
+  IF carnet_colles_due(e) <> 1 THEN RAISE EXCEPTION 'T60: colle au 2e carnet'; END IF;
+  INSERT INTO detention (enrollment_id, kind, cause, forget_id, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'OUBLI', f, 1, '2026-10-21 13:00+03', 'carnet x2', '00000000-0000-0000-0000-00000000000c');
+  IF carnet_colles_due(e) <> 0 THEN RAISE EXCEPTION 'T60: colle du carnet donnée'; END IF;
+  -- tenue d'EPS oubliée sans colle demandée : pas de colle possible
+  INSERT INTO school_forget (enrollment_id, on_date, kind, reported_by) VALUES (e, '2026-10-13', 'TENUE', '00000000-0000-0000-0000-000000000003') RETURNING id INTO f;
+  BEGIN
+    INSERT INTO detention (enrollment_id, kind, cause, forget_id, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'OUBLI', f, 1, '2026-10-28 13:00+03', 'tenue', '00000000-0000-0000-0000-00000000000c');
+    RAISE EXCEPTION 'T60: colle sans demande';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T60:%' THEN RAISE; END IF;
+  END;
+  -- écouteurs confisqués par un professeur, remis à la vie scolaire ; durée décidée par le secrétariat, pas par la CPE
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-000000000003', true);
+  INSERT INTO phone_confiscation (enrollment_id, reason, confiscated_at, confiscated_by, received_by, handed_to, object_kind)
+  VALUES (e, 'Écouteurs en cours', now(), '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-00000000000c', 'Vie scolaire (CPE)', 'ECOUTEURS') RETURNING id INTO o;
+  IF (SELECT duration_code FROM phone_confiscation WHERE id = o) IS NOT NULL THEN RAISE EXCEPTION 'T60: durée à décider'; END IF;
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-00000000000c', true);
+  BEGIN
+    UPDATE phone_confiscation SET duration_code = '24H' WHERE id = o;
+    RAISE EXCEPTION 'T60: durée décidée par la CPE';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T60:%' THEN RAISE; END IF;
+  END;
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-000000000008', true);
+  UPDATE phone_confiscation SET duration_code = '24H' WHERE id = o RETURNING duration_code INTO d;
+  IF (SELECT duration_decided_by FROM phone_confiscation WHERE id = o) <> '00000000-0000-0000-0000-000000000008' OR (SELECT return_due_at FROM phone_confiscation WHERE id = o) IS NULL THEN RAISE EXCEPTION 'T60: décision du secrétariat'; END IF;
+  PERFORM set_config('app.user_id', '', true);
+  BEGIN
+    INSERT INTO phone_confiscation (enrollment_id, reason, confiscated_at, confiscated_by, received_by, object_kind) VALUES (e, 'x', now(), '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-00000000000c', 'AUTRE');
+    RAISE EXCEPTION 'T60: objet « autre » sans précision';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T59 passent'
+\echo 'OK — tous les scénarios T1 à T60 passent'

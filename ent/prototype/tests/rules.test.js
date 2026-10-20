@@ -1209,21 +1209,60 @@ test('projection au bac : notes officielles de 1re + bac blanc, sans contrôle c
 });
 
 import { passport, colleErrors, validateMeasure as vm2 } from '../src/rules/discipline.js';
-test('passeport de vie scolaire : oubli = 1 h de colle, 3 retards = une colle, suivi des colles', () => {
+test('passeport de vie scolaire : carnet selon l\'ancienneté, autres oublis au choix, 3 retards = une colle', () => {
   const attendance = ['2026-10-01', '2026-10-05', '2026-10-08', '2026-10-12'].map((date) => ({ student: 'A', kind: 'RETARD', date }));
-  const forgets = [{ id: 'o1', student: 'A', date: '2026-10-07', kind: 'Matériel', note: 'calculatrice' }];
+  const forgets = [{ id: 'o1', student: 'A', date: '2026-10-07', kind: 'Matériel', note: 'calculatrice', by: 'M. Rasolo' }];
   let p = passport('A', { attendance, forgets, colles: [] });
-  assert.equal(p.toGive.length, 2);
+  assert.equal(p.toGive.length, 1); // matériel : pas de colle automatique
   assert.match(p.toGive[0].reason, /3 retards \(01\/10, 05\/10, 08\/10\)/);
   assert.deepEqual(p.toGive[0].choices, [1, 2]);
-  assert.equal(p.toGive[1].hours, 1);
   assert.equal(p.latesInCycle, 1);
+  p = passport('A', { attendance, forgets: [{ ...forgets[0], colle: true }], colles: [] });
+  assert.equal(p.toGive.length, 2); // colle demandée par le professeur
+  assert.match(p.toGive[1].reason, /demandée par M. Rasolo/);
   const colles = [{ student: 'A', kind: 'COLLE', cause: 'RETARDS', hours: 2, status: 'FAITE', date: '2026-10-09' }, { student: 'A', kind: 'COLLE', cause: 'OUBLI', forgetId: 'o1', hours: 1, status: 'A_FAIRE', date: '2026-10-08' }, { student: 'A', kind: 'TIG', hours: 1, status: 'A_FAIRE', date: '2026-10-10' }];
   p = passport('A', { attendance, forgets, colles });
   assert.deepEqual([p.toGive.length, p.collesDue, p.collesDone, p.tig], [0, 1, 2, 1]);
+  // carnet de liaison : ancien élève 1 oubli = 1 h ; nouvel élève 2 oublis = 1 h
+  const carnet = (id, date) => ({ id, student: 'B', date, kind: 'Carnet de liaison' });
+  assert.equal(passport('B', { forgets: [carnet('k1', '2026-10-05')] }).toGive.length, 1);
+  assert.equal(passport('B', { forgets: [carnet('k1', '2026-10-05')] }, { isNew: true }).toGive.length, 0);
+  const two = passport('B', { forgets: [carnet('k1', '2026-10-05'), carnet('k2', '2026-10-09')] }, { isNew: true });
+  assert.equal(two.toGive.length, 1);
+  assert.equal(two.toGive[0].forgetId, 'k2');
+  assert.match(two.toGive[0].reason, /2 fois \(05\/10, 09\/10\) — nouvel élève/);
+  assert.equal(passport('B', { forgets: [carnet('k1', '2026-10-05'), carnet('k2', '2026-10-09')], colles: [{ student: 'B', kind: 'COLLE', cause: 'OUBLI', forgetId: 'k2', hours: 1, status: 'A_FAIRE', date: '2026-10-09' }] }, { isNew: true }).toGive.length, 0);
   assert.equal(colleErrors({ kind: 'COLLE', hours: 3, when: 'x' }).length, 1);
-  assert.equal(vm2({ measureId: 'TIG', authorRole: 'PROFESSEUR', reason: 'x', student: 'A' }).length, 1); // TIG : CPE, secrétariat ou Direction
-  assert.deepEqual(vm2({ measureId: 'TIG', authorRole: 'VIE_SCOLAIRE', reason: 'x', student: 'A' }), []);
+  // TIG : Direction seulement
+  assert.equal(vm2({ measureId: 'TIG', authorRole: 'PROFESSEUR', reason: 'x', student: 'A' }).length, 1);
+  assert.equal(vm2({ measureId: 'TIG', authorRole: 'VIE_SCOLAIRE', reason: 'x', student: 'A' }).length, 1);
+  assert.deepEqual(vm2({ measureId: 'TIG', authorRole: 'DIRECTION', reason: 'x', student: 'A' }), []);
+  assert.deepEqual(vm2({ measureId: 'AVERTISSEMENT', authorRole: 'PROFESSEUR', reason: 'x', student: 'A' }), []);
+});
+
+import { justification, justifyDeadline } from '../src/rules/attendance.js';
+test('justification : 24 h au plus après le début de l\'absence, ensuite non justifiée', () => {
+  const a = { date: '2026-10-13', slot: '07h00–09h00', justified: false };
+  assert.equal(justifyDeadline(a), '2026-10-14T07:00');
+  assert.deepEqual(justification(a, '2026-10-13T11:00'), { status: 'A_JUSTIFIER', deadline: '2026-10-14T07:00', hoursLeft: 20 });
+  assert.equal(justification(a, '2026-10-14T07:00').status, 'NON_JUSTIFIEE');
+  assert.equal(justification(a, '2026-10-14T09:30').status, 'NON_JUSTIFIEE'); // même s'ils viennent ensuite
+  assert.equal(justifyDeadline({ date: '2026-10-13', slot: 'Journée' }), '2026-10-14T07:00');
+  assert.equal(justifyDeadline({ date: '2026-10-13', slot: '13h30–15h30' }), '2026-10-14T13:30');
+  assert.equal(justification({ ...a, justified: true }, '2026-10-20T07:00').status, 'JUSTIFIEE');
+});
+
+import { objectState, canDecideDuration, objectOf } from '../src/rules/discipline.js';
+test('objets confisqués : durée décidée par la Direction ou le secrétariat', () => {
+  const settings = { calendar: [] };
+  const o = { action: 'CONFISCATION', object: 'Écouteurs sans fil', at: '2026-10-13T10:00', duration: null, returned: null };
+  assert.equal(objectState(o, '2026-10-13T11:00', settings), 'A_DECIDER');
+  assert.equal(objectState({ ...o, duration: '24H' }, '2026-10-13T11:00', settings), 'EN_GARDE');
+  assert.equal(objectState({ ...o, duration: '24H' }, '2026-10-14T10:00', settings), 'A_RENDRE');
+  assert.equal(objectState({ ...o, duration: '24H', returned: { at: 'x' } }, '2026-10-14T10:00', settings), 'RENDU');
+  assert.deepEqual(['DIRECTION', 'BUREAU', 'VIE_SCOLAIRE', 'ENSEIGNANT'].map(canDecideDuration), [true, true, false, false]);
+  assert.equal(objectOf({ object: 'Autre', objectNote: 'Puff' }), 'Puff');
+  assert.equal(objectOf({}), 'Téléphone');
 });
 
 import { readFileSync } from 'node:fs';

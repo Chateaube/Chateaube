@@ -2205,3 +2205,36 @@ CREATE TABLE screen_access_user (
   set_at        timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (user_id, screen)
 );
+
+-- -----------------------------------------------------------------------------
+-- Vie scolaire (octobre 2026) : délai de justification, carnet de liaison, objets confisqués,
+-- journal de l'école
+-- -----------------------------------------------------------------------------
+-- Justification : 24 h au plus après le début de l'absence ; ensuite non justifiée (trigger).
+ALTER TABLE attendance_event ADD COLUMN justified_at timestamptz;
+-- Oublis : la colle n'est automatique que pour le carnet de liaison ; ailleurs, elle est demandée.
+ALTER TABLE school_forget ADD COLUMN colle_requested boolean NOT NULL DEFAULT false;
+ALTER TABLE school_forget ADD CONSTRAINT carnet_colle_auto CHECK (kind <> 'CARNET' OR NOT colle_requested);
+-- Objets confisqués : pas seulement des téléphones ; remis à un service ou à une personne ;
+-- durée décidée ensuite par la Direction ou le secrétariat (NULL : à décider).
+ALTER TABLE phone_confiscation
+  ADD COLUMN object_kind text NOT NULL DEFAULT 'TELEPHONE' CHECK (object_kind IN ('TELEPHONE', 'ECOUTEURS', 'MONTRE', 'CIGARETTE_ELECTRONIQUE', 'AUTRE')),
+  ADD COLUMN object_note text,
+  ADD COLUMN handed_to text,                                  -- 'Vie scolaire (CPE)', 'Secrétariat', 'Direction' ou un nom
+  ADD COLUMN duration_decided_by uuid REFERENCES app_user(id),
+  ADD CONSTRAINT object_other_named CHECK (object_kind <> 'AUTRE' OR length(trim(coalesce(object_note, ''))) > 0);
+ALTER TABLE phone_confiscation DROP CONSTRAINT phone_duration_by_action;
+ALTER TABLE phone_confiscation ADD CONSTRAINT phone_duration_by_action CHECK (action = 'CONFISCATION' OR duration_code IS NULL);
+ALTER TABLE phone_confiscation ADD CONSTRAINT phone_returned_after_decision CHECK (returned_at IS NULL OR duration_code IS NOT NULL);
+
+-- Journal de l'école : qui a fait quoi pour les élèves et les professeurs (jamais l'argent).
+CREATE TABLE activity_log (
+  id            bigserial PRIMARY KEY,
+  site_id       uuid NOT NULL REFERENCES site(id),
+  at            timestamptz NOT NULL DEFAULT now(),
+  actor_id      uuid NOT NULL REFERENCES app_user(id),
+  kind          text NOT NULL CHECK (kind IN ('APPEL', 'ABSENCE', 'JUSTIF', 'PARENTS', 'PUNITION', 'COLLE', 'OUBLI', 'OBJET', 'SOIN', 'SORTIE', 'PROF')),
+  enrollment_id uuid REFERENCES enrollment(id),
+  text          text NOT NULL CHECK (length(trim(text)) > 0)
+);
+CREATE INDEX activity_log_day ON activity_log (site_id, at DESC);

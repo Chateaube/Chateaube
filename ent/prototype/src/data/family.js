@@ -65,14 +65,13 @@ export const INTERNSHIPS = {
 // Orientation
 export const ORIENTATION = {
   aina: {
-    stage: '1re STMG → Terminale STMG',
+    stage: '1re STMG → Terminale STMG mercatique',
     steps: [
-      { when: '1er trimestre', label: 'Découverte des quatre spécialités de Terminale STMG', state: 'now' },
-      { when: '2e trimestre', label: 'Intentions de la famille, puis avis provisoire du conseil de classe', state: 'next' },
-      { when: '3e trimestre', label: 'Choix définitif et avis du conseil', state: 'next' },
+      { when: 'Cette année', label: 'Passage en Terminale STMG : à l\'école, la spécialité est la mercatique (marketing) ; pas de choix à faire', state: 'now' },
+      { when: '3e trimestre', label: 'Avis du conseil de classe sur le passage en Terminale', state: 'next' },
       { when: 'Terminale', label: 'Une piste par pays visé ; Parcoursup (France) conseillé en plan B, puis Campus France et visa pour un élève qui n\'est pas de nationalité française', state: 'next' },
     ],
-    choices: ['Gestion et finance', 'Mercatique (marketing)', 'Ressources humaines et communication', 'Systèmes d\'information de gestion'],
+    choices: [],
     meeting: 'Rendez-vous possible avec la Direction le jeudi de 15h30 à 17h.',
   },
   toky: {

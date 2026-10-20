@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card } from './ui.jsx';
-import { AGENDAS, agendaItems, agendasFor, closuresAsEvents, isExamClass, toIcs } from '../rules/agenda.js';
+import { AGENDAS, agendaItems, agendasFor, closuresAsEvents, isExamClass, toIcs, overview } from '../rules/agenda.js';
 import { SCHOOL_EVENTS } from '../data/events.js';
 import { TIMETABLE } from '../data/timetable.js';
 import { plannedSessions } from '../rules/teachingHours.js';
@@ -107,8 +107,11 @@ export default function AgendaModule({ role, cls: fixedCls, settings, compact = 
   const closures = useMemo(() => closuresAsEvents((settings ?? DEFAULT_SETTINGS).calendar), [settings]);
   const items = useMemo(() => agendaItems({ sessions: applyChanges(courses, loadChanges()), events: [...closures, ...events], homework: HOMEWORK, cls: cls || null, staff })
     .filter((i) => (i.allDay && i.end?.length === 10 ? i.end : i.date) >= START), [cls, events, staff, courses, closures]);
-  const visible = items.filter((i) => shown.includes(i.agenda) && available.includes(i.agenda));
-  const days = [...new Set(visible.map((i) => i.date))];
+  const all = items.filter((i) => shown.includes(i.agenda) && available.includes(i.agenda));
+  // personnel sans classe choisie (Direction, CPE, secrétariat) : vue d'ensemble, les cours ordinaires sont comptés
+  const summary = !compact && !cls && role !== 'ENSEIGNANT' ? overview(all) : null;
+  const visible = summary ? summary.items : all;
+  const days = [...new Set([...visible.map((i) => i.date), ...Object.keys(summary?.counts ?? {})])].sort();
   const exportIcs = (agenda) => saveFile(`agenda-${agenda.toLowerCase()}${cls ? `-${cls.replace(/\s+/g, '-')}` : ''}.ics`,
     toIcs(items.filter((i) => i.agenda === agenda), `Chateaubriand — ${AGENDAS[agenda].label}${cls ? ` — ${cls}` : ''}`));
 
@@ -151,12 +154,12 @@ export default function AgendaModule({ role, cls: fixedCls, settings, compact = 
 
       {['DIRECTION', 'VIE_SCOLAIRE'].includes(role) && <ProposalReview role={role} onChange={() => setEvents([...SCHOOL_EVENTS, ...publishedProposals()])} />}
       <div className="grid gap-5 xl:grid-cols-[1fr_320px] xl:items-start">
-        <Card title="Prochains jours">
+        <Card title="Prochains jours" subtitle={summary ? 'Vue d\'ensemble : événements, devoirs et cours qui changent. Choisir une classe pour voir tous ses cours.' : undefined}>
           {days.length === 0 && <p className="text-sm text-slate-500">Rien à afficher.</p>}
           <div className="space-y-4">
             {days.map((d) => (
               <div key={d}>
-                <p className="mb-1 text-xs font-semibold text-slate-500">{cap(formatDateFr(d))}</p>
+                <p className="mb-1 text-xs font-semibold text-slate-500">{cap(formatDateFr(d))}{summary?.counts[d] ? <span className="ml-2 font-normal text-slate-600">· {summary.counts[d]} cours prévus, sans changement</span> : ''}</p>
                 <ul className="space-y-1.5">
                   {visible.filter((i) => i.date === d).map((i) => (
                     <li key={i.id} className="flex items-start gap-3 rounded-lg border border-slate-100 px-3 py-2 text-sm">

@@ -26,7 +26,7 @@ export const EXAMS = {
     P('ES', 'Enseignement scientifique', 3, 'Enseignement scientifique'), P('LVA', 'Langue vivante A (anglais)', 3, 'Anglais'), P('LVB', 'Langue vivante B (espagnol)', 3, 'Espagnol')] },
   PREMIERE_STMG: { label: 'Épreuves de 1re blanches', official: 'Baccalauréat STMG — épreuves de 1re', levels: /^1re STMG/, parts: [
     P('FR_E', 'Français — écrit', 5, 'Français'), P('FR_O', 'Français — oral', 5, 'Français'), P('MA_EA', 'Mathématiques (épreuve anticipée)', 2, 'Mathématiques'),
-    P('SGN', 'Sciences de gestion et numérique (abandonnée en fin de 1re)', 8, 'Sciences de gestion et numérique'), P('HG', 'Histoire-géographie', 3, 'Histoire-géographie'), P('EMC', 'Enseignement moral et civique', 1, 'EMC'),
+    P('SGN', 'Sciences de gestion et numérique — étude de gestion (fin de 1re)', 8, 'Sciences de gestion et numérique'), P('HG', 'Histoire-géographie', 3, 'Histoire-géographie'), P('EMC', 'Enseignement moral et civique', 1, 'EMC'),
     P('MA', 'Mathématiques', 3, 'Mathématiques'), P('LVA', 'Langue vivante A (anglais)', 3, 'Anglais'), P('LVB', 'Langue vivante B (espagnol)', 3, 'Espagnol')] },
   BAC_G: { label: 'Bac blanc', official: 'Baccalauréat général', levels: /^Terminale G/, first: 'PREMIERE_G', parts: [
     P('PHI', 'Philosophie', 8, 'Philosophie'), P('SPE1', 'Spécialité 1', 16, 'Spécialité'), P('SPE2', 'Spécialité 2', 16, 'Spécialité'), P('GO', 'Grand oral', 8, 'Grand oral'),

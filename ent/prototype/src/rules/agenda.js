@@ -56,3 +56,18 @@ export function toIcs(items, name) {
   lines.push('END:VCALENDAR');
   return `${lines.join('\r\n')}\r\n`;
 }
+
+/**
+ * Vue d'ensemble (personnel, « Toutes les classes ») : avec 10 à 15 classes, la liste des cours serait
+ * illisible. On garde les événements, les devoirs et les cours qui changent (annulés, déplacés, ajoutés) ;
+ * les cours ordinaires sont seulement comptés par jour. Le détail apparaît en choisissant une classe.
+ */
+export function overview(items) {
+  const counts = {};
+  const kept = items.filter((i) => {
+    if (i.agenda !== 'COURS' || i.status) return true;
+    counts[i.date] = (counts[i.date] ?? 0) + 1;
+    return false;
+  });
+  return { items: kept, counts };
+}

@@ -26,7 +26,7 @@ export function arrangeNav(tree, groups) {
 // Portail famille (parents et élèves) : « Autres » en 4 sections de 3 au plus.
 // Format : [titre, [[identifiant, libellé, icône, audience?]]]. Audience PARENT : entrée réservée aux parents.
 export const FAMILY_SECTIONS = [
-  ['Échanges', [['messages', 'Messages', 'bell'], ['schoollife', 'Vie de l\'école', 'sparkles'], ['schooldocs', 'Règlement et chartes', 'pen']]],
+  ['Échanges', [['messages', 'Messages', 'bell'], ['schooldocs', 'Règlement et chartes', 'pen']]], // vie de l'école : onglet École
   ['Scolarité', [['library', 'Bibliothèque', 'cap'], ['stages', 'Stages', 'cap'], ['orientation', 'Orientation', 'cap']]],
   ['Papiers', [['documents', 'Documents et autorisations', 'pen'], ['fiche', 'Fiche signalétique', 'pen', 'PARENT'], ['signature', 'Ma signature', 'pen', 'PARENT']]],
   ['Inscription et paiements', [['reenrol', 'Réinscription', 'calendar', 'PARENT'], ['update', 'Mettre à jour nos informations', 'users', 'PARENT'], ['payments', 'Paiements', 'wallet', 'PARENT']]],

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button, Card, Icon } from './ui.jsx';
 import TodoList from './TodoList.jsx';
+import ActivityJournal from './ActivityJournal.jsx';
 import { notificationsFor } from '../notify.js';
 
 // Accueil de la CPE : d'abord les tâches confiées par la Direction, puis la journée (ce qui attend, du plus
@@ -36,6 +37,7 @@ export default function CpeHome({ go, account }) {
         <Button variant="secondary" onClick={() => go?.('tt-changes')}><Icon name="clock" />Annuler un cours aujourd'hui</Button>
         <Button variant="secondary" onClick={() => go?.('news')}><Icon name="megaphone" />Annonces</Button>
       </div>
+      <ActivityJournal />
     </div>
   );
 }

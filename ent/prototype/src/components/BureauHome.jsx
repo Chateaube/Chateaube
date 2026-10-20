@@ -1,5 +1,6 @@
 import React from 'react';
 import TodoList from './TodoList.jsx';
+import ActivityJournal from './ActivityJournal.jsx';
 import { Badge, Button, Card, Icon, Stat } from './ui.jsx';
 import { CASH_MOVEMENTS } from '../data/accounting.js';
 import { formatAr } from '../rules/finance.js';
@@ -57,6 +58,7 @@ export default function BureauHome({ go }) {
         </div>
         </div>
       </div>
+      <ActivityJournal />
     </div>
   );
 }

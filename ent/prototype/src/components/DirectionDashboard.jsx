@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import TodoList from './TodoList.jsx';
+import ActivityJournal from './ActivityJournal.jsx';
 import { Badge, Button, Card, Icon, Progress, Stat } from './ui.jsx';
 import {
   SITES, SITE_KPIS, DUNNING_CASES, EXAM_FEES, CANDIDATE_FILES, TRANSFER, YEAR_MILESTONES, TODAY,
@@ -100,6 +101,7 @@ export default function DirectionDashboard({ account, settings, go, site: header
       </Card>
       <TodoList who="DIRECTION" title="Mes tâches" />
       </div>
+      <ActivityJournal />
 
       <h2 className="pt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">L'école en un coup d'œil</h2>
       {/* Indicateurs */}

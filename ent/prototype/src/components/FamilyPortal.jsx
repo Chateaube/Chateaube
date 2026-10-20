@@ -18,7 +18,8 @@ import {
 import { accountStatement } from '../rules/accounting.js';
 import { formatAr } from '../rules/finance.js';
 import { studentNoteList, fmt2, isPublished, parentPublishOn } from '../rules/grading.js';
-import { MEASURES, PHONE_DURATIONS, phoneReturnAt } from '../rules/discipline.js';
+import { MEASURES, PHONE_DURATIONS, phoneReturnAt, objectOf } from '../rules/discipline.js';
+import { justification } from '../rules/attendance.js';
 import { formatDateFr } from '../rules/calendar.js';
 import { STUDENT_PROFILES } from '../data/enrollment.js';
 import { loadProfiles } from '../profilesStore.js';
@@ -45,7 +46,7 @@ import { loadVisits } from '../careStore.js';
 import { loadSeen, markSeen } from '../notify.js';
 import { loadPosts } from '../schoolLifeStore.js';
 import SchoolLifeModule, { SocialLinks } from './SchoolLifeModule.jsx';
-import { loadPassport } from './PassportTab.jsx';
+import { loadPassport, isNewStudent } from './PassportTab.jsx';
 import { passport, COLLE_STATUS } from '../rules/discipline.js';
 import { parentNotice } from '../rules/care.js';
 
@@ -287,20 +288,33 @@ function Homework({ child, isParent }) {
   );
 }
 
-/* ---------- Vie scolaire : absences, retards, punitions, sanctions, téléphones ---------- */
+/* ---------- Onglet École : la vie de l'école d'abord, puis le suivi de l'enfant ---------- */
+function SchoolTab({ child, isParent, acks, setAcks, settings, audience, pending }) {
+  return (
+    <>
+      {pending > 0 && (
+        <a href="#suivi" className="block rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900 ring-1 ring-amber-200">{pending} information{pending > 1 ? 's' : ''} de vie scolaire à confirmer — voir plus bas ›</a>
+      )}
+      <SchoolLifeModule compact role={audience} settings={settings} cls={child.cls} author={isParent ? 'Parent' : `${child.name} (${child.cls})`} />
+      <div id="suivi" className="scroll-mt-2"><SchoolLife child={child} isParent={isParent} acks={acks} setAcks={setAcks} settings={settings} /></div>
+    </>
+  );
+}
+
+/* ---------- Vie scolaire : absences, retards, punitions, sanctions, objets confisqués ---------- */
 function SchoolLife({ child, isParent, acks, setAcks, settings }) {
   const name = fullName(child);
-  const pp = passport(name, { attendance: ATTENDANCE, ...loadPassport() });
+  const pp = passport(name, { attendance: ATTENDANCE, ...loadPassport() }, { isNew: isNewStudent(name) });
   const items = [
-    ...ATTENDANCE.filter((a) => a.student === name).map((a) => ({ key: a.id, date: a.date, tone: a.kind === 'ABSENCE' ? 'red' : 'amber', title: a.kind === 'ABSENCE' ? 'Absence' : 'Retard', body: `${a.slot}${a.justified ? ` · justifié : ${a.reason}` : ' · à justifier'}`, ack: a.parentAck })),
+    ...ATTENDANCE.filter((a) => a.student === name).map((a) => ({ key: a.id, date: a.date, tone: a.kind === 'ABSENCE' ? 'red' : 'amber', title: a.kind === 'ABSENCE' ? 'Absence' : 'Retard', body: `${a.slot}${a.justified ? ` · justifié : ${a.reason}` : justification(a, NOW).status === 'NON_JUSTIFIEE' ? ' · non justifiée (délai de 24 h dépassé)' : ` · à justifier avant le ${justification(a, NOW).deadline.slice(8, 10)}/${justification(a, NOW).deadline.slice(5, 7)} à ${justification(a, NOW).deadline.slice(11, 16).replace(':', 'h')}`}`, ack: a.parentAck })),
     ...MEASURES_LOG.filter((m) => m.student === name).map((m) => ({ key: m.id, date: m.date, tone: MEASURE[m.measure].kind === 'SANCTION' ? 'red' : 'amber', title: `${MEASURE[m.measure].kind === 'SANCTION' ? 'Sanction' : 'Punition'} : ${MEASURE[m.measure].label}`, body: `Motif : ${m.reason}${m.when ? ` · ${m.when}` : ''} · décidée par ${m.author}`, ack: m.parentAck })),
     ...pp.entries.map((c) => ({ key: c.id, date: c.date, tone: c.kind === 'TIG' ? 'red' : 'amber', title: c.kind === 'TIG' ? 'Travail d\'intérêt général (TIG)' : `Colle de ${c.hours} h`, body: `${c.reason} · le ${c.when.slice(8, 10)}/${c.when.slice(5, 7)} à ${c.when.slice(11, 16).replace(':', 'h')} · ${COLLE_STATUS[c.status].toLowerCase()}`, ack: null })),
     ...PHONES.filter((p) => p.student === name || p.owner === name).map((p) => (p.action === 'AVERTISSEMENT'
-      ? { key: p.id, date: p.at.slice(0, 10), tone: 'amber', title: 'Avertissement : téléphone', body: `${p.reason} · donné par ${p.confiscatedBy}`, ack: null }
-      : { key: p.id, date: p.at.slice(0, 10), tone: 'slate', title: `Téléphone confisqué (${PHONE_DURATIONS.find((d) => d.id === p.duration).label})`, body: `${p.owner === name && p.student !== name ? `Téléphone de ${child.name}, pris avec ${p.student}. ` : ''}${p.reason} · restitution ${shortDate(phoneReturnAt(p.at, p.duration, settings).slice(0, 10)).toLowerCase()}`, ack: null })),
+      ? { key: p.id, date: p.at.slice(0, 10), tone: 'amber', title: `Avertissement : ${objectOf(p).toLowerCase()}`, body: `${p.reason} · donné par ${p.confiscatedBy}`, ack: null }
+      : { key: p.id, date: p.at.slice(0, 10), tone: 'slate', title: `${objectOf(p)} confisqué${p.duration ? ` (${PHONE_DURATIONS.find((d) => d.id === p.duration).label})` : ''}`, body: `${p.owner === name && p.student !== name ? `Objet de ${child.name}, pris avec ${p.student}. ` : ''}${p.reason} · ${p.duration ? `restitution ${shortDate(phoneReturnAt(p.at, p.duration, settings).slice(0, 10)).toLowerCase()}` : 'durée décidée par la Direction, vous serez prévenus'}`, ack: null })),
   ].sort((a, b) => b.date.localeCompare(a.date));
   return (
-    <Section title={`Vie scolaire — ${child.name}`}>
+    <Section title={`Suivi de ${child.name} (vie scolaire)`}>
       <div className="mb-3 grid grid-cols-3 gap-2 text-center">
         <div className="rounded-xl bg-slate-50 p-2"><p className="text-lg font-semibold text-navy-900">{pp.lates}</p><p className="text-[11px] text-slate-500">retard{pp.lates > 1 ? 's' : ''}</p></div>
         <div className="rounded-xl bg-slate-50 p-2"><p className="text-lg font-semibold text-navy-900">{pp.forgets}</p><p className="text-[11px] text-slate-500">oubli{pp.forgets > 1 ? 's' : ''}</p></div>
@@ -476,14 +490,18 @@ function Payments() {
   );
 }
 
-/* ---------- Livres empruntés (salle d'étude) ---------- */
-function LibraryLoans({ child }) {
+/* ---------- Livres empruntés (salle d'étude) ----------
+ * Parents : seulement l'historique de leur enfant (à rendre, rendus) ; le catalogue reste côté élève. */
+function LibraryLoans({ child, isParent }) {
   const { books, loans } = loadLibrary();
-  const mine = loans.filter((l) => l.borrower === fullName(child) && !l.returnedOn);
+  const all = loans.filter((l) => l.borrower === fullName(child));
+  const mine = all.filter((l) => !l.returnedOn);
+  const back = all.filter((l) => l.returnedOn).sort((a, b) => b.returnedOn.localeCompare(a.returnedOn));
   const bookOf = (code) => books.find((b) => b.copies.some((c) => c.code === code));
   return (
-    <Section title="Livres empruntés">
-      {mine.length === 0 ? <p className="text-sm text-slate-500">Aucun livre emprunté.</p> : (
+    <Section title={isParent ? `Bibliothèque — ${child.name}` : 'Livres empruntés'}>
+      {isParent && <p className="mb-2 text-xs font-semibold text-slate-600">À rendre</p>}
+      {mine.length === 0 ? <p className="text-sm text-slate-500">Aucun livre à rendre.</p> : (
         <ul className="space-y-2">
           {mine.map((l) => (
             <li key={l.id} className="rounded-xl border border-slate-200 p-3 text-sm">
@@ -493,6 +511,12 @@ function LibraryLoans({ child }) {
           ))}
         </ul>
       )}
+      {isParent && (<>
+        <p className="mb-2 mt-3 text-xs font-semibold text-slate-600">Déjà rendus</p>
+        {back.length === 0 ? <p className="text-sm text-slate-500">Aucun pour l'instant.</p> : (
+          <ul className="space-y-1 text-sm">{back.map((l) => <li key={l.id} className="flex justify-between gap-2"><span className="text-slate-800">{designation(bookOf(l.code))}</span><span className="shrink-0 text-xs text-slate-500">rendu le {l.returnedOn.split('-').reverse().join('/')}</span></li>)}</ul>
+        )}
+      </>)}
       <p className="mt-2 text-xs text-slate-500">Un mois de prêt. Pour le garder un mois de plus, repasser au secrétariat avec le livre.</p>
     </Section>
   );
@@ -521,10 +545,10 @@ function MySignature() {
 }
 
 /* ---------- Coquille ---------- */
-// Barre du bas : Accueil, Vie scolaire, Notes, Agenda (cours, devoirs, événements) et Autres.
+// Barre du bas : Accueil, École (la vie de l'école puis le suivi de l'enfant), Notes, Agenda et Autres.
 // « Autres » range tout le reste par thème, en rubriques qui se déroulent et se replient ;
 // ce qui ne concerne pas l'enfant reste grisé.
-const TABS = [['home', 'Accueil', 'home'], ['life', 'Vie scol.', 'users'], ['notes', 'Notes', 'pen'], ['agenda', 'Agenda', 'calendar'], ['more', 'Autres', 'menu']];
+const TABS = [['home', 'Accueil', 'home'], ['life', 'École', 'sparkles'], ['notes', 'Notes', 'pen'], ['agenda', 'Agenda', 'calendar'], ['more', 'Autres', 'menu']];
 const SECTIONS = FAMILY_SECTIONS;
 
 // Élève délégué ou membre du BDE : une rubrique de plus, seulement pour lui (cf. rules/mandates.js)
@@ -608,10 +632,10 @@ export default function FamilyPortal({ settings, audience = 'PARENT', ambiance }
         <div role="region" aria-label="Contenu du portail" className="flex-1 space-y-3 overflow-y-auto p-4">
           <TermsGate phone viewer={audience} account={isParent ? ACCOUNT.id : 'aina'}>
           {!isTab && <button onClick={() => go('more')} className="text-sm font-medium text-navy-500">‹ Autres</button>}
-          {view === 'home' && <Home child={child} isParent={isParent} settings={settings} openFiche={() => go('fiche')} openReenrol={() => go('reenrol')} onSeen={() => setTick((t) => t + 1)} openSchoolLife={() => go('schoollife')} ambiance={ambiance} />}
+          {view === 'home' && <Home child={child} isParent={isParent} settings={settings} openFiche={() => go('fiche')} openReenrol={() => go('reenrol')} onSeen={() => setTick((t) => t + 1)} openSchoolLife={() => go('life')} ambiance={ambiance} />}
           {view === 'more' && <Others audience={audience} menu={menu} badges={badges} open={go} mandates={student.mandates} />}
           {view.startsWith('mandate-') && <StudentMandates student={student} me={fullName(child)} view={view} />}
-          {view === 'schoollife' && <SchoolLifeModule compact role={audience} settings={settings} cls={child.cls} author={isParent ? 'Parent' : `${child.name} (${child.cls})`} />}
+          {['schoollife', 'life'].includes(view) && <SchoolTab key={child.id} child={child} isParent={isParent} acks={acks} setAcks={setAcks} settings={settings} audience={audience} pending={pendingAcks} />}
           {view === 'schooldocs' && <FamilyDocuments audience={audience} />}
           {view === 'agenda' && <AgendaModule key={child.id} compact role={audience} cls={child.cls} settings={settings} today={TODAY} />}
           {view === 'reenrol' && (profileOf(child) ? <FamilyRequestForm key={`r-${child.id}`} profile={profileOf(child)} kind="REINSCRIPTION" guardianName={ACCOUNT.name} /> : <Section><p className="text-sm text-slate-500">Fiche introuvable.</p></Section>)}
@@ -619,14 +643,12 @@ export default function FamilyPortal({ settings, audience = 'PARENT', ambiance }
           {view === 'fiche' && <FicheForm key={child.id} studentKey={fullName(child)} profile={profileOf(child)} account={ACCOUNT.id} accountName={ACCOUNT.name} />}
           {view === 'signature' && <MySignature />}
           {view === 'library' && (<>
-            <LibraryLoans child={child} />
-            <BookCatalog key={child.id} compact who={fullName(child)} kind={isParent ? 'PARENT' : 'ELEVE'} cls={child.cls} />
-            {isParent && <p className="text-center text-xs text-slate-500">La réservation se fait depuis le compte de l'élève.</p>}
+            <LibraryLoans child={child} isParent={isParent} />
+            {!isParent && <BookCatalog key={child.id} compact who={fullName(child)} kind="ELEVE" cls={child.cls} />}
             {!isParent && <GamesAvailable />}
           </>)}
           {view === 'notes' && <Notes child={child} audience={audience} settings={settings} />}
           {view === 'homework' && <Homework child={child} isParent={isParent} />}
-          {view === 'life' && <SchoolLife child={child} isParent={isParent} acks={acks} setAcks={setAcks} settings={settings} />}
           {view === 'documents' && <Documents child={child} isParent={isParent} />}
           {view === 'stages' && <Internships key={child.id} child={child} isParent={isParent} />}
           {view === 'orientation' && <Orientation key={child.id} child={child} isParent={isParent} />}

@@ -1,18 +1,30 @@
 import React, { useState } from 'react';
 import { Badge, Button, Card } from './ui.jsx';
 import { ClassStudentPicker } from './VieScolaireModule.jsx';
-import { ATTENDANCE } from '../data/schoollife.js';
-import { passport, colleErrors, FORGET_KINDS, COLLE_STATUS, LATES_PER_COLLE } from '../rules/discipline.js';
+import { ATTENDANCE, NEW_STUDENTS } from '../data/schoollife.js';
+import { passport, colleErrors, FORGET_KINDS, COLLE_STATUS, LATES_PER_COLLE, CARNET, carnetPerColle } from '../rules/discipline.js';
+import { loadProfiles } from '../profilesStore.js';
+import { seniority } from '../rules/documents.js';
+import { logActivity } from '../activityStore.js';
 
 // Passeport de vie scolaire : oublis, retards, colles et TIG d'un élève.
-// Un oubli = une heure de colle ; trois retards = une colle d'une ou deux heures ; chaque colle est
-// suivie jusqu'à ce qu'elle soit effectuée. Les professeurs signalent les oublis.
+// Carnet de liaison oublié = 1 h de colle (nouvel élève : au 2e oubli) ; autres oublis : colle si le
+// professeur ou la CPE la demande ; trois retards = une colle d'une ou deux heures ; TIG : Direction.
 
-const KEY = 'ent-passeport-v1';
+/** Nouvel élève (entré cette année) : fiche importée si elle existe, sinon données de démonstration. */
+export function isNewStudent(name) {
+  const p = loadProfiles().find((x) => `${x.lastName} ${x.firstName}` === name);
+  const s = p?.enteredOn ? seniority(p.enteredOn) : null;
+  return s ? s.isNew : NEW_STUDENTS.includes(name);
+}
+
+const KEY = 'ent-passeport-v2'; // v2 : carnet de liaison selon l'ancienneté, colle demandée pour les autres oublis
 const DEMO = {
   forgets: [
     { id: 'o1', student: 'RAJAONARIVELO Tsiry', date: '2026-10-07', kind: 'Matériel', note: 'calculatrice', by: 'M. Rasolo' },
-    { id: 'o2', student: 'RAJAONARIVELO Tsiry', date: '2026-10-12', kind: 'Devoir non fait', note: 'DM de management', by: 'Mme Ranaivo' },
+    { id: 'o2', student: 'RAJAONARIVELO Tsiry', date: '2026-10-12', kind: 'Devoir non fait', note: 'DM de management', by: 'Mme Ranaivo', colle: true },
+    { id: 'o3', student: 'RAJAONARIVELO Tsiry', date: '2026-10-13', kind: 'Carnet de liaison', note: '', by: 'Mme Ranaivo' },
+    { id: 'o4', student: 'RAMAROSON Fitia', date: '2026-10-12', kind: 'Carnet de liaison', note: '', by: 'M. Rasolo' },
   ],
   colles: [
     { id: 'c1', student: 'RAJAONARIVELO Tsiry', kind: 'COLLE', cause: 'OUBLI', forgetId: 'o1', hours: 1, date: '2026-10-07', when: '2026-10-14T13:00', reason: 'Oubli : matériel (calculatrice) le 07/10', status: 'FAITE', by: 'M. Be (CPE)' },
@@ -30,23 +42,29 @@ export default function PassportTab({ role, toast }) {
   const by = { DIRECTION: 'Direction', BUREAU: 'Mme Hanta (secrétariat)', VIE_SCOLAIRE: 'M. Be (CPE)', ENSEIGNANT: 'Mme Ranaivo' }[role] ?? 'M. Be (CPE)';
   const [data, setData] = useState(loadPassport);
   const [student, setStudent] = useState('RAMAROSON Fitia');
-  const [forget, setForget] = useState({ kind: FORGET_KINDS[0], note: '' });
+  const [forget, setForget] = useState({ kind: FORGET_KINDS[0], note: '', colle: false });
   const [giving, setGiving] = useState(null); // proposition en cours : { …, when }
   const [tig, setTig] = useState(null);
   const [err, setErr] = useState([]);
   const update = (d) => { setData(d); save(d); };
-  const p = student ? passport(student, { attendance: ATTENDANCE, ...data }) : null;
+  const isNew = student ? isNewStudent(student) : false;
+  const p = student ? passport(student, { attendance: ATTENDANCE, ...data }, { isNew }) : null;
 
   const addForget = () => {
-    const f = { id: `o${Date.now()}`, student, date: TODAY, kind: forget.kind, note: forget.note.trim(), by };
-    update({ ...data, forgets: [...data.forgets, f] });
-    setForget({ kind: FORGET_KINDS[0], note: '' });
-    toast(`Oubli noté pour ${student}${isTeacher ? ' ; la CPE fixe l\'heure de colle' : ' : une heure de colle est à donner'}.`);
+    const carnet = forget.kind === CARNET;
+    const f = { id: `o${Date.now()}`, student, date: TODAY, kind: forget.kind, note: forget.note.trim(), by, colle: !carnet && forget.colle };
+    const next = { ...data, forgets: [...data.forgets, f] };
+    update(next);
+    setForget({ kind: FORGET_KINDS[0], note: '', colle: false });
+    logActivity({ who: by, role, kind: 'OUBLI', student, text: `${forget.kind === 'Devoir non fait' ? 'Devoir non fait' : `${forget.kind} oublié${forget.kind === 'Tenue (EPS)' ? 'e' : ''}`}${f.note ? ` (${f.note})` : ''}${f.colle ? ' — colle demandée' : ''}` });
+    const due = passport(student, { attendance: ATTENDANCE, ...next }, { isNew }).toGive.some((g) => g.forgetId === f.id);
+    toast(`Oubli noté pour ${student}. ${due ? (isTeacher ? 'Une heure de colle est due ; la CPE en fixe la date.' : 'Une heure de colle est à donner.') : carnet ? `Pas encore de colle : nouvel élève, colle au ${carnetPerColle(true)}e oubli du carnet.` : 'Pas de colle demandée.'}`);
   };
   const give = (entry) => {
     const e = colleErrors(entry);
     setErr(e); if (e.length) return;
     update({ ...data, colles: [...data.colles, { id: `c${Date.now()}`, student, date: TODAY, status: 'A_FAIRE', by, ...entry }] });
+    logActivity({ who: by, role, kind: 'COLLE', student, text: `${entry.kind === 'TIG' ? 'TIG' : `Colle de ${entry.hours} h`} : ${entry.reason}` });
     setGiving(null); setTig(null);
     toast(`${entry.kind === 'TIG' ? 'TIG' : `Colle de ${entry.hours} h`} pour ${student} ; les parents sont prévenus dans l'application.`);
   };
@@ -54,13 +72,13 @@ export default function PassportTab({ role, toast }) {
 
   return (
     <div className="grid gap-5 xl:grid-cols-[1fr_400px] xl:items-start">
-      <Card title="Passeport de vie scolaire" subtitle={`Un oubli = 1 h de colle · ${LATES_PER_COLLE} retards = une colle de 1 ou 2 h`}>
+      <Card title="Passeport de vie scolaire" subtitle={`Carnet de liaison oublié = 1 h de colle (nouvel élève : 2 oublis) · autres oublis : colle si demandée · ${LATES_PER_COLLE} retards = une colle de 1 ou 2 h`}>
         <ClassStudentPicker value={student} onChange={setStudent} />
         {p && (
           <div className="mt-4 space-y-4">
             <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
               <div className="rounded-lg bg-slate-50 p-2"><p className="text-xl font-semibold text-navy-900">{p.lates}</p><p className="text-xs text-slate-500">retards · {p.latesInCycle}/{LATES_PER_COLLE} avant la prochaine colle</p></div>
-              <div className="rounded-lg bg-slate-50 p-2"><p className="text-xl font-semibold text-navy-900">{p.forgets}</p><p className="text-xs text-slate-500">oublis</p></div>
+              <div className="rounded-lg bg-slate-50 p-2"><p className="text-xl font-semibold text-navy-900">{p.forgets}</p><p className="text-xs text-slate-500">oublis · dont {p.carnets} carnet{p.carnets > 1 ? 's' : ''}{isNew ? ' (nouvel élève)' : ''}</p></div>
               <div className="rounded-lg bg-amber-50 p-2"><p className="text-xl font-semibold text-amber-800">{p.collesDue} h</p><p className="text-xs text-amber-800">de colle à faire</p></div>
               <div className="rounded-lg bg-emerald-50 p-2"><p className="text-xl font-semibold text-emerald-800">{p.collesDone} h</p><p className="text-xs text-emerald-800">effectuées{p.tig ? ` · ${p.tig} TIG` : ''}</p></div>
             </div>
@@ -100,15 +118,16 @@ export default function PassportTab({ role, toast }) {
         )}
       </Card>
       <div className="space-y-5">
-        <Card title="Noter un oubli" subtitle="Une heure de colle par oubli">
+        <Card title="Noter un oubli" subtitle={forget.kind === CARNET ? (student && isNew ? 'Nouvel élève : 1 h de colle au 2e oubli du carnet' : 'Carnet de liaison : 1 h de colle') : 'La colle n\'est pas automatique : à vous de la demander'}>
           <div className="space-y-2 text-sm">
             <select value={forget.kind} onChange={(e) => setForget({ ...forget, kind: e.target.value })} aria-label="Oubli" className={`w-full ${inputCls}`}>{FORGET_KINDS.map((k) => <option key={k}>{k}</option>)}</select>
-            <input value={forget.note} onChange={(e) => setForget({ ...forget, note: e.target.value })} placeholder="Précision (ex. calculatrice, DM n°2)" className={`w-full ${inputCls}`} />
+            <input value={forget.note} onChange={(e) => setForget({ ...forget, note: e.target.value })} placeholder="Précision (ex. calculatrice, DM n°2)" aria-label="Précision" className={`w-full ${inputCls}`} />
+            {forget.kind !== CARNET && <label className="flex items-center gap-2 text-xs text-slate-700"><input type="checkbox" checked={forget.colle} onChange={(e) => setForget({ ...forget, colle: e.target.checked })} />Demander une heure de colle</label>}
             <Button className="w-full" disabled={!student} onClick={addForget}>Noter l'oubli de {student ? student.split(' ').slice(1).join(' ') : '…'}</Button>
           </div>
         </Card>
-        {!isTeacher && (
-          <Card title="Travail d'intérêt général (TIG)">
+        {role === 'DIRECTION' && (
+          <Card title="Travail d'intérêt général (TIG)" subtitle="Décidé par la Direction">
             {tig ? (
               <div className="space-y-2 text-sm">
                 <input value={tig.reason} onChange={(e) => setTig({ ...tig, reason: e.target.value })} placeholder="Motif et travail demandé" className={`w-full ${inputCls}`} />

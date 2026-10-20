@@ -568,7 +568,8 @@ BEGIN
                  JOIN enrollment e ON e.year_id = p.year_id
                  JOIN school_class c ON c.id = e.class_id AND c.site_id = p.site_id
                 WHERE e.id = NEW.enrollment_id), true) THEN
-    SELECT count(*) INTO n FROM phone_confiscation WHERE enrollment_id = NEW.enrollment_id;
+    IF NEW.duration_code IS NULL THEN RETURN NEW; END IF; -- durée pas encore décidée
+    SELECT count(*) INTO n FROM phone_confiscation WHERE enrollment_id = NEW.enrollment_id AND id <> NEW.id AND confiscated_at < NEW.confiscated_at;
     IF n >= 2 THEN NEW.duration_code := '5J';
     ELSIF n = 1 AND NEW.duration_code = '24H' THEN NEW.duration_code := '48H';
     END IF;
@@ -577,7 +578,7 @@ BEGIN
 END $$ LANGUAGE plpgsql;
 
 -- s'exécute avant le calcul de la date de restitution (ordre alphabétique des triggers)
-CREATE TRIGGER phone_a_recidive BEFORE INSERT ON phone_confiscation
+CREATE TRIGGER phone_a_recidive BEFORE INSERT OR UPDATE OF duration_code ON phone_confiscation
   FOR EACH ROW EXECUTE FUNCTION phone_recidive();
 
 -- L'appréciation générale du bulletin est rédigée par la Direction (après le conseil).
@@ -1146,11 +1147,21 @@ CREATE FUNCTION bac_needed(student uuid, target numeric) RETURNS numeric AS $$
     FROM official_exam_mark WHERE student_id = student) q
 $$ LANGUAGE sql STABLE;
 
--- Passeport : un TIG est donné par la CPE, le secrétariat ou la Direction (pas par un professeur).
+-- Passeport : un TIG est décidé par la Direction seule.
+-- Colle pour oubli : carnet de liaison selon la règle d'ancienneté ; autre oubli, seulement si elle a été demandée.
 CREATE FUNCTION detention_guard() RETURNS trigger AS $$
+DECLARE f school_forget;
 BEGIN
-  IF NEW.kind = 'TIG' AND NOT EXISTS (SELECT 1 FROM user_role WHERE user_id = NEW.given_by AND role IN ('VIE_SCOLAIRE', 'BUREAU', 'DIRECTION')) THEN
-    RAISE EXCEPTION 'Un TIG est donné par la CPE, le secrétariat ou la Direction';
+  IF NEW.kind = 'TIG' AND NOT EXISTS (SELECT 1 FROM user_role WHERE user_id = NEW.given_by AND role = 'DIRECTION') THEN
+    RAISE EXCEPTION 'Un TIG est décidé par la Direction';
+  END IF;
+  IF TG_OP = 'INSERT' AND NEW.cause = 'OUBLI' THEN
+    SELECT * INTO f FROM school_forget WHERE id = NEW.forget_id;
+    IF f.kind = 'CARNET' AND carnet_colles_due(NEW.enrollment_id) < 1 THEN
+      RAISE EXCEPTION 'Pas encore de colle : nouvel élève, une heure au 2e oubli du carnet';
+    ELSIF f.kind <> 'CARNET' AND NOT f.colle_requested THEN
+      RAISE EXCEPTION 'Oubli sans colle demandée par le professeur ou la CPE';
+    END IF;
   END IF;
   RETURN NEW;
 END $$ LANGUAGE plpgsql;
@@ -1390,3 +1401,48 @@ CREATE FUNCTION screen_level(u uuid, s text) RETURNS access_level AS $$
       'AUCUN')
   END
 $$ LANGUAGE sql STABLE;
+
+-- Nouvel élève : aucune inscription une année scolaire antérieure.
+CREATE FUNCTION is_new_student(enr uuid) RETURNS boolean AS $$
+  SELECT NOT EXISTS (
+    SELECT 1 FROM enrollment e JOIN academic_year y ON y.id = e.year_id
+    JOIN enrollment cur ON cur.id = enr JOIN academic_year cy ON cy.id = cur.year_id
+    WHERE e.student_id = cur.student_id AND y.starts_on < cy.starts_on)
+$$ LANGUAGE sql STABLE;
+-- Carnet de liaison oublié : une heure de colle par oubli (ancien élève), par 2 oublis (nouvel élève).
+CREATE FUNCTION carnet_colles_due(enr uuid) RETURNS integer AS $$
+  SELECT (count(*) FILTER (WHERE f.kind = 'CARNET') / CASE WHEN is_new_student(enr) THEN 2 ELSE 1 END)::int
+       - (SELECT count(*) FROM detention d JOIN school_forget g ON g.id = d.forget_id WHERE d.enrollment_id = enr AND g.kind = 'CARNET')::int
+  FROM school_forget f WHERE f.enrollment_id = enr
+$$ LANGUAGE sql STABLE;
+
+-- Justification : posée au plus tard 24 h après le début de l'absence.
+CREATE FUNCTION attendance_justify_guard() RETURNS trigger AS $$
+BEGIN
+  IF NEW.justified AND NOT coalesce(OLD.justified, false) THEN
+    NEW.justified_at := coalesce(NEW.justified_at, now());
+    IF NEW.justified_at > NEW.occurred_at + interval '24 hours' THEN
+      RAISE EXCEPTION 'Délai de 24 h dépassé : l''absence reste non justifiée';
+    END IF;
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER attendance_justify BEFORE INSERT OR UPDATE OF justified ON attendance_event FOR EACH ROW EXECUTE FUNCTION attendance_justify_guard();
+CREATE VIEW v_attendance_status AS
+SELECT a.id, a.enrollment_id, a.kind, a.occurred_at, a.occurred_at + interval '24 hours' AS justify_until,
+  CASE WHEN a.justified THEN 'JUSTIFIEE' WHEN now() >= a.occurred_at + interval '24 hours' THEN 'NON_JUSTIFIEE' ELSE 'A_JUSTIFIER' END AS status
+FROM attendance_event a WHERE a.kind IN ('ABSENCE', 'RETARD');
+
+-- Objets confisqués : la durée est décidée par la Direction ou le secrétariat.
+CREATE FUNCTION object_duration_guard() RETURNS trigger AS $$
+BEGIN
+  IF NEW.duration_code IS NOT NULL AND (TG_OP = 'INSERT' OR OLD.duration_code IS DISTINCT FROM NEW.duration_code) AND current_app_user() IS NOT NULL THEN
+    IF NOT (has_role(current_app_user(), 'DIRECTION') OR has_role(current_app_user(), 'BUREAU')) THEN
+      RAISE EXCEPTION 'La durée de confiscation est décidée par la Direction ou le secrétariat';
+    END IF;
+    NEW.duration_decided_by := current_app_user();
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+-- avant le calcul de la récidive et de la date de restitution (ordre alphabétique des triggers)
+CREATE TRIGGER phone_0_duration BEFORE INSERT OR UPDATE OF duration_code ON phone_confiscation FOR EACH ROW EXECUTE FUNCTION object_duration_guard();

@@ -88,3 +88,31 @@
   bibliothèque et cahiers de textes sont en consultation. La Direction peut maintenant changer chacun.
 - Base : tables `screen_access_role` et `screen_access_user`, fonction `screen_level`, modification réservée à
   la Direction (scénario T59).
+
+## 20 octobre 2026 (soir) — vie scolaire, journal de l'école, portail des familles
+
+- **Justificatifs : 24 h au plus.** Une absence (ou un retard) se justifie dans les 24 h qui suivent son début
+  (heure du créneau ; 7h00 pour une journée). Ensuite : « Non justifiée », automatiquement, sans bouton
+  « Justifier ». Le délai restant est affiché à l'équipe et aux parents ; filtre « Non justifiées ».
+- **Passeport de vie scolaire.** Carnet de liaison oublié : 1 h de colle pour un ancien élève ; pour un nouvel
+  élève (entré cette année), 1 h au 2e oubli. Matériel, devoir, tenue d'EPS, autre : l'oubli est noté, la colle
+  n'est donnée que si le professeur ou la CPE coche « Demander une heure de colle ».
+- **TIG : Direction seulement** (ni professeurs, ni CPE, ni secrétariat). L'avertissement reste ouvert à tous.
+- **Objets confisqués** (ancien onglet Téléphones) : téléphone, écouteurs sans fil, montre connectée, cigarette
+  électronique (Puff), autre. On note à qui l'objet est remis (vie scolaire, secrétariat, Direction ou une
+  personne). **La durée est décidée par la Direction ou le secrétariat** : encadré « Durée à décider » en tête de
+  l'onglet, avec une proposition selon les faits précédents ; notification « à faire » chez eux.
+- **Journal « Ce qui s'est passé »** sur les accueils Direction, secrétariat et CPE : qui a fait quoi aujourd'hui
+  ou sur 7 jours (appels, absences, justificatifs, parents prévenus, punitions, colles, oublis, objets, soins,
+  sorties, professeurs), par personne et par type. Jamais la caisse.
+- **Agenda du personnel** : sur « Toutes les classes », vue d'ensemble — événements, devoirs et cours qui
+  changent ; les cours ordinaires sont comptés par jour. Choisir une classe pour le détail. Les familles et les
+  professeurs ne voient que leurs classes.
+- **Portail des familles** : l'onglet « Vie scol. » devient « École » — la vie de l'école (photos, événements)
+  d'abord, puis le suivi de l'enfant. Bibliothèque côté parents : seulement les livres de l'enfant (à rendre,
+  déjà rendus), sans le catalogue.
+- **1re STMG** : plus de choix de spécialité (l'école propose la mercatique) ; l'épreuve de 1re de sciences de
+  gestion et numérique s'appuie sur l'étude de gestion.
+- Base : `justified_at` et vue `v_attendance_status`, `school_forget.colle_requested`, `carnet_colles_due`,
+  `is_new_student`, objets confisqués (`object_kind`, `handed_to`, durée décidée par Direction/secrétariat),
+  table `activity_log` ; scénario T60.

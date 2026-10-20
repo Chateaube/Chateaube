@@ -147,7 +147,7 @@ function StagesOrientation() {
         <ul className="space-y-2 text-sm">
           <li className="flex flex-wrap justify-between gap-2"><span><b>3e</b> — vœux d'orientation après la 3e (2de générale, lycée professionnel)</span><Badge tone="slate">Intentions au 2e trimestre</Badge></li>
           <li className="flex flex-wrap justify-between gap-2"><span><b>2de</b> — choix de la voie (générale / STMG) et des spécialités</span><Badge tone="slate">Intentions au 2e trimestre</Badge></li>
-          <li className="flex flex-wrap justify-between gap-2"><span><b>1re STMG</b> — spécialité de Terminale (4 choix)</span><Badge tone="amber">Découverte en cours</Badge></li>
+          <li className="flex flex-wrap justify-between gap-2"><span><b>1re STMG</b> — passage en Terminale STMG ; la spécialité de l'école est la mercatique</span><Badge tone="slate">Pas de choix à faire</Badge></li>
           <li className="flex flex-wrap justify-between gap-2"><span><b>Terminale</b> — une piste par pays visé ; la France (Parcoursup) conseillée en plan B</span><Badge tone="navy">Voir l'onglet Terminale</Badge></li>
         </ul>
       </Card>

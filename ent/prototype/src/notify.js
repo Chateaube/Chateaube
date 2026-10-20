@@ -3,7 +3,7 @@
 //  - À FAIRE : décisions, validations, parents à prévenir… (orange, avec un nombre) ;
 //  - INFO : annonces, publications (sans badge rouge).
 // Le rouge est réservé à l'urgent.
-import { ATTENDANCE, CLASSES } from './data/schoollife.js';
+import { ATTENDANCE, CLASSES, PHONES } from './data/schoollife.js';
 import { loadTasks } from './tasksStore.js';
 import { loadEventProposals, loadCouncilFeedback } from './studentInitiativesStore.js';
 import { loadVisits } from './careStore.js';
@@ -12,9 +12,10 @@ import { pendingSignatures } from './signatureStore.js';
 import { pendingCount } from './requestsStore.js';
 import { loadPosts } from './schoolLifeStore.js';
 import { loadAnnouncements } from './announcementsStore.js';
-import { loadPassport } from './components/PassportTab.jsx';
+import { loadPassport, isNewStudent } from './components/PassportTab.jsx';
 import { loadSuggestions } from './components/InternalResources.jsx';
-import { passport } from './rules/discipline.js';
+import { passport, objectState } from './rules/discipline.js';
+import { DEFAULT_SETTINGS } from './data/settings.js';
 import { inventoryAlerts } from './rules/inventory.js';
 import { CARE_OUTCOMES } from './rules/care.js';
 
@@ -38,7 +39,7 @@ export function notificationsFor(role, { account } = {}) {
   if (['DIRECTION', 'BUREAU', 'VIE_SCOLAIRE'].includes(role)) urgent.push(...careUrgent(today));
   const notInformed = ATTENDANCE.filter((a) => a.date === today && !a.notified).length;
   const pendingPosts = loadPosts().filter((p) => p.status === 'EN_ATTENTE').length;
-  const collesToGive = Object.values(CLASSES).flat().reduce((t, st) => t + passport(st, { attendance: ATTENDANCE, ...loadPassport() }).toGive.length, 0);
+  const collesToGive = Object.values(CLASSES).flat().reduce((t, st) => t + passport(st, { attendance: ATTENDANCE, ...loadPassport() }, { isNew: isNewStudent(st) }).toGive.length, 0);
   const news = loadAnnouncements().list;
   // tâches confiées (ou notées) : celles du jour et en retard
   const HOME = { DIRECTION: 'dashboard', BUREAU: 'bureau', VIE_SCOLAIRE: 'cpe-home', ENSEIGNANT: 'teacher' };
@@ -65,6 +66,10 @@ export function notificationsFor(role, { account } = {}) {
     add(req, { id: 'req', to: 'enrol', count: req, text: `${req} démarche${req > 1 ? 's' : ''} en ligne des familles à traiter`, action: 'Traiter' });
     const stock = inventoryAlerts(loadInventory(), today).filter((a) => a.kind !== 'CASSE').length;
     add(stock, { id: 'stock', to: 'inventory', count: stock, text: `${stock} article${stock > 1 ? 's' : ''} à recommander ou bientôt périmé${stock > 1 ? 's' : ''}`, action: 'Voir' });
+  }
+  if (['DIRECTION', 'BUREAU'].includes(role)) {
+    const toDecide = PHONES.filter((p) => objectState(p, `${today}T11:00`, DEFAULT_SETTINGS) === 'A_DECIDER').length;
+    add(toDecide, { id: 'objects', to: 'vs', count: toDecide, text: `${toDecide} objet${toDecide > 1 ? 's' : ''} confisqué${toDecide > 1 ? 's' : ''} : durée à décider`, action: 'Décider' });
   }
   if (['BUREAU', 'VIE_SCOLAIRE'].includes(role)) {
     add(notInformed, { id: 'parents', to: 'vs', count: notInformed, text: `${notInformed} famille${notInformed > 1 ? 's' : ''} pas encore prévenue${notInformed > 1 ? 's' : ''} d'une absence ou d'un retard`, action: 'Prévenir' });
