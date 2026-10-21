@@ -1232,7 +1232,7 @@ test('passeport de vie scolaire : carnet selon l\'ancienneté, autres oublis au 
   assert.equal(two.toGive[0].forgetId, 'k2');
   assert.match(two.toGive[0].reason, /2 fois \(05\/10, 09\/10\) — nouvel élève/);
   assert.equal(passport('B', { forgets: [carnet('k1', '2026-10-05'), carnet('k2', '2026-10-09')], colles: [{ student: 'B', kind: 'COLLE', cause: 'OUBLI', forgetId: 'k2', hours: 1, status: 'A_FAIRE', date: '2026-10-09' }] }, { isNew: true }).toGive.length, 0);
-  assert.equal(colleErrors({ kind: 'COLLE', hours: 3, when: 'x' }).length, 1);
+  assert.equal(colleErrors({ kind: 'COLLE', hours: 3, when: '2026-10-21T13:00' }).length, 1);
   // TIG : Direction seulement
   assert.equal(vm2({ measureId: 'TIG', authorRole: 'PROFESSEUR', reason: 'x', student: 'A' }).length, 1);
   assert.equal(vm2({ measureId: 'TIG', authorRole: 'VIE_SCOLAIRE', reason: 'x', student: 'A' }).length, 1);
@@ -1631,4 +1631,68 @@ test('inventaire : corriger une fiche, utilisations de la trousse visibles', () 
   const used = useItem(it, 2, 'Mme Hanta', '2026-10-13T11:00', 'RAZAKA Feno — genou écorché');
   assert.equal(used.qty, 18);
   assert.deepEqual(usages([used]).map((u) => [u.item, u.n, u.by]), [['Pansements', 2, 'Mme Hanta']]);
+});
+
+import { byService } from '../src/rules/activity.js';
+test('journal : regroupé par service, tous les enseignants ensemble', () => {
+  const e = (who, role, kind) => ({ who, role, kind, at: '2026-10-13T08:00', text: 'x' });
+  const g = byService([e('Mme Ranaivo', 'ENSEIGNANT', 'ABSENCE'), e('M. Rasolo', 'ENSEIGNANT', 'OUBLI'), e('M. Be (CPE)', 'VIE_SCOLAIRE', 'COLLE'), e('Direction', 'DIRECTION', 'OBJET')]);
+  assert.deepEqual(g.map((x) => [x.label, x.list.length]), [['Direction', 1], ['CPE', 1], ['Enseignants', 2]]);
+  assert.deepEqual(g[2].people, ['Mme Ranaivo', 'M. Rasolo']);
+  assert.deepEqual(g[2].kinds, { ABSENCE: 1, OUBLI: 1 });
+});
+
+import { colleSlotError, colleOverlap, nextColleSlot, upcomingColleSessions } from '../src/rules/discipline.js';
+test('colles : mercredi après-midi ou samedi matin, jamais en même temps, successives', () => {
+  assert.equal(colleSlotError('2026-10-21T13:00', 1), null); // mercredi
+  assert.equal(colleSlotError('2026-10-24T08:00', 2), null); // samedi
+  assert.match(colleSlotError('2026-10-22T13:00', 1), /mercredi après-midi/); // jeudi
+  assert.match(colleSlotError('2026-10-21T10:00', 1), /entre 13h00 et 17h00/);
+  assert.match(colleSlotError('2026-10-21T16:00', 2), /entre 13h00 et 17h00/);
+  const colles = [{ student: 'A', kind: 'COLLE', hours: 1, when: '2026-10-21T13:00', status: 'A_FAIRE', reason: 'CPE' }];
+  assert.ok(colleOverlap('A', colles, '2026-10-21T13:00', 1));
+  assert.equal(colleOverlap('A', colles, '2026-10-21T14:00', 1), null);
+  assert.equal(colleOverlap('B', colles, '2026-10-21T13:00', 1), null);
+  assert.equal(nextColleSlot('A', colles, 1, '2026-10-20'), '2026-10-21T14:00'); // à la suite
+  assert.equal(nextColleSlot('A', [...colles, { student: 'A', kind: 'COLLE', hours: 2, when: '2026-10-21T14:00', status: 'A_FAIRE' }, { student: 'A', kind: 'COLLE', hours: 1, when: '2026-10-21T16:00', status: 'A_FAIRE' }], 1, '2026-10-20'), '2026-10-24T08:00');
+  assert.match(colleErrors({ kind: 'COLLE', hours: 1, when: '2026-10-21T13:00', student: 'A', colles }).join(' '), /Proposé : 2026-10-21 à 14h00/);
+  assert.deepEqual(upcomingColleSessions([...colles, { student: 'B', kind: 'COLLE', hours: 2, when: '2026-10-21T13:00', status: 'A_FAIRE' }], '2026-10-20'),
+    [{ day: '2026-10-21', students: 2, hours: 3, from: '13:00', to: '15:00' }]);
+});
+
+import { lateOutcome, tally as tally2 } from '../src/rules/attendance.js';
+test('retard de plus de 10 min : absent pour l\'heure, entre à l\'heure pleine suivante', () => {
+  assert.deepEqual(lateOutcome({ start: '07:00', end: '09:00' }, 10), { kind: 'RETARD', minutes: 10 });
+  assert.deepEqual(lateOutcome({ start: '07:00', end: '09:00' }, 12), { kind: 'ABSENCE', from: '07:00', to: '08:00', enterAt: '08:00', nextCourse: false });
+  assert.deepEqual(lateOutcome({ start: '10:00', end: '11:00' }, 15), { kind: 'ABSENCE', from: '10:00', to: '11:00', nextCourse: true });
+  const t = tally2(['A', 'B', 'C'], { A: { status: 'R', minutes: 5 }, B: { status: 'R', minutes: 15 } });
+  assert.deepEqual([t.present, t.absent, t.late], [1, ['B'], ['A']]);
+});
+
+import { catalogue, addToCatalogue, setForStudents, engagementLabels as eLab, attestationLabels as aLab } from '../src/rules/engagements.js';
+test('engagements : catalogue de l\'école (ajout, masquage) et saisie groupée', () => {
+  const r = addToCatalogue([], { label: 'Parrain / marraine d\'un nouvel élève', kind: 'ENGAGEMENT' });
+  const a = addToCatalogue(r.custom, { label: 'Initiation au secourisme', kind: 'ATTESTATION' });
+  assert.ok(addToCatalogue(a.custom, { label: 'parrain / marraine d\'un nouvel élève' }).error);
+  const [parrain, secours] = a.custom.map((c) => c.id);
+  assert.deepEqual(eLab(['DELEGUE', parrain, secours], 'F', a.custom), ['Déléguée de classe', 'Parrain / marraine d\'un nouvel élève']);
+  assert.deepEqual(aLab([secours, 'ASSR1'], a.custom), ['Initiation au secourisme', 'Sécurité routière niveau 1 (programme ASSR 1)']);
+  assert.ok(catalogue([{ id: 'ASSR2', builtin: true, hidden: true }]).find((x) => x.id === 'ASSR2').hidden);
+  const m = setForStudents({ A: ['ASSR1'] }, 'ASSR2', ['A', 'B', 'C'], true);
+  assert.deepEqual(m, { A: ['ASSR1', 'ASSR2'], B: ['ASSR2'], C: ['ASSR2'] });
+  assert.deepEqual(setForStudents(m, 'ASSR2', ['B'], false).B, []);
+});
+
+import { followUpErrors, evaluateFollowUp, followUpReport } from '../src/rules/followup.js';
+test('suivis individuels : conditions, alerte, contact extérieur avec accord des parents', () => {
+  const f = { student: 'A', kind: 'CONTRAT', referent: 'Direction', conditions: { maxUnjustified: 0, maxLates: 2, minAverage: 12, maxMeasures: '' }, contact: { name: 'Président du club', parentConsent: false } };
+  assert.match(followUpErrors(f).join(' '), /accord écrit des parents/);
+  assert.deepEqual(followUpErrors({ ...f, contact: { ...f.contact, parentConsent: true } }), []);
+  const ok = evaluateFollowUp(f, { unjustified: 0, lates: 1, average: 13.2, measures: 3 });
+  assert.equal(ok.status, 'OK');
+  assert.equal(ok.checks.length, 3);
+  const bad = evaluateFollowUp(f, { unjustified: 1, lates: 3, average: 11.5, measures: 0 });
+  assert.equal(bad.status, 'ALERTE');
+  assert.deepEqual(bad.failed.map((x) => x.id), ['maxUnjustified', 'maxLates', 'minAverage']);
+  assert.match(followUpReport(f, { unjustified: 1, lates: 3, average: 11.5, measures: 0 }, bad, 'octobre'), /✗ Moyenne générale : 11,5 \(au moins 12\)/);
 });

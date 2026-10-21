@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Badge, Button, Card } from './ui.jsx';
 import { ClassStudentPicker } from './VieScolaireModule.jsx';
 import { ATTENDANCE, NEW_STUDENTS } from '../data/schoollife.js';
-import { passport, colleErrors, FORGET_KINDS, COLLE_STATUS, LATES_PER_COLLE, CARNET, carnetPerColle } from '../rules/discipline.js';
+import { passport, colleErrors, FORGET_KINDS, COLLE_STATUS, LATES_PER_COLLE, CARNET, carnetPerColle, nextColleSlot } from '../rules/discipline.js';
 import { loadProfiles } from '../profilesStore.js';
 import { seniority } from '../rules/documents.js';
 import { logActivity } from '../activityStore.js';
@@ -18,7 +18,7 @@ export function isNewStudent(name) {
   return s ? s.isNew : NEW_STUDENTS.includes(name);
 }
 
-const KEY = 'ent-passeport-v2'; // v2 : carnet de liaison selon l'ancienneté, colle demandée pour les autres oublis
+const KEY = 'ent-passeport-v3'; // v2 : carnet de liaison selon l'ancienneté, colle demandée pour les autres oublis
 const DEMO = {
   forgets: [
     { id: 'o1', student: 'RAJAONARIVELO Tsiry', date: '2026-10-07', kind: 'Matériel', note: 'calculatrice', by: 'M. Rasolo' },
@@ -28,11 +28,15 @@ const DEMO = {
   ],
   colles: [
     { id: 'c1', student: 'RAJAONARIVELO Tsiry', kind: 'COLLE', cause: 'OUBLI', forgetId: 'o1', hours: 1, date: '2026-10-07', when: '2026-10-14T13:00', reason: 'Oubli : matériel (calculatrice) le 07/10', status: 'FAITE', by: 'M. Be (CPE)' },
+    { id: 'c3', student: 'RAKOTONIRINA Hanitra', kind: 'COLLE', cause: 'AUTRE', hours: 1, date: '2026-10-12', when: '2026-10-14T13:00', reason: 'Bavardages répétés (Mme Hery)', status: 'A_FAIRE', by: 'Mme Hery' },
+    { id: 'c4', student: 'RAKOTONIRINA Hanitra', kind: 'COLLE', cause: 'AUTRE', hours: 1, date: '2026-10-13', when: '2026-10-14T14:00', reason: 'Montre connectée pendant l\'évaluation (CPE)', status: 'A_FAIRE', by: 'M. Be (CPE)' },
+    { id: 'c5', student: 'RAZAKA Feno', kind: 'COLLE', cause: 'AUTRE', hours: 2, date: '2026-10-12', when: '2026-10-17T08:00', reason: 'Travail non rendu (M. Tojo)', status: 'A_FAIRE', by: 'M. Tojo' },
     { id: 'c2', student: 'RASOA Lova', kind: 'TIG', cause: 'AUTRE', hours: 1, date: '2026-10-09', when: '2026-10-16T12:00', reason: 'Dégradation d\'une table : ponçage et nettoyage', status: 'A_FAIRE', by: 'M. Be (CPE)' },
   ],
 };
 export const loadPassport = () => { try { return JSON.parse(localStorage.getItem(KEY)) ?? DEMO; } catch { return DEMO; } };
-const save = (d) => { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch { /* stockage indisponible */ } };
+export const savePassport = (d) => { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch { /* stockage indisponible */ } };
+const save = savePassport;
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
 const fmt = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}${iso.length > 10 ? ` à ${iso.slice(11, 16).replace(':', 'h')}` : ''}`;
 const TODAY = '2026-10-13';
@@ -61,7 +65,7 @@ export default function PassportTab({ role, toast }) {
     toast(`Oubli noté pour ${student}. ${due ? (isTeacher ? 'Une heure de colle est due ; la CPE en fixe la date.' : 'Une heure de colle est à donner.') : carnet ? `Pas encore de colle : nouvel élève, colle au ${carnetPerColle(true)}e oubli du carnet.` : 'Pas de colle demandée.'}`);
   };
   const give = (entry) => {
-    const e = colleErrors(entry);
+    const e = colleErrors({ ...entry, student, colles: data.colles });
     setErr(e); if (e.length) return;
     update({ ...data, colles: [...data.colles, { id: `c${Date.now()}`, student, date: TODAY, status: 'A_FAIRE', by, ...entry }] });
     logActivity({ who: by, role, kind: 'COLLE', student, text: `${entry.kind === 'TIG' ? 'TIG' : `Colle de ${entry.hours} h`} : ${entry.reason}` });
@@ -84,7 +88,7 @@ export default function PassportTab({ role, toast }) {
             </div>
             {!isTeacher && p.toGive.length > 0 && (
               <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-                <p className="mb-1 font-semibold">Colles à donner</p>
+                <p className="mb-1 font-semibold">Colles à donner <span className="font-normal">· mercredi 13h–17h ou samedi 8h–12h ; proposées à la suite des autres colles de l'élève</span></p>
                 {p.toGive.map((g, i) => (
                   <div key={i} className="flex flex-wrap items-center gap-2 py-1">
                     <span className="flex-1">{g.reason}</span>
@@ -94,7 +98,7 @@ export default function PassportTab({ role, toast }) {
                         <input type="datetime-local" value={giving.when} onChange={(e) => setGiving({ ...giving, when: e.target.value })} aria-label="Date de la colle" className={inputCls} />
                         <Button className="!py-1 text-xs" onClick={() => give({ kind: 'COLLE', cause: g.cause, forgetId: g.forgetId, reason: g.reason, hours: giving.hours, when: giving.when })}>Donner</Button>
                       </>
-                    ) : <Button variant="secondary" className="!py-1 text-xs" onClick={() => { setGiving({ i, hours: g.hours, when: '2026-10-21T13:00' }); setErr([]); }}>Donner la colle</Button>}
+                    ) : <Button variant="secondary" className="!py-1 text-xs" onClick={() => { setGiving({ i, hours: g.hours, when: nextColleSlot(student, data.colles, g.hours, TODAY) ?? '' }); setErr([]); }}>Donner la colle</Button>}
                   </div>
                 ))}
               </div>

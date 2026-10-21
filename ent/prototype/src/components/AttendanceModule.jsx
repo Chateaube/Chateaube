@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Avatar, Badge, Button, Card, Icon } from './ui.jsx';
 import { WEEK_SESSIONS, ROSTERS, NOW } from '../data/attendance.js';
-import { sessionState, tally, nextToDo } from '../rules/attendance.js';
+import { sessionState, tally, nextToDo, lateOutcome, LATE_LIMIT } from '../rules/attendance.js';
 import { formatDateFr } from '../rules/calendar.js';
 import { useOnline } from '../online.js';
 
@@ -17,7 +17,7 @@ const STATE_UI = {
   FAIT: ['green', 'Appel fait'], EN_COURS: ['red', 'À faire maintenant'], OUBLIE: ['red', 'Appel oublié'], A_VENIR: ['slate', 'À venir'],
 };
 const CLASS_TONES = ['bg-sky-100 text-sky-800', 'bg-violet-100 text-violet-800', 'bg-amber-100 text-amber-800', 'bg-emerald-100 text-emerald-800', 'bg-rose-100 text-rose-800'];
-const LATE = [5, 10, 15, 20];
+const LATE = [5, 10, 15, 20, 30];
 
 const loadRecords = () => {
   const demo = Object.fromEntries(WEEK_SESSIONS.filter((s) => s.done).map((s) => [s.id, { ...s.done, synced: true }]));
@@ -82,8 +82,12 @@ function Roll({ session, record, classes, online, onSave, onBack }) {
                   Retard de
                   {LATE.map((mn) => (
                     <button key={mn} type="button" onClick={() => set(n, { status: 'R', minutes: mn })}
-                      className={`rounded-full px-2.5 py-1 font-medium ${m.minutes === mn ? 'bg-amber-500 text-white' : 'bg-amber-50 text-amber-800'}`}>{mn === 20 ? '20 min et +' : `${mn} min`}</button>
+                      className={`rounded-full px-2.5 py-1 font-medium ${m.minutes === mn ? 'bg-amber-500 text-white' : 'bg-amber-50 text-amber-800'}`}>{mn === 30 ? '30 min et +' : `${mn} min`}</button>
                   ))}
+                  {(() => {
+                    const o = lateOutcome(session, m.minutes);
+                    return o.kind === 'ABSENCE' && <p className="w-full rounded-md bg-red-50 px-2 py-1 text-red-800">Plus de {LATE_LIMIT} min : compté absent {o.nextCourse ? `pour ce cours (${h(o.from)}–${h(o.to)}) ; il rejoint le cours suivant` : `de ${h(o.from)} à ${h(o.to)} ; il entre en cours à ${h(o.enterAt)}`}.</p>;
+                  })()}
                 </div>
               )}
             </li>

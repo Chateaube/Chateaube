@@ -22,17 +22,49 @@ export const ATTESTATIONS = [
   { id: 'NUMERIQUE', masc: 'Compétences numériques (référentiel Pix / B2i)', fem: 'Compétences numériques (référentiel Pix / B2i)', neutral: 'Compétences numériques (référentiel Pix / B2i)' },
 ];
 const ALL = [...ENGAGEMENTS, ...ATTESTATIONS];
-const isAttestation = (id) => ATTESTATIONS.some((a) => a.id === id);
+
+/* Catalogue propre à l'école : la Direction ajoute ses engagements et attestations (parrainage, club, ASSR…),
+ * les renomme, ou cesse de proposer ceux qui ne servent plus (sans rien effacer des bulletins passés).
+ * custom = [{ id, label, kind: 'ENGAGEMENT' | 'ATTESTATION', hidden? }] ; les intégrés peuvent être masqués. */
+export function catalogue(custom = []) {
+  const own = custom.map((c) => ({ id: c.id, masc: c.label, fem: c.label, neutral: c.label, kind: c.kind, custom: true, hidden: !!c.hidden }));
+  const hide = new Set(custom.filter((c) => c.builtin && c.hidden).map((c) => c.id));
+  return [
+    ...ENGAGEMENTS.map((e) => ({ ...e, kind: 'ENGAGEMENT', hidden: hide.has(e.id) })),
+    ...ATTESTATIONS.map((e) => ({ ...e, kind: 'ATTESTATION', hidden: hide.has(e.id) })),
+    ...own.filter((c) => !ALL.some((e) => e.id === c.id)),
+  ];
+}
+const find = (id, custom) => catalogue(custom).find((x) => x.id === id);
+const isAttestation = (id, custom) => find(id, custom)?.kind === 'ATTESTATION';
+
+/** Nouvel engagement ou attestation : un libellé, pas de doublon. */
+export function addToCatalogue(custom, { label, kind }) {
+  const l = String(label ?? '').trim();
+  if (l.length < 3) return { error: 'Donner un libellé (3 caractères au moins).' };
+  if (catalogue(custom).some((x) => x.neutral.toLowerCase() === l.toLowerCase())) return { error: `« ${l} » existe déjà.` };
+  return { custom: [...custom, { id: `X${Date.now()}-${custom.length}`, label: l, kind: kind === 'ATTESTATION' ? 'ATTESTATION' : 'ENGAGEMENT' }] };
+}
 
 /** Libellés accordés selon le sexe (« Délégué(e) » si inconnu). */
-export const engagementLabels = (ids = [], sex) => ids.filter((id) => !isAttestation(id)).map((id) => {
-  const e = ALL.find((x) => x.id === id);
+export const engagementLabels = (ids = [], sex, custom = []) => ids.filter((id) => !isAttestation(id, custom)).map((id) => {
+  const e = find(id, custom);
   if (!e) return id;
   return sex === 'F' ? e.fem : sex === 'M' ? e.masc : e.neutral;
 });
 
 /** Attestations de l'établissement obtenues. */
-export const attestationLabels = (ids = []) => ids.filter(isAttestation).map((id) => ATTESTATIONS.find((a) => a.id === id).neutral);
+export const attestationLabels = (ids = [], custom = []) => ids.filter((id) => isAttestation(id, custom)).map((id) => find(id, custom).neutral);
+
+/** Saisie groupée : donne (ou retire) un engagement à une liste d'élèves d'un coup. */
+export function setForStudents(byStudent, code, students, on) {
+  const next = { ...byStudent };
+  students.forEach((st) => {
+    const cur = next[st] ?? [];
+    next[st] = on ? (cur.includes(code) ? cur : [...cur, code]) : cur.filter((c) => c !== code);
+  });
+  return next;
+}
 
 /** Une classe a au plus 2 délégués et 2 suppléants. */
 export function engagementErrors(byStudent) {

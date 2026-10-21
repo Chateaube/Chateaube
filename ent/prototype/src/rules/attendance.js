@@ -14,10 +14,24 @@ export function sessionState(s, now, record) {
   return 'A_VENIR';
 }
 
-/** Bilan : présents, absents, retards. marks = { élève: { status: 'A' | 'R', minutes } } (présent par défaut). */
+/* Retard de plus de 10 minutes : l'élève est compté ABSENT pour l'heure commencée et entre à l'heure pleine
+ * suivante du cours (cours de 7h à 9h, arrivé à 7h12 : absent de 7h à 8h, entre à 8h). Pour un cours d'une
+ * heure, il rejoint le cours suivant. */
+export const LATE_LIMIT = 10;
+const hm = (n) => `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
+export function lateOutcome({ start, end }, minutes) {
+  if (!(minutes > LATE_LIMIT)) return { kind: 'RETARD', minutes };
+  const enter = min(start) + 60 * Math.ceil(minutes / 60);
+  if (enter >= min(end)) return { kind: 'ABSENCE', from: start, to: end, nextCourse: true };
+  return { kind: 'ABSENCE', from: start, to: hm(enter), enterAt: hm(enter), nextCourse: false };
+}
+export const isLateAbsent = (mark) => mark?.status === 'R' && mark.minutes > LATE_LIMIT;
+
+/** Bilan : présents, absents, retards. marks = { élève: { status: 'A' | 'R', minutes } } (présent par défaut).
+ *  Un retard de plus de 10 minutes compte comme une absence (pour l'heure commencée). */
 export function tally(roster, marks = {}) {
-  const absent = roster.filter((n) => marks[n]?.status === 'A');
-  const late = roster.filter((n) => marks[n]?.status === 'R');
+  const absent = roster.filter((n) => marks[n]?.status === 'A' || isLateAbsent(marks[n]));
+  const late = roster.filter((n) => marks[n]?.status === 'R' && !isLateAbsent(marks[n]));
   return { present: roster.length - absent.length - late.length, absent, late };
 }
 

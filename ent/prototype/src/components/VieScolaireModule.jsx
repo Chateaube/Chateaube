@@ -3,11 +3,13 @@ import { Badge, Button, Card, Icon, Stat } from './ui.jsx';
 import { CLASSES, classOf, STAFF_NAMES, ATTENDANCE, MEASURES_LOG, PHONES } from '../data/schoollife.js';
 import { isMinor, leaveErrors } from '../rules/earlyLeave.js';
 import { loadProfiles } from '../profilesStore.js';
-import { MEASURES, AUTHORS, validateMeasure, phoneReturnAt, PHONE_DURATIONS, PHONE_ACTIONS, phoneDurationFor, validateReturn, ackReminderDue, OBJECTS, objectOf, HANDED_TO, canDecideDuration, objectState } from '../rules/discipline.js';
-import { justification } from '../rules/attendance.js';
+import { MEASURES, AUTHORS, validateMeasure, phoneReturnAt, PHONE_DURATIONS, PHONE_ACTIONS, phoneDurationFor, validateReturn, ackReminderDue, OBJECTS, objectOf, HANDED_TO, canDecideDuration, objectState, colleErrors, nextColleSlot } from '../rules/discipline.js';
+import { justification, LATE_LIMIT } from '../rules/attendance.js';
+// minutes de retard lues dans le créneau (« 07h00 (+15 min) ») : au-delà de 10, l'heure compte comme absence
+const lateMinutes = (r) => Number(/\+(\d+) min/.exec(r.slot ?? '')?.[1] ?? 0);
 import { logActivity, ACTOR } from '../activityStore.js';
 import { formatDateFr } from '../rules/calendar.js';
-import PassportTab from './PassportTab.jsx';
+import PassportTab, { loadPassport, savePassport } from './PassportTab.jsx';
 
 // Vie scolaire : absences / retards, punitions et sanctions, objets confisqués.
 // Accessible à la Vie scolaire, au Bureau et à la Direction.
@@ -79,7 +81,7 @@ function AttendanceTab({ rows, setRows, toast, role }) {
             {shown.map((r) => (
               <tr key={r.id} className="border-b border-slate-100">
                 <td className="px-4 py-2"><p className="font-medium text-slate-900">{r.student}</p><p className="text-xs text-slate-500">{classOf(r.student)} · appel de {r.by}</p></td>
-                <td className="px-2">{r.kind === 'ABSENCE' ? <Badge tone="navy">Absence</Badge> : <Badge tone="slate">Retard</Badge>}</td>
+                <td className="px-2">{r.kind === 'ABSENCE' ? <Badge tone="navy">Absence</Badge> : lateMinutes(r) > LATE_LIMIT ? <span><Badge tone="navy">Absence (1 h)</Badge><span className="block text-[11px] text-slate-600">retard de {lateMinutes(r)} min</span></span> : <Badge tone="slate">Retard</Badge>}</td>
                 <td className="px-2 text-slate-600">{formatDateFr(r.date).replace(/ \d{4}$/, '')}<br /><span className="text-xs">{r.slot}</span></td>
                 <td className="px-2">
                   {r.justified ? <Badge tone="green">{r.reason ?? 'Justifié'}</Badge> : st(r).status === 'NON_JUSTIFIEE' ? (
@@ -108,7 +110,9 @@ function MeasuresTab({ log, setLog, role, toast }) {
   const authors = { DIRECTION: ['Cheffe d\'établissement', 'Directrice adjointe'], PROFESSEUR: ['Mme Ranaivo'], BUREAU: ['Mme Hanta (secrétariat)'], VIE_SCOLAIRE: ['M. Be (CPE)'] }[authorRole];
   const blank = { student: '', measureId: 'OBSERVATION', reason: '', when: '', author: authors[0] };
   const [draft, setDraft] = useState(blank);
-  const errors = validateMeasure({ ...draft, authorRole });
+  const colles = loadPassport().colles;
+  const retenue = draft.measureId === 'RETENUE';
+  const errors = [...validateMeasure({ ...draft, authorRole }), ...(retenue && draft.student ? colleErrors({ kind: 'COLLE', hours: draft.hours ?? 1, when: draft.when, student: draft.student, colles }) : [])];
   return (
     <div className="grid gap-5 xl:grid-cols-[1fr_380px] xl:items-start">
       <Card title="Punitions et sanctions" subtitle="Chaque mesure a un motif ; le parent confirme en avoir pris connaissance">
@@ -118,7 +122,7 @@ function MeasuresTab({ log, setLog, role, toast }) {
               <div className="min-w-0">
                 <p className="text-sm font-medium text-slate-900">{m.student} <span className="font-normal text-slate-500">· {classOf(m.student)} · {formatDateFr(m.date).replace(/ \d{4}$/, '')}</span></p>
                 <p className="text-sm text-slate-700"><span className="text-slate-500">Motif :</span> {m.reason}</p>
-                {m.when && <p className="text-xs text-slate-500">À effectuer : {m.when}</p>}
+                {m.when && <p className="text-xs text-slate-500">À effectuer : {/^\d{4}-\d{2}-\d{2}T/.test(m.when) ? fmtDT(m.when) : m.when}</p>}
                 <p className="text-xs text-slate-500">Décidée par {m.author} ({AUTHORS[m.authorRole]})</p>
               </div>
               <div className="text-right">
@@ -144,7 +148,11 @@ function MeasuresTab({ log, setLog, role, toast }) {
           </label>
           <label className="block text-xs text-slate-600">Motif<textarea rows={2} value={draft.reason} onChange={(e) => setDraft({ ...draft, reason: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>
           {draft.measureId === 'RETENUE' && (
-            <label className="block text-xs text-slate-600">Date et heure de la retenue<input value={draft.when} onChange={(e) => setDraft({ ...draft, when: e.target.value })} placeholder="ex. mercredi 21 octobre, 13h–15h" className={`mt-1 w-full ${inputCls}`} /></label>
+            <div className="grid grid-cols-[1fr_90px] gap-2">
+              <label className="block text-xs text-slate-600">Colle le (mercredi 13h–17h ou samedi 8h–12h)<input type="datetime-local" value={draft.when} onChange={(e) => setDraft({ ...draft, when: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>
+              <label className="block text-xs text-slate-600">Durée<select value={draft.hours ?? 1} onChange={(e) => setDraft({ ...draft, hours: Number(e.target.value) })} className={`mt-1 w-full ${inputCls}`}><option value={1}>1 h</option><option value={2}>2 h</option></select></label>
+              {draft.student && <button type="button" onClick={() => setDraft({ ...draft, when: nextColleSlot(draft.student, colles, draft.hours ?? 1, '2026-10-13') ?? '' })} className="col-span-2 text-left text-xs font-medium text-navy-700 underline decoration-dotted">Prochain créneau libre pour cet élève</button>}
+            </div>
           )}
           <label className="block text-xs text-slate-600">Décidée par
             <select value={draft.author} onChange={(e) => setDraft({ ...draft, author: e.target.value })} className={`mt-1 w-full ${inputCls}`}>
@@ -155,6 +163,8 @@ function MeasuresTab({ log, setLog, role, toast }) {
           <Button className="w-full" disabled={errors.length > 0} onClick={() => {
             setLog([{ id: `m${Date.now()}`, date: '2026-10-13', student: draft.student, measure: draft.measureId, reason: draft.reason.trim(), when: draft.when || null, author: draft.author, authorRole, parentAck: null }, ...log]);
             logActivity({ who: draft.author, role, kind: 'PUNITION', student: draft.student, text: `${MEASURE[draft.measureId].label} : ${draft.reason.trim()}` });
+            // une retenue est une colle : elle entre au passeport, à la suite des autres colles de l'élève
+            if (retenue) { const pp = loadPassport(); savePassport({ ...pp, colles: [...pp.colles, { id: `c${Date.now()}`, student: draft.student, kind: 'COLLE', cause: 'AUTRE', hours: draft.hours ?? 1, date: '2026-10-13', when: draft.when, reason: draft.reason.trim(), status: 'A_FAIRE', by: draft.author }] }); }
             toast(`Mesure enregistrée ; le parent de ${draft.student} est notifié (e-mail + application).`);
             setDraft(blank);
           }}>Enregistrer et prévenir le parent</Button>

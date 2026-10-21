@@ -13,3 +13,8 @@ export const saveEngagements = (d) => { try { localStorage.setItem(KEY, JSON.str
 const VKEY = 'ent-engagements-valides-v1';
 export const loadValidation = () => { try { return JSON.parse(localStorage.getItem(VKEY)) ?? {}; } catch { return {}; } };
 export const saveValidation = (v) => { try { localStorage.setItem(VKEY, JSON.stringify(v)); } catch { /* stockage indisponible */ } };
+
+// Catalogue propre à l'école (engagements et attestations ajoutés ou masqués par la Direction) : cf. rules/engagements.js
+const CKEY = 'ent-engagements-catalogue-v1';
+export const loadCatalogue = () => { try { return JSON.parse(localStorage.getItem(CKEY)) ?? []; } catch { return []; } };
+export const saveCatalogue = (c) => { try { localStorage.setItem(CKEY, JSON.stringify(c)); } catch { /* stockage indisponible */ } };

@@ -143,3 +143,24 @@
   stock et notés au registre. La Direction peut aussi enregistrer un passage.
 - Base : parcours antérieur (`previous_system`, `dnb_status`, `repeating`), vue `v_school_directory`, prix des
   livres et facturation (`v_library_to_bill`) ; scénario T61.
+
+## 21 octobre 2026 — colles, retards, engagements groupés, suivis individuels
+
+- **Journal « Ce qui s'est passé »** regroupé par service : Direction, CPE, Secrétariat, puis **tous les
+  enseignants ensemble** (appel, retards, oublis, punitions), avec le résumé par type.
+- **Colles** : uniquement le **mercredi 13h–17h** ou le **samedi 8h–12h**. Deux colles d'un même élève ne se
+  chevauchent jamais : elles se suivent (deux demandes = deux heures d'affilée). Le prochain créneau libre est
+  proposé. Une **retenue** donnée par un professeur devient une vraie colle du passeport.
+- **Alertes** (Direction, CPE, secrétariat) : « mercredi 14 octobre, 13h–15h : 3 élèves en colle — une personne
+  doit être présente » ; « objet confisqué à rendre aujourd'hui » ; suivis individuels en alerte.
+- **Retard de plus de 10 minutes** = absent pour l'heure commencée ; l'élève entre à l'heure pleine suivante
+  (cours de 7h à 9h, arrivé à 7h12 : absent de 7h à 8h, entre à 8h). Cours d'une heure : il rejoint le cours suivant.
+- **Engagements et attestations** : onglet « Par engagement » — on choisit l'engagement et on coche d'un coup
+  les élèves (tout cocher / tout décocher). Onglet « Liste » : la Direction **crée ses engagements et
+  attestations**, ou cesse d'en proposer. Modifiables toute l'année ; chaque trimestre validé part tel quel.
+- **Suivis individuels** (Direction et CPE, confidentiel) : dossier lourd, demande des parents, contrat avec
+  conditions (financement d'un club…). Conditions chiffrées (absences non justifiées, retards, moyenne,
+  punitions), état calculé (tout va bien / alerte), notes du suivi, point envoyé aux parents, contact extérieur
+  **seulement avec l'accord écrit des parents** (e-mail prérempli).
+- Base : `colle_slot_ok`, chevauchement refusé, `late_entry`, `engagement_type` (catalogue modifiable),
+  `student_followup` et ses notes ; scénario T62.

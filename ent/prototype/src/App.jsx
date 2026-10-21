@@ -46,6 +46,7 @@ import AmbianceBand from './components/AmbianceNote.jsx';
 import AmbianceEffects from './components/AmbianceEffects.jsx';
 import { featureVisible } from './features.js';
 import AccessRights from './components/AccessRights.jsx';
+import FollowUpsModule from './components/FollowUpsModule.jsx';
 import ReadOnlyGuard from './components/ReadOnlyGuard.jsx';
 import { applyAccess, DIRECTION_ONLY } from './rules/access.js';
 import { DIRECTION_TREE, arrangeNav } from './rules/navigation.js';
@@ -94,6 +95,7 @@ const STUDENT_LIST = { id: 'students-list', label: 'Liste des élèves', icon: '
 const SIGNATURES = { id: 'signatures', label: 'Documents à signer', icon: 'pen', screen: SignaturesModule };
 const FOLLOW_UP = { id: 'followup', label: 'Documents, stages et orientation', icon: 'pen', screen: FollowUpModule };
 const ACCOUNTING = { id: 'accounting', label: 'Caisse et comptabilité', icon: 'wallet', screen: AccountingModule };
+const FOLLOWUPS = { id: 'student-followups', label: 'Suivis individuels', icon: 'users', screen: FollowUpsModule };
 const MANDATES = { id: 'mandates', label: 'Engagements et attestations', icon: 'users', screen: MandatesAdmin };
 const ACCESS = { id: 'access', label: 'Droits d\'accès', icon: 'settings', screen: (p) => <AccessRights {...p} catalogue={catalogue()} baseNavs={baseNavs()} /> };
 const ro = (item, label) => ({ ...item, ...(label ? { label } : {}), readOnly: true }); // consultation seulement
@@ -108,7 +110,7 @@ const PROFILES = {
       { group: 'Aujourd\'hui', items: [{ id: 'dashboard', label: 'Mes décisions', icon: 'home', screen: DirectionDashboard }, SIGNATURES, FEEDBACK] },
       { group: 'Élèves', items: [INSCRIPTIONS, STUDENT_LIST, { id: 'students', label: 'Mobilité Tamatave → Tana', icon: 'swap' }] },
       { group: 'Pédagogie', items: [COUNCIL, BULLETINS, MOCK_EXAMS, GRADE_SHEETS, ...OVERSIGHT, { id: 'timetable', label: 'Emplois du temps', icon: 'clock' }, { id: 'exams', label: 'Examens & Campus France', icon: 'cap' }] },
-      { group: 'Vie scolaire', items: [VIE_SCOLAIRE, CARE, HOURS, TT_CHANGES, FOLLOW_UP, MANDATES] },
+      { group: 'Vie scolaire', items: [VIE_SCOLAIRE, CARE, HOURS, TT_CHANGES, FOLLOW_UP, MANDATES, FOLLOWUPS] },
       { group: 'Finances', items: [ACCOUNTING] },
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, AGENDA] },
       { group: 'Équipe et matériel', items: [{ id: 'staff', label: 'Gestion des agents', icon: 'users', screen: StaffModule }, RESOURCES, INVENTORY, MANUALS, LIBRARY, BOOKING] },
@@ -135,7 +137,7 @@ const PROFILES = {
     home: 'cpe-home',
     nav: [
       { group: 'Aujourd\'hui', items: [{ id: 'cpe-home', label: 'Ma journée', icon: 'home', screen: CpeHome }, VIE_SCOLAIRE, CARE, HOURS, TT_CHANGES] }, // CPE : annulation du jour seulement
-      { group: 'Élèves', items: [ro(STUDENT_LIST)] },
+      { group: 'Élèves', items: [ro(STUDENT_LIST), FOLLOWUPS] },
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, ro(AGENDA), RESOURCES] },
       { group: 'Ressources', items: [ro(BOOKING), ro({ id: 'books-cpe', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who="M. Be" kind="CPE" /> }), ro(OVERSIGHT[1])] },
     ],

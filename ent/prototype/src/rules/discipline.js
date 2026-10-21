@@ -162,9 +162,69 @@ export function passport(student, { attendance = [], forgets = [], colles = [] }
   };
 }
 
-export function colleErrors({ hours, when, kind }) {
+/* ---------- Créneaux de colle ----------
+ * Les colles ont lieu le mercredi après-midi ou le samedi matin. Deux colles d'un même élève ne se
+ * chevauchent jamais : données pour deux raisons différentes (un professeur, la CPE…), elles se suivent
+ * (deux demandes = deux heures d'affilée). */
+export const COLLE_SLOTS = { 3: { label: 'mercredi après-midi', from: '13:00', to: '17:00' }, 6: { label: 'samedi matin', from: '08:00', to: '12:00' } };
+const toMin = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+const toTime = (n) => `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
+const colleEnd = (c) => toMin(c.when.slice(11, 16)) + 60 * (c.hours ?? 1);
+
+/** Le créneau est-il un créneau de colle (mercredi 13h–17h, samedi 8h–12h) ? */
+export function colleSlotError(when, hours = 1) {
+  if (!when || when.length < 16) return 'Indiquer le jour et l\'heure de la colle.';
+  const slot = COLLE_SLOTS[isoWeekday(when.slice(0, 10))];
+  if (!slot) return 'Une colle a lieu le mercredi après-midi (13h–17h) ou le samedi matin (8h–12h).';
+  const start = toMin(when.slice(11, 16));
+  if (start < toMin(slot.from) || start + 60 * hours > toMin(slot.to)) return `Le ${slot.label}, une colle se place entre ${slot.from.replace(':', 'h')} et ${slot.to.replace(':', 'h')}.`;
+  return null;
+}
+
+/** Une autre colle du même élève occupe déjà ce moment ? (les TIG à part) */
+export function colleOverlap(student, colles, when, hours = 1) {
+  const day = when.slice(0, 10); const start = toMin(when.slice(11, 16)); const end = start + 60 * hours;
+  return colles.find((c) => c.student === student && c.kind !== 'TIG' && c.status !== 'NON_FAITE' && c.when?.slice(0, 10) === day
+    && start < colleEnd(c) && toMin(c.when.slice(11, 16)) < end) ?? null;
+}
+
+/**
+ * Prochain créneau libre pour l'élève, à partir du jour `from` : le premier mercredi ou samedi où la colle
+ * tient, juste après ses autres colles du même jour (elles se suivent).
+ */
+export function nextColleSlot(student, colles, hours = 1, from) {
+  let day = from;
+  for (let i = 0; i < 60; i += 1, day = addDays(day, 1)) {
+    const slot = COLLE_SLOTS[isoWeekday(day)];
+    if (!slot) continue;
+    const taken = colles.filter((c) => c.student === student && c.kind !== 'TIG' && c.status !== 'NON_FAITE' && c.when?.slice(0, 10) === day);
+    const start = Math.max(toMin(slot.from), ...taken.map(colleEnd));
+    if (start + 60 * hours <= toMin(slot.to)) return `${day}T${toTime(start)}`;
+  }
+  return null;
+}
+
+export function colleErrors({ hours, when, kind, student, colles = [] }) {
   const e = [];
   if (kind !== 'TIG' && ![1, 2].includes(hours)) e.push('Une colle dure une ou deux heures.');
   if (!when) e.push('Indiquer quand elle a lieu.');
+  else if (kind !== 'TIG') {
+    const slot = colleSlotError(when, hours);
+    if (slot) e.push(slot);
+    const other = student && colleOverlap(student, colles, when, hours);
+    if (other) e.push(`${student} a déjà une colle à ce moment (${other.reason}) : les colles se suivent. Proposé : ${nextColleSlot(student, colles, hours, when.slice(0, 10))?.replace('T', ' à ').replace(':', 'h') ?? 'un autre jour'}.`);
+  }
   return e;
+}
+
+/** Colles à surveiller d'ici `days` jours : par créneau (jour), nombre d'élèves et d'heures, de quelle heure à quelle heure. */
+export function upcomingColleSessions(colles, today, days = 7) {
+  const until = addDays(today, days);
+  const list = colles.filter((c) => c.kind !== 'TIG' && c.status === 'A_FAIRE' && c.when && c.when.slice(0, 10) >= today && c.when.slice(0, 10) <= until);
+  const byDay = {};
+  list.forEach((c) => { (byDay[c.when.slice(0, 10)] ??= []).push(c); });
+  return Object.entries(byDay).sort(([a], [b]) => a.localeCompare(b)).map(([day, cs]) => ({
+    day, students: new Set(cs.map((c) => c.student)).size, hours: cs.reduce((t, c) => t + (c.hours ?? 1), 0),
+    from: toTime(Math.min(...cs.map((c) => toMin(c.when.slice(11, 16))))), to: toTime(Math.max(...cs.map(colleEnd))),
+  }));
 }

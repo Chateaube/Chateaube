@@ -15,7 +15,7 @@ import { formatDateFr } from '../rules/calendar.js';
 import { printOnly } from '../print.js';
 import { loadTasks, saveTasks } from '../tasksStore.js';
 import BulletinHandover from './BulletinHandover.jsx';
-import { loadEngagements, loadValidation } from '../engagementsStore.js';
+import { loadEngagements, loadCatalogue, loadValidation } from '../engagementsStore.js';
 import { engagementLabels, attestationLabels } from '../rules/engagements.js';
 
 
@@ -146,8 +146,9 @@ export default function BulletinsModule({ settings, role, go }) {
   const measureRef = useRef(null);
   // engagements et attestations : saisis et validés chaque trimestre dans « Engagements et attestations »
   const [engagements] = useState(loadEngagements);
+  const [custom] = useState(loadCatalogue);
   const validated = loadValidation()[TERM.id];
-  const enrich = (x) => ({ ...x, showGeneral, generalAppreciation: general[`${cls}:${x.student}`] ?? '', engagements: engagementLabels(engagements[x.student], x.sex), attestations: attestationLabels(engagements[x.student]) });
+  const enrich = (x) => ({ ...x, showGeneral, generalAppreciation: general[`${cls}:${x.student}`] ?? '', engagements: engagementLabels(engagements[x.student], x.sex, custom), attestations: attestationLabels(engagements[x.student], custom) });
   // Mesure de chaque bulletin à la taille d'impression : 1 page (recto) ou 2 (recto-verso), jamais plus
   useLayoutEffect(() => {
     const el = measureRef.current;
@@ -217,7 +218,7 @@ export default function BulletinsModule({ settings, role, go }) {
         </label>
         {cls === IMPORTED && <p className="mt-2 text-xs text-slate-500">Élèves importés : moyennes et appréciations vides tant que les enseignants n'ont pas saisi leurs notes. La mise en page et les spécialités sont celles du vrai bulletin.</p>}
         <div className={`mt-3 rounded-lg px-3 py-2 text-xs ${validated ? 'bg-emerald-50 text-emerald-900' : 'bg-amber-50 text-amber-900'}`}>
-          <strong>Engagements et attestations — {current.student} :</strong> {[...engagementLabels(engagements[current.student], current.sex), ...attestationLabels(engagements[current.student])].join(' · ') || 'aucun'}.
+          <strong>Engagements et attestations — {current.student} :</strong> {[...engagementLabels(engagements[current.student], current.sex, custom), ...attestationLabels(engagements[current.student], custom)].join(' · ') || 'aucun'}.
           {' '}{validated ? `Validés pour le ${TERM.label} le ${validated.at.split('-').reverse().join('/')}.` : `Pas encore validés pour le ${TERM.label} : à faire dans « Engagements et attestations ».`}
           {go && <button type="button" onClick={() => go('mandates')} className="ml-2 font-semibold underline">Ouvrir</button>}
         </div>

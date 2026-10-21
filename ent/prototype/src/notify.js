@@ -13,8 +13,10 @@ import { pendingCount } from './requestsStore.js';
 import { loadPosts } from './schoolLifeStore.js';
 import { loadAnnouncements } from './announcementsStore.js';
 import { loadPassport, isNewStudent } from './components/PassportTab.jsx';
+import { followUpAlerts } from './components/FollowUpsModule.jsx';
 import { loadSuggestions } from './components/InternalResources.jsx';
-import { passport, objectState } from './rules/discipline.js';
+import { passport, objectState, upcomingColleSessions, objectOf } from './rules/discipline.js';
+import { formatDateFr } from './rules/calendar.js';
 import { DEFAULT_SETTINGS } from './data/settings.js';
 import { inventoryAlerts } from './rules/inventory.js';
 import { CARE_OUTCOMES } from './rules/care.js';
@@ -66,6 +68,18 @@ export function notificationsFor(role, { account } = {}) {
     add(req, { id: 'req', to: 'enrol', count: req, text: `${req} démarche${req > 1 ? 's' : ''} en ligne des familles à traiter`, action: 'Traiter' });
     const stock = inventoryAlerts(loadInventory(), today).filter((a) => a.kind !== 'CASSE').length;
     add(stock, { id: 'stock', to: 'inventory', count: stock, text: `${stock} article${stock > 1 ? 's' : ''} à recommander ou bientôt périmé${stock > 1 ? 's' : ''}`, action: 'Voir' });
+  }
+  if (['DIRECTION', 'BUREAU', 'VIE_SCOLAIRE'].includes(role)) {
+    // colles de la semaine : quelqu'un doit être là pour les surveiller (mercredi après-midi, samedi matin)
+    upcomingColleSessions(loadPassport().colles, today).forEach((x) => add(true, { id: `colles-${x.day}`, to: 'vs', count: 1,
+      text: `${formatDateFr(x.day).replace(/ \d{4}$/, '')}, ${x.from.replace(':', 'h')}–${x.to.replace(':', 'h')} : ${x.students} élève${x.students > 1 ? 's' : ''} en colle (${x.hours} h) — une personne doit être présente`, action: 'Voir' }));
+    // objets confisqués dont la restitution tombe aujourd'hui (ou est dépassée)
+    const back = PHONES.filter((p) => objectState(p, `${today}T23:59`, DEFAULT_SETTINGS) === 'A_RENDRE');
+    add(back.length, { id: 'objects-back', to: 'vs', count: back.length, text: `${back.length} objet${back.length > 1 ? 's' : ''} confisqué${back.length > 1 ? 's' : ''} à rendre aujourd'hui : ${back.map((p) => `${objectOf(p).toLowerCase()} de ${p.student}`).join(', ')}`, action: 'Rendre' });
+  }
+  if (['DIRECTION', 'VIE_SCOLAIRE'].includes(role)) {
+    const alerts = followUpAlerts();
+    add(alerts.length, { id: 'followups', to: 'student-followups', count: alerts.length, text: `${alerts.length} suivi${alerts.length > 1 ? 's' : ''} individuel${alerts.length > 1 ? 's' : ''} en alerte : ${alerts.map((f) => f.student).join(', ')}`, action: 'Voir' });
   }
   if (['DIRECTION', 'BUREAU'].includes(role)) {
     const toDecide = PHONES.filter((p) => objectState(p, `${today}T11:00`, DEFAULT_SETTINGS) === 'A_DECIDER').length;

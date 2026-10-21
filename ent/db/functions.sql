@@ -1155,6 +1155,16 @@ BEGIN
   IF NEW.kind = 'TIG' AND NOT EXISTS (SELECT 1 FROM user_role WHERE user_id = NEW.given_by AND role = 'DIRECTION') THEN
     RAISE EXCEPTION 'Un TIG est décidé par la Direction';
   END IF;
+  -- colle : le mercredi de 13h à 17h ou le samedi de 8h à 12h, et jamais en même temps qu'une autre colle de l'élève
+  IF NEW.kind = 'COLLE' THEN
+    IF NOT colle_slot_ok(NEW.scheduled_at, NEW.hours) THEN
+      RAISE EXCEPTION 'Une colle a lieu le mercredi après-midi (13h–17h) ou le samedi matin (8h–12h)';
+    END IF;
+    IF EXISTS (SELECT 1 FROM detention d WHERE d.enrollment_id = NEW.enrollment_id AND d.id <> NEW.id AND d.kind = 'COLLE' AND d.status <> 'NON_FAITE'
+               AND tstzrange(d.scheduled_at, d.scheduled_at + make_interval(hours => d.hours)) && tstzrange(NEW.scheduled_at, NEW.scheduled_at + make_interval(hours => NEW.hours))) THEN
+      RAISE EXCEPTION 'L''élève a déjà une colle à ce moment : les colles se suivent';
+    END IF;
+  END IF;
   IF TG_OP = 'INSERT' AND NEW.cause = 'OUBLI' THEN
     SELECT * INTO f FROM school_forget WHERE id = NEW.forget_id;
     IF f.kind = 'CARNET' AND carnet_colles_due(NEW.enrollment_id) < 1 THEN
@@ -1446,3 +1456,18 @@ BEGIN
 END $$ LANGUAGE plpgsql;
 -- avant le calcul de la récidive et de la date de restitution (ordre alphabétique des triggers)
 CREATE TRIGGER phone_0_duration BEFORE INSERT OR UPDATE OF duration_code ON phone_confiscation FOR EACH ROW EXECUTE FUNCTION object_duration_guard();
+
+-- Créneaux de colle : mercredi 13h–17h, samedi 8h–12h (heure de Madagascar).
+CREATE FUNCTION colle_slot_ok(at timestamptz, hours smallint) RETURNS boolean AS $$
+  SELECT CASE extract(isodow FROM l)
+    WHEN 3 THEN l::time >= '13:00' AND l::time + make_interval(hours => hours) <= '17:00'
+    WHEN 6 THEN l::time >= '08:00' AND l::time + make_interval(hours => hours) <= '12:00'
+    ELSE false END
+  FROM (SELECT at AT TIME ZONE 'Indian/Antananarivo' AS l) x
+$$ LANGUAGE sql IMMUTABLE;
+
+-- Retard de plus de 10 minutes : compté absent pour l'heure commencée ; entre à l'heure pleine suivante.
+CREATE FUNCTION late_entry(course_start time, course_end time, minutes integer) RETURNS time AS $$
+  SELECT CASE WHEN minutes <= 10 THEN NULL
+    ELSE least(course_start + make_interval(hours => ceil(minutes / 60.0)::int), course_end) END
+$$ LANGUAGE sql IMMUTABLE;

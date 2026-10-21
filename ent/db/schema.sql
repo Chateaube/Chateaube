@@ -2233,7 +2233,7 @@ CREATE TABLE activity_log (
   site_id       uuid NOT NULL REFERENCES site(id),
   at            timestamptz NOT NULL DEFAULT now(),
   actor_id      uuid NOT NULL REFERENCES app_user(id),
-  kind          text NOT NULL CHECK (kind IN ('APPEL', 'ABSENCE', 'JUSTIF', 'PARENTS', 'PUNITION', 'COLLE', 'OUBLI', 'OBJET', 'SOIN', 'SORTIE', 'PROF')),
+  kind          text NOT NULL CHECK (kind IN ('APPEL', 'ABSENCE', 'JUSTIF', 'PARENTS', 'PUNITION', 'COLLE', 'OUBLI', 'OBJET', 'SOIN', 'SORTIE', 'PROF', 'SUIVI')),
   enrollment_id uuid REFERENCES enrollment(id),
   text          text NOT NULL CHECK (length(trim(text)) > 0)
 );
@@ -2267,3 +2267,49 @@ CREATE VIEW v_library_to_bill AS
 SELECT l.id AS loan_id, l.enrollment_id, l.copy_code, l.due_on, b.title, b.price
 FROM library_loan l JOIN library_copy c ON c.code = l.copy_code JOIN library_book b ON b.id = c.book_id
 WHERE l.enrollment_id IS NOT NULL AND l.returned_on IS NULL AND l.due_on < current_date AND l.billed_receipt IS NULL;
+
+-- -----------------------------------------------------------------------------
+-- Engagements propres à l'école, suivis individuels
+-- -----------------------------------------------------------------------------
+-- Catalogue des engagements et attestations : ceux du départ, plus ceux que crée la Direction ;
+-- « active = false » : plus proposé, sans rien effacer des élèves qui l'ont.
+CREATE TABLE engagement_type (
+  code          text PRIMARY KEY,
+  label         text NOT NULL CHECK (length(trim(label)) >= 3),
+  kind          text NOT NULL CHECK (kind IN ('ENGAGEMENT', 'ATTESTATION')),
+  builtin       boolean NOT NULL DEFAULT false,
+  active        boolean NOT NULL DEFAULT true
+);
+INSERT INTO engagement_type (code, label, kind, builtin) VALUES
+  ('DELEGUE', 'Délégué(e) de classe', 'ENGAGEMENT', true), ('SUPPLEANT', 'Délégué(e) suppléant(e)', 'ENGAGEMENT', true),
+  ('ECO_DELEGUE', 'Éco-délégué(e)', 'ENGAGEMENT', true), ('BDE', 'Membre du Bureau des élèves (BDE)', 'ENGAGEMENT', true),
+  ('BDE_PRESIDENT', 'Président(e) du Bureau des élèves (BDE)', 'ENGAGEMENT', true), ('TUTEUR', 'Tutorat d''un élève (aide aux devoirs)', 'ENGAGEMENT', true),
+  ('SPORT', 'Membre de l''équipe sportive de l''établissement', 'ENGAGEMENT', true), ('PSC1', 'Formation aux premiers secours (PSC1)', 'ENGAGEMENT', true),
+  ('ASSR1', 'Sécurité routière niveau 1 (programme ASSR 1)', 'ATTESTATION', true), ('ASSR2', 'Sécurité routière niveau 2 (programme ASSR 2)', 'ATTESTATION', true),
+  ('NUMERIQUE', 'Compétences numériques (référentiel Pix / B2i)', 'ATTESTATION', true);
+ALTER TABLE student_engagement ALTER COLUMN code TYPE text USING code::text;
+ALTER TABLE student_engagement ADD CONSTRAINT student_engagement_type FOREIGN KEY (code) REFERENCES engagement_type(code);
+DROP TYPE engagement_code;
+
+-- Suivis individuels (Direction, CPE) : dossier lourd, demande des parents, contrat avec conditions.
+-- Contact extérieur (club, financeur) : seulement avec l'accord écrit des parents.
+CREATE TABLE student_followup (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  enrollment_id uuid NOT NULL REFERENCES enrollment(id),
+  kind          text NOT NULL CHECK (kind IN ('DOSSIER', 'PARENTS', 'CONTRAT', 'AUTRE')),
+  referent_id   uuid NOT NULL REFERENCES app_user(id),
+  since         date NOT NULL DEFAULT current_date,
+  report_every  text NOT NULL DEFAULT 'SEMAINE' CHECK (report_every IN ('SEMAINE', 'MOIS', 'DEMANDE')),
+  max_unjustified smallint, max_lates smallint, min_average numeric(4,2), max_measures smallint,
+  contact_name  text, contact_role text, contact_phone text, contact_email citext,
+  contact_parent_consent boolean NOT NULL DEFAULT false,
+  closed_on     date,
+  CHECK (contact_name IS NULL OR contact_parent_consent)
+);
+CREATE TABLE student_followup_note (
+  id            bigserial PRIMARY KEY,
+  followup_id   uuid NOT NULL REFERENCES student_followup(id) ON DELETE CASCADE,
+  at            timestamptz NOT NULL DEFAULT now(),
+  author_id     uuid NOT NULL REFERENCES app_user(id),
+  text          text NOT NULL CHECK (length(trim(text)) > 0)
+);

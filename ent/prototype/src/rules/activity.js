@@ -5,7 +5,7 @@
 export const ACTIVITY_KINDS = {
   APPEL: 'Appels', ABSENCE: 'Absences et retards', JUSTIF: 'Justificatifs', PARENTS: 'Parents prévenus',
   PUNITION: 'Punitions et sanctions', COLLE: 'Colles et TIG', OUBLI: 'Oublis', OBJET: 'Objets confisqués',
-  SOIN: 'Soins', SORTIE: 'Sorties anticipées', PROF: 'Professeurs',
+  SOIN: 'Soins', SORTIE: 'Sorties anticipées', PROF: 'Professeurs', SUIVI: 'Suivis individuels',
 };
 
 const day = (at) => at.slice(0, 10);
@@ -31,3 +31,16 @@ export function byPerson(entries) {
 
 /** Lignes groupées par jour (le plus récent d'abord). */
 export const byDay = (entries) => [...new Set(entries.map((e) => day(e.at)))].map((d) => [d, entries.filter((e) => day(e.at) === d)]);
+
+// Services, dans l'ordre d'affichage : la Direction, la CPE, le secrétariat, puis tous les enseignants ensemble
+// (pour eux, c'est surtout l'appel, les retards, les oublis et les punitions).
+export const SERVICES = [['DIRECTION', 'Direction'], ['VIE_SCOLAIRE', 'CPE'], ['BUREAU', 'Secrétariat'], ['ENSEIGNANT', 'Enseignants']];
+
+/** Lignes regroupées par service, avec le détail par type ; services sans action omis. */
+export function byService(entries) {
+  return SERVICES.map(([role, label]) => {
+    const list = entries.filter((e) => (e.role === role) || (role === 'ENSEIGNANT' && !SERVICES.some(([r]) => r === e.role)));
+    const kinds = list.reduce((m, e) => ({ ...m, [e.kind]: (m[e.kind] ?? 0) + 1 }), {});
+    return { role, label, list, kinds, people: [...new Set(list.map((e) => e.who))] };
+  }).filter((g) => g.list.length);
+}

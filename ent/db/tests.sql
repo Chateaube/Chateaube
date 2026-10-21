@@ -1290,7 +1290,7 @@ DO $$ DECLARE e uuid := '30000000-0000-0000-0000-000000000001'; f uuid; BEGIN
   IF colles_due_for_lates(e) <> 0 THEN RAISE EXCEPTION 'T54: colle des retards déjà donnée'; END IF;
   INSERT INTO school_forget (enrollment_id, on_date, kind, note, reported_by, colle_requested) VALUES (e, '2026-10-07', 'MATERIEL', 'calculatrice', '00000000-0000-0000-0000-000000000003', true) RETURNING id INTO f;
   BEGIN
-    INSERT INTO detention (enrollment_id, kind, cause, forget_id, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'OUBLI', f, 2, '2026-10-14 13:00+03', 'oubli', '00000000-0000-0000-0000-00000000000c');
+    INSERT INTO detention (enrollment_id, kind, cause, forget_id, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'OUBLI', f, 2, '2026-10-17 08:00+03', 'oubli', '00000000-0000-0000-0000-00000000000c');
     RAISE EXCEPTION 'T54: deux heures pour un oubli';
   EXCEPTION WHEN check_violation THEN NULL;
   END;
@@ -1634,13 +1634,13 @@ DO $$ DECLARE e uuid := '30000000-0000-0000-0000-000000000001'; a uuid; f uuid; 
   INSERT INTO school_forget (enrollment_id, on_date, kind, reported_by) VALUES (e, '2026-10-12', 'CARNET', '00000000-0000-0000-0000-000000000003') RETURNING id INTO f;
   IF carnet_colles_due(e) <> 0 THEN RAISE EXCEPTION 'T60: pas de colle au 1er carnet (nouvel élève)'; END IF;
   BEGIN
-    INSERT INTO detention (enrollment_id, kind, cause, forget_id, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'OUBLI', f, 1, '2026-10-21 13:00+03', 'carnet', '00000000-0000-0000-0000-00000000000c');
+    INSERT INTO detention (enrollment_id, kind, cause, forget_id, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'OUBLI', f, 1, '2026-10-24 08:00+03', 'carnet', '00000000-0000-0000-0000-00000000000c');
     RAISE EXCEPTION 'T60: colle au 1er carnet';
   EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T60:%' THEN RAISE; END IF;
   END;
   INSERT INTO school_forget (enrollment_id, on_date, kind, reported_by) VALUES (e, '2026-10-13', 'CARNET', '00000000-0000-0000-0000-000000000003') RETURNING id INTO f;
   IF carnet_colles_due(e) <> 1 THEN RAISE EXCEPTION 'T60: colle au 2e carnet'; END IF;
-  INSERT INTO detention (enrollment_id, kind, cause, forget_id, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'OUBLI', f, 1, '2026-10-21 13:00+03', 'carnet x2', '00000000-0000-0000-0000-00000000000c');
+  INSERT INTO detention (enrollment_id, kind, cause, forget_id, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'OUBLI', f, 1, '2026-10-21 14:00+03', 'carnet x2', '00000000-0000-0000-0000-00000000000c');
   IF carnet_colles_due(e) <> 0 THEN RAISE EXCEPTION 'T60: colle du carnet donnée'; END IF;
   -- tenue d'EPS oubliée sans colle demandée : pas de colle possible
   INSERT INTO school_forget (enrollment_id, on_date, kind, reported_by) VALUES (e, '2026-10-13', 'TENUE', '00000000-0000-0000-0000-000000000003') RETURNING id INTO f;
@@ -1693,5 +1693,37 @@ DO $$ DECLARE b uuid; e uuid := '30000000-0000-0000-0000-000000000001'; l uuid; 
   IF EXISTS (SELECT 1 FROM v_library_to_bill WHERE loan_id = l) THEN RAISE EXCEPTION 'T61: facture réglée encore due'; END IF;
 END $$;
 
+-- T62 — colles le mercredi après-midi ou le samedi matin, successives ; retard > 10 min ; engagements de l'école ; suivis
+DO $$ DECLARE e uuid := '30000000-0000-0000-0000-000000000002'; f uuid; BEGIN
+  IF NOT colle_slot_ok('2026-10-28 13:00+03', 2::smallint) OR colle_slot_ok('2026-10-29 13:00+03', 1::smallint) OR colle_slot_ok('2026-10-28 16:00+03', 2::smallint) THEN RAISE EXCEPTION 'T62: créneaux de colle'; END IF;
+  INSERT INTO detention (enrollment_id, kind, cause, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'AUTRE', 1, '2026-10-28 13:00+03', 'Professeur', '00000000-0000-0000-0000-00000000000c');
+  BEGIN
+    INSERT INTO detention (enrollment_id, kind, cause, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'AUTRE', 1, '2026-10-28 13:00+03', 'CPE', '00000000-0000-0000-0000-00000000000c');
+    RAISE EXCEPTION 'T62: deux colles en même temps';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T62:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO detention (enrollment_id, kind, cause, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'AUTRE', 1, '2026-10-28 14:00+03', 'CPE', '00000000-0000-0000-0000-00000000000c');
+  BEGIN
+    INSERT INTO detention (enrollment_id, kind, cause, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'AUTRE', 1, '2026-10-29 13:00+03', 'jeudi', '00000000-0000-0000-0000-00000000000c');
+    RAISE EXCEPTION 'T62: colle un jeudi';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T62:%' THEN RAISE; END IF;
+  END;
+  IF late_entry('07:00', '09:00', 10) IS NOT NULL OR late_entry('07:00', '09:00', 12) <> '08:00' OR late_entry('10:00', '11:00', 15) <> '11:00' THEN RAISE EXCEPTION 'T62: retard de plus de 10 minutes'; END IF;
+  INSERT INTO engagement_type (code, label, kind) VALUES ('PARRAIN', 'Parrain / marraine d''un nouvel élève', 'ENGAGEMENT');
+  INSERT INTO student_engagement VALUES ((SELECT id FROM enrollment WHERE student_id = (SELECT student_id FROM enrollment WHERE id = e) LIMIT 1), 'PARRAIN');
+  BEGIN
+    INSERT INTO student_engagement VALUES (e, 'INCONNU');
+    RAISE EXCEPTION 'T62: engagement inconnu';
+  EXCEPTION WHEN foreign_key_violation THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO student_followup (enrollment_id, kind, referent_id, contact_name) VALUES (e, 'CONTRAT', '00000000-0000-0000-0000-00000000000c', 'Club de basket');
+    RAISE EXCEPTION 'T62: contact sans accord des parents';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO student_followup (enrollment_id, kind, referent_id, min_average, contact_name, contact_parent_consent) VALUES (e, 'CONTRAT', '00000000-0000-0000-0000-00000000000c', 12, 'Club de basket', true) RETURNING id INTO f;
+  INSERT INTO student_followup_note (followup_id, author_id, text) VALUES (f, '00000000-0000-0000-0000-00000000000c', 'Contrat signé');
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T61 passent'
+\echo 'OK — tous les scénarios T1 à T62 passent'
