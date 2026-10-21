@@ -9,6 +9,13 @@
   - les professeurs absents de la liste ;
   - les cours dans une matière ou une classe qu'ils n'ont pas.
   Ce n'est qu'un avertissement : l'import reste possible.
+- Réponses de la Direction intégrées :
+  - M. Steven a aussi les Mathématiques en 2de ;
+  - Mme Francine (directrice) a les Arts plastiques en 6e, 5e et 4e ;
+  - Mme Sheena (directrice adjointe) a le Parcours d'ouverture en 3e et en 2de ;
+  - Enseignement scientifique : en Terminale, une heure par professeur chaque semaine ; en 1re, la partie physique-chimie se fait pendant une heure de physique-chimie ;
+  - les cours en semaine A seulement (Espagnol 6e à 4e, Parcours d'ouverture) sont voulus.
+- Deux spécialités (ou deux langues) à la même heure dans une classe ne sont plus signalées : les élèves sont répartis en groupes.
 
 ## 20 octobre 2026 — retours de la Direction, page par page
 

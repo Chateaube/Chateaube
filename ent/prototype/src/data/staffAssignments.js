@@ -1,7 +1,9 @@
 // Enseignements 2026-2027 à Tamatave (liste fournie par l'établissement le 21 octobre 2026) : une ligne par
 // professeur et par matière, écrite comme l'école l'écrit ; classes et matières sont lues avec les mêmes
 // règles que l'emploi du temps (rules/timetableImport.js). L'enseignement scientifique (1re et Tle générales)
-// est partagé : M. Canusis et Mme Félicité, un seul carnet de notes et une seule moyenne.
+// est partagé : M. Canusis et Mme Félicité, un seul carnet de notes et une seule moyenne. En Terminale, une heure
+// par professeur chaque semaine ; en 1re, la partie physique-chimie se fait pendant une heure de physique-chimie.
+// La Direction enseigne aussi : Mme Francine (directrice) et Mme Sheena (directrice adjointe).
 import { normalizeClass, normalizeSubject } from '../rules/timetableImport.js';
 
 export const ASSIGNMENT_LINES = [
@@ -29,13 +31,15 @@ export const ASSIGNMENT_LINES = [
   ['Mme Karele', 'Management', '1e STMG'],
   ['M. Steven', 'Technologie', '5e - 4e - 3e'],
   ['M. Steven', 'SNT', '2nde'],
-  ['M. Steven', 'Maths', '1e STMG'],
+  ['M. Steven', 'Maths', '2nde - 1e STMG'],
   ['M. Fortuna', 'SGN', '1e STMG'],
   ['M. Fortuna', 'MSGN', 'Tle STMG'],
   ['Mme Elise', 'EPS', '6e - 5e - 3e - 1e STMG - 1e G'],
   ['Mme Doris', 'EPS', '4e - 2nde - Tle G - Tle STMG'],
   ['Mme Lanto', 'Mandarin', '6e - 5e - 4e'],
   ['M. Raymond', 'Philosophie', 'Tle G - Tle STMG'],
+  ['Mme Francine', 'Arts plastiques', '6e - 5e - 4e'],
+  ['Mme Sheena', "Parcours d'ouverture", '3e - 2nde'],
 ];
 
 /** Une entrée par professeur et par matière : { name, subjects: [matière], classes: [...] }. */

@@ -1758,17 +1758,21 @@ test('import de l\'emploi du temps : format de l\'école, abréviations, semaine
     row(5, 'Jeudi', 'CM2', '08:00-09:00', 'Maths', 'Prof C'),
     row(6, 'Vendredi', '4e', '10:00-09:00', 'HGE', 'Prof D'),
     { line: 7, Jour: '', Classe: '', 'Créneau Horaire': ' ', Matière: '', Enseignant: '' },
+    row(9, 'Lundi', 'Tle G', '13:30-15:30', 'Spé P-C', 'Prof F'),
+    row(10, 'Lundi', 'Tle G', '13:30-15:30', 'Spé SVT', 'Prof G'), // spécialités en groupes : pas d'alerte
+    row(11, 'Lundi', 'Tle G', '14:00-15:00', 'Philosophie', 'Prof E'),
     { line: 8, Classe: 'Tle G', Jour: 'Mardi', Début: '13:30', Fin: '15:30', Matière: 'Philosophie', Professeur: 'Prof E', Salle: 'Salle 4' },
   ]);
-  assert.equal(r.slots.length, 4);
+  assert.equal(r.slots.length, 7);
   assert.equal(r.ignored, 1);
   assert.equal(r.errors.length, 2);
   assert.match(r.errors[0], /Ligne 5 : classe « CM2 » inconnue/);
   assert.match(r.errors[1], /finit avant de commencer/);
-  assert.deepEqual(r.slots.map((s) => s.week ?? '-'), ['A', 'B', '-', '-']);
-  assert.equal(r.slots[3].room, 'Salle 4');
-  assert.equal(r.warnings.length, 1); // Prof A : 1re G 7h30-9h30 (semaine A) et 3e 8h-9h
+  assert.deepEqual(r.slots.map((s) => s.week ?? '-'), ['A', 'B', '-', '-', '-', '-', '-']);
+  assert.equal(r.slots.find((s) => s.line === 8).room, 'Salle 4');
+  assert.equal(r.warnings.length, 3); // Prof A (1re G sem. A et 3e) ; philosophie pendant chacune des deux spécialités
   assert.match(r.warnings[0], /Prof A a deux cours en même temps/);
+  assert.ok(!r.warnings.some((w) => /Spécialité Physique-Chimie, Spécialité SVT/.test(w)));
   assert.deepEqual(hoursByClass(r.slots)['1re Générale'], { A: 2, B: 2 });
   assert.equal(timetableSheet({ Instructions: [['Comment']], 'EDT à importer': [['Jour', 'Classe', 'Matière']] })[0][0], 'Jour');
 });
@@ -1784,10 +1788,11 @@ test('enseignements de l\'école et contrôle de l\'emploi du temps', () => {
     slot(2, 'M. Canusis', 'Spécialité Physique-Chimie', 'Terminale Générale'), // spé ↔ physique-chimie : ok
     slot(3, 'Mme Karele', 'Droit et économie', 'Terminale STMG'), // Eco-Droit ↔ économie / droit : ok
     slot(4, 'Mme Pasimiry', 'Anglais — ETLV', 'Terminale STMG'), // ETLV ↔ anglais : ok
-    slot(5, 'M. Steven', 'Mathématiques', '2de'), // pas dans ses enseignements
+    slot(5, 'M. Steven', 'Mathématiques', '3e'), // pas dans ses enseignements (il a la 2de et la 1re STMG)
     slot(6, 'Mme Inconnue', 'Arts plastiques', '6e'),
   ], ASSIGNMENTS);
   assert.equal(w.length, 2);
-  assert.match(w[0], /M\. Steven : Mathématiques en 2de ne figure pas/);
+  assert.match(w[0], /M\. Steven : Mathématiques en 3e ne figure pas/);
   assert.match(w[1], /Mme Inconnue n'est pas dans la liste/);
+  assert.equal(checkAgainstAssignments([slot(7, 'Mme Francine', 'Arts plastiques', '5e'), slot(8, 'Mme Sheena', 'Parcours d\'ouverture', '2de'), slot(9, 'M. Steven', 'Mathématiques', '2de')], ASSIGNMENTS).length, 0);
 });

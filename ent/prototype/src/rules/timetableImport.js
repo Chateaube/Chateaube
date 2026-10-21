@@ -76,6 +76,7 @@ export function parseTimetable(rows) {
 }
 
 /** Chevauchements : un professeur ou une classe à deux endroits à la fois (semaines A et B différentes : pas de conflit). */
+const GROUPED = /^(Spécialité|Anglais|Espagnol|Mandarin|Allemand|Malgache)/;
 export function overlaps(slots) {
   const out = [];
   const clash = (a, b) => a.weekday === b.weekday && (!a.week || !b.week || a.week === b.week)
@@ -87,7 +88,9 @@ export function overlaps(slots) {
       const when = `${DAY_NAMES[a.weekday]} ${a.start}-${a.end} / ${b.start}-${b.end}`;
       if (a.teacherId === b.teacherId && a.teacherId !== 'À désigner' && !(a.subject === b.subject && a.start === b.start && a.end === b.end))
         out.push(`${a.teacherId} a deux cours en même temps (lignes ${a.line} et ${b.line}, ${when} : ${a.cls}, ${b.cls}).`);
-      if (a.cls === b.cls) out.push(`La ${a.cls} a deux cours en même temps (lignes ${a.line} et ${b.line}, ${when} : ${a.subject}, ${b.subject}) — normal pour des spécialités ou des langues en groupes.`);
+      // Deux spécialités (ou deux langues) à la même heure : les élèves sont répartis en groupes, c'est voulu.
+      if (a.cls === b.cls && !(GROUPED.test(a.subject) && GROUPED.test(b.subject) && a.subject !== b.subject))
+        out.push(`La ${a.cls} a deux cours en même temps (lignes ${a.line} et ${b.line}, ${when} : ${a.subject}, ${b.subject}).`);
     }
   }
   return out;
