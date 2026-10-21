@@ -3,7 +3,8 @@ import { csvCell } from '../rules/csv.js';
 import { Badge, Button, Card, Stat } from './ui.jsx';
 import { parseTable, analyzeStudents, parseAssignments } from '../rules/importer.js';
 import { loadImport, saveImport, clearImport } from '../importStore.js';
-import { hoursByClass } from '../rules/timetableImport.js';
+import { hoursByClass, checkAgainstAssignments } from '../rules/timetableImport.js';
+import { ASSIGNMENTS } from '../data/staffAssignments.js';
 import { saveFile } from '../download.js';
 import { readXlsx } from '../xlsxRead.js';
 import { bookToImport, withExtras, SHEET_NAMES } from '../rules/templateImport.js';
@@ -23,6 +24,10 @@ function TimetableReport({ t }) {
       <p className="font-semibold text-navy-900">Emploi du temps : {t.slots.length} cours lus{t.slots.some((x) => x.week) ? ` (dont ${t.slots.filter((x) => x.week).length} en semaine A ou B)` : ''}</p>
       {t.errors.length > 0 && <div className="mt-1 rounded-md bg-red-50 p-2 text-xs text-red-800"><p className="font-semibold">{t.errors.length} ligne{t.errors.length > 1 ? 's' : ''} à corriger (non importée{t.errors.length > 1 ? 's' : ''})</p>{t.errors.slice(0, 12).map((e) => <p key={e}>· {e}</p>)}</div>}
       {t.warnings.length > 0 && <div className="mt-1 rounded-md bg-amber-50 p-2 text-xs text-amber-900"><p className="font-semibold">À vérifier : {t.warnings.length} chevauchement{t.warnings.length > 1 ? 's' : ''}</p>{t.warnings.slice(0, 12).map((w) => <p key={w}>· {w}</p>)}</div>}
+      {(() => {
+        const gaps = checkAgainstAssignments(t.slots, loadImport()?.assignments?.length ? loadImport().assignments : ASSIGNMENTS);
+        return gaps.length > 0 && <div className="mt-1 rounded-md bg-amber-50 p-2 text-xs text-amber-900"><p className="font-semibold">Écarts avec la liste des enseignements : {gaps.length}</p>{gaps.slice(0, 15).map((g) => <p key={g}>· {g}</p>)}</div>;
+      })()}
       <p className="mt-2 text-xs text-slate-600">Heures par semaine : {Object.entries(hours).map(([c, h]) => `${c} ${fmt(h.A)} h${h.A !== h.B ? ` (B : ${fmt(h.B)} h)` : ''}`).join(' · ')}</p>
     </div>
   );

@@ -1772,3 +1772,22 @@ test('import de l\'emploi du temps : format de l\'école, abréviations, semaine
   assert.deepEqual(hoursByClass(r.slots)['1re Générale'], { A: 2, B: 2 });
   assert.equal(timetableSheet({ Instructions: [['Comment']], 'EDT à importer': [['Jour', 'Classe', 'Matière']] })[0][0], 'Jour');
 });
+
+import { checkAgainstAssignments } from '../src/rules/timetableImport.js';
+import { ASSIGNMENTS, teachersOf, teacherSummary } from '../src/data/staffAssignments.js';
+test('enseignements de l\'école et contrôle de l\'emploi du temps', () => {
+  assert.deepEqual(teachersOf('Enseignement scientifique', '1re Générale'), ['M. Canusis', 'Mme Félicité']);
+  assert.deepEqual(teachersOf('EMC', '6e'), ['Mme Harris']);
+  assert.match(teacherSummary('Mme Karele'), /SES \(2de\).*Économie \(1re STMG, Terminale STMG\)/);
+  const slot = (line, teacherId, subject, cls) => ({ line, teacherId, subject, cls });
+  const w = checkAgainstAssignments([
+    slot(2, 'M. Canusis', 'Spécialité Physique-Chimie', 'Terminale Générale'), // spé ↔ physique-chimie : ok
+    slot(3, 'Mme Karele', 'Droit et économie', 'Terminale STMG'), // Eco-Droit ↔ économie / droit : ok
+    slot(4, 'Mme Pasimiry', 'Anglais — ETLV', 'Terminale STMG'), // ETLV ↔ anglais : ok
+    slot(5, 'M. Steven', 'Mathématiques', '2de'), // pas dans ses enseignements
+    slot(6, 'Mme Inconnue', 'Arts plastiques', '6e'),
+  ], ASSIGNMENTS);
+  assert.equal(w.length, 2);
+  assert.match(w[0], /M\. Steven : Mathématiques en 2de ne figure pas/);
+  assert.match(w[1], /Mme Inconnue n'est pas dans la liste/);
+});

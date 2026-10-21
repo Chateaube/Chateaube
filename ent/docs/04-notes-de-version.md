@@ -1,5 +1,15 @@
 # Notes de version — ce qui change pour l'équipe
 
+## 21 octobre 2026 — liste des enseignements
+
+- La liste des enseignements de l'école (qui enseigne quoi, dans quelles classes) est intégrée : 31 lignes.
+- Le suivi des enseignants (Direction) montre pour chacun ses matières et ses classes.
+- Les cours d'Enseignement scientifique sont partagés par M. Canusis (physique-chimie) et Mme Félicité (SVT).
+- À l'import d'un emploi du temps, un encadré **Écarts avec la liste des enseignements** signale :
+  - les professeurs absents de la liste ;
+  - les cours dans une matière ou une classe qu'ils n'ont pas.
+  Ce n'est qu'un avertissement : l'import reste possible.
+
 ## 20 octobre 2026 — retours de la Direction, page par page
 
 **Où retrouver chaque écran (Direction)**

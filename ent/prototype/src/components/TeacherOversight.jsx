@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Avatar, Card } from './ui.jsx';
 import GradebookModule from './GradebookModule.jsx';
 import HomeworkModule from './HomeworkModule.jsx';
-import { ASSIGNMENTS } from '../data/staffAssignments.js';
+import { ASSIGNMENTS, teacherSummary } from '../data/staffAssignments.js';
 import { loadImport } from '../importStore.js';
 import { TEACHER } from '../data/people.js';
 
@@ -13,11 +13,9 @@ const assignments = () => {
   const imp = loadImport();
   return imp?.assignments?.length ? imp.assignments : ASSIGNMENTS;
 };
-export const TEACHERS = [TEACHER.name, ...assignments().map((a) => a.name)];
-const subjectsOf = (t) => {
-  const a = assignments().find((x) => x.name === t);
-  return a ? `${a.subjects.join(', ')} · ${a.classes.join(', ')}` : '';
-};
+export const TEACHERS = [...new Set([TEACHER.name, ...assignments().map((a) => a.name)])];
+// un professeur peut avoir plusieurs lignes (une par matière) : on les réunit
+const subjectsOf = (t) => teacherSummary(t, assignments());
 
 export default function TeacherOversight({ view, role, ...props }) {
   const [teacher, setTeacher] = useState(TEACHERS[0]);

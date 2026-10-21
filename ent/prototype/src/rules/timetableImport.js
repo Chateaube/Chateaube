@@ -113,3 +113,30 @@ export function timetableSheet(book) {
   const byHead = names.find((n) => { const h = (book[n][0] ?? []).map(norm); return h.includes('jour') && h.includes('classe') && h.includes('matiere'); });
   return byHead ? book[byHead] : [];
 }
+
+/** La matière d'un cours correspond-elle à celle d'un enseignement ? (spécialité ↔ matière, Eco-Droit ↔ Économie ou Droit, ETLV ↔ Anglais) */
+function sameSubject(course, taught) {
+  if (course === taught) return true;
+  if (course === `Spécialité ${taught}`) return true;
+  if (course === 'Droit et économie') return ['Économie', 'Droit'].includes(taught);
+  if (course === 'Anglais — ETLV') return taught === 'Anglais';
+  return false;
+}
+/**
+ * Contrôle de l'emploi du temps avec la liste des enseignements : chaque cours doit être donné par un
+ * professeur qui a cette matière dans cette classe. Renvoie les écarts, à vérifier (rien n'est bloqué).
+ */
+export function checkAgainstAssignments(slots, assignments) {
+  const names = new Set(assignments.map((a) => a.name));
+  const out = [];
+  const seen = new Set();
+  slots.forEach((s) => {
+    const k = `${s.teacherId}|${s.subject}|${s.cls}`;
+    if (seen.has(k)) return; seen.add(k);
+    const lines = slots.filter((x) => `${x.teacherId}|${x.subject}|${x.cls}` === k).map((x) => x.line).join(', ');
+    if (!names.has(s.teacherId)) { out.push(`${s.teacherId} n'est pas dans la liste des enseignements (${s.subject}, ${s.cls} — ligne${lines.includes(',') ? 's' : ''} ${lines}).`); return; }
+    const ok = assignments.some((a) => a.name === s.teacherId && a.classes.includes(s.cls) && a.subjects.some((t) => sameSubject(s.subject, t)));
+    if (!ok) out.push(`${s.teacherId} : ${s.subject} en ${s.cls} ne figure pas dans ses enseignements (ligne${lines.includes(',') ? 's' : ''} ${lines}).`);
+  });
+  return out;
+}
