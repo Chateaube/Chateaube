@@ -20,6 +20,8 @@ import { toTransactions } from '../rules/treasury.js';
 import { payOf, rateOn } from '../rules/payroll.js';
 import { ExpensesTab, TreasuryDashboard } from './Treasury.jsx';
 import { featureVisible } from '../features.js';
+import { DunningAlerts, SeparateJournals } from './FinancePanels.jsx';
+import { loadMovements, saveMovements, counted, WITHDRAWERS, withdrawalStatus } from '../cashStore.js';
 import { TIMETABLE } from '../data/timetable.js';
 import { teacherHours } from '../rules/teachingHours.js';
 import { loadTeacherAbsences } from '../absencesStore.js';
@@ -238,11 +240,14 @@ function MonthlyCashExport({ movements }) {
   );
 }
 
-function CashTab({ movements, setMovements }) {
-  const [draft, setDraft] = useState({ dir: 'OUT', nature: MANUAL_NATURES.OUT[0], journal: 'ECOLAGE', label: '', method: 'Espèces', amount: null, agent: 'Mme Soa' });
-  const balance = cashBalance(CASH_OPENING, movements);
-  const sum = (dir) => movements.filter((m) => m.dir === dir).reduce((s, m) => s + m.amount, 0);
+function CashTab({ movements, setMovements, role, account }) {
+  const agent = role === 'DIRECTION' ? account?.name ?? 'Direction' : 'Mme Soa';
+  const [draft, setDraft] = useState({ dir: 'OUT', nature: MANUAL_NATURES.OUT[0], journal: 'ECOLAGE', label: '', method: 'Espèces', amount: null, agent, withdrawnBy: WITHDRAWERS[0] });
+  const balance = cashBalance(CASH_OPENING, counted(movements));
+  const sum = (dir) => counted(movements).filter((m) => m.dir === dir).reduce((s, m) => s + m.amount, 0);
+  const isWithdrawal = draft.dir === 'OUT' && draft.nature === 'Prélèvement Direction';
   const ok = draft.label.trim() && draft.amount > 0 && (draft.dir === 'IN' || (balance[draft.journal] ?? 0) >= draft.amount);
+  const decide = (m, status) => setMovements(movements.map((x) => (x.id === m.id ? { ...x, status, decidedAt: new Date().toISOString().slice(0, 16) } : x)));
   return (
     <div className="space-y-5">
       <p className="rounded-lg bg-navy-50 px-3 py-2 text-sm text-navy-900">Ici, seulement ce qui n'est ni un paiement de famille (onglet <strong>Encaisser</strong>, avec reçu) ni un achat (onglet <strong>Dépenses & fournisseurs</strong>, avec facture) : fond de caisse, retrait ou dépôt en banque, remboursement, reversement au centre d'examen. Le tableau reprend tous les mouvements du jour.</p>
@@ -265,7 +270,11 @@ function CashTab({ movements, setMovements }) {
                 <tr key={m.id} className="border-b border-slate-100 last:border-0">
                   <td className="px-4 py-2 tabular-nums text-slate-600">{m.time}</td>
                   <td className="px-2">{m.dir === 'IN' ? <Badge tone="green">Entrée</Badge> : <Badge tone="red">Sortie</Badge>}</td>
-                  <td className="px-2"><p className="text-slate-800">{m.label}</p><p className="text-[11px] text-slate-500">{m.nature}</p></td>
+                  <td className="px-2"><p className="text-slate-800">{m.label}</p><p className="text-[11px] text-slate-500">{m.nature}{m.withdrawnBy ? ` · ${m.withdrawnBy}` : ''}</p>
+                    {m.status === 'A_VALIDER' && (role === 'DIRECTION' && account?.name === m.withdrawnBy
+                      ? <span className="mt-1 flex gap-1"><Button className="!px-2 !py-0.5 text-xs" onClick={() => decide(m, 'VALIDE')}>Je confirme</Button><Button variant="secondary" className="!px-2 !py-0.5 text-xs" onClick={() => decide(m, 'REFUSE')}>Ce n'est pas moi</Button></span>
+                      : <Badge tone="amber">À confirmer par {m.withdrawnBy} — pas encore compté</Badge>)}
+                    {m.status === 'REFUSE' && <Badge tone="red">Refusé par {m.withdrawnBy} — non compté</Badge>}</td>
                   <td className="px-2"><JournalBadge j={m.journal} /></td>
                   <td className="px-2 text-slate-600">{m.method}</td>
                   <td className="px-2 text-slate-600">{m.agent}</td>
@@ -297,14 +306,22 @@ function CashTab({ movements, setMovements }) {
           <label className="text-xs text-slate-600">Montant (Ar)
             <div className="mt-1"><AmountInput value={draft.amount} onChange={(v) => setDraft({ ...draft, amount: v })} className="w-full bg-white py-1.5" /></div>
           </label>
+          {isWithdrawal && (
+            <label className="text-xs text-slate-600">Prélevé par
+              <select value={draft.withdrawnBy} onChange={(e) => setDraft({ ...draft, withdrawnBy: e.target.value })} className={`mt-1 w-full bg-white ${inputCls}`}>{WITHDRAWERS.map((w) => <option key={w}>{w}</option>)}</select>
+            </label>
+          )}
           <Button disabled={!ok} onClick={() => {
-            setMovements([...movements, { ...draft, id: `c${Date.now()}`, date: '2026-10-13', time: new Date().toTimeString().slice(0, 5) }]);
+            const { withdrawnBy, ...base } = draft;
+            const extra = isWithdrawal ? { withdrawnBy, status: withdrawalStatus({ role, accountName: account?.name, who: withdrawnBy }) } : {};
+            setMovements([...movements, { ...base, ...extra, agent, id: `c${Date.now()}`, date: '2026-10-13', time: new Date().toTimeString().slice(0, 5) }]);
             setDraft({ ...draft, label: '', amount: null });
           }}>Enregistrer</Button>
         </div>
         {draft.dir === 'OUT' && draft.amount > (balance[draft.journal] ?? 0) && (
           <p className="mt-2 text-sm text-red-700">Solde insuffisant dans la caisse « {JOURNALS[draft.journal].label} ».</p>
         )}
+        {isWithdrawal && <p className="mt-2 text-xs text-navy-900">{withdrawalStatus({ role, accountName: account?.name, who: draft.withdrawnBy }) === 'VALIDE' ? 'Vous saisissez votre propre prélèvement : il est compté tout de suite.' : `${draft.withdrawnBy} recevra une demande de confirmation ; le prélèvement ne sera compté qu'après sa confirmation.`}</p>}
         <p className="mt-2 text-xs text-slate-500">Chaque mouvement est attribué à l'agent connecté et horodaté ; une sortie ne peut pas dépasser le solde de son journal.</p>
       </Card>
       <MonthlyCashExport movements={movements} />
@@ -315,7 +332,7 @@ function CashTab({ movements, setMovements }) {
 // Onglets optionnels : affichage réglé par la Direction (features.js)
 const TAB_FEATURE = { fees: 'caisse.tarifs', articles: 'caisse.articles', reductions: 'caisse.reductions' };
 // Ordre : le quotidien d'abord ; le paramétrage de l'année (fixé une fois puis verrouillé) à la fin.
-const TABS = [['collect', 'Encaisser'], ['receipts', 'Reçus & clôture'], ['expenses', 'Dépenses & fournisseurs'], ['cash', 'Autres mouvements d\'espèces'], ['salaries', 'Salaires'], ['treasury', 'Trésorerie', 'DIRECTION'], ['fees', 'Classes & tarifs'], ['articles', 'Articles & services'], ['reductions', 'Réductions']];
+const TABS = [['collect', 'Encaisser'], ['receipts', 'Reçus & clôture'], ['dunning', 'Impayés & relances'], ['expenses', 'Dépenses & fournisseurs'], ['cash', 'Autres mouvements d\'espèces'], ['salaries', 'Salaires'], ['treasury', 'Trésorerie', 'DIRECTION'], ['fees', 'Classes & tarifs'], ['articles', 'Articles & services'], ['reductions', 'Réductions']];
 const SETUP_TABS = ['fees', 'articles', 'reductions'];
 // Paramétrage verrouillé pour l'année (Direction) : plus de modification jusqu'à la fin de l'année scolaire.
 const LOCK_KEY = 'ent-tarifs-verrou-v1';
@@ -325,13 +342,14 @@ const saveLock = (v) => { try { if (v) localStorage.setItem(LOCK_KEY, JSON.strin
 // avec facture (onglet Dépenses & fournisseurs) ; seulement fond de caisse, banque, remboursement…
 const MANUAL_NATURES = { IN: CASH_NATURES.IN.filter((n) => n !== 'Encaissement famille'), OUT: CASH_NATURES.OUT.filter((n) => n !== 'Dépense de fonctionnement') };
 
-export default function AccountingModule({ settings, role }) {
+export default function AccountingModule({ settings, role, account }) {
   const [lock, setLock] = useState(loadLock);
   const canEdit = role === 'DIRECTION' && !lock; // classes, tarifs, articles et services : Direction uniquement, tant que ce n'est pas verrouillé
   const [tab, setTab] = useState('collect');
   const [fees, setFees] = useState(CLASS_FEES);
   const [articles, setArticles] = useState(ARTICLES);
-  const [movements, setMovements] = useState(CASH_MOVEMENTS);
+  const [movements, setMovementsState] = useState(loadMovements);
+  const setMovements = (m) => setMovementsState((prev) => { const next = typeof m === 'function' ? m(prev) : m; saveMovements(next); return next; });
   const [accounts, setAccounts] = useState(CASH_ACCOUNTS);
   const [receipts, setReceipts] = useState(RECEIPTS_TODAY);
   const [audit, setAudit] = useState(CASH_AUDIT);
@@ -352,7 +370,7 @@ export default function AccountingModule({ settings, role }) {
   const cashOut = (x) => setMovements((prev) => [...prev, { id: `x-${x.id}`, expenseId: x.id, date: x.date, time: '12:00', dir: 'OUT', nature: 'Dépense de fonctionnement', journal: 'ECOLAGE', label: x.label, method: 'Espèces', amount: x.amount, agent: actor }]);
   // trésorerie : caisse, dépenses, salaires du mois, dus des familles
   const tx = useMemo(() => toTransactions({
-    cash: [...CASH_HISTORY, ...movements],
+    cash: [...CASH_HISTORY, ...counted(movements)],
     expenses,
     payroll: payroll.map((p) => ({ staffId: p.staffId, amount: payOf(p, rateOn(rates, p.staffId, '2026-10-01')), paid: salaryPayments.find((x) => x.staffId === p.staffId) ? TODAY : null, due: '2026-10-30' })),
     dues: FAMILIES.map((f) => ({ id: f.id, amount: accountStatement(f.lines).totals.balance, due: TODAY })).filter((d) => d.amount > 0),
@@ -400,9 +418,10 @@ export default function AccountingModule({ settings, role }) {
       {tab === 'reductions' && <Reductions canEdit={canEdit} actor={actor} types={reductionTypes} setTypes={setReductionTypes} accounts={accounts} setAccounts={setAccounts} />}
       {tab === 'fees' && <FeesTab fees={fees} setFees={setFees} settings={settings} canEdit={canEdit} />}
       {tab === 'articles' && <ArticlesTab articles={articles} setArticles={setArticles} canEdit={canEdit} />}
-      {tab === 'cash' && <CashTab movements={movements} setMovements={setMovements} />}
+      {tab === 'cash' && <CashTab movements={movements} setMovements={setMovements} role={role} account={account} />}
       {tab === 'expenses' && <ExpensesTab expenses={expenses} setExpenses={setExpenses} suppliers={suppliers} setSuppliers={setSuppliers} onCashOut={cashOut} today={TODAY} />}
-      {tab === 'treasury' && role === 'DIRECTION' && <TreasuryDashboard tx={tx} opening={Object.values(CASH_YEAR_OPENING).reduce((a, b) => a + b, 0)} months={['2026-09', '2026-10']} />}
+      {tab === 'dunning' && <DunningAlerts settings={settings} />}
+      {tab === 'treasury' && role === 'DIRECTION' && <div className="space-y-5"><TreasuryDashboard tx={tx} opening={Object.values(CASH_YEAR_OPENING).reduce((a, b) => a + b, 0)} months={['2026-09', '2026-10']} /><SeparateJournals /></div>}
     </div>
   );
 }

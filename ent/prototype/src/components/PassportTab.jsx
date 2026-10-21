@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { Badge, Button, Card } from './ui.jsx';
 import { ClassStudentPicker } from './VieScolaireModule.jsx';
 import { ATTENDANCE, NEW_STUDENTS } from '../data/schoollife.js';
-import { passport, colleErrors, FORGET_KINDS, COLLE_STATUS, LATES_PER_COLLE, CARNET, carnetPerColle, nextColleSlot } from '../rules/discipline.js';
+import { passport, colleErrors, FORGET_KINDS, COLLE_STATUS, LATES_PER_COLLE, CARNET, carnetPerColle, nextColleSlot, upcomingColleSessions } from '../rules/discipline.js';
+import { formatDateFr } from '../rules/calendar.js';
+import { WATCHERS, loadWatch, saveWatch } from '../colleWatchStore.js';
 import { loadProfiles } from '../profilesStore.js';
 import { seniority } from '../rules/documents.js';
 import { logActivity } from '../activityStore.js';
@@ -143,5 +145,32 @@ export default function PassportTab({ role, toast }) {
         )}
       </div>
     </div>
+  );
+}
+
+/** Colles des 15 prochains jours, par créneau : qui surveille (CPE ou secrétariat, qui alternent ou choisissent). */
+export function ColleSessionsCard({ role }) {
+  const [watch, setWatch] = useState(loadWatch);
+  const colles = loadPassport().colles;
+  const sessions = upcomingColleSessions(colles, TODAY, 15);
+  const canPick = ['VIE_SCOLAIRE', 'BUREAU', 'DIRECTION'].includes(role);
+  if (!sessions.length) return null;
+  return (
+    <Card title="Colles à surveiller" subtitle="Mercredi 13h–17h et samedi 8h–12h : la CPE ou le secrétariat surveille, à tour de rôle ou au choix">
+      <ul className="divide-y divide-slate-100 text-sm">
+        {sessions.map((x) => (
+          <li key={x.day} className="flex flex-wrap items-center justify-between gap-2 py-2">
+            <span><span className="font-medium text-slate-900">{formatDateFr(x.day).replace(/ \d{4}$/, '')}, {x.from.replace(':', 'h')}–{x.to.replace(':', 'h')}</span>
+              <span className="block text-xs text-slate-600">{colles.filter((c) => c.kind !== 'TIG' && c.status === 'A_FAIRE' && c.when?.startsWith(x.day)).map((c) => `${c.student} ${c.when.slice(11, 16).replace(':', 'h')} (${c.hours} h)`).join(' · ')}</span></span>
+            {canPick ? (
+              <select value={watch[x.day] ?? ''} onChange={(e) => { const w = { ...watch, [x.day]: e.target.value || undefined }; setWatch(w); saveWatch(w); }} aria-label={`Surveillance — ${x.day}`}
+                className={`${inputCls} ${watch[x.day] ? '' : 'border-amber-400 bg-amber-50'}`}>
+                <option value="">Qui surveille ?</option>{Object.entries(WATCHERS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+              </select>
+            ) : <Badge tone={watch[x.day] ? 'navy' : 'amber'}>{watch[x.day] ? WATCHERS[watch[x.day]] : 'à désigner'}</Badge>}
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 }

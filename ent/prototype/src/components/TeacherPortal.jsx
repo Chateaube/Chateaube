@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import TodoList from './TodoList.jsx';
 import { Badge, Button, Card, Icon } from './ui.jsx';
 import { TEACHER, CLASS_LIST } from '../data/people.js';
 
@@ -51,7 +50,6 @@ export default function TeacherPortal({ go }) {
         <h1 className="text-2xl font-semibold text-navy-900">Bonjour {TEACHER.name}</h1>
         <p className="text-sm text-slate-500">{TEACHER.subjects} · {TEACHER.site}</p>
       </div>
-      <TodoList who="ENSEIGNANT" title="Mes tâches" />
 
       {current && !open && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-navy-900 p-5 text-white shadow-soft">

@@ -705,10 +705,10 @@ END $$;
 -- T36. Manuels et remise du bulletin : un manuel perdu non réglé bloque la remise ------
 DO $$ DECLARE t uuid; e uuid := '30000000-0000-0000-0000-0000000000a1'; BEGIN
   INSERT INTO textbook (site_id, title, subject, level_codes, category, is_returnable, is_photocopy, binding, price_mga, replacement_price_mga)
-  SELECT id, 'Philosophie Terminale', 'Philosophie', '{TLE}', 'MANUEL', true, false, 'DOS_CARRE', 25000, 66000 FROM site WHERE code = 'TMV' RETURNING id INTO t;
+  SELECT id, 'Philosophie Terminale', 'Philosophie', '{TLE}', 'MANUEL', true, false, NULL, 25000, 66000 FROM site WHERE code = 'TMV' RETURNING id INTO t;
   -- manuel de spécialité SVT : l'élève suit Maths et PC (T31), donc refusé
   INSERT INTO textbook (id, site_id, title, subject, level_codes, category, is_returnable, specialty, is_photocopy, binding, price_mga, replacement_price_mga)
-  SELECT 'a0000000-0000-0000-0000-000000000001', id, 'Spécialité SVT Terminale', 'SVT', '{TLE}', 'MANUEL', true, 'SVT', false, 'DOS_CARRE', 25000, 78000 FROM site WHERE code = 'TMV';
+  SELECT 'a0000000-0000-0000-0000-000000000001', id, 'Spécialité SVT Terminale', 'SVT', '{TLE}', 'MANUEL', true, 'SVT', false, NULL, 25000, 78000 FROM site WHERE code = 'TMV';
   BEGIN
     INSERT INTO textbook_loan (textbook_id, enrollment_id, state_out, issued_on, due_back) VALUES ('a0000000-0000-0000-0000-000000000001', e, 'NEUF', '2026-09-07', '2027-06-30');
     RAISE EXCEPTION 'T36: manuel de spécialité prêté à un élève qui ne la suit pas';
@@ -716,7 +716,7 @@ DO $$ DECLARE t uuid; e uuid := '30000000-0000-0000-0000-0000000000a1'; BEGIN
   END;
   BEGIN
     INSERT INTO textbook (site_id, title, subject, level_codes, category, is_returnable, is_photocopy, binding, price_mga)
-    SELECT id, 'Manuel sans prix de perte', 'Français', '{TLE}', 'MANUEL', true, false, 'DOS_CARRE', 25000 FROM site WHERE code = 'TMV';
+    SELECT id, 'Manuel sans prix de perte', 'Français', '{TLE}', 'MANUEL', true, false, NULL, 25000 FROM site WHERE code = 'TMV';
     RAISE EXCEPTION 'T36: manuel à rendre sans prix de perte';
   EXCEPTION WHEN check_violation THEN NULL;
   END;
@@ -1216,7 +1216,7 @@ DO $$ DECLARE site uuid; yr uuid; tle uuid; c5 uuid; ev_exam school_event; ev_te
   IF NOT event_visible(ev_all, false, c5) THEN RAISE EXCEPTION 'T52: calendrier de l''école'; END IF;
   -- manuel de Terminale : 2 en état, 1 abîmé ; effectif de Terminale du site
   INSERT INTO textbook (site_id, title, subject, level_codes, category, is_returnable, is_photocopy, binding, price_mga, replacement_price_mga)
-  VALUES (site, 'HG Terminale T52', 'HG', '{TLE}', 'MANUEL', true, false, 'DOS_CARRE', 25000, 68000) RETURNING id INTO t;
+  VALUES (site, 'HG Terminale T52', 'HG', '{TLE}', 'MANUEL', true, false, NULL, 25000, 68000) RETURNING id INTO t;
   INSERT INTO textbook_stock VALUES (t, 'BON', 2), (t, 'DECHIRE', 1);
   INSERT INTO textbook_loan (textbook_id, enrollment_id, state_out, issued_on, due_back) VALUES (t, '30000000-0000-0000-0000-0000000000a1', 'BON', '2026-09-07', '2027-06-30');
   SELECT * INTO b FROM v_textbook_balance WHERE textbook_id = t;
@@ -1725,5 +1725,45 @@ DO $$ DECLARE e uuid := '30000000-0000-0000-0000-000000000002'; f uuid; BEGIN
   INSERT INTO student_followup_note (followup_id, author_id, text) VALUES (f, '00000000-0000-0000-0000-00000000000c', 'Contrat signé');
 END $$;
 
+-- T63 — prélèvement de la Direction, photocopies, semaines A/B, surveillance des colles
+DO $$ DECLARE m uuid; tmv uuid := (SELECT id FROM site WHERE code = 'TMV'); BEGIN
+  -- la Cheffe saisit son propre prélèvement : compté tout de suite
+  INSERT INTO cash_movement (site_id, direction, category, nature, label, amount_mga, method, agent_id, withdrawn_by)
+  VALUES (tmv, 'SORTIE', 'ECOLAGE', 'Prélèvement Direction', 'Prélèvement', 100000, 'ESPECES', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001') RETURNING id INTO m;
+  IF (SELECT status FROM cash_movement WHERE id = m) <> 'VALIDE' THEN RAISE EXCEPTION 'T63: prélèvement saisi par la Cheffe'; END IF;
+  -- l'économe saisit un prélèvement de la Cheffe : à confirmer par elle seule
+  INSERT INTO cash_movement (site_id, direction, category, nature, label, amount_mga, method, agent_id, withdrawn_by)
+  VALUES (tmv, 'SORTIE', 'ECOLAGE', 'Prélèvement Direction', 'Prélèvement', 50000, 'ESPECES', '00000000-0000-0000-0000-000000000008', '00000000-0000-0000-0000-000000000001') RETURNING id INTO m;
+  IF (SELECT status FROM cash_movement WHERE id = m) <> 'A_VALIDER' THEN RAISE EXCEPTION 'T63: prélèvement saisi par l''économe'; END IF;
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-000000000008', true);
+  BEGIN
+    UPDATE cash_movement SET status = 'VALIDE' WHERE id = m;
+    RAISE EXCEPTION 'T63: confirmé par l''économe';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T63:%' THEN RAISE; END IF;
+  END;
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-000000000001', true);
+  UPDATE cash_movement SET status = 'VALIDE', decided_at = now() WHERE id = m;
+  PERFORM set_config('app.user_id', '', true);
+  -- photocopie : reliure et impression obligatoires ; original : ni l'une ni l'autre
+  BEGIN
+    INSERT INTO textbook (site_id, title, subject, level_codes, category, is_returnable, is_photocopy, binding, price_mga, replacement_price_mga) VALUES (tmv, 'Maths 4e', 'Mathématiques', '{4E}', 'MANUEL', true, true, 'RELIURE', 25000, 30000);
+    RAISE EXCEPTION 'T63: photocopie sans impression';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO textbook (site_id, title, subject, level_codes, category, is_returnable, is_photocopy, binding, print_mode, price_mga, replacement_price_mga) VALUES (tmv, 'Maths 4e', 'Mathématiques', '{4E}', 'MANUEL', true, true, 'RELIURE', 'NB', 25000, 30000);
+  -- surveillance des colles : CPE ou secrétariat, un mercredi ou un samedi
+  INSERT INTO detention_watch VALUES (tmv, '2026-10-28', '00000000-0000-0000-0000-00000000000c');
+  BEGIN
+    INSERT INTO detention_watch VALUES (tmv, '2026-10-31', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T63: surveillance par un professeur';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T63:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    INSERT INTO detention_watch VALUES (tmv, '2026-10-29', '00000000-0000-0000-0000-00000000000c');
+    RAISE EXCEPTION 'T63: surveillance un jeudi';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T62 passent'
+\echo 'OK — tous les scénarios T1 à T63 passent'

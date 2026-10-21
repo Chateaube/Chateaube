@@ -25,13 +25,29 @@ export function latenessBalance(teacherId, lateness, makeups = []) {
 const minutes = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
 export const slotHours = (s) => (minutes(s.end) - minutes(s.start)) / 60;
 
-/** Séances prévues entre deux dates (jours de classe). */
+/* Semaines A et B : un créneau peut n'avoir lieu qu'une semaine sur deux (slot.week = 'A' ou 'B' ; sans
+ * lettre : toutes les semaines). La première semaine de classe (settings.timetable.weekAStart, un lundi)
+ * est une semaine A ; on alterne ensuite à chaque semaine de classe (les semaines de vacances ne comptent pas). */
+export const DEFAULT_WEEK_A = '2026-09-07';
+const mondayOf = (iso) => addDays(iso, 1 - isoWeekday(iso));
+const hasSchoolDay = (monday, settings) => [0, 1, 2, 3, 4].some((k) => isSchoolDay(addDays(monday, k), settings));
+export function weekLetter(iso, settings) {
+  const start = mondayOf(settings?.timetable?.weekAStart ?? DEFAULT_WEEK_A);
+  const target = mondayOf(iso);
+  if (target < start) return 'A';
+  let n = 0;
+  for (let m = start; m < target; m = addDays(m, 7)) if (hasSchoolDay(m, settings)) n += 1;
+  return n % 2 === 0 ? 'A' : 'B';
+}
+
+/** Séances prévues entre deux dates (jours de classe), en tenant compte des semaines A et B. */
 export function plannedSessions(slots, from, to, settings) {
   const out = [];
   for (let d = from; d <= to; d = addDays(d, 1)) {
     if (!isSchoolDay(d, settings)) continue;
     const wd = isoWeekday(d);
-    slots.filter((s) => s.weekday === wd).forEach((s) => out.push({ date: d, slotId: s.id, teacherId: s.teacherId, cls: s.cls, subject: s.subject, start: s.start, end: s.end, hours: slotHours(s) }));
+    const letter = slots.some((s) => s.week) ? weekLetter(d, settings) : null;
+    slots.filter((s) => s.weekday === wd && (!s.week || s.week === letter)).forEach((s) => out.push({ date: d, slotId: s.id, teacherId: s.teacherId, cls: s.cls, subject: s.subject, start: s.start, end: s.end, hours: slotHours(s) }));
   }
   return out;
 }

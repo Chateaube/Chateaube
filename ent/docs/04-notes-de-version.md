@@ -164,3 +164,29 @@
   **seulement avec l'accord écrit des parents** (e-mail prérempli).
 - Base : `colle_slot_ok`, chevauchement refusé, `late_entry`, `engagement_type` (catalogue modifiable),
   `student_followup` et ses notes ; scénario T62.
+
+## 21 octobre 2026 (suite) — bulletin, accueil sans finances, prélèvement, manuels, semaines A/B
+
+- **Bulletin** : marges identiques des quatre côtés (1,3 cm, réglables), plus d'ombre grise à l'impression
+  (ni en direct ni avec le fichier .html), mention « CE BULLETIN DOIT ÊTRE CONSERVÉ. AUCUN DUPLICATA NE SERA
+  DÉLIVRÉ. » en pied de **chaque page**, logo agrandi. **Ordre des matières** réglé par la Direction (↑ ↓),
+  le même pour toutes les classes.
+- **Accueil de la Direction** sans finances : les alertes de frais de scolarité vont dans Caisse et
+  comptabilité (onglet « Impayés & relances »), les journaux séparés dans « Trésorerie ». « Mobilité
+  inter-sites » retirée (les élèves de 1re et Terminale vont à Tana pour passer les épreuves, sans transfert).
+- **Engagements** : l'onglet « Par élève » est retiré (saisie par engagement seulement).
+- **Prélèvement Direction** (Autres mouvements d'espèces) : saisi par la Cheffe ou l'adjointe elle-même,
+  il est compté tout de suite ; saisi par l'économe, il attend la confirmation de la personne concernée
+  (« Je confirme » / « Ce n'est pas moi ») et n'est pas compté avant.
+- **Réductions** : la précision est facultative ; un type non accordé peut être supprimé.
+- **Manuels** : original ou photocopie ; une photocopie a une reliure (dos carré, reliure) et une impression
+  (noir et blanc, couleur). Matière à choisir, programme 2019 à 2026 (plus ancien : « obsolète »),
+  désignation facultative (« Mathématiques 4e » par défaut), le reste obligatoire.
+- **Enseignants** : plus de tâches confiées par la Direction. Thème(s) et commentaire d'un devoir : facultatifs.
+- **Enseignement scientifique** partagé par deux professeurs (un seul carnet, une seule moyenne, deux noms
+  sur le bulletin). **Semaines A et B** dans l'emploi du temps (les semaines de vacances ne comptent pas).
+- **Surveillance des colles** : pour chaque créneau, la CPE ou le secrétariat (« Qui surveille ? ») ;
+  la personne désignée est prévenue, sinon les deux.
+- **Réimport du modèle Excel** : fusion — les élèves déjà présents sont mis à jour, les nouveaux ajoutés,
+  rien n'est effacé.
+- Base : prélèvement (`withdrawn_by`, `status`), format des photocopies, `week_letter`, `detention_watch` (T63).

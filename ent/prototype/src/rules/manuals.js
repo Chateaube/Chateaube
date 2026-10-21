@@ -11,6 +11,28 @@ export const CONDITIONS = [
 ];
 export const KINDS = { ORIGINAL: 'Original', PHOTOCOPIE: 'Photocopie' };
 export const BINDINGS = { DOS_CARRE: 'Dos carré', RELIURE: 'Reliure' };
+export const PRINTS = { NB: 'Noir et blanc', COULEUR: 'Couleur' };
+// Programmes en vigueur : 2019 à 2026 ; un manuel d'un programme plus ancien est signalé « obsolète »
+export const PROGRAM_YEARS = [2026, 2025, 2024, 2023, 2022, 2021, 2020, 2019];
+export const isObsolete = (m) => Boolean(m.programYear) && m.programYear < PROGRAM_YEARS[PROGRAM_YEARS.length - 1];
+export const MANUAL_SUBJECTS = ['Français', 'Mathématiques', 'Histoire-Géographie', 'EMC', 'Anglais', 'Espagnol', 'Physique-Chimie', 'SVT', 'Technologie',
+  'Enseignement scientifique', 'Philosophie', 'SES', 'Management', 'Sciences de gestion et numérique', 'Droit et économie', 'Mercatique', 'HGGSP', 'NSI', 'EPS', 'Arts', 'Autre'];
+
+/** Nouveau titre : désignation facultative (sinon « matière classe ») ; tout le reste est obligatoire.
+ *  Photocopie : reliure (dos carré ou reliure) et impression (noir et blanc ou couleur). */
+export function manualDraftErrors(d) {
+  const e = [];
+  if (!d.subject) e.push('Choisir la matière.');
+  if (!d.level) e.push('Choisir la classe.');
+  if (!d.editor?.trim()) e.push('Indiquer l\'éditeur.');
+  if (!PROGRAM_YEARS.includes(Number(d.programYear))) e.push('Choisir l\'année du programme (2019 à 2026).');
+  if (!(d.price > 0)) e.push(d.returnable ? 'Indiquer la location annuelle.' : 'Indiquer le prix de vente.');
+  if (d.returnable && !(d.replacementPrice > 0)) e.push('Indiquer le prix en cas de perte.');
+  if (d.kind === 'PHOTOCOPIE' && (!BINDINGS[d.binding] || !PRINTS[d.print])) e.push('Photocopie : choisir la reliure et l\'impression.');
+  if (!(d.qty >= 1)) e.push('Indiquer le nombre d\'exemplaires.');
+  return e;
+}
+export const manualTitle = (d) => d.title?.trim() || `${d.subject} ${d.level}`;
 export const CATEGORIES = { MANUEL: 'Manuel', CAHIER: 'Cahier d\'activités' };
 export const conditionLabel = (id) => (id === 'PERDU' ? 'Perdu' : CONDITIONS.find((c) => c.id === id)?.label ?? id);
 

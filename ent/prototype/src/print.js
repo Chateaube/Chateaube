@@ -20,11 +20,12 @@ const slug = (t) => (t || 'document').normalize('NFD').replace(/[\u0300-\u036f]/
  * Dans l'aperçu publié sur claude.ai, la page est dans un cadre qui interdit l'impression : on propose
  * alors un fichier .html autonome (mêmes styles) qui s'ouvre et lance l'impression tout seul.
  */
+// Le contenu est placé dans #print-root, comme à l'impression directe : mêmes règles (pas d'ombre, pages blanches du recto-verso…).
 async function printViaFile(source, pageCss, title) {
   const css = [...document.querySelectorAll('style')].map((s) => s.textContent).join('\n');
   const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${title ?? 'Impression'}</title>`
     + `<style>${css}</style><style>body{background:#fff;margin:0}@page{${pageCss} ${title ? footerCss(title) : ''}}</style></head>`
-    + `<body>${source.innerHTML}<script>window.addEventListener('load',function(){setTimeout(function(){window.print()},400)})<\/script></body></html>`;
+    + `<body><div id="print-root">${source.innerHTML}</div><script>window.addEventListener('load',function(){setTimeout(function(){window.print()},400)})<\/script></body></html>`;
   const { saveFile } = await import('./download.js');
   return saveFile(`${slug(title)}.html`, html);
 }

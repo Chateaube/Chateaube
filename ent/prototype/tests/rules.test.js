@@ -1696,3 +1696,45 @@ test('suivis individuels : conditions, alerte, contact extérieur avec accord de
   assert.deepEqual(bad.failed.map((x) => x.id), ['maxUnjustified', 'maxLates', 'minAverage']);
   assert.match(followUpReport(f, { unjustified: 1, lates: 3, average: 11.5, measures: 0 }, bad, 'octobre'), /✗ Moyenne générale : 11,5 \(au moins 12\)/);
 });
+
+import { orderSubjects, moveSubject } from '../src/rules/bulletin.js';
+test('bulletin : ordre des matières fixé par la Direction', () => {
+  const rows = ['EPS', 'Mathématiques', 'Français', 'Anglais'].map((label) => ({ label }));
+  assert.deepEqual(orderSubjects(rows, ['Français', 'mathematiques', 'EPS']).map((r) => r.label), ['Français', 'Mathématiques', 'EPS', 'Anglais']);
+  assert.deepEqual(orderSubjects(rows, []).map((r) => r.label), ['EPS', 'Mathématiques', 'Français', 'Anglais']);
+  assert.deepEqual(moveSubject(['A', 'B', 'C'], 'C', -1), ['A', 'C', 'B']);
+  assert.deepEqual(moveSubject(['A', 'B', 'C'], 'A', -1), ['A', 'B', 'C']);
+});
+
+import { withdrawalStatus, counted, pendingWithdrawals } from '../src/cashStore.js';
+test('prélèvement Direction : direct si c\'est elle qui saisit, sinon à confirmer par elle', () => {
+  assert.equal(withdrawalStatus({ role: 'DIRECTION', accountName: 'Directrice adjointe', who: 'Directrice adjointe' }), 'VALIDE');
+  assert.equal(withdrawalStatus({ role: 'DIRECTION', accountName: 'Cheffe d\'établissement', who: 'Directrice adjointe' }), 'A_VALIDER');
+  assert.equal(withdrawalStatus({ role: 'BUREAU', accountName: undefined, who: 'Cheffe d\'établissement' }), 'A_VALIDER');
+  const m = [{ id: 1, amount: 10 }, { id: 2, status: 'A_VALIDER', withdrawnBy: 'Directrice adjointe' }, { id: 3, status: 'VALIDE' }, { id: 4, status: 'REFUSE' }];
+  assert.deepEqual(counted(m).map((x) => x.id), [1, 3]);
+  assert.deepEqual(pendingWithdrawals(m, 'Directrice adjointe').map((x) => x.id), [2]);
+});
+
+import { manualDraftErrors, manualTitle, isObsolete } from '../src/rules/manuals.js';
+test('manuels : désignation facultative, photocopie avec reliure et impression, programme 2019 à 2026', () => {
+  const d = { subject: 'Mathématiques', level: '4e', editor: 'Hachette', programYear: '2023', price: 25000, replacementPrice: 60000, returnable: true, kind: 'ORIGINAL', qty: 10, title: '' };
+  assert.deepEqual(manualDraftErrors(d), []);
+  assert.equal(manualTitle(d), 'Mathématiques 4e');
+  assert.match(manualDraftErrors({ ...d, kind: 'PHOTOCOPIE' }).join(' '), /reliure/);
+  assert.deepEqual(manualDraftErrors({ ...d, kind: 'PHOTOCOPIE', binding: 'RELIURE', print: 'NB' }), []);
+  assert.match(manualDraftErrors({ ...d, programYear: '2016', editor: '' }).join(' '), /éditeur.*année|année.*éditeur/s);
+  assert.ok(isObsolete({ programYear: 2016 }));
+  assert.ok(!isObsolete({ programYear: 2019 }));
+});
+
+import { weekLetter, plannedSessions as planned } from '../src/rules/teachingHours.js';
+test('emploi du temps : semaines A et B, les vacances ne comptent pas', () => {
+  const settings = { calendar: [{ id: 'v', start: '2026-10-24', end: '2026-11-08', kind: 'VACANCES' }], timetable: { weekAStart: '2026-09-07' } };
+  assert.equal(weekLetter('2026-09-08', settings), 'A');
+  assert.equal(weekLetter('2026-09-15', settings), 'B');
+  assert.equal(weekLetter('2026-10-20', settings), 'A'); // 7 semaines de classe plus tard
+  assert.equal(weekLetter('2026-11-10', settings), 'B'); // les deux semaines de vacances ne comptent pas
+  const slots = [{ id: 'es1', weekday: 2, start: '08:00', end: '10:00', week: 'A' }, { id: 'es2', weekday: 2, start: '08:00', end: '10:00', week: 'B' }];
+  assert.deepEqual(planned(slots, '2026-09-07', '2026-09-20', settings).map((x) => `${x.date}:${x.slotId}`), ['2026-09-08:es1', '2026-09-15:es2']);
+});

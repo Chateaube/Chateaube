@@ -8,7 +8,7 @@ export const TLE_G_SUBJECTS = [
   { id: 'SPE_MATHS', label: 'Spécialité Mathématiques', teacher: 'M. Hassanaly', comp: 'Spécialité Mathématiques', specialty: 'MATHS' },
   { id: 'SPE_PC', label: 'Spécialité Physique-Chimie', teacher: 'M. Canusis', comp: 'Spécialité Physique-chimie', specialty: 'PC' },
   { id: 'SPE_SVT', label: 'Spécialité Sciences de la vie et de la Terre', teacher: 'Mme Félicité', comp: 'Spécialité SVT', specialty: 'SVT' },
-  { id: 'ES', label: 'Enseignement scientifique', teacher: 'Mme Félicité', comp: 'Enseignement scientifique' },
+  { id: 'ES', label: 'Enseignement scientifique', teacher: 'M. Canusis / Mme Félicité', comp: 'Enseignement scientifique' }, // enseignement partagé
   { id: 'HG', label: 'Histoire - Géographie', teacher: 'Mme Felana', comp: 'Histoire-géographie' },
   { id: 'EMC', label: 'Éducation morale et civique', teacher: 'Mme Felana', comp: 'Enseignement moral et civique' },
   { id: 'EPS', label: 'Éducation physique et sportive', teacher: 'Mme Doris', comp: 'EPS' },

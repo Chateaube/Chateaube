@@ -70,10 +70,10 @@ function EvaluationForm({ draft, setDraft, settings, competencies, onCreate, onC
         Ramener sur 20 les notes du devoir lors du calcul de la moyenne
         {draft.scale === 20 && <span className="text-xs text-slate-400">(déjà sur 20)</span>}
       </label>
-      <label className="block text-xs text-slate-600">Commentaire, visible par les élèves
+      <label className="block text-xs text-slate-600">Commentaire, visible par les élèves <span className="text-slate-500">(facultatif)</span>
         <textarea rows={2} value={draft.comment} onChange={(e) => set({ comment: e.target.value })} placeholder="Rédigez votre commentaire…" className={`mt-1 w-full ${inputCls}`} />
       </label>
-      <label className="block text-xs text-slate-600">Thème(s)
+      <label className="block text-xs text-slate-600">Thème(s) <span className="text-slate-500">(facultatif)</span>
         <input value={draft.themesText} onChange={(e) => set({ themesText: e.target.value })} placeholder="Séparez les thèmes par une virgule" className={`mt-1 w-full ${inputCls}`} />
       </label>
       <div>

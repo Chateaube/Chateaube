@@ -43,3 +43,22 @@ export function parseSpecialties(raw) {
   }
   return found;
 }
+
+const subjKey = (l) => String(l ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+/**
+ * Ordre des matières du bulletin, fixé par la Direction (Paramètres du bulletin) : liste de libellés.
+ * Les matières absentes de la liste gardent leur ordre d'origine, après celles qui y sont.
+ */
+export function orderSubjects(rows, order = []) {
+  if (!order?.length) return rows;
+  const rank = new Map(order.map((l, i) => [subjKey(l), i]));
+  return rows.map((r, i) => ({ r, i, k: rank.get(subjKey(r.label)) ?? order.length + i }))
+    .sort((a, b) => a.k - b.k).map((x) => x.r);
+}
+/** Déplace une matière d'un cran (−1 : vers le haut, +1 : vers le bas) dans l'ordre. */
+export function moveSubject(order, label, dir) {
+  const i = order.indexOf(label); const j = i + dir;
+  if (i < 0 || j < 0 || j >= order.length) return order;
+  const next = [...order]; [next[i], next[j]] = [next[j], next[i]];
+  return next;
+}

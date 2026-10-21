@@ -9,7 +9,7 @@ import { justification, LATE_LIMIT } from '../rules/attendance.js';
 const lateMinutes = (r) => Number(/\+(\d+) min/.exec(r.slot ?? '')?.[1] ?? 0);
 import { logActivity, ACTOR } from '../activityStore.js';
 import { formatDateFr } from '../rules/calendar.js';
-import PassportTab, { loadPassport, savePassport } from './PassportTab.jsx';
+import PassportTab, { loadPassport, savePassport, ColleSessionsCard } from './PassportTab.jsx';
 
 // Vie scolaire : absences / retards, punitions et sanctions, objets confisqués.
 // Accessible à la Vie scolaire, au Bureau et à la Direction.
@@ -416,7 +416,7 @@ export default function VieScolaireModule({ settings, role = 'VIE_SCOLAIRE' }) {
       {tab === 'attendance' && <AttendanceTab rows={rows} setRows={setRows} toast={setMessage} role={role} />}
       {tab === 'measures' && <MeasuresTab log={log} setLog={setLog} role={role} toast={setMessage} />}
       {tab === 'leave' && <EarlyLeaveTab toast={setMessage} />}
-      {tab === 'passport' && <PassportTab role={role} toast={setMessage} />}
+      {tab === 'passport' && <div className="space-y-5">{role !== 'ENSEIGNANT' && <ColleSessionsCard role={role} />}<PassportTab role={role} toast={setMessage} /></div>}
       {tab === 'phones' && <PhonesTab phones={phones} setPhones={setPhones} settings={settings} toast={setMessage} role={role} />}
     </div>
   );

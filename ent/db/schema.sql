@@ -2313,3 +2313,28 @@ CREATE TABLE student_followup_note (
   author_id     uuid NOT NULL REFERENCES app_user(id),
   text          text NOT NULL CHECK (length(trim(text)) > 0)
 );
+
+-- -----------------------------------------------------------------------------
+-- Octobre 2026 (suite) : prélèvement de la Direction, manuels, semaines A/B, surveillance des colles
+-- -----------------------------------------------------------------------------
+-- Prélèvement de la Direction (Cheffe ou adjointe) : compté tout de suite si elle le saisit elle-même,
+-- sinon en attente de sa confirmation (saisi par l'économe).
+ALTER TABLE cash_movement
+  ADD COLUMN withdrawn_by uuid REFERENCES app_user(id),
+  ADD COLUMN status text NOT NULL DEFAULT 'VALIDE' CHECK (status IN ('VALIDE', 'A_VALIDER', 'REFUSE')),
+  ADD COLUMN decided_at timestamptz,
+  ADD CONSTRAINT withdrawal_has_person CHECK ((nature = 'Prélèvement Direction') = (withdrawn_by IS NOT NULL));
+-- Manuels : la reliure et l'impression ne concernent que les photocopies ; programme 2019 à 2026.
+ALTER TABLE textbook ALTER COLUMN binding DROP NOT NULL;
+ALTER TABLE textbook
+  ADD COLUMN print_mode text CHECK (print_mode IN ('NB', 'COULEUR')),
+  ADD CONSTRAINT photocopy_format CHECK (is_photocopy = (binding IS NOT NULL AND print_mode IS NOT NULL));
+-- Emploi du temps : semaine A ou B (NULL : toutes les semaines).
+ALTER TABLE timetable_slot ADD COLUMN week_letter char(1) CHECK (week_letter IN ('A', 'B'));
+-- Surveillance des colles : un créneau (date), la CPE ou le secrétariat.
+CREATE TABLE detention_watch (
+  site_id       uuid NOT NULL REFERENCES site(id),
+  on_date       date NOT NULL CHECK (extract(isodow FROM on_date) IN (3, 6)),
+  watcher_id    uuid NOT NULL REFERENCES app_user(id),
+  PRIMARY KEY (site_id, on_date)
+);

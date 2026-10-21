@@ -4,7 +4,7 @@ import { CLASSES } from '../data/schoollife.js';
 import { DEMO_SPECIALTIES, RENTAL_PRICE } from '../data/manuals.js';
 import { SPECIALTIES } from '../rules/bulletin.js';
 import {
-  CONDITIONS, KINDS, BINDINGS, CATEGORIES, conditionLabel, lentCount, totalCopies, lend, giveBack, manualBlocks, eligible, kitFor, kitTotals,
+  CONDITIONS, KINDS, BINDINGS, PRINTS, PROGRAM_YEARS, MANUAL_SUBJECTS, manualDraftErrors, manualTitle, isObsolete, CATEGORIES, conditionLabel, lentCount, totalCopies, lend, giveBack, manualBlocks, eligible, kitFor, kitTotals,
 } from '../rules/manuals.js';
 import { formatAr } from '../rules/finance.js';
 import { loadManuals, saveManuals } from '../manualsStore.js';
@@ -148,7 +148,8 @@ function KitTab({ manuals, setManuals, loans, setLoans, specialtiesOf }) {
 /* ---------- Stock et prix ---------- */
 function StockTab({ manuals, setManuals, loans, canEdit }) {
   const [cls, setCls] = useState('');
-  const [draft, setDraft] = useState({ title: '', subject: '', level: '6e', category: 'MANUEL', returnable: true, kind: 'ORIGINAL', binding: 'DOS_CARRE', price: RENTAL_PRICE, replacementPrice: null, specialty: '', editor: '', programYear: '', state: 'NEUF', qty: 1 });
+  const [draft, setDraft] = useState({ title: '', subject: '', level: '6e', category: 'MANUEL', returnable: true, kind: 'ORIGINAL', binding: 'DOS_CARRE', print: 'NB', price: RENTAL_PRICE, replacementPrice: null, specialty: '', editor: '', programYear: '', state: 'NEUF', qty: 1 });
+  const [tried, setTried] = useState(false);
   const [move, setMove] = useState({ op: 'IN', id: '', state: 'NEUF', qty: 1 });
   const [stockError, setStockError] = useState('');
   const shown = manuals.filter((m) => !cls || m.levels.includes(cls));
@@ -173,7 +174,7 @@ function StockTab({ manuals, setManuals, loans, canEdit }) {
     setMove({ ...move, qty: 1 });
   };
   const setCategory = (category, returnable) => setDraft({ ...draft, category, returnable, price: returnable ? RENTAL_PRICE : null, replacementPrice: null });
-  const draftOk = draft.title.trim() && draft.price > 0 && (!draft.returnable || draft.replacementPrice > 0);
+  const draftErrors = manualDraftErrors(draft);
 
   return (
     <div className="space-y-5">
@@ -205,7 +206,7 @@ function StockTab({ manuals, setManuals, loans, canEdit }) {
               {shown.map((m) => (
                 <tr key={m.id} className="border-b border-slate-100 last:border-0">
                   <td className="px-4 py-2"><p className="font-medium text-slate-800">{m.title}</p><p className="text-xs text-slate-500">{m.levels.join(', ')}{m.specialty ? ` · spécialité ${SPECIALTIES[m.specialty]}` : ''}{editionLabel(m) ? ` · ${editionLabel(m)}` : ''}</p></td>
-                  <td className="px-2"><Badge tone={m.returnable ? 'navy' : 'green'}>{kindLabel(m)}</Badge><p className="mt-0.5 text-[11px] text-slate-500">{KINDS[m.kind]} · {BINDINGS[m.binding]}</p></td>
+                  <td className="px-2"><Badge tone={m.returnable ? 'navy' : 'green'}>{kindLabel(m)}</Badge><p className="mt-0.5 text-[11px] text-slate-500">{m.kind === 'PHOTOCOPIE' ? `Photocopie · ${BINDINGS[m.binding] ?? ''}${m.print ? ` · ${PRINTS[m.print]}` : ''}` : 'Original'}{isObsolete(m) && <Badge tone="red" className="ml-1">programme obsolète</Badge>}</p></td>
                   <td className="px-2 text-right"><Price canEdit={canEdit} value={m.price} onChange={(v) => update(m.id, { price: v ?? 0 })} label={`Prix — ${m.title}`} />{m.returnable && <span className="block text-[10px] text-slate-500">location / an</span>}</td>
                   <td className="px-2 text-right">{m.returnable ? <Price canEdit={canEdit} value={m.replacementPrice} onChange={(v) => update(m.id, { replacementPrice: v })} label={`Prix si perdu — ${m.title}`} /> : <span className="text-xs text-slate-400">gardé</span>}</td>
                   {CONDITIONS.map((c) => <td key={c.id} className={`px-2 text-right tabular-nums ${c.id === 'DECHIRE' && m.stock.DECHIRE ? 'text-red-700' : ''}`}>{canEdit
@@ -258,10 +259,10 @@ function StockTab({ manuals, setManuals, loans, canEdit }) {
                     className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${draft.category === c && draft.returnable === r ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-600 ring-slate-300'}`}>{l}</button>
                 ))}
               </div>
-              <input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="Désignation (ex. Histoire-Géographie 4e)" className={`sm:col-span-2 ${inputCls}`} aria-label="Titre du nouveau titre" />
-              <input value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} placeholder="Matière" className={inputCls} aria-label="Matière" />
+              <input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder={`Désignation (facultatif, sinon « ${draft.subject || 'Matière'} ${draft.level} »)`} className={`sm:col-span-2 ${inputCls}`} aria-label="Désignation (facultatif)" />
+              <select value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} className={inputCls} aria-label="Matière"><option value="">Matière…</option>{MANUAL_SUBJECTS.map((x) => <option key={x}>{x}</option>)}</select>
               <input value={draft.editor} onChange={(e) => setDraft({ ...draft, editor: e.target.value })} placeholder="Éditeur (ex. Hachette)" className={inputCls} aria-label="Éditeur" />
-              <input value={draft.programYear} onChange={(e) => setDraft({ ...draft, programYear: e.target.value.replace(/\D/g, '').slice(0, 4) })} placeholder="Année du programme (ex. 2019)" className={inputCls} aria-label="Année du programme" />
+              <select value={draft.programYear} onChange={(e) => setDraft({ ...draft, programYear: e.target.value })} className={inputCls} aria-label="Année du programme"><option value="">Année du programme…</option>{PROGRAM_YEARS.map((y) => <option key={y} value={y}>Programme {y}</option>)}</select>
               <select value={draft.level} onChange={(e) => setDraft({ ...draft, level: e.target.value, specialty: '' })} className={inputCls} aria-label="Classe">{ALL_CLASSES.map((c) => <option key={c}>{c}</option>)}</select>
               {/Générale/.test(draft.level) && /^(1re|Terminale)/.test(draft.level) && (
                 <select value={draft.specialty} onChange={(e) => setDraft({ ...draft, specialty: e.target.value })} className={`sm:col-span-2 ${inputCls}`} aria-label="Spécialité">
@@ -269,15 +270,20 @@ function StockTab({ manuals, setManuals, loans, canEdit }) {
                 </select>
               )}
               <select value={draft.kind} onChange={(e) => setDraft({ ...draft, kind: e.target.value })} className={inputCls} aria-label="Original ou photocopie">{Object.entries(KINDS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
-              <select value={draft.binding} onChange={(e) => setDraft({ ...draft, binding: e.target.value })} className={inputCls} aria-label="Reliure">{Object.entries(BINDINGS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+              {draft.kind === 'PHOTOCOPIE' && <>
+                <select value={draft.binding} onChange={(e) => setDraft({ ...draft, binding: e.target.value })} className={inputCls} aria-label="Reliure">{Object.entries(BINDINGS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+                <select value={draft.print} onChange={(e) => setDraft({ ...draft, print: e.target.value })} className={inputCls} aria-label="Impression">{Object.entries(PRINTS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+              </>}
               <label className="text-xs text-slate-600">{draft.returnable ? 'Location / an (Ar)' : 'Prix de vente (Ar)'}<div className="mt-1"><Price canEdit value={draft.price} onChange={(v) => setDraft({ ...draft, price: v })} label="Prix" /></div></label>
               {draft.returnable && <label className="text-xs text-slate-600">Prix si perdu ou abîmé (Ar)<div className="mt-1"><Price canEdit value={draft.replacementPrice} onChange={(v) => setDraft({ ...draft, replacementPrice: v })} label="Prix si perdu" /></div></label>}
               <select value={draft.state} onChange={(e) => setDraft({ ...draft, state: e.target.value })} className={inputCls} aria-label="État des exemplaires">{CONDITIONS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
               <input type="number" min={1} value={draft.qty} onChange={(e) => setDraft({ ...draft, qty: Math.max(1, Number(e.target.value) || 1) })} className={inputCls} aria-label="Nombre d'exemplaires" />
-              <Button className="sm:col-span-2" disabled={!draftOk} onClick={() => {
+              {tried && draftErrors.length > 0 && <ul className="text-xs text-red-700 sm:col-span-2">{draftErrors.map((x) => <li key={x}>· {x}</li>)}</ul>}
+              <Button className="sm:col-span-2" onClick={() => {
+                setTried(true); if (draftErrors.length) return; setTried(false);
                 setManuals([...manuals, {
-                  id: `m${Date.now()}`, title: draft.title.trim(), subject: draft.subject.trim() || '—', levels: [draft.level], category: draft.category, returnable: draft.returnable,
-                  kind: draft.kind, binding: draft.binding, price: draft.price, editor: draft.editor.trim(), programYear: Number(draft.programYear) || null, replacementPrice: draft.returnable ? draft.replacementPrice : null,
+                  id: `m${Date.now()}`, title: manualTitle(draft), subject: draft.subject, levels: [draft.level], category: draft.category, returnable: draft.returnable,
+                  kind: draft.kind, ...(draft.kind === 'PHOTOCOPIE' ? { binding: draft.binding, print: draft.print } : { binding: null }), price: draft.price, editor: draft.editor.trim(), programYear: Number(draft.programYear) || null, replacementPrice: draft.returnable ? draft.replacementPrice : null,
                   ...(draft.specialty ? { specialty: draft.specialty } : {}), stock: { NEUF: 0, BON: 0, USE: 0, DECHIRE: 0, [draft.state]: draft.qty },
                 }]);
                 setDraft({ ...draft, title: '', subject: '', qty: 1 });

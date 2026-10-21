@@ -1471,3 +1471,27 @@ CREATE FUNCTION late_entry(course_start time, course_end time, minutes integer) 
   SELECT CASE WHEN minutes <= 10 THEN NULL
     ELSE least(course_start + make_interval(hours => ceil(minutes / 60.0)::int), course_end) END
 $$ LANGUAGE sql IMMUTABLE;
+
+-- Prélèvement de la Direction : saisi par la personne qui prélève → compté ; sinon à confirmer par elle.
+CREATE FUNCTION cash_withdrawal_guard() RETURNS trigger AS $$
+BEGIN
+  IF NEW.nature <> 'Prélèvement Direction' THEN RETURN NEW; END IF;
+  IF NOT has_role(NEW.withdrawn_by, 'DIRECTION') THEN RAISE EXCEPTION 'Seules la Cheffe d''établissement et l''adjointe font un prélèvement'; END IF;
+  IF TG_OP = 'INSERT' THEN
+    NEW.status := CASE WHEN NEW.agent_id = NEW.withdrawn_by THEN 'VALIDE' ELSE 'A_VALIDER' END;
+  ELSIF NEW.status IS DISTINCT FROM OLD.status AND current_app_user() IS DISTINCT FROM NEW.withdrawn_by THEN
+    RAISE EXCEPTION 'Seule la personne qui a prélevé confirme le prélèvement';
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER cash_withdrawal BEFORE INSERT OR UPDATE ON cash_movement FOR EACH ROW EXECUTE FUNCTION cash_withdrawal_guard();
+
+-- Surveillance des colles : CPE ou secrétariat.
+CREATE FUNCTION detention_watch_guard() RETURNS trigger AS $$
+BEGIN
+  IF NOT (has_role(NEW.watcher_id, 'VIE_SCOLAIRE') OR has_role(NEW.watcher_id, 'BUREAU')) THEN
+    RAISE EXCEPTION 'Les colles sont surveillées par la CPE ou le secrétariat';
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER detention_watch_check BEFORE INSERT OR UPDATE ON detention_watch FOR EACH ROW EXECUTE FUNCTION detention_watch_guard();

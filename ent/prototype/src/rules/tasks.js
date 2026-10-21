@@ -1,5 +1,6 @@
 // Tâches de l'équipe : la Direction se note ce qu'elle a à faire et peut confier une tâche à un membre du
-// personnel, avec une priorité et, si besoin, une échéance. Chacun voit ses tâches sur son accueil.
+// personnel administratif (secrétariat, CPE), avec une priorité et, si besoin, une échéance. Pas de tâches confiées aux
+// enseignants : leur accueil reste centré sur leurs cours.
 
 export const PRIORITIES = { HAUTE: ['red', 'Priorité haute'], NORMALE: ['amber', 'Normale'], BASSE: ['slate', 'Basse'] };
 const RANK = { HAUTE: 0, NORMALE: 1, BASSE: 2 };
@@ -9,7 +10,6 @@ export const ASSIGNEES = [
   { id: 'DIRECTION', role: 'DIRECTION', label: 'Moi (Direction)' },
   { id: 'BUREAU', role: 'BUREAU', label: 'Mme Hanta — secrétariat' },
   { id: 'VIE_SCOLAIRE', role: 'VIE_SCOLAIRE', label: 'M. Be — CPE' },
-  { id: 'ENSEIGNANT', role: 'ENSEIGNANT', label: 'Mme Ranaivo — enseignante' },
 ];
 export const assigneeLabel = (id) => ASSIGNEES.find((a) => a.id === id)?.label ?? id;
 

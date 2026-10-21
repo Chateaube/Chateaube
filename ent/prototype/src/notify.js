@@ -14,6 +14,9 @@ import { loadPosts } from './schoolLifeStore.js';
 import { loadAnnouncements } from './announcementsStore.js';
 import { loadPassport, isNewStudent } from './components/PassportTab.jsx';
 import { followUpAlerts } from './components/FollowUpsModule.jsx';
+import { loadMovements, pendingWithdrawals } from './cashStore.js';
+import { loadWatch, WATCHERS } from './colleWatchStore.js';
+import { formatAr } from './rules/finance.js';
 import { loadSuggestions } from './components/InternalResources.jsx';
 import { passport, objectState, upcomingColleSessions, objectOf } from './rules/discipline.js';
 import { formatDateFr } from './rules/calendar.js';
@@ -50,6 +53,9 @@ export function notificationsFor(role, { account } = {}) {
     const due = loadTasks().filter((t) => t.assignee === role && !t.done && t.due && t.due <= day).length;
     add(due, { id: 'tasks', to: HOME[role], count: due, text: `${due} tâche${due > 1 ? 's' : ''} pour aujourd'hui ou en retard`, action: 'Voir' });
   }
+  if (role === 'DIRECTION' && account?.name) {
+    pendingWithdrawals(loadMovements(), account.name).forEach((m) => add(true, { id: `withdraw-${m.id}`, to: 'accounting', count: 1, text: `Prélèvement de ${formatAr(m.amount)} à confirmer (saisi par ${m.agent} : ${m.label})`, action: 'Confirmer' }));
+  }
   if (role === 'DIRECTION') {
     const toValidate = news.filter((a) => a.status === 'EN_ATTENTE').length;
     add(toValidate, { id: 'news', to: 'news', count: toValidate, text: `${toValidate} annonce${toValidate > 1 ? 's' : ''} à valider (secrétariat, CPE, délégués, BDE)`, action: 'Valider' });
@@ -71,8 +77,16 @@ export function notificationsFor(role, { account } = {}) {
   }
   if (['DIRECTION', 'BUREAU', 'VIE_SCOLAIRE'].includes(role)) {
     // colles de la semaine : quelqu'un doit être là pour les surveiller (mercredi après-midi, samedi matin)
-    upcomingColleSessions(loadPassport().colles, today).forEach((x) => add(true, { id: `colles-${x.day}`, to: 'vs', count: 1,
-      text: `${formatDateFr(x.day).replace(/ \d{4}$/, '')}, ${x.from.replace(':', 'h')}–${x.to.replace(':', 'h')} : ${x.students} élève${x.students > 1 ? 's' : ''} en colle (${x.hours} h) — une personne doit être présente`, action: 'Voir' }));
+    // la personne désignée (CPE ou secrétariat) est prévenue ; tant que personne n'est désigné, les deux le sont
+    const watch = loadWatch();
+    upcomingColleSessions(loadPassport().colles, today).forEach((x) => {
+      const who = watch[x.day];
+      const when = `${formatDateFr(x.day).replace(/ \d{4}$/, '')}, ${x.from.replace(':', 'h')}–${x.to.replace(':', 'h')}`;
+      const n = `${x.students} élève${x.students > 1 ? 's' : ''} en colle (${x.hours} h)`;
+      if (!who) add(role !== 'DIRECTION', { id: `colles-${x.day}`, to: 'vs', count: 1, text: `${when} : ${n} — qui surveille ? (CPE ou secrétariat)`, action: 'Choisir' });
+      else if (who === role) add(true, { id: `colles-${x.day}`, to: 'vs', count: 1, text: `${when} : vous surveillez la colle — ${n}`, action: 'Voir' });
+      else if (role === 'DIRECTION') info.push({ id: `colles-${x.day}`, level: 'INFO', to: 'vs', text: `${when} : ${n}, surveillance ${WATCHERS[who]}` });
+    });
     // objets confisqués dont la restitution tombe aujourd'hui (ou est dépassée)
     const back = PHONES.filter((p) => objectState(p, `${today}T23:59`, DEFAULT_SETTINGS) === 'A_RENDRE');
     add(back.length, { id: 'objects-back', to: 'vs', count: back.length, text: `${back.length} objet${back.length > 1 ? 's' : ''} confisqué${back.length > 1 ? 's' : ''} à rendre aujourd'hui : ${back.map((p) => `${objectOf(p).toLowerCase()} de ${p.student}`).join(', ')}`, action: 'Rendre' });

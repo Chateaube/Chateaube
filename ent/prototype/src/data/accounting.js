@@ -81,7 +81,7 @@ export const FAMILIES = [
 export const CASH_NATURES = {
   IN: ['Encaissement famille', 'Apport banque', 'Autre entrée'],
   // les salaires ont leur propre rubrique (onglet Salaires, avec émargement) : pas de saisie libre ici
-  OUT: ['Dépense de fonctionnement', 'Reversement centre d\'examen', 'Remboursement famille', 'Dépôt en banque', 'Autre sortie'],
+  OUT: ['Dépense de fonctionnement', 'Prélèvement Direction', 'Reversement centre d\'examen', 'Remboursement famille', 'Dépôt en banque', 'Autre sortie'],
 };
 export const CASH_MOVEMENTS = [
   { id: 'c1', date: '2026-10-13', time: '07:42', dir: 'IN', nature: 'Encaissement famille', journal: 'ECOLAGE', label: 'Frais de scolarité octobre — RAZAFY Kanto', method: 'Espèces', amount: 420_000, agent: 'Mme Soa', receipt: 'ECO-TMV-00410' },

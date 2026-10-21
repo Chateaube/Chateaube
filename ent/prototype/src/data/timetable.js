@@ -1,6 +1,7 @@
 // Emploi du temps hebdomadaire des professeurs (démonstration, Tamatave) : base du volume horaire.
 // En production, il vient de l'import de l'emploi du temps (Excel / logiciel actuel).
-const T = (id, teacherId, cls, subject, weekday, start, end) => ({ id, teacherId, cls, subject, weekday, start, end });
+// week : 'A' ou 'B' pour un cours qui n'a lieu qu'une semaine sur deux (sinon toutes les semaines)
+const T = (id, teacherId, cls, subject, weekday, start, end, week) => ({ id, teacherId, cls, subject, weekday, start, end, ...(week ? { week } : {}) });
 export const TIMETABLE = [
   T('t1', 'p1', '1re STMG', 'Management', 1, '07:00', '09:00'), T('t2', 'p1', 'Terminale STMG', 'Management', 1, '09:45', '11:45'),
   T('t3', 'p1', '1re STMG', 'Management', 2, '07:00', '09:00'), T('t4', 'p1', 'Terminale STMG', 'Management', 2, '10:00', '12:00'),
@@ -12,6 +13,8 @@ export const TIMETABLE = [
   T('t13', 'p5', '1re STMG', 'Mathématiques', 3, '09:45', '11:45'), T('t14', 'p5', 'Terminale Générale', 'Spécialité Mathématiques', 4, '09:45', '12:45'),
   T('t15', 'p5', 'Terminale STMG', 'Mathématiques', 5, '09:45', '11:45'),
   T('t16', 'p3', 'Terminale Générale', 'Spécialité Physique-Chimie', 2, '13:30', '16:30'), T('t17', 'p3', 'Terminale Générale', 'Spécialité SVT', 3, '13:30', '16:30'),
+  // enseignement scientifique : en semaine A seulement pour ce professeur (l'autre professeur de sciences a la semaine B)
+  T('t18', 'p3', 'Terminale Générale', 'Enseignement scientifique', 5, '13:30', '15:30', 'A'),
 ];
 
 // Absences déclarées des professeurs, avec le travail laissé pour la séance surveillée

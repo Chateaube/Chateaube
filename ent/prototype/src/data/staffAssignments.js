@@ -20,4 +20,11 @@ export const ASSIGNMENTS = [
   { name: 'Mme Doris', subjects: ['EPS'], classes: ['4e', '2de', 'Terminale Générale', 'Terminale STMG'] },
   { name: 'Mme Lanto', subjects: ['Mandarin'], classes: ['6e', '5e', '4e'] },
   { name: 'M. Raymond', subjects: ['Philosophie'], classes: ['Terminale Générale', 'Terminale STMG'] },
+  // Enseignement scientifique (1re et Terminale générales) : un seul enseignement, assuré en alternance par
+  // deux professeurs de sciences ; un seul carnet de notes, que les deux remplissent, et une seule moyenne.
+  { name: 'M. Canusis', subjects: ['Enseignement scientifique'], classes: ['1re Générale', 'Terminale Générale'], shared: true },
+  { name: 'Mme Félicité', subjects: ['Enseignement scientifique'], classes: ['1re Générale', 'Terminale Générale'], shared: true },
 ];
+
+/** Professeurs d'une matière dans une classe (deux pour un enseignement partagé, ex. enseignement scientifique). */
+export const teachersOf = (subject, cls, list = ASSIGNMENTS) => list.filter((a) => a.subjects.includes(subject) && a.classes.includes(cls)).map((a) => a.name);

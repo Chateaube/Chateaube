@@ -12,12 +12,12 @@ const two = (v) => (v === null || v === undefined ? '' : Number(v).toFixed(2));
 
 export function BulletinSheet({ b }) {
   return (
-    <div className="bulletin mx-auto w-full max-w-[1000px] break-after-page bg-white p-8 text-[10.5px] leading-snug text-black shadow-soft print:text-[9px] print:leading-tight"
+    <div className="bulletin mx-auto w-full max-w-[1000px] break-after-page bg-white p-8 text-[10.5px] leading-snug text-black shadow-soft print:max-w-none print:p-0 print:text-[9px] print:leading-tight print:shadow-none"
       style={{ fontFamily: 'Poppins, sans-serif' }}>
       <div className="flex items-start justify-between gap-6">
-        <img src={logo} alt="École Collège Lycée Chateaubriand Tamatave — 27 Rue Nationale, 501 Toamasina" className="w-[230px]" />
+        <img src={logo} alt="École Collège Lycée Chateaubriand Tamatave — 27 Rue Nationale, 501 Toamasina" className="w-[300px] shrink-0" />
         <div className="text-right">
-          <p className="text-[13px] font-bold">Bulletin du {b.term}</p>
+          <p className="text-[14px] font-bold">Bulletin du {b.term}</p>
           <p className="font-bold">Année Scolaire {b.year}</p>
           <p className="mt-3 text-[12px] font-bold">{b.student}</p>
           <p>{b.birthLine}</p>
@@ -68,7 +68,8 @@ export function BulletinSheet({ b }) {
         <p className="min-h-[36px]">{b.generalAppreciation}</p>
         {b.decision && <p className="mt-1 font-normal">Décision du conseil : {b.decision}</p>}
       </div>
-      <p className="mt-6 text-[8px] text-slate-500">CE BULLETIN DOIT ÊTRE CONSERVÉ. AUCUN DUPLICATA NE SERA DÉLIVRÉ.</p>
+      {/* à l'impression, cette mention est le pied de page de chaque page (bulletinPage) */}
+      <p className="mt-6 text-[8px] text-slate-500 print:hidden">CE BULLETIN DOIT ÊTRE CONSERVÉ. AUCUN DUPLICATA NE SERA DÉLIVRÉ.</p>
     </div>
   );
 }

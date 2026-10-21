@@ -9,7 +9,6 @@ import { classMandateErrors, MANDATES } from '../rules/mandates.js';
 
 // Engagements et attestations (Direction) : délégués, BDE, éco-délégués, parrainage, ASSR…
 // - Par engagement : on coche d'un coup tous les élèves concernés (30 élèves, une seule liste) ;
-// - Par élève : le détail d'un élève ;
 // - Liste : la Direction crée ses propres engagements et attestations, ou cesse d'en proposer.
 // Tout peut changer en cours d'année : chaque fin de trimestre, la Direction valide l'état du moment,
 // qui part tel quel sur les bulletins de ce trimestre.
@@ -34,7 +33,6 @@ export default function MandatesAdmin({ account }) {
   const locked = !!valid[TERM.id];
   const cat = catalogue(custom);
   const offered = cat.filter((e) => !e.hidden);
-  const label = (id) => cat.find((e) => e.id === id)?.neutral ?? id;
   const apply = (next) => { const e = checkErrors(next, cls); setErr(e); if (e.length) return false; setEng(next); saveEngagements(next); return true; };
   const validate = () => { const v = { ...valid, [TERM.id]: { at: today(), by: account?.name ?? 'Direction' } }; setValid(v); saveValidation(v); };
   const reopen = () => { const v = { ...valid }; delete v[TERM.id]; setValid(v); saveValidation(v); };
@@ -58,7 +56,6 @@ export default function MandatesAdmin({ account }) {
 
       <ScreenTabs label="Engagements" value={tab} onChange={setTab} tabs={[
         ['bulk', 'Par engagement (plusieurs élèves)', <Bulk key="bulk" {...{ cls, classPicker, eng, offered, locked, apply, errors }} />],
-        ['student', 'Par élève', <ByStudent key="student" {...{ cls, classPicker, eng, offered, locked, apply, errors, label, cat }} />],
         ['list', 'Liste des engagements et attestations', <CatalogueTab key="list" {...{ custom, setCustom, cat, eng }} />],
       ]} />
 
@@ -98,39 +95,6 @@ function Bulk({ cls, classPicker, eng, offered, locked, apply, errors }) {
         ))}
       </ul>
       {locked && <p className="mt-2 text-xs text-slate-600">Trimestre validé : rouvrez pour modifier.</p>}
-    </Card>
-  );
-}
-
-/** Par élève : tous ses engagements, à modifier un par un. */
-function ByStudent({ cls, classPicker, eng, offered, locked, apply, errors, label, cat }) {
-  const [open, setOpen] = useState(null);
-  return (
-    <Card title="Par élève" action={classPicker}>
-      {errors}
-      <ul className="divide-y divide-slate-100">
-        {CLASSES[cls].map((s) => {
-          const ids = eng[s] ?? [];
-          return (
-            <li key={s} className="py-2">
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="min-w-[12rem] font-medium text-slate-900">{s}</span>
-                <span className="flex flex-1 flex-wrap gap-1">{ids.length ? ids.map((id) => <Badge key={id} tone={cat.find((e) => e.id === id)?.kind === 'ATTESTATION' ? 'violet' : 'navy'}>{label(id)}</Badge>) : <span className="text-xs text-slate-600">aucun</span>}</span>
-                {!locked && <Button variant="secondary" className="!py-1 text-xs" aria-expanded={open === s} onClick={() => setOpen(open === s ? null : s)}>{open === s ? 'Fermer' : 'Modifier'}</Button>}
-              </div>
-              {open === s && !locked && (
-                <div className="mt-2 flex flex-wrap gap-1.5 rounded-lg bg-slate-50 p-2">
-                  {offered.map((e) => (
-                    <button key={e.id} type="button" aria-pressed={ids.includes(e.id)} onClick={() => apply(setForStudents(eng, e.id, [s], !ids.includes(e.id)))}
-                      className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${ids.includes(e.id) ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-700 ring-slate-300'}`}>{e.neutral}</button>
-                  ))}
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-      <p className="mt-2 text-xs text-slate-600">Au plus 2 délégués et 2 suppléants par classe ; un seul président du BDE pour le site.</p>
     </Card>
   );
 }

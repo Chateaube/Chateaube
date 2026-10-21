@@ -6,7 +6,7 @@ import { reductionText } from './CollectPayment.jsx';
 import { formatAr } from '../rules/finance.js';
 
 // Réductions sur les frais de scolarité : types et taux fixés par la Direction, puis accordés
-// élève par élève avec un motif. Le Bureau les consulte et les voit appliquées à l'encaissement.
+// élève par élève (précision facultative). Le Bureau les consulte et les voit appliquées à l'encaissement.
 
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
 const defined = (t) => t.rates.ECOLAGE !== null || t.rates.INSCRIPTION !== null;
@@ -19,7 +19,7 @@ export default function Reductions({ canEdit, actor, types, setTypes, accounts, 
   const granted = accounts.filter((a) => a.reduction);
   const classes = useMemo(() => [...new Set(accounts.map((a) => a.cls))], [accounts]);
   const candidates = accounts.filter((a) => (!cls || a.cls === cls) && !a.reduction);
-  const errors = [!draft.studentId && 'Élève', !(types.find((t) => t.id === draft.typeId) && defined(types.find((t) => t.id === draft.typeId))) && 'Type de réduction (avec ses taux)', draft.motif.trim().length < 5 && 'Motif (ex. redouble la Terminale, fille d\'un ami de l\'établissement)'].filter(Boolean);
+  const errors = [!draft.studentId && 'Élève', !(types.find((t) => t.id === draft.typeId) && defined(types.find((t) => t.id === draft.typeId))) && 'Type de réduction (avec ses taux)'].filter(Boolean); // le motif est facultatif : le type de réduction suffit
   const amounts = (a, t) => {
     const fee = CLASS_FEES.find((f) => f.cls === a.cls);
     if (!fee) return '';
@@ -54,7 +54,12 @@ export default function Reductions({ canEdit, actor, types, setTypes, accounts, 
                         ) : <span className="tabular-nums">{t.rates[k] ? `−${t.rates[k]} %` : '—'}</span>}
                       </td>
                     ))}
-                    <td className="px-4 text-right text-xs text-slate-500">{granted.filter((a) => a.reduction.typeId === t.id).length}</td>
+                    <td className="px-4 text-right text-xs text-slate-500">{granted.filter((a) => a.reduction.typeId === t.id).length}
+                      {canEdit && <button type="button" onClick={() => {
+                        const n = granted.filter((a) => a.reduction.typeId === t.id).length;
+                        if (n) { window.alert(`« ${t.label} » est accordée à ${n} élève${n > 1 ? 's' : ''} : retirez-la d'abord à ces élèves.`); return; }
+                        if (window.confirm(`Supprimer le type « ${t.label} » ?`)) setTypes(types.filter((x) => x.id !== t.id));
+                      }} className="ml-3 text-xs font-medium text-red-700">Supprimer</button>}</td>
                   </tr>
                 ))}
               </tbody>
@@ -74,7 +79,7 @@ export default function Reductions({ canEdit, actor, types, setTypes, accounts, 
                 return (
                   <li key={a.id} className="flex flex-wrap items-center gap-3 py-2 text-sm">
                     <span className="min-w-0 flex-1"><span className="font-medium">{a.name}</span> <span className="text-slate-500">· {a.cls}</span>
-                      <span className="block text-xs text-slate-500">{a.reduction.motif} · accordée par {a.reduction.by} le {a.reduction.at}</span></span>
+                      <span className="block text-xs text-slate-500">{a.reduction.motif ? `${a.reduction.motif} · ` : ''}accordée par {a.reduction.by} le {a.reduction.at}</span></span>
                     {t && <Badge tone="green">{t.label}</Badge>}
                     {t && <span className="text-xs tabular-nums text-slate-600">{amounts(a, t)}</span>}
                     {canEdit && <Button variant="ghost" className="!px-2 !py-1 text-xs" onClick={() => window.confirm(`Retirer la réduction de ${a.name} ? Les reçus déjà émis ne changent pas.`) && setAccounts(accounts.map((x) => (x.id === a.id ? { ...x, reduction: null } : x)))}>Retirer</Button>}
@@ -98,7 +103,7 @@ export default function Reductions({ canEdit, actor, types, setTypes, accounts, 
             <select value={draft.typeId} onChange={(e) => setDraft({ ...draft, typeId: e.target.value })} className={`w-full ${inputCls}`} aria-label="Type de réduction">
               {types.map((t) => <option key={t.id} value={t.id} disabled={!defined(t)}>{t.label} ({rate(t)})</option>)}
             </select>
-            <input value={draft.motif} onChange={(e) => setDraft({ ...draft, motif: e.target.value })} placeholder="Motif : redouble la Terminale, fils d'un ami de l'établissement…" className={`w-full ${inputCls}`} aria-label="Motif" />
+            <input value={draft.motif} onChange={(e) => setDraft({ ...draft, motif: e.target.value })} placeholder="Précision (facultatif)" className={`w-full ${inputCls}`} aria-label="Précision (facultatif)" />
             {draft.studentId && draft.typeId && (
               <p className="text-xs text-slate-600">Soit {amounts(accounts.find((a) => a.id === draft.studentId), types.find((t) => t.id === draft.typeId)) || 'aucun montant (taux à définir)'}.</p>
             )}

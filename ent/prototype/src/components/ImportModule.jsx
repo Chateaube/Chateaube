@@ -50,6 +50,14 @@ function TemplateZone({ onBook, extras }) {
 const fmt = (iso) => (iso ? iso.split('-').reverse().join('/') : '—');
 const ORDER = ['6e', '5e', '4e', '3e', '2de', '1re Générale', '1re STMG', 'Terminale Générale', 'Terminale STMG'];
 
+const studentId = (x) => `${x.lastName} ${x.firstName} ${x.birthDate ?? ''}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
+/** Fusion d'un réimport : les fiches du fichier remplacent les mêmes élèves, les autres sont gardées. */
+export function mergeStudents(previous, incoming) {
+  const byId = new Map(previous.map((x) => [studentId(x), x]));
+  incoming.forEach((x) => byId.set(studentId(x), { ...byId.get(studentId(x)), ...x }));
+  return [...byId.values()];
+}
+
 export default function ImportModule() {
   const [current, setCurrent] = useState(loadImport);
   const [studentsText, setStudentsText] = useState('');
@@ -73,7 +81,9 @@ export default function ImportModule() {
 
   const doImport = () => {
     const data = {
-      students: analysis ? withExtras(analysis.students.map((s) => (renumber && s.student.suggestedNumber ? { ...s.student, number: s.student.suggestedNumber } : s.student)), extras ?? {}) : current?.students ?? [],
+      // Réimport : fusion, jamais d'effacement — un élève déjà importé (même nom, même date de naissance) est
+      // mis à jour, un nouveau est ajouté, ceux qui ne figurent pas dans ce fichier sont gardés.
+      students: analysis ? mergeStudents(current?.students ?? [], withExtras(analysis.students.map((s) => (renumber && s.student.suggestedNumber ? { ...s.student, number: s.student.suggestedNumber } : s.student)), extras ?? {})) : current?.students ?? [],
       assignments: assignments ?? current?.assignments ?? [],
     };
     saveImport(data);
@@ -101,7 +111,7 @@ export default function ImportModule() {
       <div>
         <p className="text-sm font-semibold text-navy-500">Reprise des données existantes · année 2026-2027</p>
         <h1 className="text-2xl font-semibold text-navy-900">Importer et sauvegarder</h1>
-        <p className="text-sm text-slate-600">Un seul fichier : le modèle Excel de l'école. Remplissez les onglets que vous avez ; un onglet vide est simplement ignoré.</p>
+        <p className="text-sm text-slate-600">Un seul fichier : le modèle Excel de l'école. Remplissez les onglets que vous avez ; un onglet vide est simplement ignoré. Réimporter plus tard un fichier complété ne double rien : les élèves déjà présents sont mis à jour, les nouveaux sont ajoutés, aucun n'est effacé.</p>
       </div>
       <p className="rounded-2xl bg-amber-50 p-3 text-sm text-amber-900">
         Confidentialité : les données importées restent <strong>dans ce navigateur</strong> (cet ordinateur ou ce téléphone).

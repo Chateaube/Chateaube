@@ -8,7 +8,7 @@ import { COMPETENCY_HISTORY } from '../data/competencyHistory.js';
 import { studentAverage, generalAverage, classStats } from '../rules/grading.js';
 import { loadGA } from '../appreciationStore.js';
 import { onBulletin } from '../rules/generalAppreciation.js';
-import { subjectsOf, subjectClassAverage, classLine, specialtyErrors, SPECIALTIES } from '../rules/bulletin.js';
+import { subjectsOf, subjectClassAverage, classLine, specialtyErrors, SPECIALTIES, orderSubjects, moveSubject } from '../rules/bulletin.js';
 import { loadImport, saveImport } from '../importStore.js';
 import { demoAppreciation, accord } from '../rules/documents.js';
 import { formatDateFr } from '../rules/calendar.js';
@@ -30,9 +30,14 @@ const compsFor = (key, level) => (COMPETENCY_HISTORY[`${key}|${level}`]?.[0]?.it
 // Dates de naissance fictives (démonstration 1re STMG)
 const demoBirth = (i) => `2009-${String((i % 12) + 1).padStart(2, '0')}-${String(((i * 7) % 27) + 1).padStart(2, '0')}`;
 
-// Hauteur d'une page A4 imprimée (281 mm utiles) pour une largeur utile de 194 mm, en pixels CSS
-const PAGE_W = 733;
-const PAGE_H = 1062;
+// Mise en page du bulletin (Direction) : marges identiques des quatre côtés (1,3 cm par défaut) et, en bas
+// de chaque page imprimée, « CE BULLETIN DOIT ÊTRE CONSERVÉ. AUCUN DUPLICATA NE SERA DÉLIVRÉ. »
+const MM = 3.7795; // pixels CSS par millimètre
+const marginOf = (settings) => settings.bulletin?.marginMm ?? 13;
+const pageW = (m) => Math.round((210 - 2 * m) * MM);
+const pageH = (m) => Math.round((297 - 2 * m) * MM);
+export const bulletinPage = (m) => `size: A4 portrait; margin: ${m}mm;
+  @bottom-center { content: "CE BULLETIN DOIT ÊTRE CONSERVÉ. AUCUN DUPLICATA NE SERA DÉLIVRÉ."; font-family: Poppins, sans-serif; font-size: 7pt; color: #475569; }`;
 
 function buildPremiereSTMG(settings) {
   const excluded = settings.grading.excludedSubjects;
@@ -130,7 +135,36 @@ function SpecialtiesPanel({ onChange }) {
 const DEMO_CLASSES = [['1re STMG', buildPremiereSTMG], ['Terminale Générale', buildTerminaleG]];
 const classesNow = () => (importedTleG().length ? [[IMPORTED, buildImported], ...DEMO_CLASSES] : DEMO_CLASSES);
 
-export default function BulletinsModule({ settings, role, go }) {
+/** Mise en page (Direction) : marges et ordre des matières, communs à tous les bulletins. */
+function LayoutPanel({ settings, onChange, labels }) {
+  const b = settings.bulletin ?? {};
+  const order = [...(b.subjectOrder ?? []).filter((l) => labels.includes(l)), ...labels.filter((l) => !(b.subjectOrder ?? []).includes(l))];
+  const save = (patch) => onChange?.({ ...settings, bulletin: { ...b, ...patch } });
+  const keepOthers = (next) => [...next, ...(b.subjectOrder ?? []).filter((l) => !labels.includes(l))];
+  return (
+    <details className="rounded-2xl bg-white p-4 shadow-soft">
+      <summary className="cursor-pointer text-sm font-semibold text-navy-900">Mise en page du bulletin : marges et ordre des matières</summary>
+      <div className="mt-3 grid gap-5 lg:grid-cols-[220px_1fr]">
+        <label className="text-xs text-slate-600">Marges (haut, bas, gauche, droite)
+          <span className="mt-1 flex items-center gap-2"><input inputMode="decimal" value={String((b.marginMm ?? 13) / 10).replace('.', ',')} onChange={(e) => { const v = Number(e.target.value.replace(',', '.')); if (v >= 0.5 && v <= 3) save({ marginMm: Math.round(v * 10) }); }} aria-label="Marges en centimètres" className="w-20 rounded-md border border-slate-300 px-2 py-1 text-sm" /> cm</span>
+          <span className="mt-1 block text-[11px]">Les mêmes des quatre côtés. Le pied de page « CE BULLETIN DOIT ÊTRE CONSERVÉ… » s'imprime en bas de chaque page.</span>
+        </label>
+        <div>
+          <p className="mb-1 text-xs text-slate-600">Ordre des matières (le même pour toutes les classes ; une matière absente d'une classe est simplement sautée)</p>
+          <ol className="space-y-1">{order.map((l, i) => (
+            <li key={l} className="flex items-center gap-2 rounded-md bg-slate-50 px-2 py-1 text-sm">
+              <span className="w-6 text-right text-xs tabular-nums text-slate-500">{i + 1}.</span><span className="flex-1">{l}</span>
+              <button type="button" disabled={i === 0} onClick={() => save({ subjectOrder: keepOthers(moveSubject(order, l, -1)) })} aria-label={`Monter ${l}`} className="h-7 w-7 rounded ring-1 ring-slate-300 disabled:opacity-40">↑</button>
+              <button type="button" disabled={i === order.length - 1} onClick={() => save({ subjectOrder: keepOthers(moveSubject(order, l, 1)) })} aria-label={`Descendre ${l}`} className="h-7 w-7 rounded ring-1 ring-slate-300 disabled:opacity-40">↓</button>
+            </li>
+          ))}</ol>
+        </div>
+      </div>
+    </details>
+  );
+}
+
+export default function BulletinsModule({ settings, role, go, onChange }) {
   const [mode, setMode] = useState('print'); // impression ou remise en main propre
   const [readyAsked, setReadyAsked] = useState(false);
   const [CLASSES] = useState(classesNow);
@@ -138,7 +172,8 @@ export default function BulletinsModule({ settings, role, go }) {
   const [version, setVersion] = useState(0); // spécialités modifiées
   const [showGeneral, setShowGeneral] = useState(false);
   const [general, setGeneral] = useState({});
-  const bulletins = useMemo(() => CLASSES.find(([c]) => c === cls)[1](settings), [cls, settings, version]);
+  const bulletins = useMemo(() => CLASSES.find(([c]) => c === cls)[1](settings).map((b) => ({ ...b, rows: orderSubjects(b.rows, settings.bulletin?.subjectOrder) })), [cls, settings, version]);
+  const margin = marginOf(settings);
   const [student, setStudent] = useState(bulletins[0].student);
   const current = bulletins.find((x) => x.student === student) ?? bulletins[0];
   const [duplex, setDuplex] = useState(true);
@@ -156,11 +191,11 @@ export default function BulletinsModule({ settings, role, go }) {
     const out = {};
     el.querySelectorAll('[data-student]').forEach((n) => {
       // mise en page fixe : on compte seulement les pages (jamais de police réduite)
-      const normal = Math.ceil(n.querySelector('.bulletin').offsetHeight / PAGE_H);
+      const normal = Math.ceil(n.querySelector('.bulletin').offsetHeight / pageH(margin));
       out[n.dataset.student] = { normal, printed: normal };
     });
     setPages(out);
-  }, [bulletins, showGeneral, general]);
+  }, [bulletins, showGeneral, general, margin]);
   const pagesOf = (name) => pages[name]?.printed ?? 1;
   const tooLong = bulletins.filter((x) => pagesOf(x.student) > 2);
 
@@ -175,8 +210,8 @@ export default function BulletinsModule({ settings, role, go }) {
         {/* Impression : la Direction seule. Le secrétariat prépare et prévient la Direction (tâche). */}
         {role === 'DIRECTION' ? (
           <span className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={() => printOnly('.bulletin-one', 'size: A4 portrait; margin: 8mm;')}>Imprimer ce bulletin</Button>
-            <Button onClick={() => printOnly('.bulletins-all', 'size: A4 portrait; margin: 8mm;')}>Imprimer toute la classe ({bulletins.length})</Button>
+            <Button variant="secondary" onClick={() => printOnly('.bulletin-one', bulletinPage(margin))}>Imprimer ce bulletin</Button>
+            <Button onClick={() => printOnly('.bulletins-all', bulletinPage(margin))}>Imprimer toute la classe ({bulletins.length})</Button>
           </span>
         ) : (
           <span className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
@@ -230,6 +265,7 @@ export default function BulletinsModule({ settings, role, go }) {
         <p className="mt-2 text-xs text-slate-500">Appréciations des matières : celles validées par chaque enseignant (ici, textes de démonstration). Moyenne de classe d'une spécialité : calculée sur les seuls élèves qui la suivent.</p>
       </Card>
       {cls === IMPORTED && <SpecialtiesPanel onChange={() => setVersion((v) => v + 1)} />}
+      {role === 'DIRECTION' && <LayoutPanel settings={settings} onChange={onChange} labels={[...new Set(bulletins.flatMap((b) => b.rows.map((r) => r.label)))]} />}
       <div className="overflow-x-auto rounded-2xl bg-slate-100 p-4"><div className="bulletin-one min-w-[760px]"><BulletinSheet b={enrich(current)} /></div></div>
       </>)}
       <div className="bulletins-all hidden">{bulletins.map((x) => (
@@ -239,7 +275,7 @@ export default function BulletinsModule({ settings, role, go }) {
         </React.Fragment>
       ))}</div>
       {/* mesure hors écran, à la largeur et à la police d'impression */}
-      <div ref={measureRef} className="bulletin-measure pointer-events-none fixed -left-[5000px] top-0" style={{ width: PAGE_W }} aria-hidden="true">
+      <div ref={measureRef} className="bulletin-measure pointer-events-none fixed -left-[5000px] top-0" style={{ width: pageW(margin) }} aria-hidden="true">
         {bulletins.map((x) => (
           <div key={x.student} data-student={x.student}>
             <BulletinSheet b={enrich(x)} />
