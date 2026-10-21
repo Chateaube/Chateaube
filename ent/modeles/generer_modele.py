@@ -47,10 +47,11 @@ SHEETS = [
         ('Classe(s)', 30, None, 'Séparées par des virgules. Ex. 1re STMG, Terminale STMG'),
         ('Téléphone', 16, None, None), ('E-mail', 24, None, None)],
         ['Exemple', 'Lova', 'Professeur', 'Management', '1re STMG, Terminale STMG', '034 00 000 00', 'prof@exemple.mg']),
-    ('4 Emploi du temps', 'Une ligne par cours de la semaine type.', [
-        ('Classe', 18, 'classe', None), ('Jour', 11, 'jour', None), ('Début', 8, None, 'HH:MM'), ('Fin', 8, None, 'HH:MM'),
-        ('Matière', 22, None, None), ('Professeur', 22, None, None), ('Salle', 12, None, None)],
-        ['Exemple', 'Lundi', '07:00', '09:00', 'Management', 'Mme Exemple', 'Salle 12']),
+    ('4 Emploi du temps', 'Une ligne par cours de la semaine type. Semaine : A ou B pour un cours une semaine sur deux, vide sinon.', [
+        ('Jour', 11, 'jour', None), ('Classe', 18, 'classe', None), ('Créneau horaire', 14, None, 'HH:MM-HH:MM'),
+        ('Matière', 22, None, 'Abréviations comprises : HGE, P-C, Spé Maths, E.S. SVT…'), ('Enseignant', 22, None, None),
+        ('Salle', 16, None, 'Facultatif'), ('Semaine', 10, None, 'A, B ou vide')],
+        ['Exemple', '1re STMG', '07:30-09:30', 'Management', 'Mme Exemple', 'Salle 12', '']),
     ('5 Notes', 'Notes de l\'année en cours, une ligne par élève et par évaluation.', [
         ('N° élève (matricule)', 16, None, None), ('Nom de l\'élève', 22, None, None), ('Classe', 18, 'classe', None),
         ('Matière', 20, None, None), ('Date', 12, None, 'JJ/MM/AAAA'), ('Intitulé', 24, None, 'Ex. DS n°1'),

@@ -1503,7 +1503,8 @@ test('navigation : Direction en 5 rubriques, un seul emplacement par écran, rie
   const ids = DIRECTION_TREE.flatMap((g) => g.ids);
   assert.equal(new Set(ids).size, ids.length, 'écran présent deux fois');
   DIRECTION_TREE.forEach((g) => assert.ok(g.ids.length <= 9, `${g.group} : plus de 9 entrées`));
-  ['students', 'timetable', 'exams'].forEach((id) => assert.ok(!ids.includes(id), `${id} ne doit pas être dans le menu`));
+  ['students', 'exams'].forEach((id) => assert.ok(!ids.includes(id), `${id} ne doit pas être dans le menu`));
+  assert.ok(ids.includes('timetable'), 'les emplois du temps sont maintenant un vrai écran');
   assert.ok(ids.includes('mandates') && ids.includes('feedback'), 'Délégués et BDE et Avis du pilote sont dans le menu');
 });
 
@@ -1737,4 +1738,37 @@ test('emploi du temps : semaines A et B, les vacances ne comptent pas', () => {
   assert.equal(weekLetter('2026-11-10', settings), 'B'); // les deux semaines de vacances ne comptent pas
   const slots = [{ id: 'es1', weekday: 2, start: '08:00', end: '10:00', week: 'A' }, { id: 'es2', weekday: 2, start: '08:00', end: '10:00', week: 'B' }];
   assert.deepEqual(planned(slots, '2026-09-07', '2026-09-20', settings).map((x) => `${x.date}:${x.slotId}`), ['2026-09-08:es1', '2026-09-15:es2']);
+});
+
+import { parseTimetable, normalizeClass as ttClass, normalizeSubject, hoursByClass, timetableSheet } from '../src/rules/timetableImport.js';
+test('import de l\'emploi du temps : format de l\'école, abréviations, semaines A/B, contrôles', () => {
+  assert.equal(ttClass('1e G'), '1re Générale');
+  assert.equal(ttClass('Tle STMG'), 'Terminale STMG');
+  assert.equal(ttClass('2nde'), '2de');
+  assert.equal(ttClass('1ère STMG'), '1re STMG');
+  assert.equal(ttClass('CM2'), null);
+  assert.deepEqual(normalizeSubject('E.S. SVT'), { subject: 'Enseignement scientifique', part: 'SVT' });
+  assert.equal(normalizeSubject('Spé Maths').subject, 'Spécialité Mathématiques');
+  assert.equal(normalizeSubject('HGE').subject, 'Histoire-Géographie');
+  const row = (line, Jour, Classe, c, Matière, Enseignant, Salle = '-', Semaine = '') => ({ line, Jour, Classe, 'Créneau Horaire': c, Matière, Enseignant, Salle, Semaine });
+  const r = parseTimetable([
+    row(2, 'Lundi', '1e G', '07:30-09:30', 'E.S. P-C', 'Prof A', '-', 'Semaine A'),
+    row(3, 'Lundi', '1e G', '07:30-09:30', 'E.S. SVT', 'Prof B', '-', 'Semaine B'),
+    row(4, 'Lundi', '3e', '08:00-09:00', 'Maths', 'Prof A'),
+    row(5, 'Jeudi', 'CM2', '08:00-09:00', 'Maths', 'Prof C'),
+    row(6, 'Vendredi', '4e', '10:00-09:00', 'HGE', 'Prof D'),
+    { line: 7, Jour: '', Classe: '', 'Créneau Horaire': ' ', Matière: '', Enseignant: '' },
+    { line: 8, Classe: 'Tle G', Jour: 'Mardi', Début: '13:30', Fin: '15:30', Matière: 'Philosophie', Professeur: 'Prof E', Salle: 'Salle 4' },
+  ]);
+  assert.equal(r.slots.length, 4);
+  assert.equal(r.ignored, 1);
+  assert.equal(r.errors.length, 2);
+  assert.match(r.errors[0], /Ligne 5 : classe « CM2 » inconnue/);
+  assert.match(r.errors[1], /finit avant de commencer/);
+  assert.deepEqual(r.slots.map((s) => s.week ?? '-'), ['A', 'B', '-', '-']);
+  assert.equal(r.slots[3].room, 'Salle 4');
+  assert.equal(r.warnings.length, 1); // Prof A : 1re G 7h30-9h30 (semaine A) et 3e 8h-9h
+  assert.match(r.warnings[0], /Prof A a deux cours en même temps/);
+  assert.deepEqual(hoursByClass(r.slots)['1re Générale'], { A: 2, B: 2 });
+  assert.equal(timetableSheet({ Instructions: [['Comment']], 'EDT à importer': [['Jour', 'Classe', 'Matière']] })[0][0], 'Jour');
 });

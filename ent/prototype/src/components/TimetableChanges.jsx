@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Badge, Button, Card } from './ui.jsx';
-import { TIMETABLE } from '../data/timetable.js';
+import { loadTimetable } from '../timetableStore.js';
+import { DEFAULT_SETTINGS } from '../data/settings.js';
+import { weekLetter } from '../rules/teachingHours.js';
 import { POPULATION } from '../data/announcements.js';
 import { CHANGE_TYPES, changeErrors, changeNotice } from '../rules/timetableChanges.js';
 import { publishAnnouncement } from '../announcementsStore.js';
@@ -23,7 +25,7 @@ const DAYS = [[1, 'lundi'], [2, 'mardi'], [3, 'mercredi'], [4, 'jeudi'], [5, 've
 const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const ACTOR = { DIRECTION: { role: 'DIRECTION', name: 'Direction' }, BUREAU: { role: 'BUREAU', name: 'Mme Hanta' }, VIE_SCOLAIRE: { role: 'VIE_SCOLAIRE', name: 'M. Be' } };
 
-export default function TimetableChanges({ role }) {
+export default function TimetableChanges({ role, settings = DEFAULT_SETTINGS }) {
   const sameDayOnly = role === 'VIE_SCOLAIRE'; // la CPE annonce seulement l'annulation d'un cours du jour
   const canEdit = ['DIRECTION', 'BUREAU'].includes(role) || sameDayOnly;
   const today = localToday();
@@ -33,7 +35,9 @@ export default function TimetableChanges({ role }) {
   const [tried, setTried] = useState(false);
   const wd = new Date(`${c.date}T12:00:00Z`).getUTCDay() || 7;
   // séances de la classe ce jour-là, d'après l'emploi du temps
-  const daySlots = TIMETABLE.filter((s) => s.cls === c.cls && s.weekday === wd);
+  const TIMETABLE = loadTimetable();
+  const letter = weekLetter(c.date, settings);
+  const daySlots = TIMETABLE.filter((s) => s.cls === c.cls && s.weekday === wd && (!s.week || s.week === letter));
   const subjects = [...new Set(TIMETABLE.filter((s) => s.cls === c.cls).map((s) => s.subject))];
   const sameDay = c.type === 'ANNULE' && c.date === today;
   const errors = [...changeErrors(c), ...(sameDayOnly && !sameDay ? ['La CPE annonce seulement l\'annulation d\'un cours aujourd\'hui.'] : [])];

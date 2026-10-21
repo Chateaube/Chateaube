@@ -3,6 +3,7 @@
 // responsables (rattachés à l'élève par son matricule ou son nom), les notes officielles de 1re des
 // Terminales (projection au bac) et l'inventaire. Les lignes « Exemple » sont ignorées.
 import { sheetRows } from '../xlsxRead.js';
+import { parseTimetable, timetableSheet } from './timetableImport.js';
 
 export const SHEET_NAMES = ['1 Élèves', '2 Responsables', '3 Personnel', '4 Emploi du temps', '5 Notes', '6 Notes officielles 1re', '7 Paiements', '8 Manuels', '9 Prêts de manuels', '10 Inventaire'];
 const find = (book, n) => book[Object.keys(book).find((k) => k.trim().startsWith(`${n} `)) ?? ''] ?? [];
@@ -45,8 +46,12 @@ export function bookToImport(book) {
     expires: /^\d{2}\/\d{2}\/\d{4}$/.test(r.Péremption ?? '') ? r.Péremption.split('/').reverse().join('-') : undefined,
   })).filter((x) => x.name);
 
+  // emploi du temps : onglet 4 du modèle, ou fichier de l'école (onglet « EDT à importer »)
+  const ttRows = sheetRows(timetableSheet(book)).filter((r) => !/^exemple/i.test(String(Object.values(r)[1] ?? '').trim()));
+  const timetable = ttRows.length ? parseTimetable(ttRows) : null;
   const counts = Object.fromEntries(SHEET_NAMES.map((n, i) => [n, sheetRows(find(book, i + 1)).length]));
-  return { studentsTsv: students.length > 1 ? toTsv(students) : '', staffTsv, guardians, extrasOf, official, officialErrors, inventory, counts };
+  if (timetable) counts['4 Emploi du temps'] = timetable.slots.length + timetable.errors.length;
+  return { studentsTsv: students.length > 1 ? toTsv(students) : '', staffTsv, guardians, extrasOf, official, officialErrors, inventory, timetable, counts };
 }
 
 /** Complète les élèves analysés : responsables, prénom d'usage, sexe, santé. */

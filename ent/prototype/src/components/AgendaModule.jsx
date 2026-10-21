@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card } from './ui.jsx';
 import { AGENDAS, agendaItems, agendasFor, closuresAsEvents, isExamClass, toIcs, overview } from '../rules/agenda.js';
 import { SCHOOL_EVENTS } from '../data/events.js';
-import { TIMETABLE } from '../data/timetable.js';
+import { loadTimetable } from '../timetableStore.js';
 import { plannedSessions } from '../rules/teachingHours.js';
 import { DEFAULT_SETTINGS } from '../data/settings.js';
 import { HOMEWORK } from '../data/homework.js';
@@ -102,7 +102,7 @@ export default function AgendaModule({ role, cls: fixedCls, settings, compact = 
   const [events, setEvents] = useState(() => [...SCHOOL_EVENTS, ...publishedProposals()]);
   const [draft, setDraft] = useState(null);
   // cours des prochaines semaines, d'après l'emploi du temps (jours de classe), puis les changements
-  const courses = useMemo(() => plannedSessions(role === 'ENSEIGNANT' ? TIMETABLE.filter((x) => x.teacherId === 'p1') : TIMETABLE, '2026-10-12', '2026-11-06', settings ?? DEFAULT_SETTINGS)
+  const courses = useMemo(() => plannedSessions(role === 'ENSEIGNANT' ? loadTimetable().filter((x) => x.teacherId === 'p1') : loadTimetable(), '2026-10-12', '2026-11-06', settings ?? DEFAULT_SETTINGS)
     .map((x) => ({ id: `${x.slotId}-${x.date}`, date: x.date, start: x.start, end: x.end, cls: x.cls, subject: x.subject, room: '' })), [role, settings]);
   const closures = useMemo(() => closuresAsEvents((settings ?? DEFAULT_SETTINGS).calendar), [settings]);
   const items = useMemo(() => agendaItems({ sessions: applyChanges(courses, loadChanges()), events: [...closures, ...events], homework: HOMEWORK, cls: cls || null, staff })

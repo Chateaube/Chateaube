@@ -190,3 +190,20 @@
 - **Réimport du modèle Excel** : fusion — les élèves déjà présents sont mis à jour, les nouveaux ajoutés,
   rien n'est effacé.
 - Base : prélèvement (`withdrawn_by`, `status`), format des photocopies, `week_letter`, `detention_watch` (T63).
+
+## 21 octobre 2026 (après-midi) — import de l'emploi du temps, écran « Emplois du temps »
+
+- **Import de l'emploi du temps** (Importer et sauvegarder) : le fichier de l'école (onglet « EDT à importer » :
+  Jour, Classe, Créneau Horaire, Matière, Enseignant, Salle, Semaine) ou l'onglet 4 du modèle complet.
+  Abréviations comprises : 1e G, 1e STMG, Tle G, Tle STMG, 2nde ; HGE, P-C, Spé Maths/P-C/SVT, Eco-Droit,
+  MSGN ; « E.S. P-C » et « E.S. SVT » = un seul enseignement scientifique partagé entre deux professeurs.
+  « Semaine A » / « Semaine B » ; salle « - » = pas de salle.
+- **Compte rendu avant l'import** : nombre de cours, lignes à corriger (jour, classe, horaire illisible…),
+  chevauchements à vérifier (un professeur ou une classe à deux endroits à la fois, semaines A/B comprises),
+  heures par classe et par semaine. Le nouvel emploi du temps remplace l'ancien en entier.
+- **Écran « Emplois du temps »** (Pédagogie) : par classe ou par professeur, semaine A ou B (la semaine en
+  cours est indiquée ; la semaine de la rentrée, lundi 7 septembre, est une semaine A), imprimable.
+  L'agenda et les changements d'emploi du temps utilisent l'emploi du temps importé.
+- Essai avec le fichier réel de l'école (185 cours, gardé hors du dépôt) : aucune ligne rejetée ;
+  deux chevauchements signalés en Terminale générale (spécialités physique-chimie et SVT le lundi).
+- Modèle Excel complet : onglet 4 au même format que le fichier de l'école (avec la colonne Semaine).

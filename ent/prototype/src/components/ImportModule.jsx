@@ -3,6 +3,7 @@ import { csvCell } from '../rules/csv.js';
 import { Badge, Button, Card, Stat } from './ui.jsx';
 import { parseTable, analyzeStudents, parseAssignments } from '../rules/importer.js';
 import { loadImport, saveImport, clearImport } from '../importStore.js';
+import { hoursByClass } from '../rules/timetableImport.js';
 import { saveFile } from '../download.js';
 import { readXlsx } from '../xlsxRead.js';
 import { bookToImport, withExtras, SHEET_NAMES } from '../rules/templateImport.js';
@@ -11,13 +12,27 @@ import { saveInventory } from '../careStore.js';
 import BackupCard from './BackupCard.jsx';
 
 // Onglets du modèle pris en compte dès maintenant ; les autres seront repris par la version serveur
-const USED = { '1 Élèves': 'fiches élèves', '2 Responsables': 'responsables des élèves', '3 Personnel': 'professeurs et enseignements', '6 Notes officielles 1re': 'projection au bac', '10 Inventaire': 'inventaire' };
+const USED = { '4 Emploi du temps': 'emploi du temps', '1 Élèves': 'fiches élèves', '2 Responsables': 'responsables des élèves', '3 Personnel': 'professeurs et enseignements', '6 Notes officielles 1re': 'projection au bac', '10 Inventaire': 'inventaire' };
+
+/** Compte rendu de l'emploi du temps lu : cours, lignes à corriger, chevauchements, heures par classe. */
+function TimetableReport({ t }) {
+  const hours = hoursByClass(t.slots);
+  const fmt = (h) => String(Math.round(h * 100) / 100).replace('.', ',');
+  return (
+    <div className="mt-3 rounded-xl border border-slate-200 p-3 text-sm">
+      <p className="font-semibold text-navy-900">Emploi du temps : {t.slots.length} cours lus{t.slots.some((x) => x.week) ? ` (dont ${t.slots.filter((x) => x.week).length} en semaine A ou B)` : ''}</p>
+      {t.errors.length > 0 && <div className="mt-1 rounded-md bg-red-50 p-2 text-xs text-red-800"><p className="font-semibold">{t.errors.length} ligne{t.errors.length > 1 ? 's' : ''} à corriger (non importée{t.errors.length > 1 ? 's' : ''})</p>{t.errors.slice(0, 12).map((e) => <p key={e}>· {e}</p>)}</div>}
+      {t.warnings.length > 0 && <div className="mt-1 rounded-md bg-amber-50 p-2 text-xs text-amber-900"><p className="font-semibold">À vérifier : {t.warnings.length} chevauchement{t.warnings.length > 1 ? 's' : ''}</p>{t.warnings.slice(0, 12).map((w) => <p key={w}>· {w}</p>)}</div>}
+      <p className="mt-2 text-xs text-slate-600">Heures par semaine : {Object.entries(hours).map(([c, h]) => `${c} ${fmt(h.A)} h${h.A !== h.B ? ` (B : ${fmt(h.B)} h)` : ''}`).join(' · ')}</p>
+    </div>
+  );
+}
 
 function TemplateZone({ onBook, extras }) {
   const file = useRef(null);
   const [err, setErr] = useState('');
   return (
-    <Card title="Importer le modèle Excel" subtitle="Le classeur « modele-import-chateaubriand.xlsx » rempli (onglets 1 à 10). Les lignes « Exemple » sont ignorées.">
+    <Card title="Importer le modèle Excel" subtitle="Le classeur « modele-import-chateaubriand.xlsx » rempli (onglets 1 à 10), ou seulement le fichier de l'emploi du temps (onglet « EDT à importer »). Les lignes « Exemple » sont ignorées.">
       <input ref={file} type="file" accept=".xlsx" className="hidden" onChange={async (e) => {
         const f = e.target.files[0]; e.target.value = ''; if (!f) return;
         try { setErr(''); onBook(bookToImport(await readXlsx(await f.arrayBuffer()))); } catch (x) { setErr(x.message); }
@@ -38,6 +53,7 @@ function TemplateZone({ onBook, extras }) {
         </ul>
       )}
       {extras?.officialErrors?.length > 0 && <p className="mt-2 text-xs text-red-700">{extras.officialErrors.slice(0, 5).join(' ')}</p>}
+      {extras?.timetable && <TimetableReport t={extras.timetable} />}
       {extras && <p className="mt-2 text-xs text-slate-500">Vérifiez ci-dessous les élèves et les professeurs, puis cliquez sur « Importer ».</p>}
     </Card>
   );
@@ -85,6 +101,8 @@ export default function ImportModule() {
       // mis à jour, un nouveau est ajouté, ceux qui ne figurent pas dans ce fichier sont gardés.
       students: analysis ? mergeStudents(current?.students ?? [], withExtras(analysis.students.map((s) => (renumber && s.student.suggestedNumber ? { ...s.student, number: s.student.suggestedNumber } : s.student)), extras ?? {})) : current?.students ?? [],
       assignments: assignments ?? current?.assignments ?? [],
+      // emploi du temps : le nouveau remplace l'ancien en entier (c'est la semaine type de l'année)
+      timetable: extras?.timetable?.slots.length ? extras.timetable.slots : current?.timetable ?? null,
     };
     saveImport(data);
     setCurrent(loadImport());
@@ -97,6 +115,7 @@ export default function ImportModule() {
       more += ` Notes officielles de 1re : ${Object.keys(extras.official).length} élèves.`;
     }
     if (extras?.inventory.length) { saveInventory(extras.inventory); more += ` Inventaire : ${extras.inventory.length} articles.`; }
+    if (extras?.timetable?.slots.length) more += ` Emploi du temps : ${extras.timetable.slots.length} cours.`;
     setDone(`${data.students.length} élèves et ${data.assignments.length} professeurs importés.${more} Ils apparaissent dans Inscriptions & fiches élèves, Encaisser et la consultation des professeurs.`);
   };
   const exportToComplete = () => {
@@ -191,10 +210,10 @@ export default function ImportModule() {
       )}
 
       {!analysis && !assignments && !extras && <p className="text-sm text-slate-600">Choisissez le fichier Excel rempli : les élèves et les professeurs s'affichent ici pour vérification avant l'import.</p>}
-      {(analysis || assignments) && (
+      {(analysis || assignments || extras?.timetable?.slots.length > 0) && (
         <div className="flex flex-wrap items-center gap-3">
           <Button onClick={doImport}>
-            Importer {analysis ? `${analysis.students.length} élèves` : ''}{analysis && assignments ? ' et ' : ''}{assignments ? `${assignments.length} professeurs` : ''}
+            Importer {[analysis && `${analysis.students.length} élèves`, assignments && `${assignments.length} professeurs`, extras?.timetable?.slots.length && `l'emploi du temps (${extras.timetable.slots.length} cours)`].filter(Boolean).join(', ')}
           </Button>
           {analysis?.students.some((x) => x.student.suggestedNumber) && (
             <label className="flex items-center gap-1.5 text-xs text-slate-700"><input type="checkbox" checked={renumber} onChange={(e) => setRenumber(e.target.checked)} />

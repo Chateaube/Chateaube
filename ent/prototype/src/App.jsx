@@ -47,6 +47,7 @@ import AmbianceEffects from './components/AmbianceEffects.jsx';
 import { featureVisible } from './features.js';
 import AccessRights from './components/AccessRights.jsx';
 import FollowUpsModule from './components/FollowUpsModule.jsx';
+import TimetableView from './components/TimetableView.jsx';
 import ReadOnlyGuard from './components/ReadOnlyGuard.jsx';
 import { applyAccess, DIRECTION_ONLY } from './rules/access.js';
 import { DIRECTION_TREE, arrangeNav } from './rules/navigation.js';
@@ -109,7 +110,7 @@ const PROFILES = {
     nav: arrangeNav(DIRECTION_TREE, [
       { group: 'Aujourd\'hui', items: [{ id: 'dashboard', label: 'Mes décisions', icon: 'home', screen: DirectionDashboard }, SIGNATURES, FEEDBACK] },
       { group: 'Élèves', items: [INSCRIPTIONS, STUDENT_LIST, { id: 'students', label: 'Mobilité Tamatave → Tana', icon: 'swap' }] },
-      { group: 'Pédagogie', items: [COUNCIL, BULLETINS, MOCK_EXAMS, GRADE_SHEETS, ...OVERSIGHT, { id: 'timetable', label: 'Emplois du temps', icon: 'clock' }, { id: 'exams', label: 'Examens & Campus France', icon: 'cap' }] },
+      { group: 'Pédagogie', items: [COUNCIL, BULLETINS, MOCK_EXAMS, GRADE_SHEETS, ...OVERSIGHT, { id: 'timetable', label: 'Emplois du temps', icon: 'clock', screen: TimetableView }, { id: 'exams', label: 'Examens & Campus France', icon: 'cap' }] },
       { group: 'Vie scolaire', items: [VIE_SCOLAIRE, CARE, HOURS, TT_CHANGES, FOLLOW_UP, MANDATES, FOLLOWUPS] },
       { group: 'Finances', items: [ACCOUNTING] },
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, AGENDA] },
