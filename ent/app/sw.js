@@ -1,5 +1,5 @@
-// ENT Chateaubriand — disponible hors ligne (version 20261022143045)
-const CACHE = 'ent-20261022143045';
+// ENT Chateaubriand — disponible hors ligne (version 20261022144324)
+const CACHE = 'ent-20261022144324';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
