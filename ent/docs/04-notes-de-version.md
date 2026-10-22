@@ -1,5 +1,56 @@
 # Notes de version — ce qui change pour l'équipe
 
+## 22 octobre 2026 — parcours de chacun, emplois du temps façon école
+
+**Emplois du temps** (présentation de l'outil de l'école)
+- Trois vues, toutes imprimables en A4 paysage :
+  - **par jour** : toutes les classes côte à côte, de la 6e à la Tle G ; « Imprimer la semaine » sort une page par jour ;
+  - **par classe** ;
+  - **par professeur**.
+- Chaque matière a sa couleur, la même partout : écran, impression, portail des familles.
+- Récréation et déjeuner apparaissent en bandes grises ; le mercredi après-midi est marqué « Pas cours ».
+- Un cours de semaine A ou de semaine B est marqué comme tel. Deux cours au même créneau (groupes, semaines A et B) s'affichent côte à côte.
+- **Calendrier A/B de l'école** :
+  - la semaine de la rentrée (1er septembre) est une semaine A ;
+  - l'alternance continue pendant les vacances ;
+  - les vacances 2026-2027 sont reprises de ce calendrier (printemps, fin d'année, saison des pluies, automne tropical).
+
+**Parents**
+- **Justifier une absence en deux gestes** : choisir un motif, puis « Envoyer ». La photo du justificatif est facultative.
+  - Le compte à rebours reste visible (« il reste 18 h »).
+  - Une justification envoyée à temps attend la vie scolaire : l'absence ne devient pas « non justifiée » entre-temps.
+- **Alertes sur le téléphone**, sans SMS :
+  - les urgences partent tout de suite ;
+  - le reste est regroupé (« 3 nouvelles notes pour Aina ») et n'est jamais envoyé entre 20h et 7h ;
+  - avec le serveur, un e-mail de secours partira si l'alerte n'est pas ouverte au bout de 2 h.
+- **Messages** : on écrit d'abord à un rôle (professeur principal, vie scolaire, secrétariat, Direction). Il est indiqué que la réponse arrive sous 48 h ouvrées.
+
+**Élèves (et parents)** : la carte **Maintenant / Ensuite** montre le cours en cours et le suivant, avec la salle et le professeur.
+- Elle suit l'emploi du temps de la bonne semaine (A ou B).
+- Les changements du jour y apparaissent en rouge : cours annulé, déplacé ou ajouté.
+
+**Vie scolaire**
+- **Saisie express** (Retard · Absence · Confiscation · Infirmerie) :
+  - sur téléphone, une barre en bas de l'écran ;
+  - sur ordinateur, quatre gros boutons ;
+  - on cherche l'élève par nom, prénom ou classe, puis 2 ou 3 touches suffisent.
+- Un nouveau filtre **« Justifications des familles »** permet d'accepter une demande, ou de la refuser en donnant une raison, que la famille voit.
+- « **Absent·e aujourd'hui** » : quand la CPE ou le secrétariat est absent, ses alertes du jour vont aussi à l'autre service.
+
+**Enseignants** : tout part du cours. La carte du cours propose Appel · Cahier de textes · Notes, chacun ouvert directement sur la bonne classe.
+- Depuis les appréciations d'un élève : « Écrire aux parents ».
+
+**Direction et équipe**
+- **Recherche universelle** : la loupe ou Ctrl+K trouve un élève, un écran ou une action (ex. « certificat », « Fitia », « encaisser »).
+- **Favoris** : l'étoile à côté d'un écran l'épingle en tête du menu, 5 au plus.
+- Les chiffres de l'accueil (élèves, absences, colles) mènent à la liste qui les explique.
+- **Fil de l'élève** : une seule chronologie partagée par l'équipe (absences, punitions, objets, colles, infirmerie). Les soins et le journal interne ne sont pas montrés aux enseignants.
+- « Changements d'emploi du temps » passe dans Pédagogie, à côté des emplois du temps.
+
+**Pour tous**
+- Les brouillons (message, cahier de textes, punition, confiscation) sont gardés sur l'appareil. Quitter la page avec un brouillon demande confirmation.
+- **Texte agrandi** dans le menu du compte.
+
 ## 21 octobre 2026 — liste des enseignements
 
 - La liste des enseignements de l'école (qui enseigne quoi, dans quelles classes) est intégrée : 31 lignes.

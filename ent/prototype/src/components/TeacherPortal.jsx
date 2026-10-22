@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Badge, Button, Card, Icon } from './ui.jsx';
 import { TEACHER, CLASS_LIST } from '../data/people.js';
+import { setIntent } from '../navIntent.js';
 
 const h = (t) => t.replace(':', 'h');
 const APPEL_UI = { FAIT: ['green', 'Appel fait'], A_FAIRE: ['amber', 'Appel à faire'], A_VENIR: ['slate', 'À venir'] };
@@ -71,7 +72,12 @@ export default function TeacherPortal({ go }) {
                     <p className="text-xs text-slate-500">{s.room}{s.booking && ` · ${s.booking} réservé`}</p>
                   </div>
                   <Badge tone={APPEL_UI[s.appel][0]}>{APPEL_UI[s.appel][1]}</Badge>
-                  {s.appel === 'A_FAIRE' && <Button variant="secondary" onClick={() => setOpen(s)}>Appel</Button>}
+                  {/* tout part du cours : appel, cahier de textes, notes de la classe */}
+                  <span className="flex w-full flex-wrap gap-1.5 sm:w-auto">
+                    {s.appel === 'A_FAIRE' && <Button className="!py-1 text-xs" onClick={() => setOpen(s)}><Icon name="check" />Appel</Button>}
+                    <Button variant="secondary" className="!py-1 text-xs" onClick={() => { setIntent('homework', { cls: s.cls, subject: s.subject }); go('homework'); }}><Icon name="calendar" />Cahier de textes</Button>
+                    <Button variant="secondary" className="!py-1 text-xs" onClick={() => { setIntent('grades', { cls: s.cls, subject: s.subject }); go('grades'); }}><Icon name="pen" />Notes</Button>
+                  </span>
                 </li>
               ))}
             </ol>

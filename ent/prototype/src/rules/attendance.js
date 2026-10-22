@@ -61,3 +61,35 @@ export function justification(a, now) {
   const left = Math.ceil((new Date(`${deadline}:00Z`) - new Date(`${now}:00Z`)) / 3_600_000);
   return { status: 'A_JUSTIFIER', deadline, hoursLeft: left };
 }
+
+/* ---------- Justification déposée par la famille ----------
+ * Le parent justifie depuis son téléphone (motif, mot, photo du justificatif facultative) tant que le délai
+ * de 24 h court. La demande déposée à temps « arrête le chronomètre » : elle attend la vie scolaire, qui
+ * l'accepte (absence justifiée) ou la refuse avec une raison (non justifiée si le délai est passé). */
+export const JUSTIFY_REASONS = ['Certificat médical', 'Maladie', 'Motif familial', 'Transport', 'Rendez-vous administratif', 'Autre'];
+
+/** Erreurs d'une demande de la famille ; [] si elle peut partir. */
+export function familyRequestErrors(a, req, now) {
+  const e = [];
+  if (a.justified) e.push('Déjà justifiée.');
+  if (a.request && !a.request.refused) e.push('Une justification est déjà envoyée : la vie scolaire la regarde.');
+  if (now >= justifyDeadline(a)) e.push('Le délai de 24 h est dépassé : l\'absence reste non justifiée. Vous pouvez écrire à la vie scolaire.');
+  if (!JUSTIFY_REASONS.includes(req.reason)) e.push('Choisissez un motif.');
+  if (req.reason === 'Autre' && !(req.note ?? '').trim()) e.push('Précisez le motif.');
+  return e;
+}
+
+/** Statut vu de tous : une demande déposée à temps et pas encore traitée est EN_ATTENTE (jamais « non justifiée »). */
+export function justificationState(a, now) {
+  if (a.justified) return { status: 'JUSTIFIEE' };
+  if (a.request && !a.request.refused && a.request.at < justifyDeadline(a)) return { status: 'EN_ATTENTE', request: a.request };
+  return justification(a, now);
+}
+
+/** « il reste 6 h » / « il reste 40 min » : compte à rebours lisible. */
+export function timeLeftLabel(a, now) {
+  const ms = new Date(`${justifyDeadline(a)}:00Z`) - new Date(`${now}:00Z`);
+  if (ms <= 0) return 'délai dépassé';
+  const minutes = Math.floor(ms / 60000);
+  return minutes < 60 ? `il reste ${minutes} min` : `il reste ${Math.floor(minutes / 60)} h`;
+}

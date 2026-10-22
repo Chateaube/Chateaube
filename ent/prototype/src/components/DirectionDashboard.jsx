@@ -3,7 +3,8 @@ import TodoList from './TodoList.jsx';
 import ActivityJournal from './ActivityJournal.jsx';
 import { Badge, Button, Card, Icon, Progress, Stat } from './ui.jsx';
 import { SITES, SITE_KPIS, CANDIDATE_FILES, YEAR_MILESTONES, TODAY } from '../data/demo.js';
-import { ATTENDANCE } from '../data/schoollife.js';
+import { loadAttendance } from '../attendanceStore.js';
+import { setIntent } from '../navIntent.js';
 import { upcomingColleSessions } from '../rules/discipline.js';
 import { loadPassport } from './PassportTab.jsx';
 
@@ -43,9 +44,9 @@ export default function DirectionDashboard({ account, settings, go, site: header
       <h2 className="pt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">L'école en un coup d'œil</h2>
       {/* Indicateurs (la caisse, les impayés et la trésorerie sont dans Caisse et comptabilité) */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Élèves inscrits" value={SITE_KPIS[site]?.students ?? SITE_KPIS.TMV.students} hint={SITES.find((s) => s.id === site)?.name ?? ''} />
-        <Stat label="Absences aujourd'hui" value={ATTENDANCE.filter((a) => a.date === TODAY && a.kind === 'ABSENCE').length} hint="d'après l'appel" />
-        <Stat label="Colles cette semaine" value={upcomingColleSessions(loadPassport().colles, TODAY).reduce((t, x) => t + x.students, 0)} hint="mercredi après-midi, samedi matin" />
+        <Stat onClick={() => go?.('students-list')} label="Élèves inscrits" value={SITE_KPIS[site]?.students ?? SITE_KPIS.TMV.students} hint={SITES.find((s) => s.id === site)?.name ?? ''} />
+        <Stat onClick={() => { setIntent('vs', { tab: 'attendance', filter: 'ALL' }); go?.('vs'); }} label="Absences aujourd'hui" value={loadAttendance().filter((a) => a.date === TODAY && a.kind === 'ABSENCE').length} hint="d'après l'appel" />
+        <Stat onClick={() => { setIntent('vs', { tab: 'passport' }); go?.('vs'); }} label="Colles cette semaine" value={upcomingColleSessions(loadPassport().colles, TODAY).reduce((t, x) => t + x.students, 0)} hint="mercredi après-midi, samedi matin" />
         <Stat label="Dossiers d'examen complets" value={`${CANDIDATE_FILES.complete} sur ${CANDIDATE_FILES.total}`} hint="Dépôt avant le 30 octobre" />
       </div>
 

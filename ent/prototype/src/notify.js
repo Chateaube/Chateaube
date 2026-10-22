@@ -3,7 +3,11 @@
 //  - À FAIRE : décisions, validations, parents à prévenir… (orange, avec un nombre) ;
 //  - INFO : annonces, publications (sans badge rouge).
 // Le rouge est réservé à l'urgent.
-import { ATTENDANCE, CLASSES, PHONES } from './data/schoollife.js';
+import { CLASSES } from './data/schoollife.js';
+import { loadObjects } from './objectsStore.js';
+import { loadAttendance } from './attendanceStore.js';
+import { coveringFor, LABELS } from './delegationStore.js';
+import { justificationState } from './rules/attendance.js';
 import { loadTasks } from './tasksStore.js';
 import { loadEventProposals, loadCouncilFeedback } from './studentInitiativesStore.js';
 import { loadVisits } from './careStore.js';
@@ -37,11 +41,25 @@ function careUrgent(today) {
     .map((v) => ({ id: `care-${v.id}`, level: 'URGENT', to: 'care', text: `${v.student} au secrétariat depuis ${hm(v.at)} (${v.reason.toLowerCase()}) — ${CARE_OUTCOMES[v.outcome].toLowerCase()}` }));
 }
 
-export function notificationsFor(role, { account } = {}) {
+export function notificationsFor(role, { account, covering = true } = {}) {
+  const base = ownNotifications(role, { account });
+  if (!covering) return base;
+  // remplacement : la personne absente (CPE ou secrétariat) confie ses alertes du jour
+  coveringFor(role, TODAY).forEach((from) => {
+    const other = ownNotifications(from, { account });
+    const ids = new Set([...base.urgent, ...base.todo].map((n) => n.id));
+    base.urgent.push(...other.urgent.filter((n) => !ids.has(n.id)));
+    base.todo.push(...other.todo.filter((n) => !ids.has(n.id)).map((n) => ({ ...n, id: `${from}-${n.id}`, text: `Pour ${LABELS[from]} (absente aujourd'hui) : ${n.text}` })));
+  });
+  return base;
+}
+
+function ownNotifications(role, { account } = {}) {
   const today = TODAY;
   const urgent = []; const todo = []; const info = [];
   const add = (cond, item) => { if (cond) todo.push({ level: 'TODO', ...item }); };
   if (['DIRECTION', 'BUREAU', 'VIE_SCOLAIRE'].includes(role)) urgent.push(...careUrgent(today));
+  const ATTENDANCE = loadAttendance();
   const notInformed = ATTENDANCE.filter((a) => a.date === today && !a.notified).length;
   const pendingPosts = loadPosts().filter((p) => p.status === 'EN_ATTENTE').length;
   const collesToGive = Object.values(CLASSES).flat().reduce((t, st) => t + passport(st, { attendance: ATTENDANCE, ...loadPassport() }, { isNew: isNewStudent(st) }).toGive.length, 0);
@@ -88,7 +106,7 @@ export function notificationsFor(role, { account } = {}) {
       else if (role === 'DIRECTION') info.push({ id: `colles-${x.day}`, level: 'INFO', to: 'vs', text: `${when} : ${n}, surveillance ${WATCHERS[who]}` });
     });
     // objets confisqués dont la restitution tombe aujourd'hui (ou est dépassée)
-    const back = PHONES.filter((p) => objectState(p, `${today}T23:59`, DEFAULT_SETTINGS) === 'A_RENDRE');
+    const back = loadObjects().filter((p) => objectState(p, `${today}T23:59`, DEFAULT_SETTINGS) === 'A_RENDRE');
     add(back.length, { id: 'objects-back', to: 'vs', count: back.length, text: `${back.length} objet${back.length > 1 ? 's' : ''} confisqué${back.length > 1 ? 's' : ''} à rendre aujourd'hui : ${back.map((p) => `${objectOf(p).toLowerCase()} de ${p.student}`).join(', ')}`, action: 'Rendre' });
   }
   if (['DIRECTION', 'VIE_SCOLAIRE'].includes(role)) {
@@ -96,11 +114,15 @@ export function notificationsFor(role, { account } = {}) {
     add(alerts.length, { id: 'followups', to: 'student-followups', count: alerts.length, text: `${alerts.length} suivi${alerts.length > 1 ? 's' : ''} individuel${alerts.length > 1 ? 's' : ''} en alerte : ${alerts.map((f) => f.student).join(', ')}`, action: 'Voir' });
   }
   if (['DIRECTION', 'BUREAU'].includes(role)) {
-    const toDecide = PHONES.filter((p) => objectState(p, `${today}T11:00`, DEFAULT_SETTINGS) === 'A_DECIDER').length;
+    const toDecide = loadObjects().filter((p) => objectState(p, `${today}T11:00`, DEFAULT_SETTINGS) === 'A_DECIDER').length;
     add(toDecide, { id: 'objects', to: 'vs', count: toDecide, text: `${toDecide} objet${toDecide > 1 ? 's' : ''} confisqué${toDecide > 1 ? 's' : ''} : durée à décider`, action: 'Décider' });
   }
   if (['BUREAU', 'VIE_SCOLAIRE'].includes(role)) {
     add(notInformed, { id: 'parents', to: 'vs', count: notInformed, text: `${notInformed} famille${notInformed > 1 ? 's' : ''} pas encore prévenue${notInformed > 1 ? 's' : ''} d'une absence ou d'un retard`, action: 'Prévenir' });
+  }
+  if (['BUREAU', 'VIE_SCOLAIRE'].includes(role)) {
+    const asked = ATTENDANCE.filter((a) => justificationState(a, `${today}T11:00`).status === 'EN_ATTENTE').length;
+    add(asked, { id: 'justif-requests', to: 'vs', count: asked, text: `${asked} justification${asked > 1 ? 's' : ''} d'absence envoyée${asked > 1 ? 's' : ''} par les familles à accepter ou refuser`, action: 'Traiter' });
   }
   if (role === 'VIE_SCOLAIRE') {
     add(collesToGive, { id: 'colles', to: 'vs', count: collesToGive, text: `${collesToGive} colle${collesToGive > 1 ? 's' : ''} à donner (oublis, retards)`, action: 'Donner' });

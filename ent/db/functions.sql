@@ -1495,3 +1495,38 @@ BEGIN
   RETURN NEW;
 END $$ LANGUAGE plpgsql;
 CREATE TRIGGER detention_watch_check BEFORE INSERT OR UPDATE ON detention_watch FOR EACH ROW EXECUTE FUNCTION detention_watch_guard();
+
+-- Justification déposée par la famille : avant la fin des 24 h, sinon refusée ; l'accepter justifie
+-- l'absence même si la vie scolaire la traite après le délai (la famille était dans les temps).
+CREATE FUNCTION attendance_request_guard() RETURNS trigger AS $$
+DECLARE limit_at timestamptz;
+BEGIN
+  SELECT occurred_at + interval '24 hours' INTO limit_at FROM attendance_event WHERE id = NEW.attendance_id;
+  IF TG_OP = 'INSERT' AND NEW.sent_at > limit_at THEN
+    RAISE EXCEPTION 'Délai de 24 h dépassé : la justification ne peut plus être envoyée';
+  END IF;
+  IF TG_OP = 'UPDATE' AND NEW.accepted IS TRUE AND OLD.accepted IS NULL THEN
+    UPDATE attendance_event SET justified = true, justified_at = NEW.sent_at, comment = coalesce(comment, NEW.reason) WHERE id = NEW.attendance_id;
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER attendance_request_check BEFORE INSERT OR UPDATE ON attendance_request FOR EACH ROW EXECUTE FUNCTION attendance_request_guard();
+
+-- Statut vu de tous : une demande envoyée à temps et pas encore traitée est EN_ATTENTE.
+CREATE OR REPLACE VIEW v_attendance_status AS
+SELECT a.id, a.enrollment_id, a.kind, a.occurred_at, a.occurred_at + interval '24 hours' AS justify_until,
+  CASE WHEN a.justified THEN 'JUSTIFIEE'
+       WHEN EXISTS (SELECT 1 FROM attendance_request r WHERE r.attendance_id = a.id AND r.decided_at IS NULL AND r.sent_at <= a.occurred_at + interval '24 hours') THEN 'EN_ATTENTE'
+       WHEN now() >= a.occurred_at + interval '24 hours' THEN 'NON_JUSTIFIEE' ELSE 'A_JUSTIFIER' END AS status
+FROM attendance_event a WHERE a.kind IN ('ABSENCE', 'RETARD');
+
+-- Heures calmes (20h–7h à Madagascar) : seules les urgences partent.
+CREATE FUNCTION push_allowed(level notif_level, at timestamptz) RETURNS boolean AS $$
+  SELECT level = 'URGENT' OR (at AT TIME ZONE 'Indian/Antananarivo')::time BETWEEN '07:00' AND '19:59:59'
+$$ LANGUAGE sql IMMUTABLE;
+
+-- E-mail de secours : urgent ou important, poussé, pas ouvert depuis 2 h, pas encore envoyé par e-mail.
+CREATE VIEW v_notification_email_due AS
+SELECT n.* FROM notification_outbox n
+WHERE n.level <> 'INFO' AND n.sent_at IS NOT NULL AND n.opened_at IS NULL AND n.emailed_at IS NULL
+  AND now() - n.sent_at >= interval '2 hours';

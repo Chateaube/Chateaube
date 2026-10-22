@@ -58,7 +58,7 @@ export const DEFAULT_SETTINGS = {
     'Management|Tle STMG': ['Analyser une situation de gestion', 'Mobiliser les notions', 'Argumenter', 'Communiquer'],
   },
 
-  // Calendrier : jours fériés (Madagascar) et vacances (exemple à remplacer)
+  // Calendrier : jours fériés (Madagascar) et vacances (calendrier scolaire 2026-2027 de l'école)
   calendar: [
     { id: 'f1', kind: 'FERIE', label: 'Toussaint', start: '2026-11-01', end: '2026-11-01' },
     { id: 'f2', kind: 'FERIE', label: 'Noël', start: '2026-12-25', end: '2026-12-25' },
@@ -69,9 +69,9 @@ export const DEFAULT_SETTINGS = {
     { id: 'f7', kind: 'FERIE', label: 'Ascension', start: '2027-05-06', end: '2027-05-06' },
     { id: 'f8', kind: 'FERIE', label: 'Lundi de Pentecôte', start: '2027-05-17', end: '2027-05-17' },
     { id: 'f9', kind: 'FERIE', label: 'Fête de l\'Indépendance', start: '2027-06-26', end: '2027-06-26' },
-    { id: 'v1', kind: 'VACANCES', label: 'Vacances de la Toussaint (exemple)', start: '2026-10-24', end: '2026-11-01' },
-    { id: 'v2', kind: 'VACANCES', label: 'Vacances de Noël (exemple)', start: '2026-12-19', end: '2027-01-03' },
-    { id: 'v3', kind: 'VACANCES', label: 'Vacances de février (exemple)', start: '2027-02-13', end: '2027-02-21' },
-    { id: 'v4', kind: 'VACANCES', label: 'Vacances de printemps (exemple)', start: '2027-04-10', end: '2027-04-25' },
+    { id: 'v1', kind: 'VACANCES', label: 'Vacances de printemps', start: '2026-10-19', end: '2026-10-31' },
+    { id: 'v2', kind: 'VACANCES', label: 'Vacances de fin d\'année', start: '2026-12-21', end: '2027-01-02' },
+    { id: 'v3', kind: 'VACANCES', label: 'Vacances saison des pluies', start: '2027-02-15', end: '2027-02-27' },
+    { id: 'v4', kind: 'VACANCES', label: 'Vacances automne tropical', start: '2027-04-12', end: '2027-04-24' },
   ],
 };

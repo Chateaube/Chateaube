@@ -24,6 +24,8 @@ export const ATTENDANCE = [
   { id: 'a4', date: '2026-10-13', student: 'RASOA Lova', kind: 'RETARD', slot: '09h45 (+5 min)', by: 'Mme Hery', justified: false, notified: false, parentAck: null },
   { id: 'a6', date: '2026-10-06', student: 'RAMAROSON Fitia', kind: 'RETARD', slot: '07h00 (+10 min)', by: 'Mme Ranaivo', justified: false, notified: true, parentAck: '2026-10-06T18:20' },
   { id: 'a7', date: '2026-10-09', student: 'RAMAROSON Fitia', kind: 'RETARD', slot: '07h00 (+5 min)', by: 'M. Rasolo', justified: false, notified: true, parentAck: '2026-10-09T19:02' },
+  { id: 'a8', date: '2026-10-13', student: 'RAKOTOARISOA Toky', kind: 'ABSENCE', slot: '13h00–15h00', by: 'M. Tojo', justified: false, notified: true, parentAck: null },
+  { id: 'a9', date: '2026-10-13', student: 'RANDRIAMAMPIANINA Hery', kind: 'ABSENCE', slot: '07h00–09h00', by: 'M. Rasolo', justified: false, notified: true, parentAck: '2026-10-13T09:40', request: { reason: 'Certificat médical', note: 'Rendez-vous chez le médecin, certificat en photo.', photo: null, at: '2026-10-13T09:42', by: 'Parent de RANDRIAMAMPIANINA Hery' } },
   { id: 'a5', date: '2026-10-05', student: 'RAKOTOARISOA Aina', kind: 'RETARD', slot: '07h00 (+10 min)', by: 'M. Be', justified: true, reason: 'Transport', notified: true, parentAck: '2026-10-05T12:40' },
 ];
 

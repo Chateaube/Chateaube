@@ -3,6 +3,7 @@ import { EXAMS } from '../rules/mockExam.js';
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, Icon, StudentSelect } from './ui.jsx';
 import { Annotated, RulePanel, GradeCell } from './gradeUi.jsx';
+import { takeIntent, setIntent } from '../navIntent.js';
 import {
   TERM, SERVICES, EVALUATIONS, GRADES, REMARKS, competenciesFor, historyFor, levelOf, TEACHER_COMPETENCIES, COUNCIL_FLAGS, CLASS_SUBJECTS, OTHER_AVERAGES,
 } from '../data/grades.js';
@@ -301,7 +302,7 @@ function groupProposals(proposals, history) {
 }
 
 /* ---------------- 3. Appréciations ---------------- */
-function AppreciationsStep({ service, evaluations, grades, validated, settings, comments, setComments, flags, setFlags }) {
+function AppreciationsStep({ service, evaluations, grades, validated, settings, comments, setComments, flags, setFlags, go }) {
   const [student, setStudent] = useState(service.students[0]);
   const [seed, setSeed] = useState(0);
   const [aiNote, setAiNote] = useState(null);
@@ -341,7 +342,8 @@ function AppreciationsStep({ service, evaluations, grades, validated, settings, 
           suffix={(s) => ({ valid: '  ✓ validée', ready: '  · conforme', error: '  ⚠ à corriger', empty: '' }[statusOf(s)])}
         />
       </Card>
-      <Card title={student} subtitle={service.subject}>
+      <Card title={student} subtitle={service.subject}
+        action={go && <Button variant="secondary" className="!py-1 text-xs" onClick={() => { setIntent('messages', { to: `Parents de ${student} (${service.cls})` }); go('messages'); }}><Icon name="bell" />Écrire aux parents</Button>}>
         {appOnly ? (
           <Badge tone="violet" className="mb-3">Appréciation seule · sans note</Badge>
         ) : (
@@ -429,8 +431,8 @@ function withMockExams(evaluations, grades) {
   return { ev, gr };
 }
 
-export default function GradebookModule({ settings }) {
-  const [serviceId, setServiceId] = useState('s1');
+export default function GradebookModule({ settings, go }) {
+  const [serviceId, setServiceId] = useState(() => { const i = takeIntent('grades'); return SERVICES.find((x) => x.cls === i?.cls && x.subject === i?.subject)?.id ?? SERVICES.find((x) => x.cls === i?.cls)?.id ?? 's1'; });
   const [step, setStep] = useState('notes');
   const [mock] = useState(() => withMockExams(EVALUATIONS, GRADES));
   const [evaluations, setEvaluations] = useState(mock.ev);
@@ -487,7 +489,7 @@ export default function GradebookModule({ settings }) {
       )}
       {currentStep === 'notes' && <NotesStep {...props} competencies={myComps[serviceId] ?? []} />}
       {currentStep === 'competences' && <CompetenciesStep service={service} settings={settings} evaluations={evaluations[serviceId]} mine={myComps[serviceId] ?? []} setMine={(v) => setMyComps({ ...myComps, [serviceId]: v })} />}
-      {currentStep === 'appreciations' && <AppreciationsStep {...props} comments={comments} setComments={setComments} flags={flags} setFlags={setFlags} />}
+      {currentStep === 'appreciations' && <AppreciationsStep {...props} go={go} comments={comments} setComments={setComments} flags={flags} setFlags={setFlags} />}
     </div>
   );
 }

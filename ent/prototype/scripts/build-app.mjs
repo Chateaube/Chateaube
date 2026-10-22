@@ -54,5 +54,15 @@ self.addEventListener('fetch', (e) => {
       .catch(() => caches.match(e.request).then((r) => r || caches.match('index.html'))),
   );
 });
+// Notifications envoyées par le serveur de l'école (Web Push, sans SMS) : { title, body, tag, urgent }
+self.addEventListener('push', (e) => {
+  let d = {}; try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data && e.data.text() }; }
+  e.waitUntil(self.registration.showNotification(d.title || 'ENT Chateaubriand', { body: d.body || '', tag: d.tag, icon: 'icon-192.png', badge: 'icon-192.png', requireInteraction: !!d.urgent }));
+});
+// Toucher la notification ouvre (ou remet devant) l'application
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({ type: 'window' }).then((list) => (list[0] ? list[0].focus() : self.clients.openWindow('./'))));
+});
 `);
 console.log(`Application installable écrite dans ent/app (version ${version})`);

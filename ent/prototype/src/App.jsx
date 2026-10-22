@@ -51,6 +51,9 @@ import TimetableView from './components/TimetableView.jsx';
 import ReadOnlyGuard from './components/ReadOnlyGuard.jsx';
 import { applyAccess, DIRECTION_ONLY } from './rules/access.js';
 import { DIRECTION_TREE, arrangeNav } from './rules/navigation.js';
+import StudentTimeline from './components/StudentTimeline.jsx';
+import { loadLargeText, applyLargeText } from './textSize.js';
+import GlobalSearch, { loadFavorites, toggleFavorite } from './components/GlobalSearch.jsx';
 import pillar from './assets/pilier.png';
 import { useScreenGuard } from './screenGuard.js';
 import { useOnline } from './online.js';
@@ -96,6 +99,7 @@ const STUDENT_LIST = { id: 'students-list', label: 'Liste des élèves', icon: '
 const SIGNATURES = { id: 'signatures', label: 'Documents à signer', icon: 'pen', screen: SignaturesModule };
 const FOLLOW_UP = { id: 'followup', label: 'Documents, stages et orientation', icon: 'pen', screen: FollowUpModule };
 const ACCOUNTING = { id: 'accounting', label: 'Caisse et comptabilité', icon: 'wallet', screen: AccountingModule };
+const STUDENT_FILE = { id: 'student-file', label: 'Fil de l\'élève', icon: 'clock', screen: StudentTimeline };
 const FOLLOWUPS = { id: 'student-followups', label: 'Suivis individuels', icon: 'users', screen: FollowUpsModule };
 const MANDATES = { id: 'mandates', label: 'Engagements et attestations', icon: 'users', screen: MandatesAdmin };
 const ACCESS = { id: 'access', label: 'Droits d\'accès', icon: 'settings', screen: (p) => <AccessRights {...p} catalogue={catalogue()} baseNavs={baseNavs()} /> };
@@ -109,7 +113,7 @@ const PROFILES = {
     home: 'dashboard',
     nav: arrangeNav(DIRECTION_TREE, [
       { group: 'Aujourd\'hui', items: [{ id: 'dashboard', label: 'Mes décisions', icon: 'home', screen: DirectionDashboard }, SIGNATURES, FEEDBACK] },
-      { group: 'Élèves', items: [INSCRIPTIONS, STUDENT_LIST, { id: 'students', label: 'Mobilité Tamatave → Tana', icon: 'swap' }] },
+      { group: 'Élèves', items: [INSCRIPTIONS, STUDENT_LIST, STUDENT_FILE, { id: 'students', label: 'Mobilité Tamatave → Tana', icon: 'swap' }] },
       { group: 'Pédagogie', items: [COUNCIL, BULLETINS, MOCK_EXAMS, GRADE_SHEETS, ...OVERSIGHT, { id: 'timetable', label: 'Emplois du temps', icon: 'clock', screen: TimetableView }, { id: 'exams', label: 'Examens & Campus France', icon: 'cap' }] },
       { group: 'Vie scolaire', items: [VIE_SCOLAIRE, CARE, HOURS, TT_CHANGES, FOLLOW_UP, MANDATES, FOLLOWUPS] },
       { group: 'Finances', items: [ACCOUNTING] },
@@ -127,7 +131,7 @@ const PROFILES = {
       { group: 'Caisse', items: [ACCOUNTING] },
       { group: 'Vie scolaire', items: [VIE_SCOLAIRE, CARE, HOURS, TT_CHANGES, FOLLOW_UP] },
       { group: 'Notes et bulletins', items: [COUNCIL, BULLETINS, MOCK_EXAMS, ...OVERSIGHT] }, // grilles : onglet des conseils
-      { group: 'Élèves', items: [INSCRIPTIONS, STUDENT_LIST, SIGNATURES, IMPORT] },
+      { group: 'Élèves', items: [INSCRIPTIONS, STUDENT_LIST, STUDENT_FILE, SIGNATURES, IMPORT] },
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, AGENDA, RESOURCES] },
       { group: 'Matériel et bibliothèque', items: [MANUALS, LIBRARY, BOOKING, INVENTORY] },
     ],
@@ -138,7 +142,7 @@ const PROFILES = {
     home: 'cpe-home',
     nav: [
       { group: 'Aujourd\'hui', items: [{ id: 'cpe-home', label: 'Ma journée', icon: 'home', screen: CpeHome }, VIE_SCOLAIRE, CARE, HOURS, TT_CHANGES] }, // CPE : annulation du jour seulement
-      { group: 'Élèves', items: [ro(STUDENT_LIST), FOLLOWUPS] },
+      { group: 'Élèves', items: [STUDENT_FILE, ro(STUDENT_LIST), FOLLOWUPS] },
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, ro(AGENDA), RESOURCES] },
       { group: 'Ressources', items: [ro(BOOKING), ro({ id: 'books-cpe', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who="M. Be" kind="CPE" /> }), ro(OVERSIGHT[1])] },
     ],
@@ -155,6 +159,7 @@ const PROFILES = {
         { id: 'homework', label: 'Cahier de textes', icon: 'calendar', screen: HomeworkModule },
         MOCK_EXAMS,
         { id: 'discipline', label: 'Vie de classe', icon: 'alert', screen: VieScolaireModule },
+        STUDENT_FILE,
       ] },
       { group: 'Mon organisation', items: [{ ...HOURS, label: 'Mes heures et absences' }, AGENDA, BOOKING, GRADE_SHEETS] },
       { group: 'Communication', items: [MESSAGES, ro(NEWS), SCHOOL_LIFE] }, // annonces : lecture seule, aucune rédaction
@@ -246,6 +251,10 @@ export default function App() {
   const quickRef = useRef(null); const bellRef = useRef(null); const accountRef = useRef(null);
   const [quickOpen, setQuickOpen] = useState(false);
   const [collapsed, setCollapsed] = useState({});
+  const [largeText, setLargeText] = useState(loadLargeText);
+  useEffect(() => { applyLargeText(largeText); }, [largeText]);
+  const [favorites, setFavorites] = useState(() => loadFavorites(profile));
+  useEffect(() => { setFavorites(loadFavorites(profile)); }, [profile]);
   const [tick, setTick] = useState(0); // recalcul des notifications après « J'ai vu »
   const goTo = (id) => { setScreen(id); setMobileOpen(false); setBellOpen(false); setQuickOpen(false); setTick((t) => t + 1); };
   const staffProfile = !['PARENT', 'ELEVE', 'VISITEUR'].includes(profile);
@@ -276,25 +285,40 @@ export default function App() {
     wipeLocalData(); window.location.reload();
   };
 
-  const navItem = (item) => {
+  const navItem = (item, fav = false) => {
     const enabled = Boolean(item.screen);
     const active = item.id === screen;
     const n = counts[item.id];
+    const pinned = favorites.includes(item.id);
     return (
-      <button key={item.id} data-nav={item.id} onClick={() => enabled && goTo(item.id)} disabled={!enabled} aria-current={active ? 'page' : undefined}
-        title={enabled ? undefined : 'Prévu plus tard'}
-        className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition
-          ${active ? 'bg-navy-50 font-semibold text-navy-900' : enabled ? 'text-slate-700 hover:bg-slate-100' : 'text-slate-400'}`}>
-        <Icon name={item.icon} className={`h-4 w-4 shrink-0 ${active ? 'text-navy-500' : 'text-slate-400'}`} />
-        <span className="min-w-0 flex-1 leading-tight">{item.label}</span>
-        {item.readOnly && <span className="rounded bg-slate-100 px-1 text-[10px] font-normal text-slate-600">consultation</span>}
-        {n > 0 && <span className="rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white">{n}</span>}
-        {!enabled && <span className="text-[10px] font-normal">bientôt</span>}
-      </button>
+      <div key={`${fav ? 'fav-' : ''}${item.id}`} className="group flex items-center">
+        <button data-nav={fav ? `fav-${item.id}` : item.id} onClick={() => enabled && goTo(item.id)} disabled={!enabled} aria-current={active && !fav ? 'page' : undefined}
+          title={enabled ? undefined : 'Prévu plus tard'}
+          className={`flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition
+            ${active ? 'bg-navy-50 font-semibold text-navy-900' : enabled ? 'text-slate-700 hover:bg-slate-100' : 'text-slate-400'}`}>
+          <Icon name={item.icon} className={`h-4 w-4 shrink-0 ${active ? 'text-navy-500' : 'text-slate-400'}`} />
+          <span className="min-w-0 flex-1 leading-tight">{item.label}</span>
+          {item.readOnly && <span className="rounded bg-slate-100 px-1 text-[10px] font-normal text-slate-600">consultation</span>}
+          {n > 0 && <span className="rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white">{n}</span>}
+          {!enabled && <span className="text-[10px] font-normal">bientôt</span>}
+        </button>
+        {enabled && (
+          <button type="button" onClick={() => setFavorites(toggleFavorite(profile, item.id))} aria-pressed={pinned}
+            aria-label={pinned ? `Retirer ${item.label} des favoris` : `Épingler ${item.label} en favori`} title={pinned ? 'Retirer des favoris' : 'Épingler en favori (5 au plus)'}
+            className={`ml-0.5 shrink-0 rounded p-1 text-[13px] leading-none ${pinned ? 'text-amber-500' : 'text-slate-300 opacity-0 hover:text-amber-500 focus:opacity-100 group-hover:opacity-100'}`}>★</button>
+        )}
+      </div>
     );
   };
+  const favItems = favorites.map((id) => NAV.flatMap((g) => g.items).find((i) => i.id === id && i.screen)).filter(Boolean);
   const sidebar = (
     <div className="space-y-3">
+      {favItems.length > 0 && (
+        <div>
+          <p className="px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-700">★ Favoris</p>
+          <div className="space-y-0.5">{favItems.map((it) => navItem(it, true))}</div>
+        </div>
+      )}
       {NAV.map((g) => {
         const isOpen = !(collapsed[g.group] ?? false) || g.group === activeGroup;
         const n = g.items.reduce((t, it) => t + (counts[it.id] ?? 0), 0);
@@ -305,7 +329,7 @@ export default function App() {
               <span>{g.group}{!isOpen && n > 0 && <span className="ml-1.5 rounded-full bg-amber-500 px-1.5 text-[10px] text-white">{n}</span>}</span>
               <span className={`transition ${isOpen ? '' : '-rotate-90'}`}>▾</span>
             </button>
-            {isOpen && <div className="space-y-0.5">{g.items.map(navItem)}</div>}
+            {isOpen && <div className="space-y-0.5">{g.items.map((it) => navItem(it))}</div>}
           </div>
         );
       })}
@@ -360,6 +384,7 @@ export default function App() {
           )}
 
           <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+            {staffProfile && <GlobalSearch nav={NAV} go={goTo} />}
             {QUICK.length > 0 && (
               <div className="relative" onClick={(e) => e.stopPropagation()}>
                 <button ref={quickRef} onClick={() => { setQuickOpen(!quickOpen); setBellOpen(false); }} aria-expanded={quickOpen}
@@ -407,6 +432,7 @@ export default function App() {
                       </select>
                     </label>
                   )}
+                  <label className="mt-3 flex items-center gap-2 text-sm text-slate-800"><input type="checkbox" checked={largeText} onChange={(e) => setLargeText(e.target.checked)} className="h-5 w-5" />Texte agrandi (sur cet appareil)</label>
                   <button type="button" onClick={wipe} className="mt-3 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-left text-sm text-red-700 hover:bg-red-50">Effacer les données de cet ordinateur</button>
                   {profile !== 'VISITEUR' && <div className="mt-3 border-t border-slate-100 pt-2"><FeedbackButton variant="menu" profile={profile} who={persona.detail ?? persona.name} screen={screenLabel} /></div>}
                   <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-600"><span className="flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-navy-900 ring-1 ring-slate-200">G</span>Connexion Google · même compte sur ordinateur et téléphone</p>

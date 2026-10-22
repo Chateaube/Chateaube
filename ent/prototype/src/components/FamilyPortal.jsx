@@ -8,9 +8,10 @@ import { mandatesOf } from '../rules/mandates.js';
 import { loadEngagements } from '../engagementsStore.js';
 import { Badge, Button, Icon } from './ui.jsx';
 import Messenger, { unreadCount } from './Messenger.jsx';
-import { PARENT } from '../data/people.js';
+import { PARENT, STAFF } from '../data/people.js';
 import { FAMILIES, JOURNALS } from '../data/accounting.js';
-import { ATTENDANCE, MEASURES_LOG, PHONES } from '../data/schoollife.js';
+import { MEASURES_LOG } from '../data/schoollife.js';
+import { loadObjects } from '../objectsStore.js';
 import { HOMEWORK } from '../data/homework.js';
 import {
   OTHER_NOTES, GRADEBOOK_SUBJECTS, SERVICES, EVALUATIONS, GRADES, REMARKS, AUTHORIZATIONS, AUTH_ANSWERS, DOCUMENTS, REQUESTED, INTERNSHIPS, ORIENTATION,
@@ -19,7 +20,16 @@ import { accountStatement } from '../rules/accounting.js';
 import { formatAr } from '../rules/finance.js';
 import { studentNoteList, fmt2, isPublished, parentPublishOn } from '../rules/grading.js';
 import { MEASURES, PHONE_DURATIONS, phoneReturnAt, objectOf } from '../rules/discipline.js';
-import { justification } from '../rules/attendance.js';
+import { justificationState as justification } from '../rules/attendance.js';
+import { loadAttendance } from '../attendanceStore.js';
+import { loadTimetable } from '../timetableStore.js';
+import { loadChanges } from './TimetableChanges.jsx';
+import { dayCourses, nowNext, shortSubject, subjectColor as courseColor } from '../rules/timetableGrid.js';
+import { weekLetter } from '../rules/teachingHours.js';
+import { DEFAULT_SETTINGS } from '../data/settings.js';
+import { JustifyAbsence, AbsencesToJustify } from './JustifyAbsence.jsx';
+import PhoneAlerts from './PhoneAlerts.jsx';
+import { justificationState } from '../rules/attendance.js';
 import { formatDateFr } from '../rules/calendar.js';
 import { STUDENT_PROFILES } from '../data/enrollment.js';
 import { loadProfiles } from '../profilesStore.js';
@@ -92,6 +102,14 @@ function BookDueSoon({ child }) {
   return <div className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-900"><p className="font-semibold">Livre à rendre bientôt — {child.name}</p>{soon.map((l) => <p key={l.id}>{l.code} : à rendre le {l.due.split('-').reverse().join('/')} au secrétariat (ou repasser avec le livre pour le garder un mois de plus).</p>)}</div>;
 }
 
+/** Alertes du téléphone pour tous les enfants : infirmerie (urgent), absences à justifier et mesures (important). */
+const phoneItems = () => PARENT.children.flatMap((c) => [
+  ...careAlerts(c).map((v) => ({ id: `care-${v.id}`, level: 'URGENT', kind: 'SOIN', child: c.name, text: `${c.name} est passé·e au secrétariat (${v.reason.toLowerCase()})` })),
+  ...loadAttendance().filter((a) => a.student === fullName(c) && a.notified !== false && justificationState(a, NOW).status === 'A_JUSTIFIER')
+    .map((a) => ({ id: `abs-${a.id}`, level: 'IMPORTANT', kind: 'ABSENCE', child: c.name, text: `${a.kind === 'ABSENCE' ? 'Absence' : 'Retard'} de ${c.name} à justifier sous 24 h` })),
+  ...MEASURES_LOG.filter((m) => m.student === fullName(c) && !m.parentAck).map((m) => ({ id: `mes-${m.id}`, level: 'IMPORTANT', kind: 'MESURE', child: c.name, text: `${c.name} : ${MEASURE[m.measure].label.toLowerCase()} à lire` })),
+]);
+
 /** Urgent : passage au secrétariat (malaise, Doliprane…) d'hier ou d'aujourd'hui, jusqu'à « J'ai vu ». */
 const careAlerts = (child) => {
   const since = new Date(new Date(`${TODAY}T12:00:00`) - 864e5).toISOString().slice(0, 10);
@@ -151,6 +169,7 @@ function Home({ child, isParent, openFiche, openReenrol, settings, onSeen, openS
   return (
     <>
       {isParent && <UrgentBanner child={child} onSeen={onSeen} />}
+      {isParent && <AbsencesToJustify student={fullName(child)} childName={child.name} now={NOW} by={ACCOUNT.name} onDone={onSeen} />}
       <Announcements isParent={isParent} />
       <SchoolLifePreview open={openSchoolLife} social={settings?.social} />
       <AmbianceHomeCard key={ambiance?.id} ambiance={ambiance} />
@@ -176,17 +195,56 @@ function Home({ child, isParent, openFiche, openReenrol, settings, onSeen, openS
           <Button className="mt-2 !py-1 text-xs" onClick={openReenrol}>Réinscrire {child.name} pour 2027-2028</Button>
         </div>
       )}
-      <Section title={`Aujourd'hui — ${child.name}`}>
-        <ul className="space-y-1.5">
-          {child.timetable.map(([t, s]) => <li key={t} className="flex gap-3 text-sm"><span className="w-12 font-medium tabular-nums text-navy-900">{t.replace(':', 'h')}</span><span className="text-slate-700">{s}</span></li>)}
-        </ul>
-      </Section>
+      <NowNextCard child={child} isParent={isParent} settings={settings} />
       {due.length > 0 && (
         <Section title="Prochains devoirs">
           {due.map((h) => <p key={h.id} className="text-sm text-slate-700"><span className="font-medium">{shortDate(h.due)} · {h.subject} :</span> {h.todo}</p>)}
         </Section>
       )}
+      {isParent && <PhoneAlerts items={phoneItems()} nowHm={NOW.slice(11, 16)} />}
     </>
+  );
+}
+
+/* ---------- Maintenant / Ensuite : la journée de la classe, depuis l'emploi du temps (semaines A/B) ---------- */
+// Heure de démonstration : 10h20 (en vrai, l'heure du téléphone). Les changements du jour sont en rouge.
+const DEMO_TIME = '10:20';
+function NowNextCard({ child, isParent, settings }) {
+  const courses = dayCourses(loadTimetable(), child.cls, TODAY, settings ?? DEFAULT_SETTINGS, loadChanges());
+  if (!courses.length) {
+    return (
+      <Section title={`Aujourd'hui — ${child.name}`}>
+        <ul className="space-y-1.5">{child.timetable.map(([t, s]) => <li key={t} className="flex gap-3 text-sm"><span className="w-12 font-medium tabular-nums text-navy-900">{t.replace(':', 'h')}</span><span className="text-slate-700">{s}</span></li>)}</ul>
+      </Section>
+    );
+  }
+  const { now, next } = nowNext(courses, DEMO_TIME);
+  const who = (c) => STAFF.find((x) => x.id === c.teacherId)?.name ?? c.teacherId;
+  const box = (label, c, strong) => (
+    <div className="flex-1 rounded-xl p-3" style={{ background: c ? courseColor(c) : '#f1f5f9' }}>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-700">{label}</p>
+      {c ? <><p className={`${strong ? 'text-base' : 'text-sm'} font-semibold text-slate-900`}>{shortSubject(c)}</p>
+        <p className="text-xs text-slate-700">{c.start.replace(':', 'h')}–{c.end.replace(':', 'h')} · {who(c)}{c.room ? ` · ${c.room}` : ''}</p>
+        {c.status === 'DEPLACE' && <p className="text-xs font-semibold text-red-700">Cours déplacé</p>}</>
+        : <p className="text-sm text-slate-600">{label === 'Maintenant' ? 'Pas de cours' : 'Plus de cours aujourd\'hui'}</p>}
+    </div>
+  );
+  return (
+    <Section title={`${isParent ? `Journée de ${child.name}` : 'Ma journée'} — semaine ${weekLetter(TODAY, settings ?? DEFAULT_SETTINGS)}`}>
+      <div className="mb-3 flex gap-2">{box('Maintenant', now, true)}{box('Ensuite', next)}</div>
+      <ul className="space-y-1">
+        {courses.map((c) => (
+          <li key={c.id} className={`flex items-center gap-2 text-sm ${c.status === 'ANNULE' ? 'text-red-700' : c.end <= DEMO_TIME ? 'text-slate-400' : 'text-slate-800'}`}>
+            <span className="h-3 w-3 shrink-0 rounded-sm" style={{ background: courseColor(c) }} aria-hidden="true" />
+            <span className="w-24 shrink-0 tabular-nums">{c.start.replace(':', 'h')}–{c.end.replace(':', 'h')}</span>
+            <span className={c.status === 'ANNULE' ? 'line-through' : ''}>{shortSubject(c)}</span>
+            {c.status === 'ANNULE' && <span className="text-xs font-semibold">annulé</span>}
+            {c.status === 'AJOUT' && <span className="text-xs font-semibold text-red-700">ajouté</span>}
+            {c.status === 'DEPLACE' && <span className="text-xs font-semibold text-red-700">déplacé</span>}
+          </li>
+        ))}
+      </ul>
+    </Section>
   );
 }
 
@@ -304,12 +362,13 @@ function SchoolTab({ child, isParent, acks, setAcks, settings, audience, pending
 /* ---------- Vie scolaire : absences, retards, punitions, sanctions, objets confisqués ---------- */
 function SchoolLife({ child, isParent, acks, setAcks, settings }) {
   const name = fullName(child);
-  const pp = passport(name, { attendance: ATTENDANCE, ...loadPassport() }, { isNew: isNewStudent(name) });
+  const [attendance, setAttendance] = useState(loadAttendance);
+  const pp = passport(name, { attendance, ...loadPassport() }, { isNew: isNewStudent(name) });
   const items = [
-    ...ATTENDANCE.filter((a) => a.student === name).map((a) => ({ key: a.id, date: a.date, tone: a.kind === 'ABSENCE' ? 'red' : 'amber', title: a.kind === 'ABSENCE' ? 'Absence' : 'Retard', body: `${a.slot}${a.justified ? ` · justifié : ${a.reason}` : justification(a, NOW).status === 'NON_JUSTIFIEE' ? ' · non justifiée (délai de 24 h dépassé)' : ` · à justifier avant le ${justification(a, NOW).deadline.slice(8, 10)}/${justification(a, NOW).deadline.slice(5, 7)} à ${justification(a, NOW).deadline.slice(11, 16).replace(':', 'h')}`}`, ack: a.parentAck })),
+    ...attendance.filter((a) => a.student === name).map((a) => ({ key: a.id, date: a.date, tone: a.kind === 'ABSENCE' ? 'red' : 'amber', title: a.kind === 'ABSENCE' ? 'Absence' : 'Retard', body: `${a.slot}${a.justified ? ` · justifié : ${a.reason}` : ''}`, absence: a, ack: a.parentAck })),
     ...MEASURES_LOG.filter((m) => m.student === name).map((m) => ({ key: m.id, date: m.date, tone: MEASURE[m.measure].kind === 'SANCTION' ? 'red' : 'amber', title: `${MEASURE[m.measure].kind === 'SANCTION' ? 'Sanction' : 'Punition'} : ${MEASURE[m.measure].label}`, body: `Motif : ${m.reason}${m.when ? ` · ${m.when}` : ''} · décidée par ${m.author}`, ack: m.parentAck })),
     ...pp.entries.map((c) => ({ key: c.id, date: c.date, tone: c.kind === 'TIG' ? 'red' : 'amber', title: c.kind === 'TIG' ? 'Travail d\'intérêt général (TIG)' : `Colle de ${c.hours} h`, body: `${c.reason} · le ${c.when.slice(8, 10)}/${c.when.slice(5, 7)} à ${c.when.slice(11, 16).replace(':', 'h')} · ${COLLE_STATUS[c.status].toLowerCase()}`, ack: null })),
-    ...PHONES.filter((p) => p.student === name || p.owner === name).map((p) => (p.action === 'AVERTISSEMENT'
+    ...loadObjects().filter((p) => p.student === name || p.owner === name).map((p) => (p.action === 'AVERTISSEMENT'
       ? { key: p.id, date: p.at.slice(0, 10), tone: 'amber', title: `Avertissement : ${objectOf(p).toLowerCase()}`, body: `${p.reason} · donné par ${p.confiscatedBy}`, ack: null }
       : { key: p.id, date: p.at.slice(0, 10), tone: 'slate', title: `${objectOf(p)} confisqué${p.duration ? ` (${PHONE_DURATIONS.find((d) => d.id === p.duration).label})` : ''}`, body: `${p.owner === name && p.student !== name ? `Objet de ${child.name}, pris avec ${p.student}. ` : ''}${p.reason} · ${p.duration ? `restitution ${shortDate(phoneReturnAt(p.at, p.duration, settings).slice(0, 10)).toLowerCase()}` : 'durée décidée par la Direction, vous serez prévenus'}`, ack: null })),
   ].sort((a, b) => b.date.localeCompare(a.date));
@@ -331,6 +390,9 @@ function SchoolLife({ child, isParent, acks, setAcks, settings }) {
                   <Badge tone={it.tone}>{shortDate(it.date)}</Badge>
                 </div>
                 <p className="text-sm text-slate-600">{it.body}</p>
+                {it.absence && !it.absence.justified && (isParent
+                  ? <JustifyAbsence absence={it.absence} now={NOW} by={ACCOUNT.name} onDone={() => setAttendance(loadAttendance())} />
+                  : <p className="mt-1 text-xs text-slate-600">{{ EN_ATTENTE: 'Justification envoyée par tes parents.', NON_JUSTIFIEE: 'Non justifiée.', A_JUSTIFIER: 'Tes parents peuvent la justifier.' }[justification(it.absence, NOW).status]}</p>)}
                 {isParent ? (
                   <label className={`mt-2 flex items-center gap-2 text-sm ${ack ? 'text-emerald-700' : 'text-slate-800'}`}>
                     <input type="checkbox" checked={!!ack} disabled={!!ack} onChange={() => setAcks({ ...acks, [it.key]: NOW })} />
@@ -596,9 +658,9 @@ export default function FamilyPortal({ settings, audience = 'PARENT', ambiance }
   const [acks, setAcks] = useState({});
   const [tick, setTick] = useState(0); void tick;
   // pastille par enfant : alertes urgentes non vues + mesures à confirmer
-  const childCount = (c) => careAlerts(c).length + [...ATTENDANCE, ...MEASURES_LOG].filter((x) => x.student === fullName(c) && !x.parentAck && !acks[x.id] && (x.notified ?? true)).length;
+  const childCount = (c) => careAlerts(c).length + [...loadAttendance(), ...MEASURES_LOG].filter((x) => x.student === fullName(c) && !x.parentAck && !acks[x.id] && (x.notified ?? true)).length;
   const child = PARENT.children.find((c) => c.id === (isParent ? childId : 'aina'));
-  const pendingAcks = isParent ? [...ATTENDANCE, ...MEASURES_LOG].filter((x) => PARENT.children.some((c) => fullName(c) === x.student) && !x.parentAck && !acks[x.id] && (x.notified ?? true)).length : 0;
+  const pendingAcks = isParent ? [...loadAttendance(), ...MEASURES_LOG].filter((x) => PARENT.children.some((c) => fullName(c) === x.student) && !x.parentAck && !acks[x.id] && (x.notified ?? true)).length : 0;
   // menu « Plus » selon la classe de l'enfant affiché ; un écran qui ne le concerne pas est refermé
   const menu = menuFor(child, { hasInternships: (INTERNSHIPS[child.id] ?? []).length > 0 });
   // un écran qui ne concerne pas l'enfant choisi revient à l'accueil

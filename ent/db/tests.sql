@@ -1765,5 +1765,65 @@ DO $$ DECLARE m uuid; tmv uuid := (SELECT id FROM site WHERE code = 'TMV'); BEGI
   END;
 END $$;
 
+-- T64 — justification par la famille, notifications (heures calmes, e-mail de secours), remplacement, favoris
+DO $$ DECLARE e uuid := '30000000-0000-0000-0000-000000000001'; a uuid; r uuid; g uuid := 'e0000000-0000-0000-0000-000000000001';
+  cpe uuid := '00000000-0000-0000-0000-00000000000c'; u uuid := '00000000-0000-0000-0000-000000000001'; tmv uuid; n uuid; BEGIN
+  SELECT id INTO tmv FROM site WHERE code = 'TMV';
+  -- absence de ce matin : la famille justifie à temps, la CPE accepte le lendemain
+  INSERT INTO attendance_event (enrollment_id, kind, occurred_at, recorded_by) VALUES (e, 'ABSENCE', now() - interval '20 hours', cpe) RETURNING id INTO a;
+  INSERT INTO attendance_request (attendance_id, guardian_id, reason, sent_at) VALUES (a, g, 'Maladie', now() - interval '18 hours') RETURNING id INTO r;
+  IF (SELECT status FROM v_attendance_status WHERE id = a) <> 'EN_ATTENTE' THEN RAISE EXCEPTION 'T64: en attente de la vie scolaire'; END IF;
+  -- deuxième demande tant que la première attend : refusée
+  BEGIN
+    INSERT INTO attendance_request (attendance_id, guardian_id, reason, sent_at) VALUES (a, g, 'Transport', now() - interval '17 hours');
+    RAISE EXCEPTION 'T64: deux demandes en attente';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  UPDATE attendance_request SET accepted = true, decided_at = now() + interval '10 hours', decided_by = cpe WHERE id = r;
+  IF (SELECT status FROM v_attendance_status WHERE id = a) <> 'JUSTIFIEE' THEN RAISE EXCEPTION 'T64: acceptée après le délai mais envoyée à temps'; END IF;
+  -- motif « Autre » sans précision, refus sans raison, envoi après 24 h : refusés
+  INSERT INTO attendance_event (enrollment_id, kind, occurred_at, recorded_by) VALUES (e, 'ABSENCE', now() - interval '30 hours', cpe) RETURNING id INTO a;
+  BEGIN
+    INSERT INTO attendance_request (attendance_id, guardian_id, reason) VALUES (a, g, 'Maladie');
+    RAISE EXCEPTION 'T64: envoi après 24 h';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T64:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO attendance_event (enrollment_id, kind, occurred_at, recorded_by) VALUES (e, 'RETARD', now() - interval '2 hours', cpe) RETURNING id INTO a;
+  BEGIN
+    INSERT INTO attendance_request (attendance_id, guardian_id, reason) VALUES (a, g, 'Autre');
+    RAISE EXCEPTION 'T64: Autre sans précision';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO attendance_request (attendance_id, guardian_id, reason) VALUES (a, g, 'Transport') RETURNING id INTO r;
+  BEGIN
+    UPDATE attendance_request SET accepted = false, decided_at = now(), decided_by = cpe WHERE id = r;
+    RAISE EXCEPTION 'T64: refus sans raison';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE attendance_request SET accepted = false, decided_at = now(), decided_by = cpe, refusal_reason = 'Le bus passait à l''heure' WHERE id = r;
+  -- heures calmes : urgent toujours ; le reste seulement de 7h à 20h
+  IF NOT push_allowed('URGENT', '2026-10-13 22:30+03') THEN RAISE EXCEPTION 'T64: urgence la nuit'; END IF;
+  IF push_allowed('IMPORTANT', '2026-10-13 22:30+03') THEN RAISE EXCEPTION 'T64: note la nuit'; END IF;
+  IF NOT push_allowed('IMPORTANT', '2026-10-13 07:00+03') THEN RAISE EXCEPTION 'T64: note à 7h'; END IF;
+  -- e-mail de secours après 2 h sans ouverture
+  INSERT INTO notification_outbox (user_id, level, kind, body, sent_at) VALUES (u, 'URGENT', 'SOIN', 'Aina à l''infirmerie', now() - interval '3 hours') RETURNING id INTO n;
+  IF NOT EXISTS (SELECT 1 FROM v_notification_email_due WHERE id = n) THEN RAISE EXCEPTION 'T64: e-mail de secours'; END IF;
+  UPDATE notification_outbox SET opened_at = now() WHERE id = n;
+  IF EXISTS (SELECT 1 FROM v_notification_email_due WHERE id = n) THEN RAISE EXCEPTION 'T64: ouverte, pas d''e-mail'; END IF;
+  -- remplacement : jamais vers soi-même ; favoris : 5 au plus
+  INSERT INTO staff_cover VALUES (tmv, '2026-10-13', 'VIE_SCOLAIRE', 'BUREAU', u);
+  BEGIN
+    INSERT INTO staff_cover VALUES (tmv, '2026-10-14', 'BUREAU', 'BUREAU', u);
+    RAISE EXCEPTION 'T64: remplacement par soi-même';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO user_favorite VALUES (u, 'accounting', 1), (u, 'vs', 2), (u, 'bulletins', 3), (u, 'council', 4), (u, 'news', 5);
+  BEGIN
+    INSERT INTO user_favorite VALUES (u, 'timetable', 6);
+    RAISE EXCEPTION 'T64: sixième favori';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T63 passent'
+\echo 'OK — tous les scénarios T1 à T64 passent'

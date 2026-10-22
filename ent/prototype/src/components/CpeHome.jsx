@@ -1,8 +1,10 @@
 import React from 'react';
 import { Button, Card, Icon } from './ui.jsx';
 import TodoList from './TodoList.jsx';
+import AbsentToggle from './AbsentToggle.jsx';
 import ActivityJournal from './ActivityJournal.jsx';
 import { notificationsFor } from '../notify.js';
+import QuickEntry from './QuickEntry.jsx';
 
 // Accueil de la CPE : d'abord les tâches confiées par la Direction, puis la journée (ce qui attend, du plus
 // urgent au moins urgent), et les accès rapides. Même logique que les accueils Direction et secrétariat.
@@ -10,12 +12,14 @@ export default function CpeHome({ go, account }) {
   const notes = notificationsFor('VIE_SCOLAIRE', { account });
   const day = [...notes.urgent.map((n) => ({ ...n, urgent: true })), ...notes.todo];
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 pb-16 sm:pb-0">
       <div>
         <p className="text-sm font-semibold text-navy-500">Vie scolaire · Tamatave</p>
         <h1 className="text-2xl font-semibold text-navy-900">Bonjour M. Be</h1>
         <p className="text-sm text-slate-600">{day.length ? `${day.length} chose${day.length > 1 ? 's' : ''} à traiter aujourd'hui.` : 'Rien d\'urgent aujourd\'hui.'}</p>
       </div>
+      <AbsentToggle role="VIE_SCOLAIRE" />
+      <QuickEntry role="VIE_SCOLAIRE" />
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 xl:grid-cols-2">
         <TodoList who="VIE_SCOLAIRE" title="Mes tâches" />
         <Card title="Ma journée" subtitle="Ce qui attend la vie scolaire">

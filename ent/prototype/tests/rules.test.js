@@ -367,15 +367,18 @@ test('mesures : motif obligatoire, sanction réservée à la Direction', () => {
   assert.deepEqual(validateMeasure({ measureId: 'BLAME', authorRole: 'DIRECTION', reason: 'Insolence', student: 'X' }), []);
 });
 
+// Calendrier d'exemple figé pour ces tests (indépendant du calendrier réel de l'école dans DEFAULT_SETTINGS)
+const EXAMPLE_SETTINGS = { ...DEFAULT_SETTINGS, calendar: [...DEFAULT_SETTINGS.calendar.filter((c) => c.kind === 'FERIE'),
+  { id: 'v1', kind: 'VACANCES', start: '2026-10-24', end: '2026-11-01' }, { id: 'v2', kind: 'VACANCES', start: '2026-12-19', end: '2027-01-03' }] };
 test('téléphone : 24 h ou 5 jours ouvrés, vacances et week-ends exclus', () => {
-  assert.equal(phoneReturnAt('2026-10-13T15:00', '24H', DEFAULT_SETTINGS), '2026-10-14T15:00');
-  assert.equal(phoneReturnAt('2026-10-13T15:00', '5J', DEFAULT_SETTINGS), '2026-10-20T15:00');
-  assert.equal(phoneReturnAt('2026-10-16T15:00', '48H', DEFAULT_SETTINGS), '2026-10-20T15:00'); // vendredi → mardi
+  assert.equal(phoneReturnAt('2026-10-13T15:00', '24H', EXAMPLE_SETTINGS), '2026-10-14T15:00');
+  assert.equal(phoneReturnAt('2026-10-13T15:00', '5J', EXAMPLE_SETTINGS), '2026-10-20T15:00');
+  assert.equal(phoneReturnAt('2026-10-16T15:00', '48H', EXAMPLE_SETTINGS), '2026-10-20T15:00'); // vendredi → mardi
   assert.deepEqual([0, 1, 2].map((n) => phoneDurationFor('A', Array.from({ length: n }, () => ({ student: 'A' }))).duration), ['24H', '48H', '5J']);
-  assert.equal(phoneReturnAt('2026-10-22T10:00', '5J', DEFAULT_SETTINGS), '2026-11-05T10:00'); // vacances de la Toussaint
-  assert.equal(phoneReturnAt('2026-12-18T09:00', '24H', DEFAULT_SETTINGS), '2027-01-04T09:00'); // vacances de Noël
-  assert.equal(phoneReturnAt('2026-12-17T10:00', '5J', DEFAULT_SETTINGS), '2027-01-07T10:00');
-  assert.equal(isSchoolDay('2026-10-14', DEFAULT_SETTINGS), true); // octobre n'est pas gelé pour la vie scolaire
+  assert.equal(phoneReturnAt('2026-10-22T10:00', '5J', EXAMPLE_SETTINGS), '2026-11-05T10:00'); // vacances de la Toussaint
+  assert.equal(phoneReturnAt('2026-12-18T09:00', '24H', EXAMPLE_SETTINGS), '2027-01-04T09:00'); // vacances de Noël
+  assert.equal(phoneReturnAt('2026-12-17T10:00', '5J', EXAMPLE_SETTINGS), '2027-01-07T10:00');
+  assert.equal(isSchoolDay('2026-10-14', EXAMPLE_SETTINGS), true); // octobre n'est pas gelé pour la vie scolaire
 });
 
 import { councilCsv } from '../src/rules/grading.js';
@@ -1025,9 +1028,9 @@ test('volume horaire des professeurs : prévu, fait, absences avec ou sans trava
     { id: 's2', teacherId: 'p1', cls: 'Terminale STMG', subject: 'Droit', weekday: 3, start: '13:30', end: '15:00' }];
   assert.equal(slotHours(slots[1]), 1.5);
   // du lundi 19 au vendredi 30 octobre 2026 : vacances à partir du 24 → une seule semaine de cours
-  assert.equal(plannedSessions(slots, '2026-10-19', '2026-10-30', DEFAULT_SETTINGS).length, 2);
+  assert.equal(plannedSessions(slots, '2026-10-19', '2026-10-30', EXAMPLE_SETTINGS).length, 2);
   const absences = [{ teacherId: 'p1', date: '2026-10-07', slotIds: ['s2'], work: 'AUCUN' }];
-  const h = teacherHours('p1', slots, absences, { from: '2026-10-05', to: '2026-10-23', today: '2026-10-13', settings: DEFAULT_SETTINGS });
+  const h = teacherHours('p1', slots, absences, { from: '2026-10-05', to: '2026-10-23', today: '2026-10-13', settings: EXAMPLE_SETTINGS });
   assert.equal(h.planned, 10.5);        // 3 semaines × 3,5 h
   assert.equal(h.plannedToDate, 5.5);   // 5, 7 et 12 octobre
   assert.equal(h.absent, 1.5);
@@ -1730,8 +1733,16 @@ test('manuels : désignation facultative, photocopie avec reliure et impression,
 });
 
 import { weekLetter, plannedSessions as planned } from '../src/rules/teachingHours.js';
-test('emploi du temps : semaines A et B, les vacances ne comptent pas', () => {
-  const settings = { calendar: [{ id: 'v', start: '2026-10-24', end: '2026-11-08', kind: 'VACANCES' }], timetable: { weekAStart: '2026-09-07' } };
+test('emploi du temps : semaines A et B (calendrier de l\'école, ou vacances non comptées)', () => {
+  const school = { calendar: [{ id: 'v', start: '2026-10-19', end: '2026-10-31', kind: 'VACANCES' }], timetable: { weekAStart: '2026-08-31' } };
+  // calendrier 2026-2027 de l'école : l'alternance continue pendant les vacances
+  assert.equal(weekLetter('2026-09-01', school), 'A');
+  assert.equal(weekLetter('2026-09-08', school), 'B');
+  assert.equal(weekLetter('2026-10-13', school), 'A');
+  assert.equal(weekLetter('2026-10-20', school), 'B'); // vacances (semaine B)
+  assert.equal(weekLetter('2026-11-03', school), 'B');
+  assert.equal(weekLetter('2027-06-29', school), 'B');
+  const settings = { calendar: [{ id: 'v', start: '2026-10-24', end: '2026-11-08', kind: 'VACANCES' }], timetable: { weekAStart: '2026-09-07', skipHolidays: true } };
   assert.equal(weekLetter('2026-09-08', settings), 'A');
   assert.equal(weekLetter('2026-09-15', settings), 'B');
   assert.equal(weekLetter('2026-10-20', settings), 'A'); // 7 semaines de classe plus tard
@@ -1795,4 +1806,100 @@ test('enseignements de l\'école et contrôle de l\'emploi du temps', () => {
   assert.match(w[0], /M\. Steven : Mathématiques en 3e ne figure pas/);
   assert.match(w[1], /Mme Inconnue n'est pas dans la liste/);
   assert.equal(checkAgainstAssignments([slot(7, 'Mme Francine', 'Arts plastiques', '5e'), slot(8, 'Mme Sheena', 'Parcours d\'ouverture', '2de'), slot(9, 'M. Steven', 'Mathématiques', '2de')], ASSIGNMENTS).length, 0);
+});
+
+import { gridMarks, rowPos, layoutLanes, shortSubject, subjectColor, markLabel } from '../src/rules/timetableGrid.js';
+test('grille d\'emploi du temps : repères de l\'école, voies côte à côte, libellés courts', () => {
+  const marks = gridMarks();
+  assert.equal(marks.length, 21);
+  assert.equal(rowPos('09:45', marks), 6);
+  assert.equal(rowPos('10:15', marks), 7);
+  assert.equal(rowPos('07:15', marks), 0.5);
+  assert.equal(markLabel('09:45'), '9h45');
+  assert.equal(gridMarks([{ start: '06:30', end: '17:45' }])[0], '06:30');
+  assert.equal(gridMarks([{ start: '06:30', end: '17:45' }]).at(-1), '18:00');
+  const lanes = layoutLanes([
+    { id: 'a', start: '13:30', end: '15:30' }, { id: 'b', start: '15:00', end: '17:00' }, { id: 'c', start: '07:30', end: '09:30' },
+  ]);
+  assert.deepEqual(lanes.map((x) => `${x.id}:${x.lane}/${x.lanes}`), ['c:0/1', 'a:0/2', 'b:1/2']);
+  assert.equal(shortSubject({ subject: 'Spécialité Mathématiques' }), 'Spé Maths');
+  assert.equal(shortSubject({ subject: 'Enseignement scientifique', part: 'P-C' }), 'E.S. P-C');
+  assert.equal(shortSubject({ subject: 'Histoire-Géographie' }), 'HGE');
+  assert.equal(subjectColor({ subject: 'Spécialité SVT' }), subjectColor({ subject: 'Enseignement scientifique', part: 'SVT' }));
+  assert.notEqual(subjectColor({ subject: 'Mathématiques' }), subjectColor({ subject: 'Français' }));
+});
+
+import { dayCourses, nowNext } from '../src/rules/timetableGrid.js';
+test('la journée d\'une classe : bonne semaine, changements, maintenant et ensuite', () => {
+  const settings = { calendar: [], timetable: { weekAStart: '2026-08-31' } };
+  const slots = [
+    { id: 's1', cls: '1re STMG', weekday: 2, start: '07:30', end: '09:30', subject: 'Management', teacherId: 'p1' },
+    { id: 's2', cls: '1re STMG', weekday: 2, start: '09:45', end: '11:15', subject: 'Français', teacherId: 'p2' },
+    { id: 's3', cls: '1re STMG', weekday: 2, start: '13:00', end: '14:30', subject: 'Espagnol', teacherId: 'p3', week: 'B' },
+    { id: 's4', cls: '1re STMG', weekday: 2, start: '15:30', end: '17:00', subject: 'Mathématiques', teacherId: 'p4' },
+  ];
+  // mardi 13 octobre 2026 : semaine A → pas d'espagnol (semaine B)
+  const changes = [{ id: 'c1', type: 'ANNULE', cls: '1re STMG', subject: 'Mathématiques', date: '2026-10-13', start: '15:30', end: '17:00' }];
+  const day = dayCourses(slots, '1re STMG', '2026-10-13', settings, changes);
+  assert.deepEqual(day.map((c) => `${c.subject}${c.status ? `:${c.status}` : ''}`), ['Management', 'Français', 'Mathématiques:ANNULE']);
+  assert.deepEqual([nowNext(day, '10:20').now?.subject, nowNext(day, '10:20').next?.subject], ['Français', undefined]);
+  assert.equal(nowNext(day, '09:35').next.subject, 'Français');
+  assert.equal(dayCourses(slots, '1re STMG', '2026-10-20', settings).length, 4); // semaine B
+});
+
+import { pushPlan, needsEmail, isQuiet } from '../src/rules/pushPolicy.js';
+test('notifications sur le téléphone : urgent tout de suite, heures calmes, regroupement, e-mail de secours', () => {
+  const items = [
+    { id: 'u1', level: 'URGENT', kind: 'SOIN', child: 'Aina', text: 'Aina est à l\'infirmerie' },
+    ...[1, 2, 3].map((k) => ({ id: `n${k}`, level: 'IMPORTANT', kind: 'NOTE', child: 'Aina', text: `note ${k}` })),
+    { id: 'n4', level: 'IMPORTANT', kind: 'NOTE', child: 'Toky', text: 'note' },
+    { id: 'a1', level: 'INFO', kind: 'ANNONCE', text: 'Sortie au musée' },
+  ];
+  assert.ok(isQuiet('21:15') && isQuiet('06:59') && !isQuiet('07:00'));
+  const night = pushPlan(items, '21:15');
+  assert.deepEqual(night.send.map((n) => n.id), ['u1']);
+  assert.equal(night.held.length, 5);
+  const day = pushPlan(items, '17:30');
+  assert.deepEqual(day.send.map((n) => n.text), ['Aina est à l\'infirmerie', '3 nouvelles notes pour Aina', 'note', 'Sortie au musée']);
+  assert.deepEqual(day.send[1].ids, ['n1', 'n2', 'n3']);
+  assert.equal(needsEmail({ level: 'URGENT', sentAt: '2026-10-13T08:00' }, '2026-10-13T10:00'), true);
+  assert.equal(needsEmail({ level: 'URGENT', sentAt: '2026-10-13T08:00', openedAt: '2026-10-13T08:05' }, '2026-10-13T10:00'), false);
+  assert.equal(needsEmail({ level: 'IMPORTANT', sentAt: '2026-10-13T08:00' }, '2026-10-13T09:30'), false);
+  assert.equal(needsEmail({ level: 'INFO', sentAt: '2026-10-13T08:00' }, '2026-10-13T12:00'), false);
+});
+
+import { findStudents, searchAll } from '../src/rules/search.js';
+test('recherche : élèves sans accents ni majuscules, actions et écrans accessibles seulement', () => {
+  const list = [{ name: 'RAMAROSON Fitia', cls: '1re STMG' }, { name: 'RASOA Lova', cls: '6e' }, { name: 'RAKOTO Héry', cls: '6e' }];
+  assert.deepEqual(findStudents('fitia', list).map((s) => s.name), ['RAMAROSON Fitia']);
+  assert.deepEqual(findStudents('hery', list).map((s) => s.name), ['RAKOTO Héry']);
+  assert.equal(findStudents('6e', list).length, 2);
+  assert.deepEqual(findStudents('  ', list), []);
+  const items = [{ id: 'enrol', label: 'Inscriptions' }, { id: 'vs', label: 'Absences, retards et punitions' }, { id: 'student-file', label: 'Fil de l\'élève' }];
+  const r = searchAll('certificat fitia', items, (q) => findStudents(q, list));
+  assert.deepEqual(r.map((x) => `${x.type}:${x.id}:${x.label}`), ['ACTION:enrol:Imprimer un certificat de scolarité', 'STUDENT:student-file:RAMAROSON Fitia']);
+  assert.equal(searchAll('encaisser', items).length, 0); // la caisse n'est pas dans ses écrans
+  assert.deepEqual(searchAll('absences', items).map((x) => x.id), ['vs', 'vs']);
+});
+
+import { coveringFor } from '../src/delegationStore.js';
+test('remplacement : les alertes de la personne absente vont à sa remplaçante, ce jour-là seulement', () => {
+  const all = { VIE_SCOLAIRE: { to: 'BUREAU', day: '2026-10-13' } };
+  assert.deepEqual(coveringFor('BUREAU', '2026-10-13', all), ['VIE_SCOLAIRE']);
+  assert.deepEqual(coveringFor('BUREAU', '2026-10-14', all), []);
+  assert.deepEqual(coveringFor('VIE_SCOLAIRE', '2026-10-13', all), []);
+});
+
+import { familyRequestErrors, justificationState, timeLeftLabel } from '../src/rules/attendance.js';
+test('justification par la famille : motif, délai de 24 h, en attente de la vie scolaire', () => {
+  const a = { id: 'x', date: '2026-10-13', kind: 'ABSENCE', slot: '13h00–15h00', justified: false };
+  assert.equal(timeLeftLabel(a, '2026-10-13T18:30'), 'il reste 18 h');
+  assert.equal(timeLeftLabel(a, '2026-10-14T12:30'), 'il reste 30 min');
+  assert.deepEqual(familyRequestErrors(a, { reason: 'Maladie' }, '2026-10-13T18:30'), []);
+  assert.equal(familyRequestErrors(a, { reason: 'Autre', note: ' ' }, '2026-10-13T18:30').length, 1);
+  assert.match(familyRequestErrors(a, { reason: 'Maladie' }, '2026-10-14T13:00')[0], /délai de 24 h est dépassé/);
+  const sent = { ...a, request: { reason: 'Maladie', at: '2026-10-13T18:31' } };
+  assert.equal(justificationState(sent, '2026-10-15T09:00').status, 'EN_ATTENTE'); // déposée à temps : jamais « non justifiée » en attendant
+  assert.equal(justificationState({ ...sent, request: { ...sent.request, refused: { why: 'pas de certificat' } } }, '2026-10-15T09:00').status, 'NON_JUSTIFIEE');
+  assert.equal(familyRequestErrors(sent, { reason: 'Maladie' }, '2026-10-13T19:00').length, 1);
 });

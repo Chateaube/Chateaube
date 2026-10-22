@@ -68,9 +68,11 @@ const SERVICES_STAFF = ['Direction', 'Secrétariat — caisse', 'Vie scolaire �
 const COLLEAGUES = ['M. Canusis (Physique-Chimie)', 'M. Hassanaly (Mathématiques)', 'Mme Pasimiry (Anglais)', 'Mme Felana (Histoire-Géographie)', 'Mme Karele (Économie, Droit)'];
 
 export const RECIPIENT_GROUPS = {
+  // Les familles écrivent d'abord à un rôle (pas à une personne cherchée dans une longue liste)
   PARENT: [
+    ['Écrire à…', ['Professeur principal — 1re STMG', 'Vie scolaire — M. Be (CPE)', 'Secrétariat — caisse', 'Direction']],
     ['Professeurs d\'Aina (1re STMG)', teachersOf('1re STMG')],
-    ['Établissement', SERVICES_STAFF],
+    ['Établissement', ['Salle d\'étude']],
   ],
   ELEVE: [
     ['Mes professeurs', teachersOf('1re STMG')],

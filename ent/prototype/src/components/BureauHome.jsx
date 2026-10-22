@@ -1,5 +1,6 @@
 import React from 'react';
 import TodoList from './TodoList.jsx';
+import AbsentToggle from './AbsentToggle.jsx';
 import ActivityJournal from './ActivityJournal.jsx';
 import { Badge, Button, Card, Icon, Stat } from './ui.jsx';
 import { CASH_MOVEMENTS } from '../data/accounting.js';
@@ -26,6 +27,7 @@ export default function BureauHome({ go }) {
         </div>
         <Button onClick={() => go('accounting')}><Icon name="wallet" />Nouvel encaissement</Button>
       </div>
+      <AbsentToggle role="BUREAU" />
       <TodoList who="BUREAU" title="Tâches confiées par la Direction" />
       <div className="grid grid-cols-[minmax(0,1fr)] gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <Card title={`À traiter aujourd'hui (${todo.length})`}>

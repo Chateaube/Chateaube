@@ -8,7 +8,7 @@ import { formatDateFr } from '../rules/calendar.js';
 // « Ce qui s'est passé » : qui a fait quoi aujourd'hui ou sur 7 jours, pour les élèves et les professeurs.
 // Regroupé par service : Direction, CPE, secrétariat, puis tous les enseignants ensemble.
 const TONE = { PUNITION: 'red', COLLE: 'amber', OBJET: 'amber', ABSENCE: 'navy', JUSTIF: 'green', PARENTS: 'green', SOIN: 'violet', SORTIE: 'violet', OUBLI: 'slate', APPEL: 'slate', PROF: 'navy' };
-const summary = (kinds) => Object.entries(kinds).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${n} ${ACTIVITY_KINDS[k].toLowerCase()}`).join(' · ');
+const summary = (kinds) => Object.entries(kinds).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${n} ${(ACTIVITY_KINDS[k] ?? k).toLowerCase()}`).join(' · ');
 
 export default function ActivityJournal({ today = DEMO_TODAY }) {
   const [period, setPeriod] = useState('JOUR');

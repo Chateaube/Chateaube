@@ -26,9 +26,10 @@ const minutes = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
 export const slotHours = (s) => (minutes(s.end) - minutes(s.start)) / 60;
 
 /* Semaines A et B : un créneau peut n'avoir lieu qu'une semaine sur deux (slot.week = 'A' ou 'B' ; sans
- * lettre : toutes les semaines). La première semaine de classe (settings.timetable.weekAStart, un lundi)
- * est une semaine A ; on alterne ensuite à chaque semaine de classe (les semaines de vacances ne comptent pas). */
-export const DEFAULT_WEEK_A = '2026-09-07';
+ * lettre : toutes les semaines). La semaine de la rentrée (settings.timetable.weekAStart, un lundi) est une
+ * semaine A. Calendrier de l'école 2026-2027 : l'alternance continue pendant les vacances (une semaine de
+ * vacances a sa lettre). settings.timetable.skipHolidays = true : les semaines de vacances ne comptent pas. */
+export const DEFAULT_WEEK_A = '2026-08-31'; // semaine du mardi 1er septembre 2026
 const mondayOf = (iso) => addDays(iso, 1 - isoWeekday(iso));
 const hasSchoolDay = (monday, settings) => [0, 1, 2, 3, 4].some((k) => isSchoolDay(addDays(monday, k), settings));
 export function weekLetter(iso, settings) {
@@ -36,7 +37,8 @@ export function weekLetter(iso, settings) {
   const target = mondayOf(iso);
   if (target < start) return 'A';
   let n = 0;
-  for (let m = start; m < target; m = addDays(m, 7)) if (hasSchoolDay(m, settings)) n += 1;
+  const skip = settings?.timetable?.skipHolidays;
+  for (let m = start; m < target; m = addDays(m, 7)) if (!skip || hasSchoolDay(m, settings)) n += 1;
   return n % 2 === 0 ? 'A' : 'B';
 }
 

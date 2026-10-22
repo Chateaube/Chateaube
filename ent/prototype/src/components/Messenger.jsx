@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Avatar, Button, Icon } from './ui.jsx';
 import { THREADS, RECIPIENTS, RECIPIENT_GROUPS, broadcastSize } from '../data/messages.js';
+import { takeIntent } from '../navIntent.js';
+import { useDraft } from '../draftStore.js';
 
 // Messagerie de l'ENT, pour tous les profils et dans tous les sens : professeurs ↔ élèves,
 // professeurs ↔ parents, professeurs ↔ collègues, familles ↔ établissement ; une classe entière
@@ -38,9 +40,9 @@ export default function Messenger({ audience, compact: forceCompact = false, me 
   const compact = forceCompact || narrow;
   const [threads, setThreads] = useState(THREADS[key]);
   const [openId, setOpenId] = useState(compact ? null : THREADS[key][0]?.id);
-  const [text, setText] = useState('');
+  const [text, setText, clearText, restored] = useDraft(`message-${key}`, '');
   const [photos, setPhotos] = useState([]);
-  const [newTo, setNewTo] = useState(null);
+  const [newTo, setNewTo] = useState(() => takeIntent('messages')?.to ?? null);
   const fileRef = useRef(null);
   const open = threads.find((t) => t.id === openId);
 
@@ -59,7 +61,7 @@ export default function Messenger({ audience, compact: forceCompact = false, me 
     } else {
       setThreads(threads.map((t) => (t.id === openId ? { ...t, messages: [...t.messages, ...msgs] } : t)));
     }
-    setText(''); setPhotos([]);
+    clearText(); setPhotos([]);
   };
   const openThread = (id) => { setOpenId(id); setNewTo(null); setThreads(threads.map((t) => (t.id === id ? { ...t, unread: 0 } : t))); };
 
@@ -98,6 +100,7 @@ export default function Messenger({ audience, compact: forceCompact = false, me 
             <select value={newTo} onChange={(e) => setNewTo(e.target.value)} className="mt-0.5 block w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm">
               {RECIPIENT_GROUPS[key].map(([g, list]) => <optgroup key={g} label={g}>{list.map((r) => <option key={r}>{r}</option>)}</optgroup>)}
             </select>
+            {['PARENT', 'ELEVE'].includes(key) && <span className="mt-1 block text-[11px] text-slate-600">Réponse sous 48 h ouvrées (jours de classe). Urgence : appelez la vie scolaire.</span>}
             {broadcastSize(newTo) > 0 && <span className="mt-1 block text-[11px] text-navy-700">Envoyé à {broadcastSize(newTo)} destinataires ; les réponses arrivent en privé.</span>}
           </label>
         ) : (<><Avatar name={open.with} className="h-8 w-8 text-[11px]" /><span className="min-w-0"><span className="block truncate text-sm font-semibold">{open.with}</span><span className="text-xs text-slate-500">{open.about}{open.broadcast ? ` · envoyé à ${open.broadcast} destinataires` : ''}</span></span></>)}
@@ -131,6 +134,7 @@ export default function Messenger({ audience, compact: forceCompact = false, me 
           onClick={() => fileRef.current.click()} className="rounded-full bg-white p-2 text-navy-500 shadow-sm disabled:opacity-40">
           <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 7h3l1.5-2h5L14 7h3v9H3zM10 14a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z" /></svg>
         </button>
+        {restored && text && <span className="sr-only">Brouillon retrouvé</span>}
         <textarea value={text} onChange={(e) => setText(e.target.value)} rows={1} placeholder="Écrire un message…" className="min-h-[38px] flex-1 resize-none rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm" />
         <Button onClick={send} disabled={!text.trim() && !photos.length}>Envoyer</Button>
       </div>

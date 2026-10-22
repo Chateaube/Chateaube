@@ -34,16 +34,18 @@ export function Badge({ tone = 'slate', children, className = '' }) {
   );
 }
 
-export function Stat({ label, value, hint, tone = 'slate' }) {
+/** Chiffre clé ; avec onClick, la carte mène à la liste qui l'explique (« 4 absences » → les 4 absences). */
+export function Stat({ label, value, hint, tone = 'slate', onClick }) {
   const color = { slate: 'text-navy-900', green: 'text-emerald-700', amber: 'text-amber-700', red: 'text-red-700' }[tone];
   const bar = { slate: 'bg-navy-500', green: 'bg-emerald-500', amber: 'bg-amber-500', red: 'bg-red-500' }[tone];
+  const Tag = onClick ? 'button' : 'div';
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-200/70 bg-white p-4 pl-5 shadow-soft">
+    <Tag type={onClick ? 'button' : undefined} onClick={onClick} className={`relative block w-full overflow-hidden rounded-2xl border border-slate-200/70 bg-white p-4 pl-5 text-left shadow-soft ${onClick ? 'transition hover:border-navy-300 hover:shadow-md' : ''}`}>
       <span className={`absolute inset-y-0 left-0 w-1.5 ${bar}`} />
-      <p className="text-xs font-medium text-slate-500">{label}</p>
-      <p className={`mt-1.5 font-display text-2xl font-semibold tabular-nums tracking-tight ${color}`}>{value}</p>
-      {hint && <p className="mt-0.5 text-xs text-slate-500">{hint}</p>}
-    </div>
+      <span className="flex items-start justify-between gap-2"><span className="text-xs font-medium text-slate-500">{label}</span>{onClick && <span className="text-xs font-semibold text-navy-700" aria-hidden="true">Voir ›</span>}</span>
+      <span className={`mt-1.5 block font-display text-2xl font-semibold tabular-nums tracking-tight ${color}`}>{value}</span>
+      {hint && <span className="mt-0.5 block text-xs text-slate-500">{hint}</span>}
+    </Tag>
   );
 }
 

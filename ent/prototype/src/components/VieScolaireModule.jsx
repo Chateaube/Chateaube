@@ -1,15 +1,19 @@
 import React, { useState } from 'react';
 import { Badge, Button, Card, Icon, Stat } from './ui.jsx';
-import { CLASSES, classOf, STAFF_NAMES, ATTENDANCE, MEASURES_LOG, PHONES } from '../data/schoollife.js';
+import { CLASSES, classOf, STAFF_NAMES, MEASURES_LOG } from '../data/schoollife.js';
+import { loadObjects, saveObjects } from '../objectsStore.js';
 import { isMinor, leaveErrors } from '../rules/earlyLeave.js';
 import { loadProfiles } from '../profilesStore.js';
 import { MEASURES, AUTHORS, validateMeasure, phoneReturnAt, PHONE_DURATIONS, PHONE_ACTIONS, phoneDurationFor, validateReturn, ackReminderDue, OBJECTS, objectOf, HANDED_TO, canDecideDuration, objectState, colleErrors, nextColleSlot } from '../rules/discipline.js';
-import { justification, LATE_LIMIT } from '../rules/attendance.js';
+import { justificationState as justification, LATE_LIMIT } from '../rules/attendance.js';
+import { loadAttendance, saveAttendance } from '../attendanceStore.js';
+import { takeIntent } from '../navIntent.js';
 // minutes de retard lues dans le créneau (« 07h00 (+15 min) ») : au-delà de 10, l'heure compte comme absence
 const lateMinutes = (r) => Number(/\+(\d+) min/.exec(r.slot ?? '')?.[1] ?? 0);
 import { logActivity, ACTOR } from '../activityStore.js';
 import { formatDateFr } from '../rules/calendar.js';
 import PassportTab, { loadPassport, savePassport, ColleSessionsCard } from './PassportTab.jsx';
+import { useDraft } from '../draftStore.js';
 
 // Vie scolaire : absences / retards, punitions et sanctions, objets confisqués.
 // Accessible à la Vie scolaire, au Bureau et à la Direction.
@@ -45,8 +49,8 @@ const Ack = ({ at }) => (at
   : <span className="text-xs text-amber-700">En attente de « J'ai pris connaissance »</span>);
 
 /* ---------- Absences & retards ---------- */
-function AttendanceTab({ rows, setRows, toast, role }) {
-  const [filter, setFilter] = useState('ALL');
+function AttendanceTab({ rows, setRows, toast, role, initialFilter }) {
+  const [filter, setFilter] = useState(() => initialFilter ?? (rows.some((r) => justification(r, NOW).status === 'EN_ATTENTE') ? 'REQUESTS' : 'ALL'));
   const [justifying, setJustifying] = useState(null);
   const actor = ACTOR[role] ?? ACTOR.VIE_SCOLAIRE;
   const update = (ids, patch, msg, log) => {
@@ -57,8 +61,10 @@ function AttendanceTab({ rows, setRows, toast, role }) {
   const notInformed = rows.filter((r) => !r.notified);
   const toJustify = rows.filter((r) => st(r).status === 'A_JUSTIFIER');
   const late = rows.filter((r) => st(r).status === 'NON_JUSTIFIEE');
-  const FILTERS = [['ALL', 'Tout', rows.length], ['PARENTS', 'Parents non prévenus', notInformed.length], ['JUSTIFY', 'À justifier (24 h)', toJustify.length], ['LATE', 'Non justifiées', late.length]];
-  const shown = filter === 'PARENTS' ? notInformed : filter === 'JUSTIFY' ? toJustify : filter === 'LATE' ? late : rows;
+  const requests = rows.filter((r) => st(r).status === 'EN_ATTENTE');
+  const FILTERS = [['REQUESTS', 'Justifications des familles', requests.length], ['ALL', 'Tout', rows.length], ['PARENTS', 'Parents non prévenus', notInformed.length], ['JUSTIFY', 'À justifier (24 h)', toJustify.length], ['LATE', 'Non justifiées', late.length]];
+  const shown = filter === 'REQUESTS' ? requests : filter === 'PARENTS' ? notInformed : filter === 'JUSTIFY' ? toJustify : filter === 'LATE' ? late : rows;
+  const [refusing, setRefusing] = useState({});
   const notifyLog = { kind: 'PARENTS', text: (r) => `Parents prévenus (${r.kind === 'ABSENCE' ? 'absence' : 'retard'})` };
   return (
     <Card title="Absences et retards" subtitle="Issus de l'appel des enseignants. Justification possible pendant 24 h après le début de l'absence ; ensuite, non justifiée automatiquement"
@@ -84,7 +90,20 @@ function AttendanceTab({ rows, setRows, toast, role }) {
                 <td className="px-2">{r.kind === 'ABSENCE' ? <Badge tone="navy">Absence</Badge> : lateMinutes(r) > LATE_LIMIT ? <span><Badge tone="navy">Absence (1 h)</Badge><span className="block text-[11px] text-slate-600">retard de {lateMinutes(r)} min</span></span> : <Badge tone="slate">Retard</Badge>}</td>
                 <td className="px-2 text-slate-600">{formatDateFr(r.date).replace(/ \d{4}$/, '')}<br /><span className="text-xs">{r.slot}</span></td>
                 <td className="px-2">
-                  {r.justified ? <Badge tone="green">{r.reason ?? 'Justifié'}</Badge> : st(r).status === 'NON_JUSTIFIEE' ? (
+                  {r.justified ? <Badge tone="green">{r.reason ?? 'Justifié'}</Badge> : st(r).status === 'EN_ATTENTE' ? (
+                    <div className="max-w-[260px] rounded-md bg-navy-50 p-2 text-xs text-navy-900">
+                      <p className="font-semibold">Envoyée par {r.request.by} · {fmtDT(r.request.at)}</p>
+                      <p>{r.request.reason}{r.request.note ? ` — « ${r.request.note} »` : ''}</p>
+                      {r.request.photo && <a href={r.request.photo} target="_blank" rel="noreferrer" className="mt-1 block"><img src={r.request.photo} alt={`Justificatif de ${r.student}`} className="h-16 rounded border border-slate-200 object-cover" /></a>}
+                      <span className="mt-1.5 flex flex-wrap gap-1">
+                        <button type="button" onClick={() => update([r.id], { justified: true, reason: r.request.reason, request: { ...r.request, acceptedAt: NOW } }, `Justification de ${r.student} acceptée : la famille est prévenue.`, { kind: 'JUSTIF', text: () => `Justification de la famille acceptée : ${r.request.reason.toLowerCase()}` })} className="rounded-full bg-emerald-700 px-2.5 py-1 font-semibold text-white">Accepter</button>
+                        {refusing[r.id] === undefined
+                          ? <button type="button" onClick={() => setRefusing({ ...refusing, [r.id]: '' })} className="rounded-full bg-white px-2.5 py-1 font-semibold text-red-700 ring-1 ring-red-200">Refuser…</button>
+                          : <span className="flex w-full gap-1"><input value={refusing[r.id]} onChange={(e) => setRefusing({ ...refusing, [r.id]: e.target.value })} placeholder="Raison (vue par la famille)" aria-label="Raison du refus" className="min-w-0 flex-1 rounded border border-slate-300 px-1.5 py-1" />
+                            <button type="button" disabled={!refusing[r.id].trim()} onClick={() => update([r.id], { request: { ...r.request, refused: { at: NOW, why: refusing[r.id].trim(), by: actor } } }, `Justification de ${r.student} refusée : la famille voit la raison.`, { kind: 'JUSTIF', text: () => `Justification refusée : ${refusing[r.id].trim()}` })} className="rounded bg-red-600 px-2 py-1 font-semibold text-white disabled:opacity-50">OK</button></span>}
+                      </span>
+                    </div>
+                  ) : st(r).status === 'NON_JUSTIFIEE' ? (
                     <span><Badge tone="red">Non justifiée</Badge><span className="block text-[11px] text-slate-600">délai dépassé le {fmtDT(st(r).deadline)}</span></span>
                   ) : justifying === r.id ? (
                     <span className="flex flex-wrap gap-1">{REASONS.map((x) => <button key={x} type="button" onClick={() => { update([r.id], { justified: true, reason: x }, `${r.kind === 'ABSENCE' ? 'Absence' : 'Retard'} de ${r.student} justifié.`, { kind: 'JUSTIF', text: () => `${r.kind === 'ABSENCE' ? 'Absence' : 'Retard'} justifié : ${x.toLowerCase()}` }); setJustifying(null); }} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs hover:bg-navy-50">{x}</button>)}</span>
@@ -109,7 +128,7 @@ function MeasuresTab({ log, setLog, role, toast }) {
   const authorRole = { DIRECTION: 'DIRECTION', ENSEIGNANT: 'PROFESSEUR', BUREAU: 'BUREAU' }[role] ?? 'VIE_SCOLAIRE';
   const authors = { DIRECTION: ['Cheffe d\'établissement', 'Directrice adjointe'], PROFESSEUR: ['Mme Ranaivo'], BUREAU: ['Mme Hanta (secrétariat)'], VIE_SCOLAIRE: ['M. Be (CPE)'] }[authorRole];
   const blank = { student: '', measureId: 'OBSERVATION', reason: '', when: '', author: authors[0] };
-  const [draft, setDraft] = useState(blank);
+  const [draft, setDraft, clearDraft] = useDraft('punition', blank);
   const colles = loadPassport().colles;
   const retenue = draft.measureId === 'RETENUE';
   const errors = [...validateMeasure({ ...draft, authorRole }), ...(retenue && draft.student ? colleErrors({ kind: 'COLLE', hours: draft.hours ?? 1, when: draft.when, student: draft.student, colles }) : [])];
@@ -166,7 +185,7 @@ function MeasuresTab({ log, setLog, role, toast }) {
             // une retenue est une colle : elle entre au passeport, à la suite des autres colles de l'élève
             if (retenue) { const pp = loadPassport(); savePassport({ ...pp, colles: [...pp.colles, { id: `c${Date.now()}`, student: draft.student, kind: 'COLLE', cause: 'AUTRE', hours: draft.hours ?? 1, date: '2026-10-13', when: draft.when, reason: draft.reason.trim(), status: 'A_FAIRE', by: draft.author }] }); }
             toast(`Mesure enregistrée ; le parent de ${draft.student} est notifié (e-mail + application).`);
-            setDraft(blank);
+            clearDraft();
           }}>Enregistrer et prévenir le parent</Button>
         </div>
       </Card>
@@ -183,7 +202,7 @@ function PhonesTab({ phones, setPhones, settings, toast, role }) {
   const actor = ACTOR[role] ?? ACTOR.VIE_SCOLAIRE;
   const decider = canDecideDuration(role);
   const blank = { action: 'CONFISCATION', object: OBJECTS[0], objectNote: '', student: '', owner: '', otherOwner: false, at: NOW, duration: '', confiscatedBy: role === 'ENSEIGNANT' ? 'Mme Ranaivo' : actor, receivedBy: HANDED_TO[0], reason: '' };
-  const [draft, setDraft] = useState(blank);
+  const [draft, setDraft, clearDraft] = useDraft('objet', blank);
   const [returning, setReturning] = useState(null);
   const ok = draft.student && draft.at && draft.reason.trim() && (!draft.otherOwner || draft.owner) && (draft.object !== 'Autre' || draft.objectNote.trim());
   const isWarning = draft.action === 'AVERTISSEMENT';
@@ -314,7 +333,7 @@ function PhonesTab({ phones, setPhones, settings, toast, role }) {
             setPhones([item, ...phones]);
             logActivity({ who: draft.confiscatedBy, role, kind: 'OBJET', student: draft.student, text: isWarning ? `Avertissement (${objectOf(item).toLowerCase()}) : ${item.reason}` : `${objectOf(item)} confisqué, remis à ${draft.receivedBy}` });
             toast(isWarning ? `Avertissement enregistré ; le parent de ${draft.student} est prévenu.` : `Confiscation enregistrée${draft.duration ? '' : ' ; la durée sera décidée par la Direction ou le secrétariat'}. ${otherOwner ? `Les parents de ${draft.student} et de ${draft.owner} sont prévenus` : `Le parent de ${draft.student} est prévenu`}.`);
-            setDraft(blank);
+            clearDraft();
           }}>Enregistrer</Button>
         </div>
       </Card>
@@ -387,10 +406,13 @@ function EarlyLeaveTab({ toast }) {
 export default function VieScolaireModule({ settings, role = 'VIE_SCOLAIRE' }) {
   // l'enseignant ne voit que ses outils : punitions et remise d'un téléphone confisqué
   const tabs = role === 'ENSEIGNANT' ? TABS.filter(([id]) => ['passport', 'measures', 'phones'].includes(id)) : TABS;
-  const [tab, setTab] = useState(tabs[0][0]);
-  const [rows, setRows] = useState(ATTENDANCE);
+  const [intent] = useState(() => takeIntent('vs'));
+  const [tab, setTab] = useState(tabs.some(([id]) => id === intent?.tab) ? intent.tab : tabs[0][0]);
+  const [rows, setRowsState] = useState(loadAttendance);
+  const setRows = (l) => { setRowsState(l); saveAttendance(l); };
   const [log, setLog] = useState(MEASURES_LOG);
-  const [phones, setPhones] = useState(PHONES);
+  const [phones, setPhonesState] = useState(loadObjects);
+  const setPhones = (l) => { setPhonesState(l); saveObjects(l); };
   const [message, setMessage] = useState(null);
   const today = rows.filter((r) => r.date === '2026-10-13');
 
@@ -413,7 +435,7 @@ export default function VieScolaireModule({ settings, role = 'VIE_SCOLAIRE' }) {
             className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ${tab === id ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>{label}</button>
         ))}
       </div>
-      {tab === 'attendance' && <AttendanceTab rows={rows} setRows={setRows} toast={setMessage} role={role} />}
+      {tab === 'attendance' && <AttendanceTab initialFilter={intent?.filter} rows={rows} setRows={setRows} toast={setMessage} role={role} />}
       {tab === 'measures' && <MeasuresTab log={log} setLog={setLog} role={role} toast={setMessage} />}
       {tab === 'leave' && <EarlyLeaveTab toast={setMessage} />}
       {tab === 'passport' && <div className="space-y-5">{role !== 'ENSEIGNANT' && <ColleSessionsCard role={role} />}<PassportTab role={role} toast={setMessage} /></div>}

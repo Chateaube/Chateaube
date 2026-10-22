@@ -2338,3 +2338,72 @@ CREATE TABLE detention_watch (
   watcher_id    uuid NOT NULL REFERENCES app_user(id),
   PRIMARY KEY (site_id, on_date)
 );
+
+-- ------------------------------------------------------------------------------------------------
+-- Parcours (octobre 2026) : justification par la famille, notifications sur le téléphone,
+-- remplacements CPE ↔ secrétariat, favoris du menu.
+-- ------------------------------------------------------------------------------------------------
+
+-- Justification envoyée par le parent depuis son téléphone (motif, mot, photo du justificatif facultative).
+-- Envoyée dans les 24 h : elle attend la vie scolaire, qui l'accepte (absence justifiée) ou la refuse avec une raison.
+CREATE TABLE attendance_request (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  attendance_id uuid NOT NULL REFERENCES attendance_event(id) ON DELETE CASCADE,
+  guardian_id   uuid NOT NULL REFERENCES guardian(id),
+  reason        text NOT NULL CHECK (reason IN ('Certificat médical', 'Maladie', 'Motif familial', 'Transport', 'Rendez-vous administratif', 'Autre')),
+  note          text,
+  photo_key     text,                                   -- photo du justificatif (stockage de fichiers)
+  sent_at       timestamptz NOT NULL DEFAULT now(),
+  decided_at    timestamptz,
+  decided_by    uuid REFERENCES app_user(id),
+  accepted      boolean,
+  refusal_reason text,
+  CHECK (reason <> 'Autre' OR length(trim(coalesce(note, ''))) > 0),
+  CHECK ((decided_at IS NULL) = (accepted IS NULL) AND (decided_at IS NULL) = (decided_by IS NULL)),
+  CHECK (accepted IS DISTINCT FROM false OR length(trim(coalesce(refusal_reason, ''))) > 0)
+);
+-- une seule demande en attente par absence
+CREATE UNIQUE INDEX attendance_request_pending ON attendance_request (attendance_id) WHERE decided_at IS NULL;
+
+-- Notifications sur le téléphone (Web Push, sans SMS) et e-mail de secours.
+CREATE TABLE push_subscription (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       uuid NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+  endpoint      text NOT NULL UNIQUE,
+  p256dh        text NOT NULL,
+  auth          text NOT NULL,
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
+CREATE TYPE notif_level AS ENUM ('URGENT', 'IMPORTANT', 'INFO');
+CREATE TABLE notification_outbox (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       uuid NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+  level         notif_level NOT NULL,
+  kind          text NOT NULL,                          -- SOIN, ABSENCE, NOTE, MESURE, ANNONCE…
+  child_id      uuid REFERENCES student(id),
+  body          text NOT NULL,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  sent_at       timestamptz,                            -- poussé sur le téléphone
+  opened_at     timestamptz,
+  emailed_at    timestamptz
+);
+
+-- Remplacement pour la journée : les alertes de la personne absente vont aussi à l'autre service.
+CREATE TABLE staff_cover (
+  site_id       uuid NOT NULL REFERENCES site(id),
+  on_date       date NOT NULL,
+  absent_role   text NOT NULL CHECK (absent_role IN ('VIE_SCOLAIRE', 'BUREAU')),
+  covered_by    text NOT NULL CHECK (covered_by IN ('VIE_SCOLAIRE', 'BUREAU')),
+  set_by        uuid NOT NULL REFERENCES app_user(id),
+  PRIMARY KEY (site_id, on_date, absent_role),
+  CHECK (absent_role <> covered_by)
+);
+
+-- Favoris du menu : 5 écrans au plus par personne.
+CREATE TABLE user_favorite (
+  user_id       uuid NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+  screen_id     text NOT NULL,
+  position      smallint NOT NULL CHECK (position BETWEEN 1 AND 5),
+  PRIMARY KEY (user_id, screen_id),
+  UNIQUE (user_id, position)
+);

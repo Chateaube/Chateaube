@@ -3,6 +3,8 @@ import { Badge, Button, Card } from './ui.jsx';
 import { HOMEWORK } from '../data/homework.js';
 import { SERVICES } from '../data/grades.js';
 import { formatDateFr } from '../rules/calendar.js';
+import { takeIntent } from '../navIntent.js';
+import { useDraft } from '../draftStore.js';
 
 // Cahier de textes de l'enseignant : une entrée par séance (fait en classe + travail à faire).
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
@@ -10,10 +12,10 @@ const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 
 export default function HomeworkModule() {
   const services = SERVICES.filter((s) => s.mode !== 'APPRECIATION_SEULE');
-  const [serviceId, setServiceId] = useState(services[0].id);
+  const [serviceId, setServiceId] = useState(() => { const i = takeIntent('homework'); return services.find((x) => x.cls === i?.cls && x.subject === i?.subject)?.id ?? services.find((x) => x.cls === i?.cls)?.id ?? services[0].id; });
   const [entries, setEntries] = useState(HOMEWORK);
   const blank = { date: '2026-10-13', done: '', todo: '', due: '' };
-  const [draft, setDraft] = useState(blank);
+  const [draft, setDraft, clearDraft, restored] = useDraft('cahier-de-textes', blank);
   const service = services.find((s) => s.id === serviceId);
   const mine = entries.filter((e) => e.cls === service.cls && e.subject === service.subject).sort((a, b) => b.date.localeCompare(a.date));
   const ok = draft.date && draft.done.trim() && (!draft.todo.trim() || (draft.due && draft.due > draft.date));
@@ -52,6 +54,7 @@ export default function HomeworkModule() {
         <Card title="Nouvelle séance">
           <div className="space-y-2 text-sm">
             <label className="block text-xs text-slate-600">Date de la séance<input type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>
+            {restored && <p className="rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-900">Brouillon retrouvé : il a été gardé sur cet appareil.</p>}
             <label className="block text-xs text-slate-600">Fait en classe<textarea rows={3} value={draft.done} onChange={(e) => setDraft({ ...draft, done: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>
             <label className="block text-xs text-slate-600">Travail à faire (facultatif)<textarea rows={2} value={draft.todo} onChange={(e) => setDraft({ ...draft, todo: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>
             {draft.todo.trim() && (
@@ -60,7 +63,7 @@ export default function HomeworkModule() {
             {draft.todo.trim() && draft.due && draft.due <= draft.date && <p className="text-xs text-red-700">La date de remise doit suivre la séance.</p>}
             <Button className="w-full" disabled={!ok} onClick={() => {
               setEntries([{ id: `h${Date.now()}`, cls: service.cls, subject: service.subject, teacher: 'Mme Ranaivo', ...draft, todo: draft.todo.trim() || null, due: draft.todo.trim() ? draft.due : null }, ...entries]);
-              setDraft(blank);
+              clearDraft();
             }}>Publier</Button>
           </div>
         </Card>
