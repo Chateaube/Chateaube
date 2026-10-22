@@ -163,6 +163,9 @@ export default function TimetableView({ settings = DEFAULT_SETTINGS }) {
       <div className="flex flex-wrap gap-1.5 text-xs" aria-label="Couleurs des matières">
         {used.map((s) => <span key={shortSubject(s)} className="rounded px-2 py-0.5 text-slate-900" style={{ background: subjectColor(s) }}>{shortSubject(s)}</span>)}
       </div>
+      {classes.includes('1re Générale') && (mode !== 'CLASSE' || cls === '1re Générale') && (
+        <p className="text-xs text-slate-600">1re générale : la partie physique-chimie de l'enseignement scientifique (E.S. P-C) se fait pendant une heure de physique-chimie choisie par le professeur, qui peut changer d'une semaine à l'autre ; elle n'a donc pas de créneau fixe.</p>
+      )}
       <div className="edt-all hidden" aria-hidden="true">{everything}</div>
     </div>
   );

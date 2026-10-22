@@ -48,14 +48,14 @@ function Sheet({ action, role, onClose, onSaved }) {
       saveAttendance([{ id, date: DEMO_TODAY, student: student.name, kind: action, slot, by: who, justified: false, notified: false, parentAck: null }, ...loadAttendance()]);
       text = action === 'RETARD' ? `Retard de ${f.minutes} min${f.minutes > LATE_LIMIT ? ' (compté absent pour l\'heure commencée)' : ''}` : `Absence (${f.slot.toLowerCase()})`;
     } else if (action === 'OBJET') {
-      saveObjects([{ id, student: student.name, at: `${DEMO_TODAY}T${t}`, object: f.object, confiscatedBy: who, receivedBy: who, reason: f.reason.trim(), returned: null }, ...loadObjects()]);
+      saveObjects([{ id, student: student.name, at: `${DEMO_TODAY}T${t}`, object: f.object, confiscatedBy: who, receivedBy: role === 'ENSEIGNANT' ? 'M. Be (CPE)' : who, reason: f.reason.trim(), returned: null }, ...loadObjects()]);
       text = `${f.object} confisqué : ${f.reason.trim()} (durée à décider par la Direction ou le secrétariat)`;
     } else {
       saveVisits([{ id, at: `${DEMO_TODAY}T${t}`, student: student.name, reason: f.care, paracetamol: false, outcome: f.outcome, by: who }, ...loadVisits()]);
       text = `Passage à l'infirmerie : ${f.care.toLowerCase()} — ${CARE_OUTCOMES[f.outcome].toLowerCase()}`;
     }
     logActivity({ who, role, kind: { RETARD: 'ABSENCE', ABSENCE: 'ABSENCE', OBJET: 'OBJET', SOIN: 'SOIN' }[action], student: student.name, text });
-    onSaved(`${label} noté${action === 'ABSENCE' ? 'e' : ''} pour ${student.name} (${student.cls}).${action === 'RETARD' || action === 'ABSENCE' ? ' Les parents seront prévenus avec les autres (Absences et retards).' : ''}`);
+    onSaved(`${{ RETARD: 'Retard noté', ABSENCE: 'Absence notée', OBJET: 'Confiscation notée', SOIN: 'Passage à l\'infirmerie noté' }[action]} pour ${student.name} (${student.cls}).${action === 'RETARD' || action === 'ABSENCE' ? ' Les parents seront prévenus avec les autres (Absences et retards).' : ''}`);
   };
 
   return (
@@ -102,19 +102,23 @@ function Sheet({ action, role, onClose, onSaved }) {
 }
 
 /** Quatre boutons (ordinateur) et barre fixée en bas (téléphone). */
+// Enseignant : confiscation en classe seulement (l'objet est remis à la vie scolaire).
+const ROLE_ACTIONS = { ENSEIGNANT: ['OBJET'] };
+
 export default function QuickEntry({ role = 'VIE_SCOLAIRE' }) {
+  const allowed = ACTIONS.filter(([k]) => !ROLE_ACTIONS[role] || ROLE_ACTIONS[role].includes(k));
   const [action, setAction] = useState(null);
   const [done, setDone] = useState('');
-  const buttons = (cls) => ACTIONS.map(([k, l, icon]) => (
+  const buttons = (cls) => allowed.map(([k, l, icon]) => (
     <button key={k} type="button" data-quick={k} onClick={() => { setAction(k); setDone(''); }} className={cls}><Icon name={icon} className="h-5 w-5" />{l}</button>
   ));
   return (
     <>
       <section aria-label="Saisie express" className="hidden rounded-2xl bg-white p-3 shadow-soft sm:block">
         <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-navy-700">Saisie express</p>
-        <div className="grid grid-cols-4 gap-2">{buttons('flex min-h-[56px] items-center justify-center gap-2 rounded-xl bg-navy-50 text-sm font-semibold text-navy-900 hover:bg-navy-100')}</div>
+        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${allowed.length}, minmax(0, 1fr))` }}>{buttons('flex min-h-[56px] items-center justify-center gap-2 rounded-xl bg-navy-50 text-sm font-semibold text-navy-900 hover:bg-navy-100')}</div>
       </section>
-      <nav aria-label="Saisie express" className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] sm:hidden">
+      <nav aria-label="Saisie express" style={{ gridTemplateColumns: `repeat(${allowed.length}, minmax(0, 1fr))` }} className="fixed inset-x-0 bottom-0 z-40 grid border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] sm:hidden">
         {buttons('flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-[11px] font-semibold text-navy-900')}
       </nav>
       {done && <p role="status" className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800"><Icon name="check" />{done}</p>}

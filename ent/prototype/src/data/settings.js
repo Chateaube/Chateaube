@@ -13,6 +13,8 @@ export const DEFAULT_SETTINGS = {
   // Réseaux de l'école : liens affichés aux familles (laisser vide pour ne rien afficher)
   social: { facebook: '', instagram: '', instagramLabel: 'Association des élèves' },
   schoolYear: { start: '2026-09-01', end: '2027-07-04' },
+  // Horaires de travail de l'équipe (pas de réponse aux familles en dehors) ; 3 = mercredi, 6 = samedi (fermé)
+  workHours: { 1: ['07:00', '17:00'], 2: ['07:00', '17:00'], 3: ['07:00', '12:00'], 4: ['07:00', '17:00'], 5: ['07:00', '17:00'], 6: null },
 
   tuition: {
     dueDay: 5, // échéance le 5 de chaque mois

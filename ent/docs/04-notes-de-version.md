@@ -1,5 +1,16 @@
 # Notes de version — ce qui change pour l'équipe
 
+## 22 octobre 2026 (suite) — réponses de la Direction
+
+- **Pas de professeur principal** : le message « Écrire au professeur principal » est retiré. Les familles écrivent à la vie scolaire, au secrétariat, à la Direction ou à un professeur de la classe.
+- **Pas de réponse en dehors des horaires de travail** : du lundi au vendredi 7h–17h, le mercredi 7h–12h, rien les jours de vacances ni les jours fériés.
+  - En écrivant, la famille voit quand son message sera lu (« votre message sera lu mercredi 14 octobre à 7h »).
+  - Ces horaires sont un réglage de l'école.
+- **Heures calmes** : de 20h à 7h, le téléphone des parents ne reçoit aucune alerte, sauf urgence (enfant à l'infirmerie…). Les autres alertes arrivent à 7h, regroupées.
+- **Saisie express pour les enseignants** : un bouton « Confiscation » sur « Ma journée ». L'objet est noté remis à la vie scolaire, et la durée est décidée ensuite par la Direction ou le secrétariat.
+- **Enseignement scientifique en 1re générale** : la partie physique-chimie se fait pendant une heure de physique-chimie choisie par le professeur. Elle peut changer d'une semaine à l'autre et n'a pas de créneau fixe : c'est indiqué sous l'emploi du temps.
+- **Calendrier A/B** : celui du PDF de l'école fait foi. La rentrée a lieu le mardi 1er septembre, en semaine A.
+
 ## 22 octobre 2026 — parcours de chacun, emplois du temps façon école
 
 **Emplois du temps** (présentation de l'outil de l'école)

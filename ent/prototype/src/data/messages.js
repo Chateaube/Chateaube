@@ -70,7 +70,7 @@ const COLLEAGUES = ['M. Canusis (Physique-Chimie)', 'M. Hassanaly (Mathématique
 export const RECIPIENT_GROUPS = {
   // Les familles écrivent d'abord à un rôle (pas à une personne cherchée dans une longue liste)
   PARENT: [
-    ['Écrire à…', ['Professeur principal — 1re STMG', 'Vie scolaire — M. Be (CPE)', 'Secrétariat — caisse', 'Direction']],
+    ['Écrire à…', ['Vie scolaire — M. Be (CPE)', 'Secrétariat — caisse', 'Direction']],
     ['Professeurs d\'Aina (1re STMG)', teachersOf('1re STMG')],
     ['Établissement', ['Salle d\'étude']],
   ],

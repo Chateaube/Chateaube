@@ -1903,3 +1903,15 @@ test('justification par la famille : motif, délai de 24 h, en attente de la vie
   assert.equal(justificationState({ ...sent, request: { ...sent.request, refused: { why: 'pas de certificat' } } }, '2026-10-15T09:00').status, 'NON_JUSTIFIEE');
   assert.equal(familyRequestErrors(sent, { reason: 'Maladie' }, '2026-10-13T19:00').length, 1);
 });
+
+import { atWork, nextOpening, openingLabel } from '../src/rules/workHours.js';
+test('horaires de travail : pas de réponse en dehors, message lu à la reprise', () => {
+  const s = { ...DEFAULT_SETTINGS, calendar: [{ id: 'v', kind: 'VACANCES', start: '2026-10-19', end: '2026-10-31' }] };
+  assert.equal(atWork('2026-10-13T10:00', s), true);
+  assert.equal(atWork('2026-10-13T18:30', s), false);
+  assert.equal(atWork('2026-10-14T14:00', s), false); // mercredi après-midi
+  assert.equal(nextOpening('2026-10-13T18:30', s), '2026-10-14T07:00');
+  assert.equal(nextOpening('2026-10-13T06:15', s), '2026-10-13T07:00');
+  assert.equal(nextOpening('2026-10-16T19:00', s), '2026-11-02T07:00'); // vendredi soir avant les vacances
+  assert.equal(openingLabel('2026-11-02T07:00'), 'lundi 2 novembre à 7h');
+});

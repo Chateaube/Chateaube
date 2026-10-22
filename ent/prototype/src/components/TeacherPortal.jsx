@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Badge, Button, Card, Icon } from './ui.jsx';
 import { TEACHER, CLASS_LIST } from '../data/people.js';
 import { setIntent } from '../navIntent.js';
+import QuickEntry from './QuickEntry.jsx';
 
 const h = (t) => t.replace(':', 'h');
 const APPEL_UI = { FAIT: ['green', 'Appel fait'], A_FAIRE: ['amber', 'Appel à faire'], A_VENIR: ['slate', 'À venir'] };
@@ -45,7 +46,7 @@ export default function TeacherPortal({ go }) {
   const current = slots.find((s) => s.appel === 'A_FAIRE');
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 pb-16 sm:pb-0">
       <div>
         <p className="text-sm font-semibold text-navy-500">Ma journée</p>
         <h1 className="text-2xl font-semibold text-navy-900">Bonjour {TEACHER.name}</h1>
@@ -58,6 +59,7 @@ export default function TeacherPortal({ go }) {
           <button type="button" onClick={() => (go ? go('appel') : setOpen(current))} className="rounded-xl bg-white px-5 py-3 text-base font-semibold text-navy-900 shadow hover:bg-navy-50">Faire l'appel</button>
         </div>
       )}
+      <QuickEntry role="ENSEIGNANT" />
       {toast && <p role="status" className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800"><Icon name="check" />{toast}</p>}
 
       <div className="grid gap-5 xl:grid-cols-[1fr_380px] xl:items-start">

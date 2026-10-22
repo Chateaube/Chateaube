@@ -3,6 +3,8 @@ import { Avatar, Button, Icon } from './ui.jsx';
 import { THREADS, RECIPIENTS, RECIPIENT_GROUPS, broadcastSize } from '../data/messages.js';
 import { takeIntent } from '../navIntent.js';
 import { useDraft } from '../draftStore.js';
+import { atWork, nextOpening, openingLabel } from '../rules/workHours.js';
+import { DEFAULT_SETTINGS } from '../data/settings.js';
 
 // Messagerie de l'ENT, pour tous les profils et dans tous les sens : professeurs ↔ élèves,
 // professeurs ↔ parents, professeurs ↔ collègues, familles ↔ établissement ; une classe entière
@@ -32,6 +34,15 @@ function Photo({ photo }) {
     return <span className="mt-1.5 flex h-24 w-36 items-center justify-center rounded-lg bg-slate-200 px-2 text-center text-[11px] text-slate-600"><Icon name="pin" className="mr-1 h-3.5 w-3.5" />{DEMO_PHOTOS[photo]}</span>;
   }
   return <img src={photo} alt="Photo jointe" className="mt-1.5 max-h-48 rounded-lg object-cover" />;
+}
+
+// Pas de réponse en dehors des horaires de travail : la famille le sait au moment d'écrire.
+function WorkHoursNotice() {
+  const now = `2026-10-13T${new Date().toTimeString().slice(0, 5)}`;
+  const next = nextOpening(now, DEFAULT_SETTINGS);
+  return atWork(now, DEFAULT_SETTINGS)
+    ? <span className="mt-1 block text-[11px] text-slate-600">L'équipe répond pendant les horaires de travail : du lundi au vendredi 7h–17h, le mercredi 7h–12h. Urgence : appelez la vie scolaire.</span>
+    : <span className="mt-1 block text-[11px] font-medium text-amber-800">En dehors des horaires de travail : votre message sera lu {next ? openingLabel(next) : 'à la reprise'}. Urgence : appelez l'école.</span>;
 }
 
 export default function Messenger({ audience, compact: forceCompact = false, me = 'Moi' }) {
@@ -100,7 +111,7 @@ export default function Messenger({ audience, compact: forceCompact = false, me 
             <select value={newTo} onChange={(e) => setNewTo(e.target.value)} className="mt-0.5 block w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm">
               {RECIPIENT_GROUPS[key].map(([g, list]) => <optgroup key={g} label={g}>{list.map((r) => <option key={r}>{r}</option>)}</optgroup>)}
             </select>
-            {['PARENT', 'ELEVE'].includes(key) && <span className="mt-1 block text-[11px] text-slate-600">Réponse sous 48 h ouvrées (jours de classe). Urgence : appelez la vie scolaire.</span>}
+            {['PARENT', 'ELEVE'].includes(key) && <WorkHoursNotice />}
             {broadcastSize(newTo) > 0 && <span className="mt-1 block text-[11px] text-navy-700">Envoyé à {broadcastSize(newTo)} destinataires ; les réponses arrivent en privé.</span>}
           </label>
         ) : (<><Avatar name={open.with} className="h-8 w-8 text-[11px]" /><span className="min-w-0"><span className="block truncate text-sm font-semibold">{open.with}</span><span className="text-xs text-slate-500">{open.about}{open.broadcast ? ` · envoyé à ${open.broadcast} destinataires` : ''}</span></span></>)}
