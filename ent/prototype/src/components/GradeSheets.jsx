@@ -1,3 +1,5 @@
+import { termGrades } from '../termGrades.js';
+import { takeIntent } from '../navIntent.js';
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card } from './ui.jsx';
 import { TERM, SERVICES, EVALUATIONS, GRADES, CLASS_SUBJECTS, OTHER_AVERAGES } from '../data/grades.js';
@@ -24,7 +26,7 @@ export function classAverages(cls, excluded = []) {
   if (cls === '1re STMG') {
     const subjects = CLASS_SUBJECTS.map((s) => ({ ...s, short: SHORT[s.id], inAverage: !excluded.includes(s.id) }));
     const rows = CLASS_LIST.map((name) => ({
-      name, avgs: Object.fromEntries(CLASS_SUBJECTS.map((s) => [s.id, s.service ? studentAverage(EVALUATIONS[s.service], GRADES[s.service][name]) : OTHER_AVERAGES[name][s.id]])),
+      name, avgs: Object.fromEntries(CLASS_SUBJECTS.map((s) => [s.id, s.service ? studentAverage(termGrades().EVALUATIONS[s.service], termGrades().GRADES[s.service][name]) : OTHER_AVERAGES[name][s.id]])),
     }));
     return { subjects, rows };
   }
@@ -141,16 +143,17 @@ export default function GradeSheets({ settings, role }) {
   // un enseignant ne voit que les grilles de ses propres matières (détail des évaluations)
   const isTeacher = role === 'ENSEIGNANT';
   const classes = isTeacher ? CLASSES.filter((c) => SERVICES.some((s) => s.cls === c && EVALUATIONS[s.id]?.length)) : CLASSES;
-  const [cls, setCls] = useState(classes[0]);
+  const [intent] = useState(() => takeIntent('grade-sheets')); // ouvert depuis le carnet de notes
+  const [cls, setCls] = useState(classes.includes(intent?.cls) ? intent.cls : classes[0]);
   const averages = useMemo(() => (isTeacher ? null : classAverages(cls, settings.grading.excludedSubjects)), [cls, settings, isTeacher]);
   const services = SERVICES.filter((s) => s.cls === cls && s.mode !== 'APPRECIATION_SEULE' && EVALUATIONS[s.id]?.length);
   const views = [...(averages ? [['AVG', 'Moyennes de toutes les matières']] : []), ...services.map((s) => [s.id, `${s.subject} — détail des évaluations`])];
-  const [view, setView] = useState('AVG');
+  const [view, setView] = useState(intent?.service ?? 'AVG');
   const current = views.some(([v]) => v === view) ? view : views[0]?.[0];
   const showRank = isFinalTerm(TERM); // le rang n'apparaît qu'au 3e trimestre (passage)
   const service = SERVICES.find((s) => s.id === current);
   const sheetAvg = averages && current === 'AVG' ? averagesSheet(averages) : null;
-  const sheetDetail = service ? detailSheet({ evaluations: EVALUATIONS[service.id], students: service.students, grades: GRADES[service.id] }) : null;
+  const sheetDetail = service ? detailSheet({ evaluations: termGrades().EVALUATIONS[service.id], students: service.students, grades: termGrades().GRADES[service.id] }) : null;
   const slug = `${cls}-${current === 'AVG' ? 'moyennes' : service?.subject}`.replace(/\s+/g, '-');
 
   // matières retenues pour l'écran, l'impression et l'export (toutes par défaut)

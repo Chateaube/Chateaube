@@ -1,5 +1,4 @@
-import { loadMockExams } from '../mockExamStore.js';
-import { EXAMS } from '../rules/mockExam.js';
+import { withMockExams } from '../termGrades.js';
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, Icon, StudentSelect } from './ui.jsx';
 import { Annotated, RulePanel, GradeCell } from './gradeUi.jsx';
@@ -101,7 +100,7 @@ function EvaluationForm({ draft, setDraft, settings, competencies, onCreate, onC
 }
 
 /* ---------------- 2. Notes ---------------- */
-function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, remarks, setRemarks, validated, setValidated, settings, competencies = [] }) {
+function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, remarks, setRemarks, validated, setValidated, settings, competencies = [], go }) {
   const min = settings.grading.minEvaluations;
   const blank = {
     type: settings.grading.evaluationTypes[0], title: '', date: TODAY, publishOn: TODAY, remarksEnabled: false,
@@ -118,7 +117,10 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
       <Card
         title={`Notes — ${service.cls} · ${service.subject}`}
         subtitle={`${TERM.label} · ${evaluations.length} devoir${evaluations.length > 1 ? 's' : ''} · moyennes sur 20, pondérées par les coefficients`}
-        action={<Button variant="secondary" disabled={validated} onClick={() => setDraft(blank)}><span aria-hidden>＋</span> Nouveau devoir</Button>}
+        action={<span className="flex flex-wrap gap-2">
+          {go && <Button variant="secondary" onClick={() => { setIntent('grade-sheets', { cls: service.cls, service: service.id }); go('grade-sheets'); }}>Imprimer / Excel</Button>}
+          <Button variant="secondary" disabled={validated} onClick={() => setDraft(blank)}><span aria-hidden>＋</span> Nouveau devoir</Button>
+        </span>}
       >
         {draft && (
           <EvaluationForm draft={draft} setDraft={setDraft} settings={settings} competencies={competencies} onCancel={() => setDraft(null)}
@@ -224,8 +226,12 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
             <Button variant="ghost" className="mt-1 !px-0" onClick={() => setValidated(false)}>Rouvrir la saisie</Button>
           </div>
         ) : (
-          <Button className="mt-4 w-full" disabled={!check.ok} onClick={() => setValidated(true)}>Valider les notes du trimestre</Button>
+          <>
+            <Button className="mt-4 w-full" disabled={!check.ok} onClick={() => setValidated(true)}>Valider les notes du trimestre</Button>
+            {!check.ok && <p className="mt-1.5 text-xs text-red-800">Pas encore possible : {[check.missing && `il manque ${check.missing} évaluation${check.missing > 1 ? 's' : ''}`, check.pending.length && `${check.pending.length} saisie(s) à corriger`, check.empty.length && `${check.empty.length} case(s) vide(s)`].filter(Boolean).join(', ')}.</p>}
+          </>
         )}
+        <p className="mt-3 text-xs text-slate-600">Arrêt des notes du 1er trimestre : <strong>vendredi 27 novembre</strong> (même date pour toutes les classes).</p>
       </Card>
     </div>
   );
@@ -403,6 +409,7 @@ function AppreciationsStep({ service, evaluations, grades, validated, settings, 
             <Icon name="check" />{entry.validated ? 'Validée' : 'Valider l\'appréciation'}
           </Button>
         </div>
+        {!entry.validated && !blocked && !result.ok && <p className="mt-1.5 text-right text-xs text-red-800">Pas encore possible : {entry.text.trim() ? 'corrigez ce qui est souligné en rouge ci-dessus' : 'écrivez d\'abord l\'appréciation'}.</p>}
 
         <div className="mt-5 rounded-lg border border-dashed border-slate-300 p-3">
           <p className="text-xs font-semibold text-slate-500">Pour le conseil de classe — non imprimé sur le bulletin</p>
@@ -433,19 +440,6 @@ function AppreciationsStep({ service, evaluations, grades, validated, settings, 
 /* ---------------- Module ---------------- */
 const STEPS = [['competences', '1. Compétences'], ['notes', '2. Notes'], ['appreciations', '3. Appréciations']];
 
-/** Épreuves d'examen blanc que le professeur a choisi de compter dans son carnet (avec son coefficient). */
-function withMockExams(evaluations, grades) {
-  const ev = { ...evaluations }; const gr = { ...grades };
-  loadMockExams().sessions.forEach((x) => EXAMS[x.kind].parts.forEach((p) => {
-    const c = x.counts?.[p.id];
-    const service = c && SERVICES.find((sv) => sv.cls === x.cls && sv.subject === p.subject);
-    if (!service) return;
-    const id = `mx-${x.id}-${p.id}`;
-    ev[service.id] = [...(ev[service.id] ?? []), { id, type: 'Examen blanc', title: `${x.title} — ${p.label}`, date: x.date, publishOn: x.date, scale: 20, coef: c.coef, fromMockExam: true }];
-    gr[service.id] = Object.fromEntries(service.students.map((st) => [st, { ...(gr[service.id]?.[st] ?? {}), ...(x.marks[st]?.[p.id] != null ? { [id]: String(x.marks[st][p.id]) } : {}) }]));
-  }));
-  return { ev, gr };
-}
 
 export default function GradebookModule({ settings, go }) {
   const [serviceId, setServiceId] = useState(() => { const i = takeIntent('grades'); return SERVICES.find((x) => x.cls === i?.cls && x.subject === i?.subject)?.id ?? SERVICES.find((x) => x.cls === i?.cls)?.id ?? 's1'; });
@@ -503,7 +497,7 @@ export default function GradebookModule({ settings, go }) {
           ))}
         </div>
       )}
-      {currentStep === 'notes' && <NotesStep {...props} competencies={myComps[serviceId] ?? []} />}
+      {currentStep === 'notes' && <NotesStep {...props} go={go} competencies={myComps[serviceId] ?? []} />}
       {currentStep === 'competences' && <CompetenciesStep service={service} settings={settings} evaluations={evaluations[serviceId]} mine={myComps[serviceId] ?? []} setMine={(v) => setMyComps({ ...myComps, [serviceId]: v })} />}
       {currentStep === 'appreciations' && <AppreciationsStep {...props} go={go} comments={comments} setComments={setComments} flags={flags} setFlags={setFlags} />}
     </div>

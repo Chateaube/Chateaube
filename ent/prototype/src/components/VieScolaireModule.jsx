@@ -170,14 +170,23 @@ function MeasuresTab({ log, setLog, role, toast }) {
             <div className="grid grid-cols-[1fr_90px] gap-2">
               <label className="block text-xs text-slate-600">Colle le (mercredi 13h–17h ou samedi 8h–12h)<input type="datetime-local" value={draft.when} onChange={(e) => setDraft({ ...draft, when: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>
               <label className="block text-xs text-slate-600">Durée<select value={draft.hours ?? 1} onChange={(e) => setDraft({ ...draft, hours: Number(e.target.value) })} className={`mt-1 w-full ${inputCls}`}><option value={1}>1 h</option><option value={2}>2 h</option></select></label>
-              {draft.student && <button type="button" onClick={() => setDraft({ ...draft, when: nextColleSlot(draft.student, colles, draft.hours ?? 1, '2026-10-13') ?? '' })} className="col-span-2 text-left text-xs font-medium text-navy-700 underline decoration-dotted">Prochain créneau libre pour cet élève</button>}
+              {draft.student && (
+                <div className="col-span-2 flex flex-wrap gap-1.5" role="group" aria-label="Créneaux libres">
+                  {/* les trois prochains créneaux libres pour cet élève (mercredi après-midi, samedi matin) */}
+                  {(() => { const out = []; let from = '2026-10-13'; for (let k = 0; k < 3; k += 1) { const w = nextColleSlot(draft.student, colles, draft.hours ?? 1, from); if (!w) break; out.push(w); const d = new Date(`${w.slice(0, 10)}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + 1); from = d.toISOString().slice(0, 10); } return out; })().map((w) => (
+                    <button key={w} type="button" aria-pressed={draft.when === w} onClick={() => setDraft({ ...draft, when: w })} className={`rounded-full px-3 py-1.5 text-xs font-medium ring-1 ${draft.when === w ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-800 ring-slate-300'}`}>{fmtDT(w)}</button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
-          <label className="block text-xs text-slate-600">Décidée par
-            <select value={draft.author} onChange={(e) => setDraft({ ...draft, author: e.target.value })} className={`mt-1 w-full ${inputCls}`}>
-              {authors.map((n) => <option key={n}>{n}</option>)}
-            </select>
-          </label>
+          {authors.length > 1 ? (
+            <label className="block text-xs text-slate-600">Décidée par
+              <select value={draft.author} onChange={(e) => setDraft({ ...draft, author: e.target.value })} className={`mt-1 w-full ${inputCls}`}>
+                {authors.map((n) => <option key={n}>{n}</option>)}
+              </select>
+            </label>
+          ) : <p className="text-xs text-slate-600">Décidée par <strong>{authors[0]}</strong></p>}
           {draft.reason && errors.map((e) => <p key={e} className="text-xs text-red-700">{e}</p>)}
           <Button className="w-full" disabled={errors.length > 0} onClick={() => {
             setLog([{ id: `m${Date.now()}`, date: '2026-10-13', student: draft.student, measure: draft.measureId, reason: draft.reason.trim(), when: draft.when || null, author: draft.author, authorRole, parentAck: null }, ...log]);

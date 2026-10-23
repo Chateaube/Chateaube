@@ -126,18 +126,19 @@ export default function QuickEntry({ role = 'VIE_SCOLAIRE' }) {
   const allowed = ACTIONS.filter(([k]) => !ROLE_ACTIONS[role] || ROLE_ACTIONS[role].includes(k));
   const [action, setAction] = useState(null);
   const [done, setDone] = useState('');
+  const inline = role === 'ENSEIGNANT'; // l'enseignant a déjà sa barre en bas (Ma journée, Appel, Notes…)
   const buttons = (cls) => allowed.map(([k, l, icon]) => (
     <button key={k} type="button" data-quick={k} onClick={() => { setAction(k); setDone(''); }} className={cls}><Icon name={icon} className="h-5 w-5" />{l}</button>
   ));
   return (
     <>
-      <section aria-label="Saisie express" className="hidden rounded-2xl bg-white p-3 shadow-soft sm:block">
+      <section aria-label="Saisie express" className={`${inline ? '' : 'hidden sm:block'} rounded-2xl bg-white p-3 shadow-soft`}>
         <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-navy-700">Saisie express</p>
         <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${allowed.length}, minmax(0, 1fr))` }}>{buttons('flex min-h-[56px] items-center justify-center gap-2 rounded-xl bg-navy-50 text-sm font-semibold text-navy-900 hover:bg-navy-100')}</div>
       </section>
-      <nav aria-label="Saisie express" style={{ gridTemplateColumns: `repeat(${allowed.length}, minmax(0, 1fr))` }} className="fixed inset-x-0 bottom-0 z-40 grid border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] sm:hidden">
+      {!inline && <nav aria-label="Saisie express" style={{ gridTemplateColumns: `repeat(${allowed.length}, minmax(0, 1fr))` }} className="fixed inset-x-0 bottom-0 z-40 grid border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] sm:hidden">
         {buttons('flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-[11px] font-semibold text-navy-900')}
-      </nav>
+      </nav>}
       {done && <p role="status" className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800"><Icon name="check" />{done}</p>}
       {action && <Sheet action={action} role={role} onClose={() => setAction(null)} onSaved={(m, keepOpen) => { setDone(m); if (!keepOpen) setAction(null); }} />}
     </>

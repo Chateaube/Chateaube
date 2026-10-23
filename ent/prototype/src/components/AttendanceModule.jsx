@@ -4,6 +4,7 @@ import { WEEK_SESSIONS, ROSTERS, NOW } from '../data/attendance.js';
 import { sessionState, tally, nextToDo, lateOutcome, LATE_LIMIT } from '../rules/attendance.js';
 import { formatDateFr } from '../rules/calendar.js';
 import { useOnline } from '../online.js';
+import { takeIntent } from '../navIntent.js';
 
 // Appel (enseignant) : toutes les séances de la semaine, toutes classes confondues, dans l'ordre ;
 // la séance en cours est proposée d'office. Grande liste à toucher, pensée pour le téléphone.
@@ -19,7 +20,7 @@ const STATE_UI = {
 const CLASS_TONES = ['bg-sky-100 text-sky-800', 'bg-violet-100 text-violet-800', 'bg-amber-100 text-amber-800', 'bg-emerald-100 text-emerald-800', 'bg-rose-100 text-rose-800'];
 const LATE = [5, 10, 15, 20, 30];
 
-const loadRecords = () => {
+export const loadRecords = () => {
   const demo = Object.fromEntries(WEEK_SESSIONS.filter((s) => s.done).map((s) => [s.id, { ...s.done, synced: true }]));
   try { return { ...demo, ...(JSON.parse(localStorage.getItem(KEY)) ?? {}) }; } catch { return demo; }
 };
@@ -111,7 +112,7 @@ function Roll({ session, record, classes, online, onSave, onBack }) {
 export default function AttendanceModule() {
   const online = useOnline();
   const [records, setRecords] = useState(loadRecords);
-  const [open, setOpen] = useState(null);
+  const [open, setOpen] = useState(() => takeIntent('appel')?.session ?? null); // ouvert depuis « Ma journée »
   const [toast, setToast] = useState('');
   const days = [...new Set(WEEK_SESSIONS.map((s) => s.date))];
   const [day, setDay] = useState(NOW.date);

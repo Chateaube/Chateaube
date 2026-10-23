@@ -109,6 +109,7 @@ export default function TeachingHours({ role, settings }) {
     const next = [a, ...absences]; setAbsences(next); saveTeacherAbsences(next);
   };
   const grant = (a) => { const r = grantNoWork(a, role); if (r.error) return; const next = absences.map((x) => (x.id === a.id ? r.absence : x)); setAbsences(next); saveTeacherAbsences(next); };
+  const [declaring, setDeclaring] = useState(false);
   const [late, setLateState] = useState(loadLateness);
   const setLate = (d) => { setLateState(d); saveLateness(d); };
   const [pointage, setPointage] = useState({ teacherId: '', date: TODAY, minutes: 5 });
@@ -183,7 +184,9 @@ export default function TeachingHours({ role, settings }) {
               </tbody>
             </table>
           </div>
-          <p className="mt-2 text-xs text-slate-500">Avec le serveur, « fait » vient des appels validés ; les heures faites servent au salaire des vacataires (onglet Salaires). Par semaine : {teachersInTimetable.map((t) => `${t.name.split(' ')[0]} ${h(TIMETABLE.filter((s) => s.teacherId === t.id).reduce((x, s) => x + slotHours(s), 0))}`).join(' · ')}.</p>
+          {isTeacher
+            ? <p className="mt-2 text-xs text-slate-600">« Fait » vient de vos appels validés. Par semaine : {h(TIMETABLE.filter((s) => s.teacherId === ME).reduce((x, s) => x + slotHours(s), 0))}.</p>
+            : <p className="mt-2 text-xs text-slate-600">« Fait » vient des appels validés ; les heures faites servent à la paie des vacataires (Caisse › Salaires). Par semaine : {teachersInTimetable.map((t) => `${t.name.split(' ')[0]} ${h(TIMETABLE.filter((s) => s.teacherId === t.id).reduce((x, s) => x + slotHours(s), 0))}`).join(' · ')}.</p>}
         </Card>
       )}
 
@@ -205,7 +208,10 @@ export default function TeachingHours({ role, settings }) {
         </Card>
       )}
       {isTeacher && (() => { const b = latenessBalance(ME, late.lateness, late.makeups); return <p className={`rounded-xl p-3 text-sm ${b.toMakeUp ? 'bg-red-50 text-red-800' : 'bg-slate-50 text-slate-700'}`}>Retards cumulés : {b.minutes} min{b.toMakeUp ? ` · ${b.toMakeUp} h à rattraper (à convenir avec la Direction)` : ` · une heure à rattraper à partir de 60 min`}.</p>; })()}
-      <AbsenceForm teacherId={isTeacher ? ME : undefined} onSave={add} declaredBy={declaredBy} role={role} />
+      {/* formulaire derrière un bouton : l'écran s'ouvre sur ce qui est déjà déclaré */}
+      {declaring
+        ? <AbsenceForm teacherId={isTeacher ? ME : undefined} onSave={(a) => { add(a); setDeclaring(false); }} declaredBy={declaredBy} role={role} />
+        : <Button onClick={() => setDeclaring(true)}>＋ {isTeacher ? 'Déclarer une absence' : 'Déclarer l\'absence d\'un professeur'}</Button>}
       <AbsenceList absences={absences.filter((a) => !isTeacher || a.teacherId === ME)} title={isTeacher ? 'Mes absences' : 'Absences déclarées'} subtitle="Avec le travail laissé pour chaque séance" role={role} onGrant={grant} />
     </div>
   );

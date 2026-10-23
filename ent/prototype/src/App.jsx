@@ -159,18 +159,16 @@ const PROFILES = {
     title: 'Enseignant.e',
     home: 'teacher',
     nav: [
+      // trois groupes : la journée, les évaluations, les élèves ; puis échanges et ressources
       { group: 'Ma journée', items: [
         { id: 'teacher', label: 'Ma journée', icon: 'home', screen: TeacherPortal },
         { id: 'appel', label: 'Appel', icon: 'check', screen: AttendanceModule },
-        { id: 'grades', label: 'Notes et appréciations', icon: 'pen', screen: GradebookModule },
         { id: 'homework', label: 'Cahier de textes', icon: 'calendar', screen: HomeworkModule },
-        MOCK_EXAMS,
-        { id: 'discipline', label: 'Vie de classe', icon: 'alert', screen: VieScolaireModule },
-        STUDENT_FILE,
+        AGENDA, BOOKING, { ...HOURS, label: 'Mes heures et absences' },
       ] },
-      { group: 'Mon organisation', items: [{ ...HOURS, label: 'Mes heures et absences' }, AGENDA, BOOKING, GRADE_SHEETS] },
-      { group: 'Communication', items: [MESSAGES, ro(NEWS), SCHOOL_LIFE] }, // annonces : lecture seule, aucune rédaction
-      { group: 'Ressources', items: [BOOKS_FOR_TEACHER, RESOURCES] },
+      { group: 'Évaluations', items: [{ id: 'grades', label: 'Notes et appréciations', icon: 'pen', screen: GradebookModule }, MOCK_EXAMS, GRADE_SHEETS] },
+      { group: 'Mes élèves', items: [{ id: 'discipline', label: 'Vie de classe', icon: 'alert', screen: VieScolaireModule }, STUDENT_FILE] },
+      { group: 'Échanges et ressources', items: [MESSAGES, ro(NEWS), SCHOOL_LIFE, BOOKS_FOR_TEACHER, RESOURCES] }, // annonces : lecture seule
     ],
   },
   PARENT: {
@@ -472,7 +470,7 @@ export default function App() {
             <nav aria-label="Navigation principale">{sidebar}</nav>
           </aside>
         )}
-        <main id="contenu" tabIndex={-1} className="min-w-0 flex-1 focus:outline-none">
+        <main id="contenu" tabIndex={-1} className={`min-w-0 flex-1 focus:outline-none ${profile === 'ENSEIGNANT' ? 'pb-20 sm:pb-0' : ''}`}>
           {notes.urgent.length > 0 && (
             <div role="alert" className="print:hidden mb-4 flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900 sm:gap-3 sm:px-4 sm:py-3">
               <span className="shrink-0 font-bold">⚠<span className="hidden sm:inline"> Urgent</span></span>
@@ -490,6 +488,15 @@ export default function App() {
           </ReadOnlyGuard>
         </main>
       </div>
+      {profile === 'ENSEIGNANT' && (
+        // téléphone : les cinq écrans du quotidien en bas, à portée de pouce
+        <nav aria-label="Raccourcis enseignant" className="print:hidden fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] sm:hidden">
+          {[['teacher', 'Journée', 'home'], ['appel', 'Appel', 'check'], ['grades', 'Notes', 'pen'], ['homework', 'Cahier', 'calendar'], ['messages', 'Messages', 'bell']].map(([id, label, icon]) => (
+            <button key={id} type="button" onClick={() => goTo(id)} aria-current={screen === id ? 'page' : undefined}
+              className={`flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-[11px] font-semibold ${screen === id ? 'text-navy-700' : 'text-slate-600'}`}><Icon name={icon} className="h-5 w-5" />{label}</button>
+          ))}
+        </nav>
+      )}
       {hidden && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black text-center text-sm text-slate-400" role="alert">
           Contenu masqué : les captures d'écran ne sont pas autorisées.<br />Revenez sur la page pour continuer.

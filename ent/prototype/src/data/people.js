@@ -33,8 +33,8 @@ export const TEACHER = {
     { start: '13:30', end: '15:30', cls: '1re STMG', subject: 'SGN', room: 'Salle informatique', appel: 'A_VENIR' },
   ],
   todo: [
-    { label: 'Appréciations du 1er trimestre — 1re STMG', detail: '3 / 5 rédigées · conseil de classe le 10 décembre', tone: 'amber' },
-    { label: 'Notes du DS n°2 — Terminale STMG', detail: 'Saisie à terminer avant le 20 octobre', tone: 'amber' },
+    { label: 'Appréciations du 1er trimestre — 1re STMG', detail: '3 / 5 rédigées · avant l\'arrêt des notes, le 27 novembre', tone: 'amber' },
+    { label: 'Notes du DS n°2 — Terminale STMG', detail: 'Saisie à terminer avant l\'arrêt des notes, le 27 novembre', tone: 'amber' },
     { label: 'Parcours Orientation — séance du 22 octobre', detail: 'Préparer la salle polyvalente', tone: 'navy' },
   ],
   news: [
