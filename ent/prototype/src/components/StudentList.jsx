@@ -24,7 +24,7 @@ export default function StudentList({ role, onOpen, embedded = false, rowAction 
   // CPE : consultation seulement (appeler une famille), sans impression ni export
   const readOnly = role === 'VIE_SCOLAIRE';
   const canCodes = !readOnly;
-  const slips = useMemo(() => accessSlips(list), [list]);
+  const slips = useMemo(() => (preview === 'codes' ? accessSlips(list) : []), [list, preview]); // codes : calculés seulement pour l'aperçu
   const noPhoto = list.filter((p) => !p.photo).length;
   // colonnes de la liste imprimée, au choix (ex. une colonne vide « Signature » pour un émargement)
   const PRINT_COLS = {

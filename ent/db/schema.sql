@@ -2407,3 +2407,36 @@ CREATE TABLE user_favorite (
   PRIMARY KEY (user_id, screen_id),
   UNIQUE (user_id, position)
 );
+
+-- Lot du 23 octobre 2026 ---------------------------------------------------------------------------
+-- Élève envoyé au secrétariat par la CPE ou un professeur : le passage existe avant les soins
+-- (« Au secrétariat maintenant ») ; la suite est notée par le secrétariat, puis le retour en classe.
+ALTER TABLE care_visit ALTER COLUMN outcome DROP NOT NULL;
+ALTER TABLE care_visit ADD COLUMN sent_by uuid REFERENCES app_user(id);
+ALTER TABLE care_visit ADD COLUMN back_in_class_at timestamptz;
+ALTER TABLE care_visit ADD CONSTRAINT care_visit_pending_ck CHECK (outcome IS NOT NULL OR sent_by IS NOT NULL);
+CREATE VIEW v_care_here_now AS
+  SELECT * FROM care_visit WHERE at::date = current_date AND back_in_class_at IS NULL AND (outcome IS NULL OR outcome = 'REPOS');
+
+-- Réactions dans « Vie de l'école » : une par personne et par émoji
+CREATE TABLE school_post_reaction (
+  post_id       uuid NOT NULL REFERENCES school_post(id) ON DELETE CASCADE,
+  user_id       uuid NOT NULL REFERENCES app_user(id),
+  emoji         text NOT NULL CHECK (emoji IN ('❤️', '👏', '😂', '😮', '🎉')),
+  at            timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (post_id, user_id, emoji)
+);
+
+-- Documents joints : annonces (pour les parents et/ou les élèves choisis) et cahier de textes
+CREATE TABLE announcement_file (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  announcement_id uuid NOT NULL REFERENCES announcement(id) ON DELETE CASCADE,
+  file_key        text NOT NULL,
+  name            text NOT NULL CHECK (length(trim(name)) > 0)
+);
+CREATE TABLE homework_file (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  homework_id   uuid NOT NULL REFERENCES homework(id) ON DELETE CASCADE,
+  file_key      text NOT NULL,
+  name          text NOT NULL CHECK (length(trim(name)) > 0)
+);

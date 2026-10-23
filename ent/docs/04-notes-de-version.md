@@ -1,5 +1,27 @@
 # Notes de version — ce qui change pour l'équipe
 
+## 23 octobre 2026 — revue fenêtre par fenêtre appliquée
+
+**Accueils.** Direction et secrétariat : l'école sur 7 ou 30 jours (chaque chiffre ouvre sa liste), ce qui arrive à droite, « À faire » qui réunit décisions et tâches, puis « Ce qui s'est passé » par service. CPE : « À traiter », puis sa journée (séances à surveiller, colles avec « Je surveille », objets en garde). Enseignant : le cours en cours, les appels oubliés (« Faire maintenant »), puis « À faire ».
+
+**Élèves.** Un seul écran : liste par classe → dossier (Fiche · Fil · Suivi). Numéros des parents cliquables.
+
+**Pédagogie.** Une seule appréciation générale (au conseil). Examens blancs au format du relevé, épreuves « non évaluées ». Emploi du temps : aperçu sans logo ni pied de page, cours annulés barrés, liste sur téléphone. Les grilles de notes comptent maintenant les examens blancs choisis par le professeur, comme son carnet : la moyenne est la même partout.
+
+**Administration.** Caisse en deux rangées (Quotidien / Direction et paramétrage), bouton « Encaisser » fixé en bas sur téléphone, échéancier rappelé sous les tarifs, manuels rangés après la caisse. Paramètres en 5 onglets, « Valeurs par défaut » demande confirmation. Agents : « ＋ Nouvel agent », « Sortie ». Inventaire : « Cassé » visible, le reste dans « … ». Plus de choix de site dans les réservations. Import : « Sauvegarde complète (avec photos) » ; l'emploi du temps n'est remplacé que par la Direction, après confirmation. Droits d'accès : un profil à la fois sur téléphone.
+
+**Secrétariat et CPE.** Menu du secrétariat : « Accueil et caisse » d'abord, la sauvegarde en dernier. Saisie express de la CPE : « Envoyer au secrétariat (soins) », « Enregistrer et suivant », minutes de retard calculées depuis l'heure d'arrivée, photo de l'élève, motifs de confiscation en boutons. Soins : bloc « Au secrétariat maintenant » avec « Retour en classe ».
+
+**Enseignant.** Menu en trois groupes et barre en bas sur téléphone (Journée, Appel, Notes, Cahier, Messages). Un seul écran d'appel. Une seule date d'arrêt des notes ; la raison s'affiche quand « Valider » est grisé. Cahier de textes : choix de la séance, « pour le » parmi les prochains cours, pièces jointes. « Mes heures » ne montre plus les heures des collègues. Vie de classe : punitions d'abord, auteur verrouillé, trois créneaux de colle proposés. « Imprimer / Excel » depuis les notes.
+
+**Familles.** « À faire pour [enfant] » en tête (paiement, pièce, autorisations, fiche), les autres enfants signalés (« Toky : 2 points à voir »). Autorisations en boutons, la réponse attendue d'abord. Notes : moyenne indicative et « nouveau » par matière, note en une ligne, examens blancs repliés. École : le suivi de l'enfant avant les photos, bouton « J'ai lu ». Paiements : prochaine échéance, « Comment payer ? » ouvert. Fiche en 4 étapes, sans choix de site ; « Signaler un changement » depuis la fiche. Élève : devoirs à cocher, BDE en deux onglets. Boutons de 44 px.
+
+**Communication.** Réactions (❤️ 👏 😂 😮 🎉) dans Vie de l'école. Un document (PDF) peut être joint à une annonce, pour les parents et/ou les élèves. « Avis et idées » réunit les avis sur l'ENT et la boîte à idées. Conventions imprimables : stage de 3e, stage de 2de, étude de terrain de 1re STMG (texte de base à faire relire). Documents à signer : « À signer » d'abord. Messages : filtre Familles / Équipe.
+
+**Montée en charge.** Essai avec 150 élèves, 20 professeurs, 10 classes et 190 cours par semaine (données fictives) : 84 écrans ouverts sans erreur, 0,11 s en médiane, 0,4 s au plus (liste des élèves, bulletins). Les codes d'accès ne sont plus calculés que pour leur aperçu.
+
+**Base.** Passage au secrétariat sans suite notée (`sent_by`, `back_in_class_at`, vue `v_care_here_now`), réactions (`school_post_reaction`), documents joints (`announcement_file`, `homework_file`). Scénario T65.
+
 ## 22 octobre 2026 (suite) — réponses de la Direction
 
 - **Pas de professeur principal** : le message « Écrire au professeur principal » est retiré. Les familles écrivent à la vie scolaire, au secrétariat, à la Direction ou à un professeur de la classe.

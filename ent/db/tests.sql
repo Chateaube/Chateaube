@@ -1825,5 +1825,33 @@ DO $$ DECLARE e uuid := '30000000-0000-0000-0000-000000000001'; a uuid; r uuid; 
   END;
 END $$;
 
+
+-- T65 — envoi au secrétariat sans suite notée, réactions (une par émoji et par personne)
+DO $$ DECLARE e uuid := '30000000-0000-0000-0000-000000000001'; cpe uuid := '00000000-0000-0000-0000-00000000000c';
+  u uuid := '00000000-0000-0000-0000-000000000001'; v uuid; p uuid; tmv uuid; BEGIN
+  SELECT id INTO tmv FROM site WHERE code = 'TMV';
+  INSERT INTO care_visit (enrollment_id, at, reason, recorded_by, sent_by) VALUES (e, now(), 'Mal de tête', cpe, cpe) RETURNING id INTO v;
+  IF NOT EXISTS (SELECT 1 FROM v_care_here_now WHERE id = v) THEN RAISE EXCEPTION 'T65: au secrétariat maintenant'; END IF;
+  UPDATE care_visit SET outcome = 'CLASSE', back_in_class_at = now() WHERE id = v;
+  IF EXISTS (SELECT 1 FROM v_care_here_now WHERE id = v) THEN RAISE EXCEPTION 'T65: reparti en classe'; END IF;
+  BEGIN
+    INSERT INTO care_visit (enrollment_id, at, reason, recorded_by) VALUES (e, now(), 'Malaise', cpe);
+    RAISE EXCEPTION 'T65: passage sans suite ni envoi';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO school_post (site_id, title, author_id, status) VALUES (tmv, 'Kermesse', u, 'PUBLIEE') RETURNING id INTO p;
+  INSERT INTO school_post_reaction (post_id, user_id, emoji) VALUES (p, u, '👏'), (p, u, '❤️');
+  BEGIN
+    INSERT INTO school_post_reaction (post_id, user_id, emoji) VALUES (p, u, '👏');
+    RAISE EXCEPTION 'T65: réaction en double';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO school_post_reaction (post_id, user_id, emoji) VALUES (p, u, '💩');
+    RAISE EXCEPTION 'T65: émoji hors liste';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T64 passent'
+\echo 'OK — tous les scénarios T1 à T65 passent'
