@@ -91,7 +91,7 @@ function Sheet({ action, role, onClose, onSaved }) {
             {action === 'SOIN' && <>
               <Chips label="Motif" value={f.care} onChange={(care) => setF({ ...f, care })} options={CARE_REASONS.map((r) => [r, r])} />
               <Chips label="Suite" value={f.outcome} onChange={(outcome) => setF({ ...f, outcome })} options={Object.entries(CARE_OUTCOMES).map(([k, l]) => [k, l.split(' (')[0].split(' :')[0]])} />
-              <p className="text-xs text-slate-600">Un médicament (Doliprane…) : passez par l'écran Soins et infirmerie, qui vérifie les allergies et la dernière prise.</p>
+              <p className="text-xs text-slate-600">Un médicament (Doliprane…) : passez par l'écran Soins (secrétariat), qui vérifie les allergies et la dernière prise.</p>
             </>}
             <Button className="w-full !py-3 text-base" disabled={!ready} onClick={save}>Enregistrer</Button>
           </div>

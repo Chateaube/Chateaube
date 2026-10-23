@@ -19,7 +19,7 @@ const ACTIONS = [
   [['retard', 'absence', 'justif'], 'vs', 'Absences et retards'],
   [['colle', 'punition', 'sanction', 'carnet'], 'vs', 'Punitions, colles et passeport'],
   [['telephone', 'confisq', 'ecouteur'], 'vs', 'Objets confisqués'],
-  [['infirmerie', 'soin', 'doliprane', 'malade'], 'care', 'Soins et infirmerie'],
+  [['infirmerie', 'soin', 'doliprane', 'malade'], 'care', 'Soins (secrétariat)'],
   [['inscri', 'reinscri', 'dossier', 'eleve'], 'eleves', 'Élèves : inscriptions et dossiers'],
   [['bulletin'], 'bulletins', 'Bulletins'],
   [['conseil'], 'council', 'Conseils de classe'],

@@ -10,7 +10,7 @@ import Reductions from './Reductions.jsx';
 import Salaries, { cashSalariesPaid } from './Salaries.jsx';
 import { accountStatement, annualCost, cashBalance, monthlyCashReport, cashMonthCsv } from '../rules/accounting.js';
 import { printOnly } from '../print.js';
-import { planMonths } from '../rules/calendar.js';
+import { planMonths, monthName } from '../rules/calendar.js';
 import { formatAr } from '../rules/finance.js';
 import CollectPayment, { CASH_ACCOUNTS, feesFor } from './CollectPayment.jsx';
 import { loadManuals } from '../manualsStore.js';
@@ -98,8 +98,15 @@ function FeesTab({ fees, setFees, settings, canEdit }) {
       <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
         <span className="flex items-center gap-1.5"><JournalBadge j="ECOLAGE" /> frais de scolarité mensuels</span>
         <span className="flex items-center gap-1.5"><JournalBadge j="FRAIS_ANNEXES" /> inscription, réinscription, fascicule, location</span>
-        <span>· Nombre de mois : réglé dans Paramètres (9 mois pour 1re et Terminale).</span>
         <span>· Location des manuels et cahiers : calculés depuis le lot de chaque classe (Manuels scolaires).</span>
+      </div>
+      {/* l'échéancier, rapproché des tarifs (il se règle dans Paramètres › Frais et relances) */}
+      <div className="mt-4 rounded-xl bg-slate-50 p-3">
+        <p className="text-sm font-semibold text-navy-900">Échéancier des frais de scolarité</p>
+        <ul className="mt-1.5 space-y-1 text-sm text-slate-700">
+          {plans.map((p) => <li key={p.levels}><strong>{p.levels}</strong> : de {monthName(p.first)} à {monthName(p.last)} ({planMonths(p).length} mois), échéance le {settings.tuition.dueDay} du mois</li>)}
+        </ul>
+        <p className="mt-1.5 text-xs text-slate-600">{canEdit ? 'Pour le modifier : Paramètres › Frais et relances.' : 'Fixé par la Direction.'}</p>
       </div>
     </Card>
   );
@@ -333,6 +340,8 @@ function CashTab({ movements, setMovements, role, account }) {
 // Onglets optionnels : affichage réglé par la Direction (features.js)
 const TAB_FEATURE = { fees: 'caisse.tarifs', articles: 'caisse.articles', reductions: 'caisse.reductions' };
 // Ordre : le quotidien d'abord ; le paramétrage de l'année (fixé une fois puis verrouillé) à la fin.
+const DAILY_TABS = ['collect', 'receipts', 'dunning', 'expenses', 'cash'];
+const SETUP_GROUP = ['salaries', 'treasury', 'fees', 'articles', 'reductions'];
 const TABS = [['collect', 'Encaisser'], ['receipts', 'Reçus & clôture'], ['dunning', 'Impayés & relances'], ['expenses', 'Dépenses & fournisseurs'], ['cash', 'Autres mouvements d\'espèces'], ['salaries', 'Salaires'], ['treasury', 'Trésorerie', 'DIRECTION'], ['fees', 'Classes & tarifs'], ['articles', 'Articles & services'], ['reductions', 'Réductions']];
 const SETUP_TABS = ['fees', 'articles', 'reductions'];
 // Paramétrage verrouillé pour l'année (Direction) : plus de modification jusqu'à la fin de l'année scolaire.
@@ -396,13 +405,23 @@ export default function AccountingModule({ settings, role, account }) {
           <p className="text-sm text-slate-500">Trois journaux étanches : frais de scolarité, frais annexes, droits d'examen.</p>
         </div>
       </div>
-      <div className="flex gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1" role="tablist">
-        {TABS.filter(([id, , only]) => (!only || only === role) && featureVisible(settings, TAB_FEATURE[id], role)).map(([id, label]) => (
-          <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
-            className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ${tab === id ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>
-            {label}{id === 'receipts' && pendingCancels > 0 && <span className="ml-1.5 rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white">{pendingCancels}</span>}
-          </button>
-        ))}
+      {/* onglets en deux groupes : le quotidien du secrétariat, puis le suivi et le paramétrage de la Direction */}
+      <div className="space-y-1.5" role="tablist" aria-label="Caisse et comptabilité">
+        {[['Quotidien', DAILY_TABS], ['Direction et paramétrage', SETUP_GROUP]].map(([group, ids]) => {
+          const list = TABS.filter(([id, , only]) => ids.includes(id) && (!only || only === role) && featureVisible(settings, TAB_FEATURE[id], role));
+          if (!list.length) return null;
+          return (
+            <div key={group} className="flex flex-wrap items-center gap-1 rounded-lg bg-slate-100 p-1">
+              <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-slate-600">{group}</span>
+              {list.map(([id, label]) => (
+                <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium ${tab === id ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>
+                  {label}{id === 'receipts' && pendingCancels > 0 && <span className="ml-1.5 rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white">{pendingCancels}</span>}
+                </button>
+              ))}
+            </div>
+          );
+        })}
       </div>
       {tab === 'collect' && <CollectPayment settings={settings} articles={articles} accounts={accounts} setAccounts={setAccounts} reductionTypes={reductionTypes} onCollected={onCollected} cashier={actor} closed={closed} />}
       {tab === 'receipts' && <CashControl role={role} actor={actor} receipts={receipts} setReceipts={setReceipts} audit={audit} setAudit={setAudit} movements={movements} setMovements={setMovements} accounts={accounts} setAccounts={setAccounts} closings={closings} setClosings={setClosings} safe={CASH_SAFE} settings={settings} salariesPaid={cashSalariesPaid(payroll, salaryPayments)} />}

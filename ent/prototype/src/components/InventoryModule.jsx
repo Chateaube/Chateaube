@@ -166,10 +166,17 @@ export default function InventoryModule({ role = 'BUREAU' }) {
                       <div className="flex flex-wrap justify-end gap-1">
                         {it.cat === 'Trousse de secours' && <button type="button" onClick={() => { setOpen({ id: it.id, mode: 'UTILISE' }); setF({ n: 1, note: '' }); setErr(''); }} className={`${btn} text-navy-700`}>Utilisé</button>}
                         <button type="button" onClick={() => { setOpen({ id: it.id, mode: 'CASSE' }); setF({ n: 1 }); setErr(''); }} className={`${btn} text-red-700`}>Cassé</button>
-                        {manage && it.broken > 0 && <button type="button" onClick={() => { setOpen({ id: it.id, mode: 'REGLER' }); setF({ n: 1, how: 'REPARE' }); setErr(''); }} className={`${btn} text-navy-700`}>Réparé / jeté</button>}
-                        {manage && <button type="button" onClick={() => { setOpen({ id: it.id, mode: 'ACHAT' }); setF({ n: 1 }); setErr(''); }} className={`${btn} text-navy-700`}>Racheté</button>}
-                        {manage && <button type="button" onClick={() => { setOpen({ id: it.id, mode: 'MODIF' }); setF({ name: it.name, place: it.place ?? '', qty: it.qty, min: it.min ?? '', expires: it.expires ?? '' }); setErr(''); }} className={`${btn} text-slate-700`}>Modifier</button>}
-                        {role === 'DIRECTION' && <button type="button" onClick={() => removeItem(it)} className={`${btn} text-red-700`}>Supprimer</button>}
+                        {manage && (
+                          <details className="relative">
+                            <summary aria-label={`Autres actions : ${it.name}`} className={`${btn} cursor-pointer list-none text-slate-700`}>…</summary>
+                            <div onClick={(e) => { e.currentTarget.parentElement.open = false; }} className="absolute right-0 z-20 mt-1 flex w-40 flex-col gap-1 rounded-lg bg-white p-1.5 text-left shadow-lg ring-1 ring-slate-200">
+                              {manage && it.broken > 0 && <button type="button" onClick={() => { setOpen({ id: it.id, mode: 'REGLER' }); setF({ n: 1, how: 'REPARE' }); setErr(''); }} className={`${btn} text-navy-700`}>Réparé / jeté</button>}
+                              {manage && <button type="button" onClick={() => { setOpen({ id: it.id, mode: 'ACHAT' }); setF({ n: 1 }); setErr(''); }} className={`${btn} text-navy-700`}>Racheté</button>}
+                              {manage && <button type="button" onClick={() => { setOpen({ id: it.id, mode: 'MODIF' }); setF({ name: it.name, place: it.place ?? '', qty: it.qty, min: it.min ?? '', expires: it.expires ?? '' }); setErr(''); }} className={`${btn} text-slate-700`}>Modifier</button>}
+                              {role === 'DIRECTION' && <button type="button" onClick={() => removeItem(it)} className={`${btn} text-red-700`}>Supprimer</button>}
+                            </div>
+                          </details>
+                        )}
                       </div>
                     </td>
                   </tr>

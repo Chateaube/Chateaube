@@ -134,22 +134,14 @@ export default function BookingModule({ role }) {
         <div>
           <p className="text-sm font-semibold text-navy-500">Ressources pédagogiques</p>
           <h1 className="text-2xl font-semibold text-navy-900">Réservations de matériel</h1>
-          <p className="text-sm text-slate-500">Vidéoprojecteurs, enceintes, TV, salles spécialisées et matériel informatique — par site.</p>
-        </div>
-        <div className="inline-flex rounded-lg bg-slate-100 p-1" role="tablist" aria-label="Site">
-          {SITES.map((s) => (
-            <button key={s.id} role="tab" aria-selected={siteId === s.id} onClick={() => changeSite(s.id)}
-              className={`rounded-md px-3 py-1 text-sm font-medium ${siteId === s.id ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>
-              <Icon name="pin" className="mr-1 inline h-3.5 w-3.5" />{s.name}
-            </button>
-          ))}
+          <p className="text-sm text-slate-500">Vidéoprojecteurs, enceintes, TV, salles spécialisées et matériel informatique.</p>
         </div>
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1fr_340px]">
         <Card
           title="Calendrier d'occupation"
-          subtitle={`${siteResources.length} ressources à ${SITES.find((s) => s.id === siteId).name} · cliquer sur un créneau libre pour pré-remplir`}
+          subtitle={`${siteResources.length} ressources · cliquer sur un créneau libre pour pré-remplir`}
         >
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap gap-1">

@@ -1,3 +1,4 @@
+import { useNarrow } from '../useNarrow.js';
 import React, { useEffect, useRef, useState } from 'react';
 import { Avatar, Button, Icon } from './ui.jsx';
 import { THREADS, RECIPIENTS, RECIPIENT_GROUPS, broadcastSize } from '../data/messages.js';
@@ -12,18 +13,6 @@ import { DEFAULT_SETTINGS } from '../data/settings.js';
 // Téléphone : liste des conversations puis la conversation en plein écran ; ordinateur : côte à côte.
 
 const keyOf = (audience) => (['PARENT', 'ELEVE', 'TEACHER'].includes(audience) ? audience : audience === 'ENSEIGNANT' ? 'TEACHER' : 'STAFF');
-function useNarrow() {
-  const q = '(max-width: 1023px)';
-  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.matchMedia?.(q).matches);
-  useEffect(() => {
-    const m = window.matchMedia?.(q);
-    if (!m) return undefined;
-    const on = () => setNarrow(m.matches);
-    m.addEventListener('change', on);
-    return () => m.removeEventListener('change', on);
-  }, []);
-  return narrow;
-}
 
 const DEMO_PHOTOS = { ticket: 'Photo : ticket du taxi-be', id: 'Photo : pièce d\'identité' };
 const time = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)} ${iso.slice(11, 16)}`;

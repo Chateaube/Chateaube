@@ -22,6 +22,7 @@ export default function StaffModule() {
   const [filter, setFilter] = useState('ACTIFS');
   const [draft, setDraft] = useState(EMPTY);
   const [exitFor, setExitFor] = useState(null); // { id, date, reason }
+  const [adding, setAdding] = useState(false); // formulaire « Nouvel agent » derrière un bouton
 
   const rows = staff
     .map((a) => ({ ...a, status: staffStatus(a) }))
@@ -36,6 +37,7 @@ export default function StaffModule() {
         <h1 className="text-2xl font-semibold text-navy-900">Gestion des agents</h1>
         <p className="text-sm text-slate-500">Registre du personnel : entrées, sorties et accès à l'ENT.</p>
       </div>
+      <Button onClick={() => setAdding(true)}>＋ Nouvel agent</Button>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Agents en poste" value={active.length} />
@@ -81,7 +83,7 @@ export default function StaffModule() {
                     </td>
                     <td className="px-4 text-right">
                       {a.status.key !== 'SORTI' && (
-                        <Button variant="ghost" onClick={() => setExitFor({ id: a.id, date: TODAY, reason: 'Fin de contrat' })}>Enregistrer une sortie</Button>
+                        <Button variant="secondary" className="!py-1 text-xs" aria-label={`Enregistrer la sortie de ${a.name}`} onClick={() => setExitFor({ id: a.id, date: TODAY, reason: 'Fin de contrat' })}>Sortie</Button>
                       )}
                     </td>
                   </tr>
@@ -109,7 +111,7 @@ export default function StaffModule() {
         </div>
       </Card>
 
-      <Card title="Enregistrer une entrée" subtitle="Nouvel agent : l'accès ENT s'ouvre à sa date d'entrée (connexion Google)">
+      {adding && <Card title="Nouvel agent" action={<Button variant="secondary" className="!py-1 text-xs" onClick={() => setAdding(false)}>Fermer</Button>} subtitle="L'accès ENT s'ouvre à sa date d'entrée (connexion Google)">
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <label className="text-xs text-slate-600">Nom et prénom<input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>
           <label className="text-xs text-slate-600">Poste
@@ -134,10 +136,10 @@ export default function StaffModule() {
         {draft.exit && draft.exit <= draft.entry && <p className="mt-2 text-sm text-red-700">La date de sortie doit suivre la date d'entrée.</p>}
         <Button className="mt-3"
           disabled={!draft.name.trim() || !draft.entry || (draft.access && !draft.email) || (draft.exit && draft.exit <= draft.entry)}
-          onClick={() => { setStaff([...staff, { ...draft, contrat: contractFor(draft.poste, draft.contrat), id: `p${Date.now()}`, name: draft.name.trim(), exit: draft.exit || null, email: draft.email || null, access: draft.access || null }]); setDraft(EMPTY); setFilter('TOUS'); }}>
+          onClick={() => { setStaff([...staff, { ...draft, contrat: contractFor(draft.poste, draft.contrat), id: `p${Date.now()}`, name: draft.name.trim(), exit: draft.exit || null, email: draft.email || null, access: draft.access || null }]); setDraft(EMPTY); setFilter('TOUS'); setAdding(false); }}>
           Ajouter au registre
         </Button>
-      </Card>
+      </Card>}
     </div>
   );
 }

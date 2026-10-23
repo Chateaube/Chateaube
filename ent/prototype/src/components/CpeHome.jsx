@@ -36,7 +36,7 @@ export default function CpeHome({ go, account }) {
       </div>
       <div className="flex flex-wrap gap-2">
         <Button variant="secondary" onClick={() => go?.('vs')}><Icon name="users" />Absences, retards et punitions</Button>
-        <Button variant="secondary" onClick={() => go?.('care')}><Icon name="care" />Soins et infirmerie</Button>
+        <Button variant="secondary" onClick={() => go?.('care')}><Icon name="care" />Soins (secrétariat)</Button>
         <Button variant="secondary" onClick={() => go?.('tt-changes')}><Icon name="clock" />Annuler un cours aujourd'hui</Button>
         <Button variant="secondary" onClick={() => go?.('news')}><Icon name="megaphone" />Annonces</Button>
       </div>

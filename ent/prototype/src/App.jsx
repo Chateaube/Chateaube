@@ -92,7 +92,7 @@ const TT_CHANGES = { id: 'tt-changes', label: 'Changements d\'emploi du temps', 
 const HOURS = { id: 'hours', label: 'Heures et absences des profs', icon: 'clock', screen: TeachingHours };
 const RESOURCES = { id: 'resources', label: 'Ressources et idées', icon: 'pen', screen: InternalResources };
 const MOCK_EXAMS = { id: 'mock-exams', label: 'Examens blancs', icon: 'cap', screen: MockExamsModule, feature: 'examens-blancs' };
-const CARE = { id: 'care', label: 'Soins et infirmerie', icon: 'care', screen: CareModule, feature: 'soins' };
+const CARE = { id: 'care', label: 'Soins (secrétariat)', icon: 'care', screen: CareModule, feature: 'soins' };
 const INVENTORY = { id: 'inventory', label: 'Inventaire du matériel', icon: 'box', screen: InventoryModule, feature: 'inventaire' };
 const AGENDA = { id: 'agenda', label: 'Agendas', icon: 'calendar', screen: AgendaModule };
 const NEWS = { id: 'news', label: 'Annonces', icon: 'megaphone', screen: AnnouncementsModule };
@@ -108,6 +108,8 @@ const STUDENT_FILE = { id: 'student-file', label: 'Fil de l\'élève', icon: 'cl
 const FOLLOWUPS = { id: 'student-followups', label: 'Suivis individuels', icon: 'users', screen: FollowUpsModule };
 const MANDATES = { id: 'mandates', label: 'Engagements et attestations', icon: 'users', screen: MandatesAdmin };
 const ACCESS = { id: 'access', label: 'Droits d\'accès', icon: 'settings', screen: (p) => <AccessRights {...p} catalogue={catalogue()} baseNavs={baseNavs()} /> };
+// raccourci de menu vers un onglet d'« Absences, retards et punitions » (Colles, Objets en garde)
+const vsTab = (id, label, tab) => ({ id, label, icon: tab === 'phones' ? 'box' : 'clock', screen: (p) => <VieScolaireModule {...p} initialTab={tab} /> });
 const ro = (item, label) => ({ ...item, ...(label ? { label } : {}), readOnly: true }); // consultation seulement
 
 // Menu latéral par profil : mêmes noms et même place pour une fonction partagée entre rôles.
@@ -133,12 +135,12 @@ const PROFILES = {
     home: 'bureau',
     nav: [
       { group: 'Aujourd\'hui', items: [{ id: 'bureau', label: 'À traiter aujourd\'hui', icon: 'home', screen: BureauHome }] },
-      { group: 'Caisse', items: [ACCOUNTING] },
-      { group: 'Vie scolaire', items: [VIE_SCOLAIRE, CARE, HOURS, TIMETABLE, FOLLOW_UP] },
+      { group: 'Accueil et caisse', items: [ACCOUNTING, { ...ELEVES, label: 'Élèves et certificats' }, SIGNATURES, CARE, MANUALS] }, // le guichet
+      { group: 'Vie scolaire', items: [VIE_SCOLAIRE, HOURS, TIMETABLE, FOLLOW_UP] },
       { group: 'Notes et bulletins', items: [COUNCIL, BULLETINS, MOCK_EXAMS, ...OVERSIGHT] }, // grilles : onglet des conseils
-      { group: 'Élèves', items: [ELEVES, SIGNATURES, IMPORT] },
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, AGENDA, RESOURCES] },
-      { group: 'Matériel et bibliothèque', items: [MANUALS, LIBRARY, BOOKING, INVENTORY] },
+      { group: 'Matériel et bibliothèque', items: [LIBRARY, BOOKING, INVENTORY] },
+      { group: 'Sauvegarde', items: [IMPORT] },
     ],
   },
   VIE_SCOLAIRE: {
@@ -146,10 +148,10 @@ const PROFILES = {
     title: 'CPE — vie scolaire',
     home: 'cpe-home',
     nav: [
-      { group: 'Aujourd\'hui', items: [{ id: 'cpe-home', label: 'Ma journée', icon: 'home', screen: CpeHome }, VIE_SCOLAIRE, CARE, HOURS, TIMETABLE_RO, { ...TT_CHANGES, label: 'Annuler un cours aujourd\'hui' }] }, // CPE : annulation du jour seulement
+      { group: 'Aujourd\'hui', items: [{ id: 'cpe-home', label: 'Ma journée', icon: 'home', screen: CpeHome }, VIE_SCOLAIRE, vsTab('cpe-colles', 'Colles', 'passport'), vsTab('cpe-objets', 'Objets en garde', 'phones'), CARE, HOURS, TIMETABLE_RO, { ...TT_CHANGES, label: 'Annuler un cours aujourd\'hui' }] }, // CPE : annulation du jour seulement
       { group: 'Élèves', items: [ELEVES] },
-      { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, ro(AGENDA), RESOURCES] },
-      { group: 'Ressources', items: [ro(BOOKING), ro({ id: 'books-cpe', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who="M. Be" kind="CPE" /> }), ro(OVERSIGHT_HOMEWORK)] },
+      { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, ro(AGENDA)] },
+      { group: 'Ressources', items: [RESOURCES, ro(BOOKING), ro({ id: 'books-cpe', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who="M. Be" kind="CPE" /> }), ro(OVERSIGHT_HOMEWORK)] },
     ],
   },
   ENSEIGNANT: {

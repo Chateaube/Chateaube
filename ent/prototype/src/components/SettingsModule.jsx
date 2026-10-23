@@ -160,7 +160,11 @@ function CompetencyEditor({ settings, onChange }) {
   );
 }
 
+// cinq onglets ; les ambiances, facultatives, en dernier
+const SETTINGS_TABS = [['calendar', 'Calendrier'], ['fees', 'Frais et relances'], ['grades', 'Notes et conseil'], ['skills', 'Compétences'], ['ambiances', 'Ambiances et réseaux']];
+
 export default function SettingsModule({ settings, onChange, onReset }) {
+  const [tab, setTab] = useState('calendar');
   const [draft, setDraft] = useState({ kind: 'VACANCES', label: '', start: '', end: '' });
   const set = (path, value) => onChange({ ...settings, [path]: { ...settings[path], ...value } });
   const d = settings.dunning;
@@ -189,19 +193,23 @@ export default function SettingsModule({ settings, onChange, onReset }) {
         <div>
           <p className="text-sm font-semibold text-navy-500">Administration</p>
           <h1 className="text-2xl font-semibold text-navy-900">Paramètres</h1>
-          <p className="text-sm text-slate-500">Frais de scolarité, relances et calendrier scolaire : modifiables sans intervention technique.</p>
+          <p className="text-sm text-slate-500">Calendrier, frais, relances et notes : la Direction les modifie ici.</p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="inline-flex rounded-lg bg-slate-100 p-1">
-            <span className="rounded-md bg-white px-3 py-1 text-sm font-medium text-navy-900 shadow-sm"><Icon name="pin" className="mr-1 inline h-3.5 w-3.5" />Tamatave</span>
-            <span className="px-3 py-1 text-sm text-slate-600" title="Paramétrage du site de Tana prévu ultérieurement">Tana · plus tard</span>
-          </div>
-          <Button variant="secondary" onClick={onReset}>Valeurs par défaut</Button>
+          <Button variant="secondary" onClick={() => { if (window.confirm('Remettre tous les paramètres (calendrier, frais, relances, notes) à leurs valeurs de départ ? Vos réglages seront perdus.')) onReset(); }}>Valeurs par défaut</Button>
         </div>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[1fr_360px] xl:items-start">
+      <div className="flex flex-wrap gap-1 rounded-lg bg-slate-100 p-1" role="tablist" aria-label="Paramètres">
+        {SETTINGS_TABS.map(([id, label]) => (
+          <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium ${tab === id ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>{label}</button>
+        ))}
+      </div>
+
+      <div className={`grid gap-5 xl:items-start ${['fees', 'calendar'].includes(tab) ? 'xl:grid-cols-[1fr_360px]' : ''}`}>
         <div className="min-w-0 space-y-5">
+          {tab === 'ambiances' && <>
           {/* Ambiance saisonnière et réseaux de l'école */}
           <Card title="Ambiance saisonnière et réseaux de l'école" subtitle="Repères civiques, culturels, historiques et saisons (Octobre rose, Nouvel An lunaire, 26 juin…), avec une note explicative ; liens montrés aux familles">
             <div className="grid gap-4 md:grid-cols-2">
@@ -220,9 +228,11 @@ export default function SettingsModule({ settings, onChange, onReset }) {
               </div>
             </div>
           </Card>
+          </>}
 
           {/* Rubriques affichées : déplacées dans Droits d'accès (onglet « Rubriques de l'école ») */}
 
+          {tab === 'fees' && <>
           {/* Frais de scolarité */}
           <Card title="Échéancier de frais de scolarité" subtitle="Année 2026-2027 · Tamatave">
             <NumberField label="Jour d'échéance mensuelle" value={settings.tuition.dueDay} min={1} max={28} suffix="du mois"
@@ -337,7 +347,9 @@ export default function SettingsModule({ settings, onChange, onReset }) {
               </div>
             </div>
           </Card>
+          </>}
 
+          {tab === 'grades' && <>
           {/* Notes */}
           <Card title="Notes & conseil de classe" subtitle="Règles communes à toutes les classes de Tamatave">
             <div className="grid gap-4 sm:grid-cols-2">
@@ -380,12 +392,16 @@ export default function SettingsModule({ settings, onChange, onReset }) {
               <p className="mt-1 text-xs text-slate-500">Par défaut : Arts plastiques, Musique et Vie de classe sont hors moyenne.</p>
             </div>
           </Card>
+          </>}
 
+          {tab === 'skills' && <>
           {/* Référentiels de compétences */}
           <Card title="Base de compétences proposée aux enseignants" subtitle="Par matière et par niveau ; chaque enseignant la reprend en tout ou partie et ajoute ses propres compétences">
             <CompetencyEditor settings={settings} onChange={onChange} />
           </Card>
+          </>}
 
+          {tab === 'calendar' && <>
           {/* Calendrier */}
           <Card
             title="Calendrier scolaire"
@@ -425,16 +441,12 @@ export default function SettingsModule({ settings, onChange, onReset }) {
             </div>
             <p className="mt-2 text-xs text-slate-500">Les vacances fournies sont des exemples : à remplacer par le calendrier officiel de l'établissement.</p>
           </Card>
+          </>}
         </div>
 
-        <Simulation settings={settings} />
+        {['fees', 'calendar'].includes(tab) && <Simulation settings={settings} />}
       </div>
 
-      <p className="text-xs text-slate-500">
-        Prototype : les paramètres sont conservés dans ce navigateur. En production, ils sont enregistrés en base
-        (tables <code>dunning_policy</code>, <code>dunning_month</code>, <code>tuition_cutoff_rule</code>, <code>calendar_day_off</code>)
-        et chaque modification est tracée dans le journal d'audit.
-      </p>
     </div>
   );
 }

@@ -403,11 +403,12 @@ function EarlyLeaveTab({ toast }) {
   );
 }
 
-export default function VieScolaireModule({ settings, role = 'VIE_SCOLAIRE' }) {
-  // l'enseignant ne voit que ses outils : punitions et remise d'un téléphone confisqué
-  const tabs = role === 'ENSEIGNANT' ? TABS.filter(([id]) => ['passport', 'measures', 'phones'].includes(id)) : TABS;
+export default function VieScolaireModule({ settings, role = 'VIE_SCOLAIRE', initialTab }) {
+  // l'enseignant ne voit que ses outils, punitions en premier : punitions, passeport, objet confisqué
+  const tabs = role === 'ENSEIGNANT' ? ['measures', 'passport', 'phones'].map((id) => TABS.find(([t]) => t === id)) : TABS;
   const [intent] = useState(() => takeIntent('vs'));
-  const [tab, setTab] = useState(tabs.some(([id]) => id === intent?.tab) ? intent.tab : tabs[0][0]);
+  const wanted = intent?.tab ?? initialTab;
+  const [tab, setTab] = useState(tabs.some(([id]) => id === wanted) ? wanted : tabs[0][0]);
   const [pick, setPick] = useState({ n: 0 });
   const open = (t, filter) => { setTab(t); if (filter) setPick({ n: pick.n + 1, filter }); };
   const [rows, setRowsState] = useState(loadAttendance);

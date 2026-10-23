@@ -1,3 +1,4 @@
+import { useNarrow } from '../useNarrow.js';
 import React, { useEffect, useState } from 'react';
 import { Button, Card } from './ui.jsx';
 import { loadTimetable, importedTimetable } from '../timetableStore.js';
@@ -11,12 +12,6 @@ import { loadChanges } from './TimetableChanges.jsx';
 import { addDays, isoWeekday } from '../rules/calendar.js';
 
 // téléphone : une liste par classe (ou par jour) plutôt qu'une grille de 10 colonnes
-function useNarrow() {
-  const q = '(max-width: 639px)';
-  const [n, setN] = useState(() => typeof window !== 'undefined' && window.matchMedia?.(q).matches);
-  useEffect(() => { const m = window.matchMedia?.(q); if (!m) return undefined; const f = () => setN(m.matches); m.addEventListener('change', f); return () => m.removeEventListener('change', f); }, []);
-  return n;
-}
 
 /** Version téléphone : une carte par colonne (classe ou jour), les cours en liste. */
 function Stacked({ columns, items, second }) {

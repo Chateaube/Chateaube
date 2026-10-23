@@ -11,7 +11,7 @@ export const FEATURES = [
   { id: 'caisse.reductions', label: 'Réductions', where: 'Caisse et comptabilité', default: 'TOUS' },
   { id: 'vie-ecole', label: 'Vie de l\'école (photos)', where: 'Communication', default: 'TOUS' },
   { id: 'examens-blancs', label: 'Examens blancs', where: 'Pédagogie / Notes', default: 'TOUS' },
-  { id: 'soins', label: 'Soins et infirmerie', where: 'Vie scolaire', default: 'TOUS' },
+  { id: 'soins', label: 'Soins (secrétariat)', where: 'Vie scolaire', default: 'TOUS' },
   { id: 'inventaire', label: 'Inventaire du matériel', where: 'Matériel', default: 'TOUS' },
   { id: 'bibliotheque', label: 'Bibliothèque (salle d\'étude)', where: 'Matériel', default: 'TOUS' },
   { id: 'reservations', label: 'Réservations de matériel', where: 'Matériel', default: 'TOUS' },

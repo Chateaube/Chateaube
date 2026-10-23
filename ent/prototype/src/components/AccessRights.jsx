@@ -1,3 +1,4 @@
+import { useNarrow } from '../useNarrow.js';
 import React, { useState } from 'react';
 import { Badge, Button, Card } from './ui.jsx';
 import ScreenTabs from './ScreenTabs.jsx';
@@ -17,6 +18,9 @@ const field = 'rounded-md border border-slate-300 bg-white px-2 py-1 text-sm';
 
 export default function AccessRights({ settings, onChange, catalogue, baseNavs }) {
   const [tab, setTab] = useState('profiles');
+  const narrow = useNarrow();
+  const [one, setOne] = useState(Object.keys(STAFF_PROFILES)[0]); // téléphone : un profil à la fois
+  const shown = narrow ? [one] : Object.keys(STAFF_PROFILES);
   const access = settings.access ?? {};
   const save = (a) => onChange({ ...settings, access: a });
   const groups = [...new Set(catalogue.map((c) => c.group))];
@@ -25,21 +29,28 @@ export default function AccessRights({ settings, onChange, catalogue, baseNavs }
   const byProfile = (
     <Card title="Par profil" subtitle="Aucun accès : l'écran disparaît du menu · Consulter : lecture seule · Modifier : saisie possible"
       action={changed > 0 && <Button variant="secondary" onClick={() => { if (window.confirm('Revenir aux droits d\'origine pour tous les profils ? Les exceptions par personne sont gardées.')) save({ ...access, profiles: {} }); }}>Rétablir les droits d'origine</Button>}>
+      {narrow && (
+        <label className="mb-2 block text-xs font-medium text-slate-600">Profil
+          <select value={one} onChange={(e) => setOne(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2 text-sm">
+            {Object.entries(STAFF_PROFILES).map(([p, l]) => <option key={p} value={p}>{l}</option>)}
+          </select>
+        </label>
+      )}
       <div className="-mx-5 overflow-x-auto px-5">
-        <table className="w-full min-w-[560px] text-sm">
+        <table data-grid className={`w-full text-sm ${narrow ? '' : 'min-w-[560px]'}`}>
           <thead>
             <tr className="border-b border-slate-200 text-left text-xs text-slate-600">
               <th scope="col" className="py-2 pr-3 font-medium">Écran</th>
-              {Object.entries(STAFF_PROFILES).map(([p, l]) => <th key={p} scope="col" className="px-2 py-2 font-medium">{l}</th>)}
+              {shown.map((p) => <th key={p} scope="col" className="px-2 py-2 font-medium">{STAFF_PROFILES[p]}</th>)}
             </tr>
           </thead>
           {groups.map((g) => (
             <tbody key={g}>
-              <tr><th colSpan={4} scope="colgroup" className="pt-3 pb-1 text-left text-[11px] font-semibold uppercase tracking-wide text-navy-700">{g}</th></tr>
+              <tr><th colSpan={shown.length + 1} scope="colgroup" className="pt-3 pb-1 text-left text-[11px] font-semibold uppercase tracking-wide text-navy-700">{g}</th></tr>
               {catalogue.filter((c) => c.group === g).map((c) => (
                 <tr key={c.id} className="border-b border-slate-100">
                   <th scope="row" className="py-1.5 pr-3 text-left font-normal text-slate-800">{c.label}</th>
-                  {Object.keys(STAFF_PROFILES).map((p) => {
+                  {shown.map((p) => {
                     const v = levelFor({ profile: p, id: c.id, baseNav: baseNavs[p], access: { profiles: access.profiles } });
                     const moved = v !== baseLevel(baseNavs[p], c.id);
                     return (

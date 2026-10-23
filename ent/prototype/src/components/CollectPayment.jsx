@@ -288,9 +288,12 @@ export default function CollectPayment({ settings, articles = [], accounts: shar
           </fieldset>
           {closed && <p className="mt-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">La caisse du jour est clôturée : les encaissements reprennent demain.</p>}
           {!online && <p className="mt-3 rounded-lg bg-red-50 p-2 text-xs text-red-800">Hors connexion : l'encaissement est désactivé pour éviter les doublons de reçus. Reconnectez-vous (clé 4G ou partage de connexion).</p>}
-          <Button className="mt-4 w-full" disabled={!online || closed || !chosen.length || errors.length > 0 || !bearerName} onClick={collect}>
-            Encaisser {total > 0 && formatAr(total)}
-          </Button>
+          {/* sur téléphone, le bouton reste visible en bas de l'écran */}
+          <div className="sticky bottom-0 z-10 -mx-5 mt-4 border-t border-slate-200 bg-white px-5 py-2 sm:static sm:mx-0 sm:border-0 sm:p-0">
+            <Button className="w-full !py-3 sm:!py-2" disabled={!online || closed || !chosen.length || errors.length > 0 || !bearerName} onClick={collect}>
+              Encaisser {total > 0 && formatAr(total)}
+            </Button>
+          </div>
           <p className="mt-2 text-[11px] text-slate-500">Un reçu est édité par journal (frais de scolarité, frais annexes, droits d'examen).</p>
         </Card>
 

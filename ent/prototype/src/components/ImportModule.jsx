@@ -79,7 +79,7 @@ export function mergeStudents(previous, incoming) {
   return [...byId.values()];
 }
 
-export default function ImportModule() {
+export default function ImportModule({ role = 'DIRECTION' }) {
   const [current, setCurrent] = useState(loadImport);
   const [studentsText, setStudentsText] = useState('');
   const [staffText, setStaffText] = useState('');
@@ -101,13 +101,17 @@ export default function ImportModule() {
     : s.issues.some((i) => !i.text.startsWith('Aucun responsable')))) ?? [];
 
   const doImport = () => {
+    // l'emploi du temps de l'année ne se remplace que par la Direction, et après confirmation
+    let newTimetable = Boolean(extras?.timetable?.slots.length);
+    if (newTimetable && role !== 'DIRECTION') newTimetable = false;
+    else if (newTimetable && current?.timetable?.length && !window.confirm(`Remplacer l'emploi du temps actuel (${current.timetable.length} cours) par celui du fichier (${extras.timetable.slots.length} cours) ?`)) newTimetable = false;
     const data = {
       // Réimport : fusion, jamais d'effacement — un élève déjà importé (même nom, même date de naissance) est
       // mis à jour, un nouveau est ajouté, ceux qui ne figurent pas dans ce fichier sont gardés.
       students: analysis ? mergeStudents(current?.students ?? [], withExtras(analysis.students.map((s) => (renumber && s.student.suggestedNumber ? { ...s.student, number: s.student.suggestedNumber } : s.student)), extras ?? {})) : current?.students ?? [],
       assignments: assignments ?? current?.assignments ?? [],
       // emploi du temps : le nouveau remplace l'ancien en entier (c'est la semaine type de l'année)
-      timetable: extras?.timetable?.slots.length ? extras.timetable.slots : current?.timetable ?? null,
+      timetable: newTimetable ? extras.timetable.slots : current?.timetable ?? null,
     };
     saveImport(data);
     setCurrent(loadImport());
@@ -120,8 +124,9 @@ export default function ImportModule() {
       more += ` Notes officielles de 1re : ${Object.keys(extras.official).length} élèves.`;
     }
     if (extras?.inventory.length) { saveInventory(extras.inventory); more += ` Inventaire : ${extras.inventory.length} articles.`; }
-    if (extras?.timetable?.slots.length) more += ` Emploi du temps : ${extras.timetable.slots.length} cours.`;
-    setDone(`${data.students.length} élèves et ${data.assignments.length} professeurs importés.${more} Ils apparaissent dans Inscriptions & fiches élèves, Encaisser et la consultation des professeurs.`);
+    if (newTimetable) more += ` Emploi du temps : ${extras.timetable.slots.length} cours.`;
+    else if (extras?.timetable?.slots.length) more += role === 'DIRECTION' ? ' Emploi du temps gardé tel quel.' : ' Emploi du temps non remplacé : seule la Direction peut le faire.';
+    setDone(`${data.students.length} élèves et ${data.assignments.length} professeurs importés.${more} Ils apparaissent dans Élèves, Encaisser et la consultation des professeurs.`);
   };
   const exportToComplete = () => {
     const cell = csvCell;
@@ -224,7 +229,7 @@ export default function ImportModule() {
             <label className="flex items-center gap-1.5 text-xs text-slate-700"><input type="checkbox" checked={renumber} onChange={(e) => setRenumber(e.target.checked)} />
               Attribuer les n° proposés aux doublons ({analysis.students.filter((x) => x.student.suggestedNumber).map((x) => `${x.student.lastName} → ${x.student.suggestedNumber}`).join(', ')})</label>
           )}
-          {count('error') > 0 && <p className="text-xs text-red-700">{count('error')} ligne(s) avec erreur seront importées telles quelles : corrigez-les ensuite dans les fiches élèves.</p>}
+          {count('error') > 0 && <p className="basis-full text-xs text-red-700">{count('error')} ligne(s) avec erreur seront importées telles quelles : corrigez-les ensuite dans les fiches élèves.</p>}
         </div>
       )}
 

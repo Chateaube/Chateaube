@@ -62,7 +62,7 @@ export default function CareModule({ role = 'BUREAU' }) {
     <div className="space-y-5">
       <div>
         <p className="text-sm font-semibold text-navy-500">Tamatave</p>
-        <h1 className="text-2xl font-semibold text-navy-900">Soins et infirmerie</h1>
+        <h1 className="text-2xl font-semibold text-navy-900">Soins (secrétariat)</h1>
         <p className="text-sm text-slate-500">Passages au secrétariat. Pas d'infirmerie : seul le Doliprane est donné, par le secrétariat (règlement intérieur).</p>
       </div>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
