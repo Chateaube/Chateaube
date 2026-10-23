@@ -83,7 +83,7 @@ function Bulk({ cls, classPicker, eng, offered, locked, apply, errors }) {
           <optgroup label="Attestations de l'établissement">{offered.filter((e) => e.kind === 'ATTESTATION').map((e) => <option key={e.id} value={e.id}>{e.neutral}</option>)}</optgroup>
         </select></span>}>
       {errors}
-      {msg && <p role="status" className="mb-2 text-sm text-emerald-800">{msg}</p>}
+      {msg && <p role="status" className="mb-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">✓ {msg}</p>}
       <div className="mb-2 flex flex-wrap items-center gap-2 text-sm">
         <span className="text-slate-700">{n} élève{n > 1 ? 's' : ''} sur {students.length}</span>
         {!locked && <><Button variant="secondary" className="!py-1 text-xs" onClick={() => set(students, true)}>Tout cocher</Button><Button variant="secondary" className="!py-1 text-xs" onClick={() => set(students, false)}>Tout décocher</Button></>}

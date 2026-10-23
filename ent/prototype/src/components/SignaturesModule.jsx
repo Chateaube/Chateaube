@@ -176,7 +176,6 @@ export default function SignaturesModule({ role, account }) {
       </div>
       {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
 
-      {isDirection && <SignatureSetup me={me} data={data} refresh={refresh} />}
       {!isDirection && <NewRequest role={role} onDone={refresh} />}
 
       {isDirection && (
@@ -204,6 +203,13 @@ export default function SignaturesModule({ role, account }) {
         </Card>
       )}
 
+      {/* « À signer » en premier ; la signature et le tampon (déposés une fois) restent repliés */}
+      {isDirection && (
+        <details className="rounded-2xl bg-white/70 p-2 shadow-soft">
+          <summary className="cursor-pointer px-2 py-1.5 text-sm font-semibold text-slate-800">Ma signature et le tampon</summary>
+          <div className="mt-2"><SignatureSetup me={me} data={data} refresh={refresh} /></div>
+        </details>
+      )}
       <Card title="Suivi des demandes">
         <ul className="divide-y divide-slate-100">
           {data.requests.map((r) => (

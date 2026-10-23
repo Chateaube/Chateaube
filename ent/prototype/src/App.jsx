@@ -83,7 +83,7 @@ const MESSAGES = { id: 'messages', label: 'Messages', icon: 'bell', screen: ({ r
   </div>
 ) };
 const MANUALS = { id: 'manuals', label: 'Manuels scolaires', icon: 'cap', screen: ManualsModule };
-const FEEDBACK = { id: 'feedback', label: 'Avis du pilote', icon: 'bell', screen: FeedbackModule };
+const FEEDBACK = { id: 'feedback', label: 'Avis et idées', icon: 'bell', screen: FeedbackModule };
 const LIBRARY = { id: 'library', label: 'Bibliothèque', icon: 'pen', screen: LibraryModule, feature: 'bibliotheque' };
 const IMPORT = { id: 'import', label: 'Importer et sauvegarder', icon: 'swap', screen: ImportModule };
 const GRADE_SHEETS = { id: 'grade-sheets', label: 'Grilles de notes', icon: 'pen', screen: GradeSheets };

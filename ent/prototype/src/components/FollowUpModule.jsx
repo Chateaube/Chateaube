@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { saveFile } from '../download.js';
+import StageConvention from './StageConvention.jsx';
 import { Badge, Button, Card, Stat } from './ui.jsx';
 import { CLASSES } from '../data/schoollife.js';
 import { AUTHORIZATIONS, DOCUMENTS, REQUESTED, STAGE_TYPES } from '../data/family.js';
@@ -143,6 +144,7 @@ function StagesOrientation() {
           </table>
         </div>
       </Card>
+      <StageConvention students={Object.values(CLASSES).flat()} />
       <Card title="Orientation" subtitle="Calendrier commun ; intentions et avis par classe">
         <ul className="space-y-2 text-sm">
           <li className="flex flex-wrap justify-between gap-2"><span><b>3e</b> — vœux d'orientation après la 3e (2de générale, lycée professionnel)</span><Badge tone="slate">Intentions au 2e trimestre</Badge></li>
@@ -248,7 +250,8 @@ function Terminale() {
   );
 }
 
-const TABS = [['auth', 'Autorisations'], ['docs', 'Documents envoyés'], ['pieces', 'Pièces demandées'], ['stages', 'Stages & orientation'], ['tle', 'Terminale : poursuite d\'études']];
+// trois onglets : les papiers des familles, les stages et l'orientation, la Terminale
+const TABS = [['auth', 'Autorisations et pièces'], ['stages', 'Stages et orientation'], ['tle', 'Terminale : poursuite d\'études']];
 
 export default function FollowUpModule() {
   const [tab, setTab] = useState('auth');
@@ -270,9 +273,7 @@ export default function FollowUpModule() {
             className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ${tab === id ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>{label}</button>
         ))}
       </div>
-      {tab === 'auth' && <Authorizations />}
-      {tab === 'docs' && <Documents />}
-      {tab === 'pieces' && <Requested />}
+      {tab === 'auth' && <><Authorizations /><Requested /><Documents /></>}
       {tab === 'stages' && <StagesOrientation />}
       {tab === 'tle' && <Terminale />}
     </div>

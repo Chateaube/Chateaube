@@ -128,7 +128,7 @@ export default function InternalResources({ role }) {
 }
 
 /** Boîte à idées : professeurs et personnel proposent ; la Direction répond. */
-function IdeaBox({ role, viewer }) {
+export function IdeaBox({ role, viewer }) {
   const [list, setList] = useState(loadSuggestions);
   const [d, setD] = useState({ category: 'METHODOLOGIE', text: '', anonymous: false });
   const [tried, setTried] = useState(false);

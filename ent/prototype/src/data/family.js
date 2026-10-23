@@ -51,6 +51,7 @@ export const REQUESTED = [
 export const STAGE_TYPES = [
   { id: 'STAGE_3E', level: '3e', label: 'Stage d\'observation de 3e', duration: '1 semaine', schoolDays: 5 },
   { id: 'STAGE_2DE', level: '2de', label: 'Stage de seconde', duration: '2 semaines', schoolDays: 10 },
+  { id: 'TERRAIN_1STMG', level: '1re STMG', label: 'Étude de terrain (étude de gestion)', duration: 'visites et entretiens en organisation', schoolDays: 2 },
 ];
 export const INTERNSHIPS = {
   // Aina a fait son stage de seconde l'an dernier (historique conservé)

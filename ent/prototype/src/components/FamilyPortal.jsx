@@ -675,7 +675,7 @@ const mandateSection = (mandates) => {
   const items = [];
   if (mandates.some((m) => m.kind === 'DELEGUE')) items.push(['mandate-class', 'Écrire à ma classe', 'megaphone'], ['mandate-council', 'Préparer le conseil', 'cap']);
   if (mandates.some((m) => m.kind === 'BDE')) items.push(['mandate-bde', 'BDE : annonces et événements', 'sparkles']);
-  return items.length ? [['Mon mandat', items]] : [];
+  return items.length ? [['Mon engagement', items]] : [];
 };
 
 function Others({ audience, menu, badges, open, mandates = [] }) {

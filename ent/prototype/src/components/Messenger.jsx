@@ -44,6 +44,9 @@ export default function Messenger({ audience, compact: forceCompact = false, me 
   const [photos, setPhotos] = useState([]);
   const [newTo, setNewTo] = useState(() => takeIntent('messages')?.to ?? null);
   const fileRef = useRef(null);
+  const [side, setSide] = useState('ALL'); // personnel : Familles (parents, élèves) ou Équipe
+  const isFamily = (w) => /parent|mère|père|élève|famille|toute la classe|tuteur|tutrice/i.test(w);
+  const staffSide = ['STAFF', 'TEACHER'].includes(audience);
   const open = threads.find((t) => t.id === openId);
 
   const addPhotos = (files) => {
@@ -71,8 +74,13 @@ export default function Messenger({ audience, compact: forceCompact = false, me 
         <p className="text-sm font-semibold text-slate-800">Conversations</p>
         <Button variant="secondary" className="!px-3 !py-1 text-xs" onClick={() => { setNewTo(RECIPIENTS[key][0]); setOpenId(null); }}>＋ Nouveau</Button>
       </div>
+      {staffSide && (
+        <div className="mb-2 flex gap-1 rounded-full bg-slate-100 p-1" role="group" aria-label="Filtrer les conversations">
+          {[['ALL', 'Tout'], ['FAM', 'Familles'], ['TEAM', 'Équipe']].map(([k, l]) => <button key={k} type="button" aria-pressed={side === k} onClick={() => setSide(k)} className={`flex-1 rounded-full px-2 py-1 text-xs font-medium ${side === k ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>{l}</button>)}
+        </div>
+      )}
       <ul className="space-y-1">
-        {threads.map((t) => {
+        {threads.filter((t) => side === 'ALL' || (side === 'FAM') === isFamily(t.with)).map((t) => {
           const last = t.messages[t.messages.length - 1];
           return (
             <li key={t.id}>

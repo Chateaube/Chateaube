@@ -1,3 +1,4 @@
+import { IdeaBox } from './InternalResources.jsx';
 import React, { useState } from 'react';
 import { Badge, Button, Card, Icon, Stat } from './ui.jsx';
 import { loadFeedback, saveFeedback } from '../feedbackStore.js';
@@ -78,7 +79,9 @@ export function FeedbackButton({ profile, who, screen, variant = 'floating' }) {
 }
 
 /** Direction : suivi des avis du pilote. */
-export default function FeedbackModule() {
+// « Avis et idées » : les avis sur l'ENT (bouton « Donner mon avis ») et la boîte à idées de l'équipe, au même endroit
+export default function FeedbackModule({ role = 'DIRECTION' }) {
+  const [tab, setTab] = useState('avis');
   const [list, setList] = useState(loadFeedback);
   const [filter, setFilter] = useState({ status: '', profile: '' });
   const update = (id, patch) => { const next = list.map((a) => (a.id === id ? { ...a, ...patch } : a)); setList(next); saveFeedback(next); };
@@ -88,9 +91,15 @@ export default function FeedbackModule() {
     <div className="space-y-5">
       <div>
         <p className="text-sm font-semibold text-navy-500">Pilote · Terminale Générale et Terminale STMG</p>
-        <h1 className="text-2xl font-semibold text-navy-900">Avis du pilote</h1>
-        <p className="text-sm text-slate-500">Problèmes, idées et questions envoyés depuis le bouton « Donner mon avis », avec l'écran et le profil.</p>
+        <h1 className="text-2xl font-semibold text-navy-900">Avis et idées</h1>
+        <p className="text-sm text-slate-600">Les avis sur l'ENT (problèmes, idées, questions envoyés avec l'écran et le profil) et les idées de l'équipe sur l'école.</p>
       </div>
+      <div className="flex flex-wrap gap-1 rounded-lg bg-slate-100 p-1" role="tablist" aria-label="Avis et idées">
+        {[['avis', `Avis sur l'ENT (${list.length})`], ['idees', 'Boîte à idées de l\'équipe']].map(([id, l]) => <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
+          className={`rounded-md px-3 py-1.5 text-sm font-medium ${tab === id ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>{l}</button>)}
+      </div>
+      {tab === 'idees' && <IdeaBox role={role} viewer={role} />}
+      {tab === 'avis' && <>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Nouveaux" value={String(count('status', 'NOUVEAU'))} tone={count('status', 'NOUVEAU') ? 'amber' : undefined} />
         <Stat label="Problèmes" value={String(count('type', 'PROBLEME'))} tone="red" />
@@ -119,6 +128,7 @@ export default function FeedbackModule() {
           ))}
         </ul>
       </Card>
+      </>}
     </div>
   );
 }

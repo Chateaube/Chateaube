@@ -5,6 +5,7 @@ import { SITES, POPULATION } from '../data/announcements.js';
 import { loadAnnouncements, saveAnnouncement, removeAnnouncement, acknowledge, acked } from '../announcementsStore.js';
 import { STATUS, canWrite, canPublish, create, edit, submit, approve, sendBack, withdraw, signature, trail, workView, forward, cpeSendBack, REVIEWER } from '../rules/publication.js';
 import { imageToDataUrl } from '../image.js';
+import { DocumentInput, DocumentThumb } from './PhotoInput.jsx';
 
 // Annonces : un message (texte et photos) à tous les parents, toute l'école, un cycle, des niveaux
 // ou des classes, sur un site ou les deux.
@@ -39,6 +40,7 @@ export function AnnouncementCard({ a, who, compact = false }) {
           {a.photos.map((p, i) => <img key={i} src={p} alt={`Photo ${i + 1}`} className="max-h-56 w-full rounded-lg object-cover" />)}
         </div>
       )}
+      {a.files?.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{a.files.map((f, i) => <DocumentThumb key={i} doc={f} title={f.name ?? `Document ${i + 1}`} />)}</div>}
       {a.ack && who && (ok ? <p className="mt-2 text-xs text-emerald-700">✓ Lu et compris</p>
         : <Button className="mt-2 !py-1 text-xs" onClick={() => { acknowledge(a.id, who); setOk(true); }}>Bien reçu</Button>)}
     </article>
@@ -95,7 +97,7 @@ export default function AnnouncementsModule({ role, account }) {
   const writer = canWrite('ANNONCE', role);
   const publisher = canPublish(role);
   const actorOf = () => ({ role, name: role === 'DIRECTION' ? (account?.name ?? ACTOR_NAME.DIRECTION) : ACTOR_NAME[role], at: now() });
-  const empty = () => ({ title: '', text: '', photos: [], pinned: false, pinRequested: false, ack: false, email: true,
+  const empty = () => ({ title: '', text: '', photos: [], files: [], pinned: false, pinRequested: false, ack: false, email: true,
     audience: { roles: ['PARENT'], site: 'TMV', scope: 'ALL', values: [] } });
   const [d, setD] = useState(empty);
   const [editingId, setEditingId] = useState(null);
@@ -226,6 +228,11 @@ export default function AnnouncementsModule({ role, account }) {
                 ))}
                 {d.photos.length < MAX_PHOTOS && <button type="button" onClick={() => fileRef.current.click()} className="flex h-16 w-16 items-center justify-center rounded-lg border border-dashed border-slate-300 text-center text-[11px] text-slate-500">＋ Photos</button>}
                 <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" aria-label="Ajouter des photos" onChange={(e) => { addPhotos(e.target.files); e.target.value = ''; }} />
+              </div>
+              {/* un document (PDF ou photo) à publier pour les parents et/ou les élèves choisis en 1 */}
+              <div className="flex flex-wrap items-center gap-2">
+                {(d.files ?? []).map((f, i) => <span key={i} className="flex items-center gap-1"><DocumentThumb doc={f} title={f.name ?? `Document ${i + 1}`} /><button type="button" aria-label="Retirer le document" onClick={() => setD({ ...d, files: d.files.filter((_, k) => k !== i) })} className="text-xs text-red-700">✕</button></span>)}
+                <DocumentInput label="＋ Document (PDF)" onAdd={(f) => setD({ ...d, files: [...(d.files ?? []), f] })} />
               </div>
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-700">
                 <label className="flex items-center gap-1.5"><input type="checkbox" checked={d.ack} onChange={(e) => setD({ ...d, ack: e.target.checked })} />Demander « Bien reçu »</label>

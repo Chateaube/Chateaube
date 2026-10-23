@@ -77,6 +77,8 @@ function Proposer({ role, author, cls, onSubmit, parents }) {
   );
 }
 
+const REACTIONS = [['❤️', 'J\'aime'], ['👏', 'Bravo'], ['😂', 'Drôle'], ['😮', 'Waouh'], ['🎉', 'Félicitations']];
+
 export default function SchoolLifeModule({ role = 'DIRECTION', settings, compact = false, author: authorProp, cls }) {
   const author = authorProp ?? { DIRECTION: 'Direction', BUREAU: 'Secrétariat', VIE_SCOLAIRE: 'CPE', ENSEIGNANT: 'Mme Ranaivo' }[role] ?? 'Aina (1re STMG)';
   const [posts, setPosts] = useState(loadPosts);
@@ -139,6 +141,22 @@ export default function SchoolLifeModule({ role = 'DIRECTION', settings, compact
               </div>
               {p.text && <p className="mb-2 text-sm text-slate-700">{p.text}</p>}
               <Photos photos={p.photos} onOpen={setOpen} />
+              {p.status === 'PUBLIEE' && (
+                <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Réactions">
+                  {/* réactions : un appui ajoute ou retire la sienne */}
+                  {REACTIONS.map(([e, label]) => {
+                    const who = p.reactions?.[e] ?? [];
+                    const mine = who.includes(author);
+                    return (
+                      <button key={e} type="button" aria-pressed={mine} aria-label={`${label} (${who.length})`} title={who.join(', ')}
+                        onClick={() => update(posts.map((x) => (x.id === p.id ? { ...x, reactions: { ...x.reactions, [e]: mine ? who.filter((n) => n !== author) : [...who, author] } } : x)))}
+                        className={`flex min-h-[36px] items-center gap-1 rounded-full px-2.5 text-sm ring-1 ${mine ? 'bg-navy-50 ring-navy-300' : 'bg-white ring-slate-200'}`}>
+                        <span aria-hidden="true">{e}</span>{who.length > 0 && <span className="text-xs tabular-nums text-slate-700">{who.length}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
               {p.status === 'A_REVOIR' && p.note && <p className="mt-2 text-xs text-red-700">Remarque de la Direction : {p.note}</p>}
             </article>
           ))}
