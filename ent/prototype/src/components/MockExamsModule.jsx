@@ -37,25 +37,29 @@ const partLabel = (p, kind, student) => {
 const MY_SUBJECTS = [...new Set(SERVICES.map((x) => x.subject))];
 const MY_CLASSES = [...new Set(SERVICES.map((x) => x.cls))];
 const canEnter = (role, p) => role !== 'ENSEIGNANT' || MY_SUBJECTS.includes(p.subject);
+// intitulés longs abrégés dans les grilles (le nom complet au survol)
+const abbr = (l) => (l.length <= 22 ? l : `${l.split(/ — |, | \(/)[0].slice(0, 20)}…`);
 const cells = (p) => (p.subs ? p.subs.map((x) => ({ id: x.id, label: x.label, part: p })) : [{ id: p.id, label: p.label, part: p }]);
 
 function Transcript({ session, student, extra, official }) {
   const exam = EXAMS[session.kind];
   const marks = session.marks[student] ?? {};
-  const r = examResult(exam.parts, marks);
+  const skip = session.skip ?? [];
+  const r = examResult(exam.parts, marks, skip);
   const td = 'border border-black';
-  const full = isBac(session.kind) ? fullBacTranscript(session.kind, { official, blanc: marks }) : null;
+  const full = isBac(session.kind) ? fullBacTranscript(session.kind, { official, blanc: marks, skip }) : null;
   return (
     <div className="mx-auto mb-6 w-full max-w-[760px] bg-white p-8 text-[11px] text-black shadow-soft print:mb-0 print:shadow-none" style={{ breakAfter: 'page', fontFamily: 'Poppins, sans-serif' }}>
       <div className="flex items-start justify-between gap-6">
         <img src={logo} alt="École Collège Lycée Chateaubriand Tamatave" className="w-[200px]" />
         <div className="text-right">
-          <p className="text-[14px] font-bold">Relevé de notes — {session.title}</p>
-          <p>{exam.official} · examen blanc</p>
-          <p className="font-bold">Année scolaire {YEAR}</p>
-          <p className="mt-3 text-[12px] font-bold">{student}</p>
-          <p>{session.cls} · épreuves du {formatDateFr(session.date).replace(/^\S+ /, '')}</p>
+          <p className="text-[15px] font-bold uppercase tracking-wide">Relevé de notes</p>
+          <p className="font-semibold">{exam.official}</p>
+          <p>{session.title} du {formatDateFr(session.date).replace(/^\S+ /, '')} · année scolaire {YEAR}</p>
         </div>
+      </div>
+      <div className="mt-4 flex justify-between border-y border-black py-1.5 text-[12px]">
+        <span>Candidat·e : <strong>{student}</strong></span><span>Classe : <strong>{session.cls}</strong></span>
       </div>
       {full ? <FullBacTable full={full} kind={session.kind} student={student} td={td} /> : (<>
       <table data-grid className="mt-5 w-full border-collapse">
@@ -67,8 +71,8 @@ function Transcript({ session, student, extra, official }) {
             return (
               <React.Fragment key={p.id}>
                 <tr><td className={`${td} px-2 py-1.5`}>{partLabel(p, session.kind, student)}</td><td className={`${td} text-center`}>{p.coef}</td>
-                  <td className={`${td} text-center font-semibold ${typeof v === 'number' && v < 10 ? 'text-red-700' : ''}`}>{v == null ? '—' : f2(v)}</td>
-                  <td className={`${td} text-center`}>{v == null ? '' : f2((v === 'ABS' ? 0 : v) * p.coef)}</td></tr>
+                  <td className={`${td} text-center font-semibold ${typeof v === 'number' && v < 10 ? 'text-red-700' : ''}`}>{skip.includes(p.id) ? <span className="text-[9px] font-normal italic">non évaluée</span> : v == null ? '—' : f2(v)}</td>
+                  <td className={`${td} text-center`}>{v == null || skip.includes(p.id) ? '' : f2((v === 'ABS' ? 0 : v) * p.coef)}</td></tr>
                 {p.subs && p.subs.map((x) => (
                   <tr key={x.id} className="text-[10px]"><td className={`${td} py-1 pl-6`}>{x.label}{kept.includes(x.id) ? ' — retenue' : ''}</td><td className={td} /><td className={`${td} text-center ${kept.includes(x.id) ? '' : 'text-slate-500'}`}>{marks[x.id] == null ? '—' : f2(marks[x.id])}</td><td className={td} /></tr>
                 ))}
@@ -154,7 +158,8 @@ function EntryTab({ data, setData, role }) {
     const n = { id: `x${Date.now()}`, kind: draft.kind, cls: draft.cls, title: draft.title.trim(), date: draft.date, marks: {}, counts: {} };
     update({ ...data, sessions: [...data.sessions, n] }); setId(n.id); setDraft(null);
   };
-  const results = students.map((st) => examResult(exam?.parts ?? [], s?.marks[st]));
+  const skip = s?.skip ?? [];
+  const results = students.map((st) => examResult(exam?.parts ?? [], s?.marks[st], skip));
   const done = results.filter((r) => r.complete);
   const myParts = exam ? exam.parts.filter((p) => isTeacher && canEnter(role, p)) : [];
   const service = s && SERVICES.find((x) => x.cls === s.cls && myParts.some((p) => p.subject === x.subject));
@@ -187,6 +192,16 @@ function EntryTab({ data, setData, role }) {
               <Stat label="Admis (indicatif)" value={done.filter((r) => r.average >= 10).length} tone="green" />
             </div>
           )}
+          {!isTeacher && (
+            <div className="flex flex-wrap items-center gap-1.5 rounded-xl bg-white/80 p-3 text-sm shadow-soft">
+              <span className="text-slate-700">Épreuves non évaluées cette fois (pas encore prêtes) :</span>
+              {exam.parts.map((p) => (
+                <button key={p.id} type="button" aria-pressed={skip.includes(p.id)} onClick={() => patch((x) => ({ ...x, skip: skip.includes(p.id) ? skip.filter((k) => k !== p.id) : [...skip, p.id] }))}
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${skip.includes(p.id) ? 'bg-slate-700 text-white ring-slate-700' : 'bg-white text-slate-700 ring-slate-300'}`}>{abbr(p.label)}</button>
+              ))}
+              <span className="basis-full text-xs text-slate-600">Une épreuve non évaluée n'est ni « manquante » ni comptée dans la moyenne ; le relevé l'indique.</span>
+            </div>
+          )}
           {isTeacher && myParts.map((p) => {
             const c = s.counts?.[p.id];
             const proposed = suggestedCoef(EVALUATIONS[service?.id] ?? []);
@@ -202,7 +217,7 @@ function EntryTab({ data, setData, role }) {
           <Card title={`${s.title} — ${s.cls}`} subtitle={`${exam.official} · notes sur 20, « abs » pour un absent (compté 0)${isTeacher ? ' · vous saisissez votre épreuve' : ''}`}>
             <div className="overflow-x-auto">
               <table data-grid className="w-full min-w-[900px] text-sm">
-                <thead><tr className="border-b border-slate-200 text-left text-xs text-slate-500"><th className="py-2 pr-2">Élève</th>{exam.parts.flatMap(cells).map((c) => <th key={c.id} className="px-1 text-center">{c.label}<span className="block font-normal">{c.part.subs ? '2 meilleures' : `coef. ${c.part.coef}`}</span></th>)}{!isTeacher && <><th className="px-2 text-right">Moyenne</th><th className="px-2">Résultat</th></>}</tr></thead>
+                <thead><tr className="border-b border-slate-200 text-left text-xs text-slate-500"><th className="py-2 pr-2">Élève</th>{exam.parts.flatMap(cells).map((c) => <th key={c.id} title={c.label} className={`px-1 text-center ${skip.includes(c.part.id) ? 'text-slate-400 line-through' : ''}`}>{abbr(c.label)}<span className="block font-normal">{c.part.subs ? '2 meilleures' : `coef. ${c.part.coef}`}</span></th>)}{!isTeacher && <><th className="px-2 text-right">Moyenne</th><th className="px-2">Résultat</th></>}</tr></thead>
                 <tbody>{students.map((st, i) => (
                   <tr key={st} className="border-b border-slate-100">
                     <td className="py-1.5 pr-2 font-medium text-slate-900">{st}{s.kind === 'BAC_G' && <span className="block text-[11px] font-normal text-slate-500">{specialtiesOf(st).join(' · ')}</span>}</td>

@@ -135,6 +135,7 @@ main .bulletin thead th { color: #000; }
 /* Consultation (Direction, Bureau) : lecture seule, seules la navigation et les onglets restent actifs */
 .consultation input:not(.nav-control), .consultation textarea { pointer-events: none; background-color: var(--color-slate-50); }
 .consultation button:not(.nav-control):not([role=tab]) { display: none; }
+.consultation .consult-hide { display: none; } /* formulaires de saisie cachés en consultation */
 
 /* Protection d'écran : impression noircie (hors Direction et secrétariat) */
 .screen-watermark {

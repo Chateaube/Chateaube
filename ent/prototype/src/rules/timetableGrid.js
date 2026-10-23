@@ -65,7 +65,7 @@ export function shortSubject(s) {
 const COLORS = [
   [/^(fran|philo)/i, '#d4ddf0'], [/^(espagnol|mandarin)/i, '#fdf5c4'], [/^(p-c|physique|e\.s\. p)/i, '#d6f6f7'],
   [/^(hge|histoire|emc)/i, '#ece0d0'], [/^maths|^math/i, '#fbd2d2'], [/^anglais/i, '#fde0ee'], [/^(svt|e\.s\. svt|e\.s\.$)/i, '#daf5df'],
-  [/^arts|^musique|^parcours/i, '#ead6f2'], [/^(ses|eco|économie|droit)/i, '#d5efd2'], [/^(sgn|msgn|management|techno|snt)/i, '#e6dbf5'],
+  [/^arts|^musique|^parcours/i, '#ead6f2'], [/^(ses|eco|économie|droit)/i, '#d5efd2'], [/^management/i, '#d9e6ff'], [/^(sgn|msgn)/i, '#f6d9ec'], [/^(techno|snt)/i, '#e6dbf5'],
   [/^eps/i, '#e6e6e6'],
 ];
 export function subjectColor(s) {

@@ -1930,3 +1930,26 @@ test('l\'école sur 7 ou 30 jours : période, période précédente, évolution,
   const ev = [{ id: 'x', date: '2026-10-20' }, { id: 'y', date: '2026-10-10' }, { id: 'z', date: '2026-10-10', end: '2026-10-15' }, { id: 'w', date: '2026-12-20' }];
   assert.deepEqual(upcoming(ev, '2026-10-13').map((e) => e.id), ['z', 'x']);
 });
+
+import { examResult as mockResult } from '../src/rules/mockExam.js';
+test('examen blanc : une épreuve pas encore prête n\'est ni manquante ni comptée', () => {
+  const parts = [{ id: 'FR_ECRIT', label: 'Français écrit', coef: 5 }, { id: 'FR_ORAL', label: 'Français oral', coef: 5 }, { id: 'MATHS', label: 'Mathématiques', coef: 2 }];
+  const marks = { FR_ECRIT: 12, MATHS: 15 };
+  const all = mockResult(parts, marks);
+  assert.equal(all.complete, false);
+  assert.deepEqual(all.missing, ['Français oral']);
+  const r = mockResult(parts, marks, ['FR_ORAL']);
+  assert.equal(r.complete, true);
+  assert.equal(r.totalCoef, 7);
+  assert.equal(r.average, 12.86);
+  assert.deepEqual(r.skipped, ['Français oral']);
+});
+
+import { rephrase, checkAppreciation as checkApp } from '../src/rules/appreciation.js';
+test('appréciations : reformuler le texte du professeur (3e personne), tutoiement autorisé par la Direction', () => {
+  assert.equal(rephrase('tu as fait des progrès. Continue ainsi', 'Aina'), 'Aina a fait des progrès. Aina doit continuer ainsi.');
+  assert.equal(rephrase('Ton travail est sérieux et tu montres de l\'intérêt.', 'Toky'), 'Son travail est sérieux et Toky montre de l\'intérêt.');
+  const t = 'Tu travailles bien en classe. Tes résultats sont solides.';
+  assert.ok(checkApp(t).errors.some((e) => e.rule === 'TUTOIEMENT'));
+  assert.ok(!checkApp(t, { tutoiement: true }).errors.some((e) => e.rule === 'TUTOIEMENT'));
+});

@@ -21,24 +21,25 @@ const slug = (t) => (t || 'document').normalize('NFD').replace(/[\u0300-\u036f]/
  * alors un fichier .html autonome (mêmes styles) qui s'ouvre et lance l'impression tout seul.
  */
 // Le contenu est placé dans #print-root, comme à l'impression directe : mêmes règles (pas d'ombre, pages blanches du recto-verso…).
-async function printViaFile(source, pageCss, title) {
+async function printViaFile(source, pageCss, title, footer = true) {
   const css = [...document.querySelectorAll('style')].map((s) => s.textContent).join('\n');
   const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${title ?? 'Impression'}</title>`
-    + `<style>${css}</style><style>body{background:#fff;margin:0}@page{${pageCss} ${title ? footerCss(title) : ''}}</style></head>`
+    + `<style>${css}</style><style>body{background:#fff;margin:0}@page{${pageCss} ${title && footer ? footerCss(title) : ''}}</style></head>`
     + `<body><div id="print-root">${source.innerHTML}</div><script>window.addEventListener('load',function(){setTimeout(function(){window.print()},400)})<\/script></body></html>`;
   const { saveFile } = await import('./download.js');
   return saveFile(`${slug(title)}.html`, html);
 }
 
-export function printOnly(selector, pageCss, title) {
+/** footer : false pour une page sans pied de page (emplois du temps). */
+export function printOnly(selector, pageCss, title, { footer = true } = {}) {
   const source = document.querySelector(selector);
   if (!source) return;
-  if (inFrame()) { printViaFile(source, pageCss, title); return; }
+  if (inFrame()) { printViaFile(source, pageCss, title, footer); return; }
   const copy = document.createElement('div');
   copy.id = 'print-root';
   copy.innerHTML = source.innerHTML;
   const style = document.createElement('style');
-  style.textContent = `@media print { @page { ${pageCss} ${title ? footerCss(title) : ''} } #root { display: none; } }`;
+  style.textContent = `@media print { @page { ${pageCss} ${title && footer ? footerCss(title) : ''} } #root { display: none; } }`;
   document.body.append(copy, style);
   const done = () => { copy.remove(); style.remove(); window.removeEventListener('afterprint', done); };
   window.addEventListener('afterprint', done);

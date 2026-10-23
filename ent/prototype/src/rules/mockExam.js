@@ -76,16 +76,20 @@ export function keptSubs(p, marks = {}) {
   return p.subs.map((s) => ({ ...s, mark: marks[s.id] })).filter((s) => s.mark != null).sort((a, b) => num(b.mark) - num(a.mark)).slice(0, p.bestOf).map((s) => s.id);
 }
 
-/** parts : [{ id, label, coef }], marks : { [id]: note sur 20 | 'ABS' }. Absence = 0. */
-export function examResult(parts, marks) {
+/** parts : [{ id, label, coef }], marks : { [id]: note sur 20 | 'ABS' }. Absence = 0.
+ *  skip : épreuves non évaluées lors de cet examen blanc (pas encore prêtes, ex. oral de français) :
+ *  ni manquantes, ni dans la moyenne ; elles restent affichées « non évaluée ». */
+export function examResult(allParts, marks, skip = []) {
   let points = 0; let coefs = 0; const missing = [];
+  const parts = allParts.filter((p) => !skip.includes(p.id));
   parts.forEach((p) => {
     const v = partMark(p, marks ?? {});
     if (v == null || v === '') { missing.push(p.label); return; }
     points += num(v) * p.coef; coefs += p.coef;
   });
   const total = parts.reduce((s, p) => s + p.coef, 0);
-  return { points: round2(points), maxPoints: coefs * 20, complete: !missing.length, missing, average: coefs ? round2(points / coefs) : null, totalCoef: total };
+  return { points: round2(points), maxPoints: coefs * 20, complete: !missing.length, missing, average: coefs ? round2(points / coefs) : null, totalCoef: total,
+    skipped: allParts.filter((p) => skip.includes(p.id)).map((p) => p.label) };
 }
 
 /**
@@ -128,8 +132,9 @@ export const suggestedCoef = (evaluations = []) => Math.max(1, ...evaluations.ma
  * acquises) puis les notes du bac blanc, avec les points (note × coefficient) et le total sur 100.
  * Un 16 coefficient 4 ne compense pas un 2 coefficient 16 : la colonne des points le montre.
  */
-export function fullBacTranscript(kind, { official = {}, blanc = {} }) {
-  const section = (title, parts, marks, source) => {
+export function fullBacTranscript(kind, { official = {}, blanc = {}, skip = [] }) {
+  const section = (title, allParts, marks, source) => {
+    const parts = source === 'BLANC' ? allParts.filter((p) => !skip.includes(p.id)) : allParts;
     const rows = parts.map((p) => {
       const v = partMark(p, marks ?? {});
       const mark = v == null || v === '' ? null : v;

@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button, Card } from './ui.jsx';
-import logo from '../assets/logo-tamatave.png';
 import { loadTimetable, importedTimetable } from '../timetableStore.js';
 import { DAY_NAMES } from '../rules/timetableImport.js';
 import { weekLetter } from '../rules/teachingHours.js';
@@ -8,6 +7,44 @@ import { gridMarks, rowPos, strongMark, markLabel, layoutLanes, shortSubject, su
 import { STAFF } from '../data/people.js';
 import { DEFAULT_SETTINGS } from '../data/settings.js';
 import { printOnly } from '../print.js';
+import { loadChanges } from './TimetableChanges.jsx';
+import { addDays, isoWeekday } from '../rules/calendar.js';
+
+// téléphone : une liste par classe (ou par jour) plutôt qu'une grille de 10 colonnes
+function useNarrow() {
+  const q = '(max-width: 639px)';
+  const [n, setN] = useState(() => typeof window !== 'undefined' && window.matchMedia?.(q).matches);
+  useEffect(() => { const m = window.matchMedia?.(q); if (!m) return undefined; const f = () => setN(m.matches); m.addEventListener('change', f); return () => m.removeEventListener('change', f); }, []);
+  return n;
+}
+
+/** Version téléphone : une carte par colonne (classe ou jour), les cours en liste. */
+function Stacked({ columns, items, second }) {
+  return (
+    <div className="space-y-3">
+      {columns.map((c) => {
+        const list = items.filter((s) => s.col === c.key).sort((a, b) => a.start.localeCompare(b.start));
+        return (
+          <section key={c.key} className="rounded-xl bg-white p-3 shadow-soft">
+            <h3 className="mb-1.5 text-sm font-semibold text-navy-900">{c.label}</h3>
+            {list.length === 0 ? <p className="text-xs text-slate-500">Pas de cours</p> : (
+              <ul className="space-y-1">
+                {list.map((s) => (
+                  <li key={s.id} className={`flex gap-2 rounded-lg px-2 py-1.5 text-sm ${s.status ? 'opacity-60' : ''}`} style={{ background: subjectColor(s) }}>
+                    <span className="w-[86px] shrink-0 tabular-nums text-xs text-slate-800">{s.start.replace(':', 'h')}–{s.end.replace(':', 'h')}</span>
+                    <span className="min-w-0 flex-1"><span className={`font-semibold ${s.status ? 'line-through' : ''}`}>{shortSubject(s)}</span> <span className="text-xs text-slate-700">· {second(s)}{s.room ? ` · ${s.room}` : ''}</span>
+                      {s.week && <span className="ml-1 text-[10px] font-semibold">sem. {s.week}</span>}
+                      {s.status && <span className="block text-[11px] font-semibold text-red-800">{s.status === 'ANNULE' ? 'annulé' : 'déplacé'} cette semaine</span>}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
 
 // Emplois du temps, présentés comme ceux de l'outil de l'école :
 //  - Par jour : toutes les classes côte à côte (6e → Tle G), une page A4 par jour ;
@@ -61,7 +98,8 @@ function Grid({ columns, items, second, wednesdayCols = [] }) {
                 <div key={s.id} className="absolute overflow-hidden border border-white/80 px-0.5 text-center leading-tight"
                   style={{ top: y(s.start), height: y(s.end) - y(s.start), left: `${(100 / s.lanes) * s.lane}%`, width: `${100 / s.lanes}%`, background: subjectColor(s) }}>
                   <div className="flex h-full flex-col items-center justify-center">
-                    <p className={`font-semibold ${s.lanes > 1 ? 'text-[9.5px]' : 'text-[11px]'}`}>{shortSubject(s)}</p>
+                    <p className={`font-semibold ${s.status ? 'line-through' : ''} ${s.lanes > 1 ? 'text-[9.5px]' : 'text-[11px]'}`}>{shortSubject(s)}</p>
+                    {s.status && <p className="text-[8.5px] font-bold uppercase text-red-800">{s.status === 'ANNULE' ? 'annulé' : 'déplacé'} cette semaine</p>}
                     <p className={s.lanes > 1 ? 'text-[8.5px]' : 'text-[10px]'}>{second(s)}</p>
                     <p className={`italic ${s.lanes > 1 ? 'text-[8px]' : 'text-[9.5px]'}`}>{s.start}-{s.end}</p>
                     {s.room && <p className="text-[9px]">{s.room}</p>}
@@ -81,11 +119,7 @@ function Grid({ columns, items, second, wednesdayCols = [] }) {
 function Page({ title, children }) {
   return (
     <section className="edt-page break-after-page">
-      <div className="mb-2 flex items-center gap-4 border-b border-slate-200 pb-2">
-        <img src={logo} alt="École Collège Lycée Chateaubriand Tamatave" className="h-12 w-auto" />
-        <h2 className="flex-1 text-center text-xl font-bold text-slate-900">{title}</h2>
-        <span className="w-24" />
-      </div>
+      <h2 className="mb-2 border-b border-slate-200 pb-2 text-center text-xl font-bold text-slate-900">{title}</h2>
       {children}
     </section>
   );
@@ -103,27 +137,32 @@ export default function TimetableView({ settings = DEFAULT_SETTINGS }) {
   const [cls, setCls] = useState(classes[0] ?? '');
   const [prof, setProf] = useState(teachers[0] ?? '');
   const [week, setWeek] = useState('AB');
-  const slots = all.filter((s) => week === 'AB' || !s.week || s.week === week);
+  // cette semaine : cours annulés ou déplacés (Changements d'emploi du temps), barrés sur la grille
+  const monday = addDays(TODAY, 1 - isoWeekday(TODAY));
+  const changes = week === 'AB' || week === current ? loadChanges() : [];
+  const changeOf = (s) => changes.find((c) => ['ANNULE', 'DEPLACE'].includes(c.type) && c.cls === s.cls && c.subject === s.subject && c.start === s.start && c.date === addDays(monday, s.weekday - 1));
+  const slots = all.filter((s) => week === 'AB' || !s.week || s.week === week).map((s) => { const c = changeOf(s); return c ? { ...s, status: c.type, changeDate: c.date } : s; });
+  const narrow = useNarrow();
   const weekText = week === 'AB' ? '' : ` — semaine ${week}`;
 
-  const dayPage = (d) => (
+  const dayPage = (d, forPrint = false) => (
     <Page key={d} title={`Emploi du temps — ${DAY_NAMES[d]}${weekText}`}>
-      <Grid columns={classes.map((c) => ({ key: c, label: classLabel(c) }))} wednesdayCols={isWednesday(d) ? classes : []}
-        items={slots.filter((s) => s.weekday === d).map((s) => ({ ...s, col: s.cls }))} second={(s) => teacherName(s.teacherId)} />
+      {(narrow && !forPrint ? Stacked : Grid)({ columns: classes.map((c) => ({ key: c, label: classLabel(c) })), wednesdayCols: isWednesday(d) ? classes : [],
+        items: slots.filter((s) => s.weekday === d).map((s) => ({ ...s, col: s.cls })), second: (s) => teacherName(s.teacherId) })}
     </Page>
   );
-  const weekPage = (kind, value) => {
+  const weekPage = (kind, value, forPrint = false) => {
     const mine = slots.filter((s) => (kind === 'CLASSE' ? s.cls === value : s.teacherId === value));
     return (
       <Page key={value} title={`Emploi du temps — ${kind === 'CLASSE' ? value : teacherName(value)}${weekText}`}>
-        <Grid columns={days.map((d) => ({ key: d, label: DAY_NAMES[d].toUpperCase() }))} wednesdayCols={[3]}
-          items={mine.map((s) => ({ ...s, col: s.weekday }))} second={(s) => (kind === 'CLASSE' ? teacherName(s.teacherId) : classLabel(s.cls))} />
+        {(narrow && !forPrint ? Stacked : Grid)({ columns: days.map((d) => ({ key: d, label: narrow && !forPrint ? DAY_NAMES[d] : DAY_NAMES[d].toUpperCase() })), wednesdayCols: [3],
+          items: mine.map((s) => ({ ...s, col: s.weekday })), second: (s) => (kind === 'CLASSE' ? teacherName(s.teacherId) : classLabel(s.cls)) })}
       </Page>
     );
   };
   const screen = mode === 'JOUR' ? dayPage(day) : weekPage(mode, mode === 'CLASSE' ? cls : prof);
-  const everything = mode === 'JOUR' ? days.map(dayPage) : (mode === 'CLASSE' ? classes : teachers).map((v) => weekPage(mode, v));
-  const print = (sel, what) => printOnly(sel, 'size: A4 landscape; margin: 8mm;', `Emploi du temps — ${what}`);
+  const everything = mode === 'JOUR' ? days.map((d) => dayPage(d, true)) : (mode === 'CLASSE' ? classes : teachers).map((v) => weekPage(mode, v, true));
+  const print = (sel, what) => printOnly(sel, 'size: A4 landscape; margin: 8mm;', `Emploi du temps — ${what}`, { footer: false });
   const used = [...new Map(slots.map((s) => [shortSubject(s), s])).values()].sort((a, b) => shortSubject(a).localeCompare(shortSubject(b)));
   const pill = (on) => `rounded-md px-3 py-1 text-sm font-medium ${on ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`;
 
@@ -136,7 +175,7 @@ export default function TimetableView({ settings = DEFAULT_SETTINGS }) {
           <p className="text-sm text-slate-600">Cette semaine : <strong>semaine {current}</strong> (calendrier de l'école : la semaine de la rentrée est une semaine A, l'alternance continue pendant les vacances).</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => print('.edt-screen', mode === 'JOUR' ? DAY_NAMES[day] : mode === 'CLASSE' ? cls : teacherName(prof))}>Imprimer cette page</Button>
+          <Button variant="secondary" onClick={() => print('.edt-one', mode === 'JOUR' ? DAY_NAMES[day] : mode === 'CLASSE' ? cls : teacherName(prof))}>Imprimer cette page</Button>
           <Button variant="secondary" onClick={() => print('.edt-all', mode === 'JOUR' ? 'semaine' : mode === 'CLASSE' ? 'toutes les classes' : 'tous les professeurs')}>
             {mode === 'JOUR' ? 'Imprimer la semaine (1 page par jour)' : mode === 'CLASSE' ? 'Imprimer toutes les classes' : 'Imprimer tous les professeurs'}
           </Button>
@@ -158,7 +197,7 @@ export default function TimetableView({ settings = DEFAULT_SETTINGS }) {
         </div>
       </Card>
       <div className="-mx-1 overflow-x-auto px-1" tabIndex={0} role="region" aria-label="Emploi du temps">
-        <div className="edt-screen min-w-[900px]">{screen}</div>
+        <div className={`edt-screen ${narrow ? '' : 'min-w-[900px]'}`}>{screen}</div>
       </div>
       <div className="flex flex-wrap gap-1.5 text-xs" aria-label="Couleurs des matières">
         {used.map((s) => <span key={shortSubject(s)} className="rounded px-2 py-0.5 text-slate-900" style={{ background: subjectColor(s) }}>{shortSubject(s)}</span>)}
@@ -167,6 +206,7 @@ export default function TimetableView({ settings = DEFAULT_SETTINGS }) {
         <p className="text-xs text-slate-600">1re générale : la partie physique-chimie de l'enseignement scientifique (E.S. P-C) se fait pendant une heure de physique-chimie choisie par le professeur, qui peut changer d'une semaine à l'autre ; elle n'a donc pas de créneau fixe.</p>
       )}
       <div className="edt-all hidden" aria-hidden="true">{everything}</div>
+      <div className="edt-one hidden" aria-hidden="true">{mode === 'JOUR' ? dayPage(day, true) : weekPage(mode, mode === 'CLASSE' ? cls : prof, true)}</div>
     </div>
   );
 }

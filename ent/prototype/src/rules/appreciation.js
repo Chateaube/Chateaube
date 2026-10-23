@@ -85,13 +85,13 @@ export function checkAppreciation(text, ctx = {}) {
     });
   }
 
-  // R2 — pas de tutoiement
-  for (const { re, hint } of TUTOIEMENT) {
+  // R2 — pas de tutoiement (sauf si la Direction l'autorise : ctx.tutoiement)
+  for (const { re, hint } of ctx.tutoiement ? [] : TUTOIEMENT) {
     errors.push(...collect(body, re, (m) => ({
       rule: 'TUTOIEMENT', message: `Tutoiement interdit : « ${m[0]} ». ${hint}`, excerpt: m[0], index: m.index,
     })));
   }
-  warnings.push(...collect(body, IMPERATIVES, (m) => ({
+  if (!ctx.tutoiement) warnings.push(...collect(body, IMPERATIVES, (m) => ({
     rule: 'TUTOIEMENT', message: `« ${m[1]} » en début de phrase ressemble à un impératif de 2e personne : préférer « Il faut… » ou « Que [prénom]… ».`, excerpt: m[1],
   })));
 
@@ -151,6 +151,26 @@ export function autoFix(text) {
     .trim();
   if (out && !/[.!?…]$/u.test(out)) out += '.';
   return out.charAt(0).toUpperCase() + out.slice(1);
+}
+
+/**
+ * « Reformuler mon texte » : garde les idées de l'enseignant, change seulement la forme (3e personne,
+ * impératifs, ponctuation). Le professeur relit et valide ; rien n'est inventé.
+ */
+export function rephrase(text, firstName = 'L\'élève') {
+  const P = firstName;
+  const rules = [
+    [/\btu es\b/gi, `${P} est`], [/\btu as\b/gi, `${P} a`], [/\btu dois\b/gi, `${P} doit`], [/\btu peux\b/gi, `${P} peut`],
+    [/\btu fais\b/gi, `${P} fait`], [/\btu sais\b/gi, `${P} sait`], [/\btu sembles\b/gi, `${P} semble`], [/\btu montres\b/gi, `${P} montre`],
+    [/\btu (\p{L}+)es\b/giu, `${P} $1e`], [/\bt['’]es\b/gi, `${P} est`], [/\bt['’]as\b/gi, `${P} a`],
+    [/\bton\b(?= \p{L})/giu, (m) => (m[0] === 'T' ? 'Son' : 'son')], [/\bta\b(?= \p{L})/giu, (m) => (m[0] === 'T' ? 'Sa' : 'sa')],
+    [/\btes\b(?= \p{L})/giu, (m) => (m[0] === 'T' ? 'Ses' : 'ses')], [/\btoi\b/gi, P],
+    [/(^|[.!?]\s+)Continue\b/g, `$1${P} doit continuer`], [/(^|[.!?]\s+)Travaille\b/g, `$1${P} doit travailler`],
+    [/(^|[.!?]\s+)Reste\b/g, `$1${P} doit rester`], [/(^|[.!?]\s+)Fais\b/g, `$1${P} doit faire`], [/(^|[.!?]\s+)Persévère\b/g, `$1${P} doit persévérer`],
+  ];
+  let out = String(text ?? '');
+  rules.forEach(([re, by]) => { out = out.replace(re, by); });
+  return autoFix(out);
 }
 
 export function decisionText(decision, levelLabel) {

@@ -51,7 +51,7 @@ export default function HomeworkModule() {
             </ol>
           )}
         </Card>
-        <Card title="Nouvelle séance">
+        <Card title="Nouvelle séance" className="consult-hide">
           <div className="space-y-2 text-sm">
             <label className="block text-xs text-slate-600">Date de la séance<input type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>
             {restored && <p className="rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-900">Brouillon retrouvé : il a été gardé sur cet appareil.</p>}

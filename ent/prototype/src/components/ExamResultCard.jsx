@@ -11,7 +11,8 @@ export default function ExamResultCard({ session, student, official }) {
   const exam = EXAMS[session.kind];
   if (isBac(session.kind)) return <FullBacCard session={session} student={student} official={official} />;
   const marks = session.marks[student] ?? {};
-  const r = examResult(exam.parts, marks);
+  const skip = session.skip ?? [];
+  const r = examResult(exam.parts, marks, skip);
   const next = nextOf(session.kind);
   const firstCoef = exam.parts.reduce((t, p) => t + p.coef, 0);
   return (
@@ -27,7 +28,7 @@ export default function ExamResultCard({ session, student, official }) {
             return (
               <React.Fragment key={p.id}>
                 <tr className="border-t border-slate-100"><td className="py-1.5 pr-2">{p.label}</td><td className="px-1 text-right tabular-nums text-slate-600">{String(p.coef).replace('.', ',')}</td>
-                  <td className={`text-right font-semibold tabular-nums ${typeof v === 'number' && v < 10 ? 'text-red-700' : 'text-slate-900'}`}>{f2(v)}</td></tr>
+                  <td className={`text-right font-semibold tabular-nums ${typeof v === 'number' && v < 10 ? 'text-red-700' : 'text-slate-900'}`}>{skip.includes(p.id) ? <span className="text-xs font-normal italic text-slate-600">non évaluée</span> : f2(v)}</td></tr>
                 {p.subs && p.subs.map((x) => (
                   <tr key={x.id} className="text-xs text-slate-600"><td className="py-0.5 pl-4">{x.label}{kept.includes(x.id) ? ' — retenue' : ''}</td><td /><td className="text-right tabular-nums">{f2(marks[x.id])}</td></tr>
                 ))}
@@ -57,7 +58,7 @@ export default function ExamResultCard({ session, student, official }) {
 /** Terminale : relevé complet, comme le relevé officiel — notes de 1re déjà acquises + bac blanc, sur 100. */
 function FullBacCard({ session, student, official }) {
   const exam = EXAMS[session.kind];
-  const full = fullBacTranscript(session.kind, { official, blanc: session.marks[student] ?? {} });
+  const full = fullBacTranscript(session.kind, { official, blanc: session.marks[student] ?? {}, skip: session.skip ?? [] });
   return (
     <section aria-label={`Relevé — ${session.title}`} className="rounded-2xl bg-white p-4 shadow-soft">
       <p className="text-xs text-slate-600">{exam.official} · bac blanc du {fr(session.date)}</p>

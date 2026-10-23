@@ -49,6 +49,7 @@ export const DEFAULT_SETTINGS = {
     evaluationTypes: ['DS', 'Interrogation', 'Oral', 'Exposé', 'Devoir maison', 'TP', 'Projet', 'Autre'],
     excludedSubjects: ['AP', 'MUS', 'VDC'], // Arts plastiques, Musique, Vie de classe : hors moyenne générale
     parentDelayDays: 1, // Espace Parents : note publiée aux parents 1 jour après les élèves
+    allowTutoiement: false, // appréciations : tutoiement refusé par défaut (document officiel lu par la famille) ; la Direction peut l'autoriser
   },
 
   // Base de compétences PROPOSÉE aux enseignants, par matière et par niveau (série au lycée :

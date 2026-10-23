@@ -60,6 +60,7 @@ import { useOnline } from './online.js';
 
 import { DEFAULT_SETTINGS } from './data/settings.js';
 import { DIRECTION_ACCOUNTS } from './data/demo.js';
+import TimetableHub from './components/TimetableHub.jsx';
 
 // Un portail par profil (cf. docs/02-architecture-ux.md, matrice des droits).
 // Direction = administrateur (accès à tout). Bureau = administration / économat,
@@ -70,10 +71,11 @@ const COUNCIL = { id: 'council', label: 'Conseils de classe', icon: 'cap', scree
 const BULLETINS = { id: 'bulletins', label: 'Bulletins', icon: 'pen', screen: BulletinsModule };
 const BOOKING = { id: 'booking', label: 'Réservations de matériel', icon: 'calendar', screen: BookingModule, feature: 'reservations' };
 const INSCRIPTIONS = { id: 'enrol', label: 'Inscriptions et fiches élèves', icon: 'users', screen: InscriptionsModule };
+// Suivi des professeurs : notes et appréciations + cahier de textes, sur un seul écran (deux onglets)
 const OVERSIGHT = [
-  { id: 'oversight-grades', label: 'Notes des professeurs', icon: 'pen', screen: (p) => <TeacherOversight {...p} view="grades" /> },
-  { id: 'oversight-homework', label: 'Cahiers de textes', icon: 'calendar', screen: (p) => <TeacherOversight {...p} view="homework" /> },
+  { id: 'oversight-grades', label: 'Suivi des professeurs', icon: 'pen', screen: (p) => <TeacherOversight {...p} view="grades" /> },
 ];
+const OVERSIGHT_HOMEWORK = { id: 'oversight-homework', label: 'Cahiers de textes', icon: 'calendar', screen: (p) => <TeacherOversight {...p} view="homework" /> };
 const MESSAGES = { id: 'messages', label: 'Messages', icon: 'bell', screen: ({ role }) => (
   <div className="space-y-4">
     <div><p className="text-sm font-semibold text-navy-500">Professeurs, élèves, parents et personnel · texte et photos</p><h1 className="text-2xl font-semibold text-navy-900">Messages</h1></div>
@@ -100,6 +102,8 @@ const SIGNATURES = { id: 'signatures', label: 'Documents à signer', icon: 'pen'
 const FOLLOW_UP = { id: 'followup', label: 'Autorisations, stages et orientation', icon: 'pen', screen: FollowUpModule };
 const ACCOUNTING = { id: 'accounting', label: 'Caisse et comptabilité', icon: 'wallet', screen: AccountingModule };
 const ELEVES = { id: 'eleves', label: 'Élèves', icon: 'users', screen: InscriptionsModule }; // liste, inscriptions, dossier (fiche, fil, suivi)
+const TIMETABLE = { id: 'timetable', label: 'Emplois du temps', icon: 'clock', screen: TimetableHub }; // grille + changements de cours
+const TIMETABLE_RO = { id: 'timetable', label: 'Emplois du temps', icon: 'clock', screen: (p) => <TimetableView {...p} /> }; // consultation (CPE)
 const STUDENT_FILE = { id: 'student-file', label: 'Fil de l\'élève', icon: 'clock', screen: StudentTimeline };
 const FOLLOWUPS = { id: 'student-followups', label: 'Suivis individuels', icon: 'users', screen: FollowUpsModule };
 const MANDATES = { id: 'mandates', label: 'Engagements et attestations', icon: 'users', screen: MandatesAdmin };
@@ -115,8 +119,8 @@ const PROFILES = {
     nav: arrangeNav(DIRECTION_TREE, [
       { group: 'Aujourd\'hui', items: [{ id: 'dashboard', label: 'Mes décisions', icon: 'home', screen: DirectionDashboard }, SIGNATURES, FEEDBACK] },
       { group: 'Élèves', items: [ELEVES, { id: 'students', label: 'Mobilité Tamatave → Tana', icon: 'swap' }] },
-      { group: 'Pédagogie', items: [COUNCIL, BULLETINS, MOCK_EXAMS, GRADE_SHEETS, ...OVERSIGHT, { id: 'timetable', label: 'Emplois du temps', icon: 'clock', screen: TimetableView }, { id: 'exams', label: 'Examens & Campus France', icon: 'cap' }] },
-      { group: 'Vie scolaire', items: [VIE_SCOLAIRE, CARE, HOURS, TT_CHANGES, FOLLOW_UP, MANDATES] },
+      { group: 'Pédagogie', items: [COUNCIL, BULLETINS, MOCK_EXAMS, GRADE_SHEETS, ...OVERSIGHT, TIMETABLE, { id: 'exams', label: 'Examens & Campus France', icon: 'cap' }] },
+      { group: 'Vie scolaire', items: [VIE_SCOLAIRE, CARE, HOURS, FOLLOW_UP, MANDATES] },
       { group: 'Finances', items: [ACCOUNTING] },
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, AGENDA] },
       { group: 'Équipe et matériel', items: [{ id: 'staff', label: 'Gestion des agents', icon: 'users', screen: StaffModule }, RESOURCES, INVENTORY, MANUALS, LIBRARY, BOOKING] },
@@ -130,7 +134,7 @@ const PROFILES = {
     nav: [
       { group: 'Aujourd\'hui', items: [{ id: 'bureau', label: 'À traiter aujourd\'hui', icon: 'home', screen: BureauHome }] },
       { group: 'Caisse', items: [ACCOUNTING] },
-      { group: 'Vie scolaire', items: [VIE_SCOLAIRE, CARE, HOURS, TT_CHANGES, FOLLOW_UP] },
+      { group: 'Vie scolaire', items: [VIE_SCOLAIRE, CARE, HOURS, TIMETABLE, FOLLOW_UP] },
       { group: 'Notes et bulletins', items: [COUNCIL, BULLETINS, MOCK_EXAMS, ...OVERSIGHT] }, // grilles : onglet des conseils
       { group: 'Élèves', items: [ELEVES, SIGNATURES, IMPORT] },
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, AGENDA, RESOURCES] },
@@ -142,10 +146,10 @@ const PROFILES = {
     title: 'CPE — vie scolaire',
     home: 'cpe-home',
     nav: [
-      { group: 'Aujourd\'hui', items: [{ id: 'cpe-home', label: 'Ma journée', icon: 'home', screen: CpeHome }, VIE_SCOLAIRE, CARE, HOURS, TT_CHANGES] }, // CPE : annulation du jour seulement
+      { group: 'Aujourd\'hui', items: [{ id: 'cpe-home', label: 'Ma journée', icon: 'home', screen: CpeHome }, VIE_SCOLAIRE, CARE, HOURS, TIMETABLE_RO, { ...TT_CHANGES, label: 'Annuler un cours aujourd\'hui' }] }, // CPE : annulation du jour seulement
       { group: 'Élèves', items: [ELEVES] },
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, ro(AGENDA), RESOURCES] },
-      { group: 'Ressources', items: [ro(BOOKING), ro({ id: 'books-cpe', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who="M. Be" kind="CPE" /> }), ro(OVERSIGHT[1])] },
+      { group: 'Ressources', items: [ro(BOOKING), ro({ id: 'books-cpe', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who="M. Be" kind="CPE" /> }), ro(OVERSIGHT_HOMEWORK)] },
     ],
   },
   ENSEIGNANT: {

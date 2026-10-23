@@ -346,6 +346,10 @@ export default function SettingsModule({ settings, onChange, onReset }) {
               <NumberField label="Espace Parents : publication aux parents" value={settings.grading.parentDelayDays} min={0} max={7} suffix="jour(s) après les élèves"
                 onChange={(v) => set('grading', { parentDelayDays: v })} />
             </div>
+            <label className="mt-4 flex items-start gap-2 text-sm text-slate-800">
+              <input type="checkbox" className="mt-0.5 h-5 w-5" checked={!!settings.grading.allowTutoiement} onChange={(e) => set('grading', { allowTutoiement: e.target.checked })} />
+              <span>Autoriser le tutoiement dans les appréciations<span className="block text-xs text-slate-600">Aucune règle nationale ne l'interdit, mais le bulletin est un document officiel lu par la famille : la plupart des établissements demandent la 3e personne. Décoché : le contrôleur signale « tu, ton, ta… ».</span></span>
+            </label>
             <div className="mt-4">
               <p className="text-xs font-medium text-slate-600">Types d'évaluation proposés aux enseignants</p>
               <div className="mt-1.5 flex flex-wrap gap-1.5">

@@ -42,7 +42,7 @@ export default function CouncilGrid({ settings, role, go }) {
   const canWriteGeneral = role === 'DIRECTION' || role === 'BUREAU';
   const isDirection = role === 'DIRECTION';
   // conseil du 3e trimestre (passage) : décidé par le trimestre ; la case ne sert qu'à la démonstration
-  const [finalTerm, setFinalTerm] = useState(isFinalTerm(TERM));
+  const [finalTerm] = useState(isFinalTerm(TERM)); // 3e trimestre : passage et rang
   const showRank = finalTerm; // le rang n'apparaît qu'au 3e trimestre, sans rien cocher
   const [passage, setPassage] = useState({});
   const [open, setOpen] = useState(null);
@@ -116,7 +116,7 @@ export default function CouncilGrid({ settings, role, go }) {
           <p className="text-sm text-slate-600">1re STMG · {TERM.label} · conseil le {TERM.council}</p>
         </div>
         <div className="flex flex-wrap gap-2 print:hidden">
-          <label className="flex items-center gap-1.5 text-sm text-slate-600"><input type="checkbox" className="h-6 w-6" checked={finalTerm} onChange={(e) => setFinalTerm(e.target.checked)} />Démonstration : voir le conseil du 3e trimestre (passage, rang)</label>
+          
           <Button variant="secondary" onClick={exportCsv}>Exporter (Excel)</Button>
           <Button variant="secondary" onClick={() => printOnly('.council-print', 'size: A4 landscape;', `Grille du conseil de classe — 1re STMG — ${TERM.label}`)}>Imprimer la grille</Button>
           <Button variant="secondary" onClick={() => go?.('bulletins')}>Bulletins</Button>
@@ -132,8 +132,9 @@ export default function CouncilGrid({ settings, role, go }) {
       </div>
 
       <Card title="Grille de notes" subtitle={`Moyennes /20 par matière · moyenne générale hors ${CLASS_SUBJECTS.filter((s) => excluded.includes(s.id)).map((s) => s.label).join(', ')}`}>
-        <div className="-mx-5 overflow-x-auto print:overflow-visible">
-          <table data-grid className="w-full min-w-[1320px] text-sm print:min-w-0 print:text-[9px]">
+        <p className="mb-1 text-xs text-slate-600 sm:hidden">Faites glisser le tableau vers la gauche pour voir les autres matières, la moyenne générale et la décision.</p>
+        <div className="-mx-5 overflow-x-auto print:overflow-visible" tabIndex={0} role="region" aria-label="Grille de notes du conseil">
+          <table data-grid className="w-full min-w-[1150px] text-sm print:min-w-0 print:text-[9px]">
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50 text-xs text-slate-500">
                 <th className="sticky left-0 z-10 bg-slate-50 px-4 py-2 text-left font-medium">Élève</th>
@@ -147,7 +148,7 @@ export default function CouncilGrid({ settings, role, go }) {
                 {showRank && <th className="px-2 py-2 text-center font-medium">Rang</th>}
                 <th className="px-2 py-2 text-left font-medium">Abs. / Ret.</th>
                 <th className="px-2 py-2 text-left font-medium">Avis des enseignants</th>
-                <th className="px-3 py-2 text-left font-medium">Décision du conseil</th>
+                <th className="px-3 py-2 text-left font-medium">Décision</th>
                 <th className="px-2 py-2 text-center font-medium">Appr. gén.</th>
                 {finalTerm && <th className="px-3 py-2 text-left font-medium">Passage</th>}
               </tr>

@@ -4,12 +4,12 @@ import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, Icon, StudentSelect } from './ui.jsx';
 import { Annotated, RulePanel, GradeCell } from './gradeUi.jsx';
 import { takeIntent, setIntent } from '../navIntent.js';
+import { THEME_SUGGESTIONS, themeOf, saveTheme } from '../termThemeStore.js';
 import {
   TERM, SERVICES, EVALUATIONS, GRADES, REMARKS, competenciesFor, historyFor, levelOf, TEACHER_COMPETENCIES, COUNCIL_FLAGS, CLASS_SUBJECTS, OTHER_AVERAGES,
 } from '../data/grades.js';
 import { studentAverage, notesCount, termValidation, classStats, generalAverage, fmtAvg, parentPublishOn, competencyProposals } from '../rules/grading.js';
-import { checkAppreciation, autoFix } from '../rules/appreciation.js';
-import { generateDraft } from '../rules/assistant.js';
+import { checkAppreciation, autoFix, rephrase } from '../rules/appreciation.js';
 
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
 const fmtDate = (iso) => iso.split('-').reverse().slice(0, 2).join('/');
@@ -301,15 +301,30 @@ function groupProposals(proposals, history) {
   return groups;
 }
 
+/** Parcours d'ouverture : thème du trimestre, choisi par le professeur (il peut changer chaque trimestre). */
+function ThemePicker({ serviceId, fallback }) {
+  const [theme, setTheme] = useState(() => themeOf(serviceId, TERM.id, fallback));
+  const set = (t) => { setTheme(t); saveTheme(serviceId, TERM.id, t); };
+  return (
+    <div className="rounded-lg bg-violet-50 p-2 text-sm">
+      <label className="block text-xs font-medium text-violet-900">Thème abordé ce trimestre ({TERM.label}) : il peut changer d'un trimestre à l'autre
+        <input value={theme} onChange={(e) => set(e.target.value)} className="mt-1 w-full rounded-md border border-violet-200 bg-white px-2 py-1 text-sm" />
+      </label>
+      <div className="mt-1.5 flex flex-wrap gap-1">{THEME_SUGGESTIONS.map((t) => <button key={t} type="button" onClick={() => set(t)} className={`rounded-full px-2 py-0.5 text-xs ring-1 ${theme === t ? 'bg-violet-600 text-white ring-violet-600' : 'bg-white text-violet-900 ring-violet-200'}`}>{t}</button>)}</div>
+    </div>
+  );
+}
+
 /* ---------------- 3. Appréciations ---------------- */
 function AppreciationsStep({ service, evaluations, grades, validated, settings, comments, setComments, flags, setFlags, go }) {
   const [student, setStudent] = useState(service.students[0]);
-  const [seed, setSeed] = useState(0);
+
   const [aiNote, setAiNote] = useState(null);
   const appOnly = service.mode === 'APPRECIATION_SEULE';
   const key = `${service.id}:${student}`;
   const entry = comments[key] ?? { text: '', validated: false };
-  const result = useMemo(() => checkAppreciation(entry.text, { mode: service.mode }), [entry.text, service.mode]);
+  const tutoiement = !!settings?.grading?.allowTutoiement;
+  const result = useMemo(() => checkAppreciation(entry.text, { mode: service.mode, tutoiement }), [entry.text, service.mode, tutoiement]);
   const setText = (text) => { setComments({ ...comments, [key]: { text, validated: false } }); setAiNote(null); };
 
   const avg = studentAverage(evaluations, grades[student]);
@@ -326,7 +341,7 @@ function AppreciationsStep({ service, evaluations, grades, validated, settings, 
     const c = comments[`${service.id}:${s}`];
     if (c?.validated) return 'valid';
     if (!c?.text?.trim()) return 'empty';
-    return checkAppreciation(c.text, { mode: service.mode }).ok ? 'ready' : 'error';
+    return checkAppreciation(c.text, { mode: service.mode, tutoiement }).ok ? 'ready' : 'error';
   };
   const blocked = !appOnly && !validated;
 
@@ -345,7 +360,10 @@ function AppreciationsStep({ service, evaluations, grades, validated, settings, 
       <Card title={student} subtitle={service.subject}
         action={go && <Button variant="secondary" className="!py-1 text-xs" onClick={() => { setIntent('messages', { to: `Parents de ${student} (${service.cls})` }); go('messages'); }}><Icon name="bell" />Écrire aux parents</Button>}>
         {appOnly ? (
-          <Badge tone="violet" className="mb-3">Appréciation seule · sans note</Badge>
+          <div className="mb-3 space-y-2">
+            <Badge tone="violet">Appréciation seule · sans note</Badge>
+            <ThemePicker serviceId={service.id} fallback={service.subject.split(' — ')[1] ?? ''} />
+          </div>
         ) : (
           <div className="mb-3 grid gap-2 sm:grid-cols-2">
             <div className="rounded-lg bg-slate-50 p-3">
@@ -376,12 +394,10 @@ function AppreciationsStep({ service, evaluations, grades, validated, settings, 
         )}
         {aiNote && <p className="mt-2 flex items-center gap-1.5 text-xs text-violet-700"><Icon name="sparkles" />{aiNote}</p>}
         <div className="mt-3 flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => {
-            setText(generateDraft({ firstName: firstName(student), subject: service.subject, mode: service.mode, strand: service.strand, average: avg ?? 10, trend: 'stable', seed }));
-            setSeed(seed + 1);
-            setAiNote('Proposition générée et vérifiée par le contrôleur. À relire et ajuster avant validation.');
-          }}><Icon name="sparkles" className="h-4 w-4 text-violet-600" />Proposer avec l'assistant</Button>
-          <Button variant="secondary" disabled={!entry.text.trim() || autoFix(entry.text) === entry.text.trim()} onClick={() => setText(autoFix(entry.text))}>Corriger la forme</Button>
+          {/* l'enseignant écrit ; l'outil ne fait que reformuler son texte (jamais de texte inventé) */}
+          <Button variant="secondary" disabled={!entry.text.trim() || rephrase(entry.text, firstName(student)) === entry.text.trim()} onClick={() => { setText(rephrase(entry.text, firstName(student))); setAiNote('Texte reformulé (3e personne, impératifs, ponctuation). Relisez avant de valider.'); }}>
+            <Icon name="sparkles" className="h-4 w-4 text-violet-600" />Reformuler mon texte</Button>
+          <Button variant="secondary" title="Espaces en trop, majuscule au début, point final" disabled={!entry.text.trim() || autoFix(entry.text) === entry.text.trim()} onClick={() => setText(autoFix(entry.text))}>Corriger la ponctuation</Button>
           <Button className="ml-auto" disabled={!result.ok || entry.validated || blocked}
             onClick={() => setComments({ ...comments, [key]: { ...entry, validated: true } })}>
             <Icon name="check" />{entry.validated ? 'Validée' : 'Valider l\'appréciation'}

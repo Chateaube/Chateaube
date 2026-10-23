@@ -6,7 +6,6 @@ import { CLASS_LIST } from '../data/people.js';
 import { TLE_G_SUBJECTS, TLE_G_STUDENTS } from '../data/bulletins.js';
 import { COMPETENCY_HISTORY } from '../data/competencyHistory.js';
 import { studentAverage, generalAverage, classStats } from '../rules/grading.js';
-import { loadGA } from '../appreciationStore.js';
 import { onBulletin } from '../rules/generalAppreciation.js';
 import { subjectsOf, subjectClassAverage, classLine, specialtyErrors, SPECIALTIES, orderSubjects, moveSubject } from '../rules/bulletin.js';
 import { loadImport, saveImport } from '../importStore.js';
@@ -15,6 +14,7 @@ import { formatDateFr } from '../rules/calendar.js';
 import { printOnly } from '../print.js';
 import { loadTasks, saveTasks } from '../tasksStore.js';
 import BulletinHandover from './BulletinHandover.jsx';
+import { loadGA } from '../appreciationStore.js';
 import { loadEngagements, loadCatalogue, loadValidation } from '../engagementsStore.js';
 import { engagementLabels, attestationLabels } from '../rules/engagements.js';
 
@@ -171,7 +171,9 @@ export default function BulletinsModule({ settings, role, go, onChange }) {
   const [cls, setCls] = useState(CLASSES[0][0]);
   const [version, setVersion] = useState(0); // spécialités modifiées
   const [showGeneral, setShowGeneral] = useState(false);
-  const [general, setGeneral] = useState({});
+  // appréciation générale : une seule saisie, au conseil de classe ; le bulletin reprend celle validée
+  const [ga] = useState(loadGA);
+  const generalOf = (name) => (ga[name]?.status === 'VALIDEE' ? ga[name].text ?? '' : '');
   const bulletins = useMemo(() => CLASSES.find(([c]) => c === cls)[1](settings).map((b) => ({ ...b, rows: orderSubjects(b.rows, settings.bulletin?.subjectOrder) })), [cls, settings, version]);
   const margin = marginOf(settings);
   const [student, setStudent] = useState(bulletins[0].student);
@@ -183,7 +185,7 @@ export default function BulletinsModule({ settings, role, go, onChange }) {
   const [engagements] = useState(loadEngagements);
   const [custom] = useState(loadCatalogue);
   const validated = loadValidation()[TERM.id];
-  const enrich = (x) => ({ ...x, showGeneral, generalAppreciation: general[`${cls}:${x.student}`] ?? '', engagements: engagementLabels(engagements[x.student], x.sex, custom), attestations: attestationLabels(engagements[x.student], custom) });
+  const enrich = (x) => ({ ...x, showGeneral, generalAppreciation: generalOf(x.student), engagements: engagementLabels(engagements[x.student], x.sex, custom), attestations: attestationLabels(engagements[x.student], custom) });
   // Mesure de chaque bulletin à la taille d'impression : 1 page (recto) ou 2 (recto-verso), jamais plus
   useLayoutEffect(() => {
     const el = measureRef.current;
@@ -195,7 +197,7 @@ export default function BulletinsModule({ settings, role, go, onChange }) {
       out[n.dataset.student] = { normal, printed: normal };
     });
     setPages(out);
-  }, [bulletins, showGeneral, general, margin]);
+  }, [bulletins, showGeneral, ga, margin]);
   const pagesOf = (name) => pages[name]?.printed ?? 1;
   const tooLong = bulletins.filter((x) => pagesOf(x.student) > 2);
 
@@ -247,10 +249,10 @@ export default function BulletinsModule({ settings, role, go, onChange }) {
           <StudentSelect students={bulletins.map((x) => x.student)} value={current.student} onChange={setStudent} />
           <label className="flex items-center gap-1.5 pb-2 text-xs text-slate-600"><input type="checkbox" checked={showGeneral} onChange={(e) => setShowGeneral(e.target.checked)} />Afficher la moyenne générale</label>
         </div>
-        <label className="mt-3 block text-xs font-medium text-slate-600">Appréciation générale (Cheffe d'établissement, après le conseil)
-          <textarea rows={2} value={general[`${cls}:${current.student}`] ?? ''} onChange={(e) => setGeneral({ ...general, [`${cls}:${current.student}`]: e.target.value })}
-            className="mt-1 w-full rounded-xl border border-slate-200 p-2 text-sm" placeholder="Ex. Très bonne progression globale sur l'année. Investissement sérieux et résultats solides." />
-        </label>
+        <div className={`mt-3 rounded-lg px-3 py-2 text-xs ${generalOf(current.student) ? 'bg-slate-50 text-slate-800' : 'bg-amber-50 text-amber-900'}`}>
+          <strong>Appréciation générale (validée au conseil) :</strong> {generalOf(current.student) || 'pas encore validée au conseil de classe : le bulletin sortirait sans appréciation générale.'}
+          {go && <button type="button" onClick={() => go('council')} className="ml-2 font-semibold underline">{generalOf(current.student) ? 'Corriger dans le conseil' : 'Ouvrir le conseil'}</button>}
+        </div>
         {cls === IMPORTED && <p className="mt-2 text-xs text-slate-500">Élèves importés : moyennes et appréciations vides tant que les enseignants n'ont pas saisi leurs notes. La mise en page et les spécialités sont celles du vrai bulletin.</p>}
         <div className={`mt-3 rounded-lg px-3 py-2 text-xs ${validated ? 'bg-emerald-50 text-emerald-900' : 'bg-amber-50 text-amber-900'}`}>
           <strong>Engagements et attestations — {current.student} :</strong> {[...engagementLabels(engagements[current.student], current.sex, custom), ...attestationLabels(engagements[current.student], custom)].join(' · ') || 'aucun'}.
