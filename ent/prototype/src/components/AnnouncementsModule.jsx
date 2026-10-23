@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Badge, Button, Card, Icon } from './ui.jsx';
-import { ROLES, SCOPES, CYCLES, LEVELS, recipientCount, audienceLabel, announcementErrors, receives, whatsappText } from '../rules/announcements.js';
+import { ROLES, SCOPES, CYCLES, LEVELS, recipientCount, audienceLabel, announcementErrors, receives } from '../rules/announcements.js';
 import { SITES, POPULATION } from '../data/announcements.js';
 import { loadAnnouncements, saveAnnouncement, removeAnnouncement, acknowledge, acked } from '../announcementsStore.js';
 import { STATUS, canWrite, canPublish, create, edit, submit, approve, sendBack, withdraw, signature, trail, workView, forward, cpeSendBack, REVIEWER } from '../rules/publication.js';
@@ -101,7 +101,6 @@ export default function AnnouncementsModule({ role, account }) {
   const [editingId, setEditingId] = useState(null);
   const [data, setData] = useState(loadAnnouncements);
   const [tried, setTried] = useState(false);
-  const [copied, setCopied] = useState(null);
   const [msg, setMsg] = useState('');
   const fileRef = useRef(null);
   const au = d.audience;
@@ -257,7 +256,7 @@ export default function AnnouncementsModule({ role, account }) {
             const n = recipientCount(a.audience, POPULATION);
             const reach = n.families + n.students + n.teachers + n.staff;
             return (
-              <li key={a.id} className="flex flex-wrap items-start justify-between gap-3 py-3">
+              <li key={a.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-slate-900">{a.pinned && <Badge tone="amber">épinglée</Badge>} {a.title}</p>
                   <p className="text-xs text-slate-600">{signature(a)} · {fmt(a.publishedAt ?? a.at)} · {audienceLabel(a.audience, SITES)}{a.photos?.length ? ` · ${a.photos.length} photo(s)` : ''}</p>
@@ -265,7 +264,6 @@ export default function AnnouncementsModule({ role, account }) {
                   {a.ack && <p className="text-xs text-navy-700">« Bien reçu » : {Math.min(a.reads ?? 0, reach)} / {reach}</p>}
                 </div>
                 <span className="flex gap-2">
-                  <Button variant="secondary" className="!py-1 text-xs" onClick={() => { navigator.clipboard?.writeText(whatsappText({ ...a, author: signature(a) })); setCopied(a.id); }}>{copied === a.id ? 'Copié' : 'Copier pour WhatsApp'}</Button>
                   {publisher && <Button variant="ghost" className="!py-1 text-xs text-red-700" onClick={() => { saveAnnouncement(withdraw(a, actorOf())); refresh('Annonce retirée.'); }}>Retirer</Button>}
                 </span>
               </li>

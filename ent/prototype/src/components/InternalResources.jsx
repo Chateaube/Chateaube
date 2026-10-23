@@ -64,7 +64,7 @@ export default function InternalResources({ role }) {
     <div className="space-y-5">
       <div>
         <p className="text-sm font-semibold text-navy-500">Élèves, parents, professeurs, équipe · Tamatave</p>
-        <h1 className="text-2xl font-semibold text-navy-900">Documents et ressources</h1>
+        <h1 className="text-2xl font-semibold text-navy-900">Ressources et idées</h1>
         <p className="text-sm text-slate-500">Chacun voit les documents de son public : règlement intérieur, chartes, guides… Les ressources de l'équipe se consultent dans l'ENT seulement. Pour une information ponctuelle, utilisez Annonces.</p>
       </div>
       <div className="flex gap-1 rounded-lg bg-slate-100 p-1" role="tablist">

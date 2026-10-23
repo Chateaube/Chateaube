@@ -24,14 +24,14 @@ export function studentsCsv(list, title) {
   const g = (p, i, k) => p.guardians?.[i]?.[k] ?? '';
   const head = ['N°', 'Classe', 'Nom', 'Prénom(s)', 'Prénom d\'usage', 'Sexe', 'Né(e) le', 'Lieu de naissance', 'Nationalité(s)', 'Spécialités',
     'Entrée', 'Ancienneté', 'Établissement d\'origine', 'E-mail élève', 'Téléphone élève',
-    ...[1, 2].flatMap((n) => [`Responsable ${n}`, `Lien ${n}`, `Téléphone ${n}`, `E-mail ${n}`, `WhatsApp ${n}`, `Règle les frais ${n}`]),
+    ...[1, 2].flatMap((n) => [`Responsable ${n}`, `Lien ${n}`, `Téléphone ${n}`, `E-mail ${n}`, `Règle les frais ${n}`]),
     'Allergies / traitement', 'Contact d\'urgence', 'Droit à l\'image', 'Sortie', 'Pièces manquantes', 'Photo'];
   const rows = sortStudents(list).map((p) => [
     p.number ?? '', p.cls, p.lastName, p.firstName, usualFirstName(p), p.sex === 'F' ? 'F' : p.sex === 'M' ? 'M' : '', fr(p.birthDate), p.birthPlace ?? '',
     nationalityLabels(p.nationalities ?? [], p.otherNationality).join(', '), (p.specialties ?? []).map((k) => SPECIALTIES[k] ?? k).join(', '),
     fr(p.enteredOn), seniority(p.enteredOn)?.isNew ? 'Nouveau' : seniority(p.enteredOn) ? `${seniority(p.enteredOn).years} an(s)` : '', p.previousSchool ?? '',
     p.email ?? '', (p.phones ?? []).map((x) => x.value ?? x).join(' / '),
-    ...[0, 1].flatMap((i) => [g(p, i, 'name'), g(p, i, 'relation'), g(p, i, 'phone'), g(p, i, 'email'), p.guardians?.[i] ? (p.guardians[i].whatsapp ? 'oui' : 'non') : '', p.guardians?.[i] ? (p.guardians[i].payer ? 'oui' : 'non') : '']),
+    ...[0, 1].flatMap((i) => [g(p, i, 'name'), g(p, i, 'relation'), g(p, i, 'phone'), g(p, i, 'email'), p.guardians?.[i] ? (p.guardians[i].payer ? 'oui' : 'non') : '']),
     p.health?.allergies ?? '', p.health?.emergency ?? '', p.authorizations?.image ? 'oui' : 'non', p.authorizations?.exit ?? '',
     missingDocuments(p, 'REINSCRIPTION').map((d) => d.label).join(', '), p.photo ? 'oui' : 'non',
   ]);

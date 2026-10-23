@@ -14,7 +14,7 @@ const KIND_UI = {
   FERMETURE: { tone: 'amber', label: 'Fermeture' },
 };
 // Pas de SMS (aucun budget prévu) : e-mail et notification de l'application
-const CHANNELS = [['EMAIL', 'E-mail'], ['PUSH', 'Notification de l\'application'], ['WHATSAPP', 'WhatsApp']];
+const CHANNELS = [['EMAIL', 'E-mail'], ['PUSH', 'Notification de l\'application']]; // ni SMS ni WhatsApp
 const MONTH_ABBR = { 9: 'Sept.', 10: 'Oct.', 11: 'Nov.', 12: 'Déc.', 1: 'Janv.', 2: 'Févr.', 3: 'Mars', 4: 'Avr.', 5: 'Mai', 6: 'Juin', 7: 'Juil.', 8: 'Août' };
 const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 const yearOf = (month, settings) => Number((month >= 9 ? settings.schoolYear.start : settings.schoolYear.end).slice(0, 4));
@@ -334,10 +334,6 @@ export default function SettingsModule({ settings, onChange, onReset }) {
                     </label>
                   ))}
                 </div>
-                {d.channels.includes('WHATSAPP') && (
-                  <p className="mt-2 rounded-lg bg-emerald-50 p-2.5 text-xs text-emerald-800">WhatsApp : envoi automatique par l'API WhatsApp Business (payant au message, avec des modèles de messages validés par Meta),
-                    ou envoi manuel gratuit depuis le téléphone du secrétariat grâce à un lien « Envoyer sur WhatsApp » prérempli. Seuls les responsables ayant coché WhatsApp sur la fiche élève le reçoivent.</p>
-                )}
               </div>
             </div>
           </Card>

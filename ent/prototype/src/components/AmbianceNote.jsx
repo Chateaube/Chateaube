@@ -37,9 +37,9 @@ export default function AmbianceBand({ ambiance }) {
   const noteId = `amb-note-${uid}`;
   return (
     <aside aria-label="Ambiance du moment" className="amb-band print:hidden">
-      <div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-x-3 gap-y-1 px-4 py-1.5 text-sm lg:px-8">
-        <p><span aria-hidden="true">{ambiance.symbol} </span><strong>{ambiance.label}</strong>{ambiance.greeting && ambiance.greeting !== ambiance.label ? ` — ${ambiance.greeting}` : ''}</p>
-        {ambiance.note && <button type="button" aria-expanded={open} aria-controls={noteId} onClick={() => toggle(!open)} className="text-xs font-semibold">{open ? 'Replier' : 'Le saviez-vous ?'}</button>}
+      <div className="mx-auto flex max-w-[1500px] items-center gap-x-3 px-4 py-1 text-sm sm:flex-wrap sm:py-1.5 lg:px-8">
+        <p className="min-w-0 truncate sm:whitespace-normal"><span aria-hidden="true">{ambiance.symbol} </span><strong>{ambiance.label}</strong><span className="hidden sm:inline">{ambiance.greeting && ambiance.greeting !== ambiance.label ? ` — ${ambiance.greeting}` : ''}</span></p>
+        {ambiance.note && <button type="button" aria-expanded={open} aria-controls={noteId} onClick={() => toggle(!open)} className="shrink-0 text-xs font-semibold">{open ? 'Replier' : 'Le saviez-vous ?'}</button>}
       </div>
       {ambiance.note && open && <div className="mx-auto max-w-[1500px] px-4 pb-3 lg:px-8"><AmbianceCard ambiance={ambiance} id={noteId} onClose={() => toggle(false)} /></div>}
     </aside>

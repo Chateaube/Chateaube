@@ -45,7 +45,8 @@ export const EXAM_FEES = [
   { exam: 'Bac', site: 'TANA', level: 'Tle', unit: 600_000, candidates: 36, paid: 33, center: 'Lycée Français de Tananarive' },
 ];
 
-export const CANDIDATE_FILES = { total: 188, complete: 141, incomplete: 39, toBuild: 8, deadline: '2026-10-30' };
+// candidats DNB et bac de Tamatave (3e, 1re, Terminale)
+export const CANDIDATE_FILES = { total: 62, complete: 41, incomplete: 15, toBuild: 6, deadline: '2026-10-30' };
 
 export const TRANSFER = {
   label: 'Transfert 1re & Terminale · Tamatave → Tana',

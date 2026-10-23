@@ -82,22 +82,22 @@ const MESSAGES = { id: 'messages', label: 'Messages', icon: 'bell', screen: ({ r
 ) };
 const MANUALS = { id: 'manuals', label: 'Manuels scolaires', icon: 'cap', screen: ManualsModule };
 const FEEDBACK = { id: 'feedback', label: 'Avis du pilote', icon: 'bell', screen: FeedbackModule };
-const LIBRARY = { id: 'library', label: 'Bibliothèque (salle d\'étude)', icon: 'pen', screen: LibraryModule, feature: 'bibliotheque' };
+const LIBRARY = { id: 'library', label: 'Bibliothèque', icon: 'pen', screen: LibraryModule, feature: 'bibliotheque' };
 const IMPORT = { id: 'import', label: 'Importer et sauvegarder', icon: 'swap', screen: ImportModule };
 const GRADE_SHEETS = { id: 'grade-sheets', label: 'Grilles de notes', icon: 'pen', screen: GradeSheets };
 const BOOKS_FOR_TEACHER = { id: 'books', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who="Mme Ranaivo" kind="PROF" /> };
 const TT_CHANGES = { id: 'tt-changes', label: 'Changements d\'emploi du temps', icon: 'clock', screen: TimetableChanges };
 const HOURS = { id: 'hours', label: 'Heures et absences des profs', icon: 'clock', screen: TeachingHours };
-const RESOURCES = { id: 'resources', label: 'Documents, ressources et idées', icon: 'pen', screen: InternalResources };
+const RESOURCES = { id: 'resources', label: 'Ressources et idées', icon: 'pen', screen: InternalResources };
 const MOCK_EXAMS = { id: 'mock-exams', label: 'Examens blancs', icon: 'cap', screen: MockExamsModule, feature: 'examens-blancs' };
 const CARE = { id: 'care', label: 'Soins et infirmerie', icon: 'care', screen: CareModule, feature: 'soins' };
 const INVENTORY = { id: 'inventory', label: 'Inventaire du matériel', icon: 'box', screen: InventoryModule, feature: 'inventaire' };
 const AGENDA = { id: 'agenda', label: 'Agendas', icon: 'calendar', screen: AgendaModule };
 const NEWS = { id: 'news', label: 'Annonces', icon: 'megaphone', screen: AnnouncementsModule };
-const SCHOOL_LIFE = { id: 'school-life', label: 'Vie de l\'école (photos)', icon: 'sparkles', screen: SchoolLifeModule, feature: 'vie-ecole' };
+const SCHOOL_LIFE = { id: 'school-life', label: 'Vie de l\'école', icon: 'sparkles', screen: SchoolLifeModule, feature: 'vie-ecole' };
 const STUDENT_LIST = { id: 'students-list', label: 'Liste des élèves', icon: 'users', screen: StudentList };
 const SIGNATURES = { id: 'signatures', label: 'Documents à signer', icon: 'pen', screen: SignaturesModule };
-const FOLLOW_UP = { id: 'followup', label: 'Documents, stages et orientation', icon: 'pen', screen: FollowUpModule };
+const FOLLOW_UP = { id: 'followup', label: 'Autorisations, stages et orientation', icon: 'pen', screen: FollowUpModule };
 const ACCOUNTING = { id: 'accounting', label: 'Caisse et comptabilité', icon: 'wallet', screen: AccountingModule };
 const STUDENT_FILE = { id: 'student-file', label: 'Fil de l\'élève', icon: 'clock', screen: StudentTimeline };
 const FOLLOWUPS = { id: 'student-followups', label: 'Suivis individuels', icon: 'users', screen: FollowUpsModule };
@@ -464,11 +464,12 @@ export default function App() {
         )}
         <main id="contenu" tabIndex={-1} className="min-w-0 flex-1 focus:outline-none">
           {notes.urgent.length > 0 && (
-            <div role="alert" className="print:hidden mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
-              <span className="font-bold">⚠ Urgent</span>
-              <span className="min-w-0 flex-1">{notes.urgent.map((u) => u.text).join(' · ')}</span>
-              <button onClick={() => goTo(notes.urgent[0].to)} className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white">Voir</button>
-              <button onClick={() => { markSeen(notes.urgent.map((u) => u.id)); setTick((t) => t + 1); }} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-red-800 ring-1 ring-red-300">J'ai vu</button>
+            <div role="alert" className="print:hidden mb-4 flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900 sm:gap-3 sm:px-4 sm:py-3">
+              <span className="shrink-0 font-bold">⚠<span className="hidden sm:inline"> Urgent</span></span>
+              {/* une seule ligne sur téléphone ; le détail est dans « Voir » */}
+              <span className="min-w-0 flex-1 truncate sm:whitespace-normal">{notes.urgent.map((u) => u.text).join(' · ')}</span>
+              <button onClick={() => goTo(notes.urgent[0].to)} className="shrink-0 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white">Voir</button>
+              <button onClick={() => { markSeen(notes.urgent.map((u) => u.id)); setTick((t) => t + 1); }} className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold text-red-800 ring-1 ring-red-300">J'ai vu</button>
             </div>
           )}
           {currentItem?.readOnly && <p className="mb-3 inline-block rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">Consultation seulement</p>}

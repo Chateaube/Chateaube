@@ -242,7 +242,6 @@ function ProfileForm({ initial, kind, onSave, onCancel }) {
               <Field label="E-mail (compte Google)"><input value={g.email} onChange={(e) => setG(i, { email: e.target.value })} className={`w-full ${inputCls}`} /></Field>
               <div className="flex flex-wrap items-end gap-3 pb-1.5 text-xs text-slate-600">
                 <label className="flex items-center gap-1"><input type="radio" name="payer" checked={g.payer} onChange={() => setG(i, { payer: true })} />Responsable financier</label>
-                <label className="flex items-center gap-1"><input type="checkbox" checked={g.whatsapp} onChange={(e) => setG(i, { whatsapp: e.target.checked })} />WhatsApp</label>
                 {p.guardians.length > 1 && <button type="button" aria-label="Retirer ce responsable" onClick={() => set({ guardians: p.guardians.filter((_, k) => k !== i) })} className="rounded p-1 text-slate-400 hover:text-red-600"><Icon name="x" /></button>}
               </div>
             </div>
@@ -357,7 +356,7 @@ function ProfileCard({ p, onReenrol, onComplete, created }) {
               <li key={g.name} className="flex items-start gap-2">
                 <Avatar name={g.name} className="h-7 w-7 text-[10px]" />
                 <span className="min-w-0">{g.name} <span className="text-slate-500">({g.relation})</span>
-                  <span className="block text-xs text-slate-500">{g.phone}{g.whatsapp ? ' · WhatsApp' : ''}{g.email ? ` · ${g.email}` : ''}</span>
+                  <span className="block text-xs text-slate-500">{g.phone}{g.email ? ` · ${g.email}` : ''}</span>
                   <span className="flex flex-wrap gap-1">{g.payer && <Badge tone="navy">responsable financier</Badge>}</span>
                 </span>
               </li>

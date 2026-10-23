@@ -24,7 +24,7 @@ export function BulletinSheet({ b }) {
           <p>{b.classLine}</p>
         </div>
       </div>
-      <table className="mt-5 w-full border-collapse" style={{ tableLayout: 'fixed' }}>
+      <table data-grid className="mt-5 w-full border-collapse" style={{ tableLayout: 'fixed' }}>
         <colgroup><col style={{ width: '17%' }} /><col style={{ width: '37%' }} /><col style={{ width: '7%' }} /><col style={{ width: '7%' }} /><col style={{ width: '32%' }} /></colgroup>
         <thead>
           <tr className="text-[10px] font-bold">

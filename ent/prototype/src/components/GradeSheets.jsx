@@ -54,7 +54,7 @@ export function AveragesSheet({ cls, subjects, sheet, showRank = true, extra = [
   return (
     <div className="grade-sheet bg-white p-4 text-[10px] text-black" style={{ fontFamily: 'Poppins, sans-serif' }}>
       <SheetHeader title="Grille des moyennes" cls={cls} />
-      <table className="w-full border-collapse">
+      <table data-grid className="w-full border-collapse">
         <thead>
           <tr>
             <th className="border border-black px-1.5 py-1 text-left">Élève</th>
@@ -99,7 +99,7 @@ export function DetailSheet({ cls, service, sheet }) {
   return (
     <div className="grade-sheet bg-white p-4 text-[10px] text-black" style={{ fontFamily: 'Poppins, sans-serif' }}>
       <SheetHeader title={`Grille de notes — ${service.subject}`} cls={cls} />
-      <table className="w-full border-collapse">
+      <table data-grid className="w-full border-collapse">
         <thead>
           <tr>
             <th className="border border-black px-1.5 py-1 text-left">Élève</th>

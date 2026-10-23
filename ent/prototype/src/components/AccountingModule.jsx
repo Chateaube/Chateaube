@@ -391,7 +391,7 @@ export default function AccountingModule({ settings, role, account }) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-navy-500">Espace comptabilité · Tamatave</p>
-          <h1 className="text-2xl font-semibold text-navy-900">Comptabilité</h1>
+          <h1 className="text-2xl font-semibold text-navy-900">Caisse et comptabilité</h1>
           <p className="text-sm text-slate-500">Trois journaux étanches : frais de scolarité, frais annexes, droits d'examen.</p>
         </div>
       </div>

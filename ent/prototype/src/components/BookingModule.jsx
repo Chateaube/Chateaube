@@ -133,7 +133,7 @@ export default function BookingModule({ role }) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-navy-500">Ressources pédagogiques</p>
-          <h1 className="text-2xl font-semibold text-navy-900">Réservation de matériel</h1>
+          <h1 className="text-2xl font-semibold text-navy-900">Réservations de matériel</h1>
           <p className="text-sm text-slate-500">Vidéoprojecteurs, enceintes, TV, salles spécialisées et matériel informatique — par site.</p>
         </div>
         <div className="inline-flex rounded-lg bg-slate-100 p-1" role="tablist" aria-label="Site">

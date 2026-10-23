@@ -18,7 +18,7 @@ export default function ExamResultCard({ session, student, official }) {
     <section aria-label={`Relevé — ${session.title}`} className="rounded-2xl bg-white p-4 shadow-soft">
       <p className="text-xs text-slate-600">{exam.official} · examen blanc du {fr(session.date)}</p>
       <h2 className="font-display text-[15px] font-semibold text-slate-900">{session.title}</h2>
-      <table className="mt-2 w-full text-sm">
+      <table data-grid className="mt-2 w-full text-sm">
         <thead><tr className="text-left text-xs text-slate-600"><th className="py-1 font-medium">Épreuve</th><th className="px-1 text-right font-medium">Coef.</th><th className="text-right font-medium">Note /20</th></tr></thead>
         <tbody>
           {exam.parts.map((p) => {
@@ -62,7 +62,7 @@ function FullBacCard({ session, student, official }) {
     <section aria-label={`Relevé — ${session.title}`} className="rounded-2xl bg-white p-4 shadow-soft">
       <p className="text-xs text-slate-600">{exam.official} · bac blanc du {fr(session.date)}</p>
       <h2 className="font-display text-[15px] font-semibold text-slate-900">{session.title} — relevé complet</h2>
-      <table className="mt-2 w-full text-sm">
+      <table data-grid className="mt-2 w-full text-sm">
         <thead><tr className="text-left text-xs text-slate-600"><th className="py-1 font-medium">Épreuve</th><th className="px-1 text-right font-medium">Coef.</th><th className="px-1 text-right font-medium">Note</th><th className="text-right font-medium">Points</th></tr></thead>
         {full.sections.map((sec) => (
           <tbody key={sec.title}>

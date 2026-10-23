@@ -112,8 +112,8 @@ export default function CouncilGrid({ settings, role, go }) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-navy-500">Conseil de classe · Direction et secrétariat uniquement</p>
-          <h1 className="text-2xl font-semibold text-navy-900">1re STMG — {TERM.label}</h1>
-          <p className="text-sm text-slate-500">Tamatave · conseil le {TERM.council}</p>
+          <h1 className="text-2xl font-semibold text-navy-900">Conseils de classe</h1>
+          <p className="text-sm text-slate-600">1re STMG · {TERM.label} · conseil le {TERM.council}</p>
         </div>
         <div className="flex flex-wrap gap-2 print:hidden">
           <label className="flex items-center gap-1.5 text-sm text-slate-600"><input type="checkbox" className="h-6 w-6" checked={finalTerm} onChange={(e) => setFinalTerm(e.target.checked)} />Démonstration : voir le conseil du 3e trimestre (passage, rang)</label>
@@ -133,7 +133,7 @@ export default function CouncilGrid({ settings, role, go }) {
 
       <Card title="Grille de notes" subtitle={`Moyennes /20 par matière · moyenne générale hors ${CLASS_SUBJECTS.filter((s) => excluded.includes(s.id)).map((s) => s.label).join(', ')}`}>
         <div className="-mx-5 overflow-x-auto print:overflow-visible">
-          <table className="w-full min-w-[1320px] text-sm print:min-w-0 print:text-[9px]">
+          <table data-grid className="w-full min-w-[1320px] text-sm print:min-w-0 print:text-[9px]">
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50 text-xs text-slate-500">
                 <th className="sticky left-0 z-10 bg-slate-50 px-4 py-2 text-left font-medium">Élève</th>

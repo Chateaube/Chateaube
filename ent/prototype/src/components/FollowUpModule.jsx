@@ -256,7 +256,7 @@ export default function FollowUpModule() {
     <div className="space-y-5">
       <div>
         <p className="text-sm font-semibold text-navy-500">Familles · Tamatave</p>
-        <h1 className="text-2xl font-semibold text-navy-900">Documents, stages & orientation</h1>
+        <h1 className="text-2xl font-semibold text-navy-900">Autorisations, stages et orientation</h1>
       </div>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Droit à l'image sans réponse" value="14" tone="amber" />

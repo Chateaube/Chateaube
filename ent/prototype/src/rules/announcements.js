@@ -80,5 +80,3 @@ export function announcementErrors(a, { role } = {}) {
   return e;
 }
 
-/** Texte prêt à coller dans un groupe WhatsApp. */
-export const whatsappText = (a) => `*${a.title}*\n\n${a.text}\n\n— ${a.author}, École Collège Lycée Chateaubriand`;

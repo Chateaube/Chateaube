@@ -49,6 +49,8 @@ function ProposalReview({ onChange, role }) {
 
 const CLASSES = ['5e', '4e', '3e', '2de', '1re STMG', '1re Générale', 'Terminale STMG', 'Terminale Générale'];
 const START = '2026-10-12';
+const FAMILY_LABEL = { EXAMENS: 'Examens', ECOLE: 'École' };
+const WINDOW_DAYS = 21; // trois semaines affichées, puis « Voir la suite »
 const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 
 /** Version téléphone (parents, élèves) : une bande de dates, puis le programme du jour choisi. */
@@ -56,14 +58,16 @@ function DayAgenda({ visible, shown, setShown, available, today }) {
   const dates = [...new Set(visible.filter((i) => i.date >= today).map((i) => i.date))].slice(0, 30);
   const [day, setDay] = useState(dates[0]);
   const list = visible.filter((i) => i.date === day);
+  const following = dates.slice(dates.indexOf(day) + 1, dates.indexOf(day) + 4);
   const short = (iso) => formatDateFr(iso).split(' ');
   return (
     <div className="space-y-3">
       <h1 className="px-1 font-display text-lg font-semibold text-navy-900">Agenda</h1>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Afficher">
+        <span className="text-xs text-slate-600">Afficher :</span>
         {available.map((k) => (
           <button key={k} type="button" aria-pressed={shown.includes(k)} onClick={() => setShown(shown.includes(k) ? shown.filter((x) => x !== k) : [...shown, k])}
-            className={`rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ${shown.includes(k) ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-600 ring-slate-300'}`}>{AGENDAS[k].label}</button>
+            className={`min-h-[36px] rounded-full px-3 text-xs font-medium ring-1 ${shown.includes(k) ? 'bg-navy-50 text-navy-900 ring-navy-300' : 'bg-white text-slate-500 ring-slate-200 line-through'}`}>{shown.includes(k) ? '✓ ' : ''}{FAMILY_LABEL[k] ?? AGENDAS[k].label}</button>
         ))}
       </div>
       <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1" role="tablist" aria-label="Jours">
@@ -89,6 +93,12 @@ function DayAgenda({ visible, shown, setShown, available, today }) {
           ))}
         </ul>
       </div>
+      {following.map((d) => (
+        <div key={d} className="rounded-2xl bg-white/70 p-3">
+          <p className="mb-1 text-xs font-semibold text-slate-500">{cap(formatDateFr(d))}</p>
+          <ul className="space-y-1">{visible.filter((i) => i.date === d).map((i) => <li key={i.id} className="flex gap-2 text-sm"><span className="w-[86px] shrink-0 text-xs tabular-nums text-slate-600">{i.allDay ? 'journée' : i.start.replace(':', 'h')}</span><span className={`min-w-0 flex-1 ${i.status === 'ANNULE' ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{i.title}</span></li>)}</ul>
+        </div>
+      ))}
     </div>
   );
 }
@@ -105,13 +115,18 @@ export default function AgendaModule({ role, cls: fixedCls, settings, compact = 
   const courses = useMemo(() => plannedSessions(role === 'ENSEIGNANT' ? loadTimetable().filter((x) => x.teacherId === 'p1') : loadTimetable(), '2026-10-12', '2026-11-06', settings ?? DEFAULT_SETTINGS)
     .map((x) => ({ id: `${x.slotId}-${x.date}`, date: x.date, start: x.start, end: x.end, cls: x.cls, subject: x.subject, room: '' })), [role, settings]);
   const closures = useMemo(() => closuresAsEvents((settings ?? DEFAULT_SETTINGS).calendar), [settings]);
-  const items = useMemo(() => agendaItems({ sessions: applyChanges(courses, loadChanges()), events: [...closures, ...events], homework: HOMEWORK, cls: cls || null, staff })
+  // l'enseignant ne voit que les devoirs de ses classes
+  const myClasses = role === 'ENSEIGNANT' ? new Set(courses.map((x) => x.cls)) : null;
+  const items = useMemo(() => agendaItems({ sessions: applyChanges(courses, loadChanges()), events: [...closures, ...events], homework: myClasses ? HOMEWORK.filter((h) => myClasses.has(h.cls)) : HOMEWORK, cls: cls || null, staff })
     .filter((i) => (i.allDay && i.end?.length === 10 ? i.end : i.date) >= START), [cls, events, staff, courses, closures]);
   const all = items.filter((i) => shown.includes(i.agenda) && available.includes(i.agenda));
   // personnel sans classe choisie (Direction, CPE, secrétariat) : vue d'ensemble, les cours ordinaires sont comptés
   const summary = !compact && !cls && role !== 'ENSEIGNANT' ? overview(all) : null;
   const visible = summary ? summary.items : all;
-  const days = [...new Set([...visible.map((i) => i.date), ...Object.keys(summary?.counts ?? {})])].sort();
+  const [weeks, setWeeks] = useState(1);
+  const until = (() => { const d = new Date(`${today}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + WINDOW_DAYS * weeks); return d.toISOString().slice(0, 10); })();
+  const allDays = [...new Set(visible.map((i) => i.date))].sort();
+  const days = allDays.filter((d) => d <= until);
   const exportIcs = (agenda) => saveFile(`agenda-${agenda.toLowerCase()}${cls ? `-${cls.replace(/\s+/g, '-')}` : ''}.ics`,
     toIcs(items.filter((i) => i.agenda === agenda), `Chateaubriand — ${AGENDAS[agenda].label}${cls ? ` — ${cls}` : ''}`));
 
@@ -132,7 +147,7 @@ export default function AgendaModule({ role, cls: fixedCls, settings, compact = 
           )}
           {available.map((k) => [k, AGENDAS[k]]).map(([k, a]) => (
             <button key={k} type="button" title={a.hint} aria-pressed={shown.includes(k)} onClick={() => setShown(shown.includes(k) ? shown.filter((x) => x !== k) : [...shown, k])}
-              className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${shown.includes(k) ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-600 ring-slate-300'}`}>{a.label}</button>
+              className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${shown.includes(k) ? 'bg-navy-50 text-navy-900 ring-navy-300' : 'bg-white text-slate-500 ring-slate-200 line-through'}`}>{shown.includes(k) ? '✓ ' : ''}{a.label}</button>
           ))}
           {canAdd && <Button variant="secondary" className="ml-auto" onClick={() => setDraft({ title: '', date: '2026-10-20', start: '16:00', end: '17:00', place: '', cls: '', agenda: 'ECOLE' })}>＋ Événement</Button>}
         </div>
@@ -159,11 +174,11 @@ export default function AgendaModule({ role, cls: fixedCls, settings, compact = 
           <div className="space-y-4">
             {days.map((d) => (
               <div key={d}>
-                <p className="mb-1 text-xs font-semibold text-slate-500">{cap(formatDateFr(d))}{summary?.counts[d] ? <span className="ml-2 font-normal text-slate-600">· {summary.counts[d]} cours prévus, sans changement</span> : ''}</p>
+                <p className="mb-1 text-xs font-semibold text-slate-500">{cap(formatDateFr(d))}{false ? <span className="ml-2 font-normal text-slate-600">· {summary.counts[d]} cours prévus, sans changement</span> : ''}</p>
                 <ul className="space-y-1.5">
                   {visible.filter((i) => i.date === d).map((i) => (
-                    <li key={i.id} className="flex items-start gap-3 rounded-lg border border-slate-100 px-3 py-2 text-sm">
-                      <span className="w-24 shrink-0 tabular-nums text-slate-600">{i.allDay ? 'journée' : `${i.start.replace(':', 'h')}–${(i.end ?? '').replace(':', 'h')}`}</span>
+                    <li key={i.id} className="flex flex-wrap items-start gap-x-3 gap-y-1 rounded-lg border border-slate-100 px-3 py-2 text-sm">
+                      <span className="w-full shrink-0 tabular-nums text-slate-600 sm:w-24">{i.allDay ? 'journée' : `${i.start.replace(':', 'h')}–${(i.end ?? '').replace(':', 'h')}`}</span>
                       <span className={`min-w-0 flex-1 ${i.status === 'ANNULE' ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{i.title}{i.place && <span className="block text-xs text-slate-500">{i.place}</span>}</span>
                       <Badge tone={AGENDAS[i.agenda].tone}>{AGENDAS[i.agenda].label}</Badge>
                     </li>
@@ -172,6 +187,7 @@ export default function AgendaModule({ role, cls: fixedCls, settings, compact = 
               </div>
             ))}
           </div>
+          {allDays.length > days.length && <Button variant="secondary" className="mt-3 w-full" onClick={() => setWeeks(weeks + 1)}>Voir la suite (3 semaines de plus)</Button>}
         </Card>
         <Card title="Dans Google Agenda ou Apple Agenda" subtitle="Un fichier par agenda, à ouvrir sur le téléphone ou l'ordinateur">
           <div className="space-y-2">

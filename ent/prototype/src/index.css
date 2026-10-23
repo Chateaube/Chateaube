@@ -184,3 +184,32 @@ main .bulletin thead th { color: #000; }
 /* Petits écrans : un champ ou une liste ne dépasse jamais sa colonne (une option longue élargissait la page). */
 main select, main input, main textarea { max-width: 100%; }
 main label { min-width: 0; max-width: 100%; }
+
+/* ---- Téléphone : tableaux en cartes (voir tableCards.js) ---- */
+@media (max-width: 639px) {
+  table.auto-cards { min-width: 0 !important; width: 100%; }
+  table.auto-cards thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  table.auto-cards, table.auto-cards tbody, table.auto-cards tr, table.auto-cards td, table.auto-cards th[scope="row"] { display: block; }
+  table.auto-cards tr { margin: 0 0 .6rem; padding: .5rem .75rem; border: 1px solid rgb(226 232 240); border-radius: .9rem; background: #fff; }
+  table.auto-cards td, table.auto-cards tbody th { padding: .2rem 0 !important; text-align: left !important; border: 0 !important; }
+  table.auto-cards td[data-label]:not([data-label=""]) { display: flex; gap: .75rem; align-items: baseline; }
+  table.auto-cards td[data-label]:not([data-label=""])::before { content: attr(data-label); flex: 0 0 38%; font-size: .72rem; font-weight: 600; color: rgb(71 85 105); }
+  table.auto-cards td > * { min-width: 0; }
+  /* la première cellule (l'élève, l'agent…) sert de titre de la carte */
+  table.auto-cards tr > td:first-child { display: block !important; font-weight: 600; padding-bottom: .35rem !important; margin-bottom: .2rem; border-bottom: 1px solid rgb(241 245 249) !important; }
+  table.auto-cards tr > td:first-child::before { display: none; }
+  table.auto-cards td:empty { display: none; }
+  /* les blocs « -mx-5 overflow-x-auto » ne débordent plus */
+  div:has(> table.auto-cards) { overflow-x: visible !important; margin-left: 0 !important; margin-right: 0 !important; padding-left: 0 !important; padding-right: 0 !important; }
+  /* onglets : sur plusieurs lignes, tous visibles */
+  [role="tablist"] { flex-wrap: wrap !important; overflow-x: visible !important; }
+  [role="tablist"] > * { white-space: normal; }
+}
+/* Grilles qui défilent : ombre sur le bord quand il y a une suite */
+.overflow-x-auto:has(> table), [role="region"].overflow-x-auto {
+  background:
+    linear-gradient(to right, #fff 30%, rgba(255,255,255,0)) left center / 24px 100% no-repeat local,
+    linear-gradient(to left, #fff 30%, rgba(255,255,255,0)) right center / 24px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgba(15,23,42,.18), transparent) left center / 10px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgba(15,23,42,.18), transparent) right center / 10px 100% no-repeat scroll;
+}

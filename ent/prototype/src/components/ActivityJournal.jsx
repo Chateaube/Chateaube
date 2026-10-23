@@ -32,13 +32,13 @@ export default function ActivityJournal({ today = DEMO_TODAY }) {
               <ul className="divide-y divide-slate-100 text-sm">
                 {g.list.map((e) => (
                   <li key={e.id} className="flex flex-wrap items-start gap-x-3 gap-y-0.5 py-1.5">
-                    <span className="w-24 shrink-0 tabular-nums text-xs text-slate-600">{period === 'SEMAINE' ? `${formatDateFr(e.at.slice(0, 10)).split(' ').slice(0, 2).join(' ')} ` : ''}{e.at.slice(11, 16).replace(':', 'h')}</span>
+                    <span className="w-full shrink-0 tabular-nums text-xs text-slate-600 sm:w-24">{period === 'SEMAINE' ? `${formatDateFr(e.at.slice(0, 10)).split(' ').slice(0, 2).join(' ')} ` : ''}{e.at.slice(11, 16).replace(':', 'h')}</span>
                     <span className="min-w-0 flex-1">
                       <span className="text-slate-900">{e.text}</span>
                       {e.student && <span className="text-slate-600"> — {e.student}{classOf(e.student) ? ` (${classOf(e.student)})` : ''}</span>}
-                      <span className="block text-xs text-slate-600">{e.who}</span>
+                      <span className="block text-xs text-slate-600">{e.who} <span className="ml-1 sm:hidden"><Badge tone={TONE[e.kind] ?? 'slate'}>{ACTIVITY_KINDS[e.kind] ?? e.kind}</Badge></span></span>
                     </span>
-                    <Badge tone={TONE[e.kind] ?? 'slate'}>{ACTIVITY_KINDS[e.kind]}</Badge>
+                    <span className="hidden sm:block"><Badge tone={TONE[e.kind] ?? 'slate'}>{ACTIVITY_KINDS[e.kind] ?? e.kind}</Badge></span>
                   </li>
                 ))}
               </ul>

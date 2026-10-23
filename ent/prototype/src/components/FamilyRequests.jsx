@@ -168,7 +168,7 @@ function PublicForm() {
     return (
       <div className="mx-auto max-w-[520px] rounded-2xl bg-white p-6 text-center shadow-soft">
         <h1 className="font-display text-lg font-semibold text-navy-900">Demande envoyée</h1>
-        <p className="mt-2 text-sm text-slate-600">Merci. Le secrétariat vous rappelle sur WhatsApp ou par téléphone pour la suite : dossier, entretien, inscription.</p>
+        <p className="mt-2 text-sm text-slate-600">Merci. Le secrétariat vous rappelle par téléphone pour la suite : dossier, entretien, inscription.</p>
         <Button variant="secondary" className="mt-4" onClick={() => { setF(empty); setDocs([]); setDone(false); }}>Nouvelle demande</Button>
       </div>
     );
@@ -193,7 +193,7 @@ function PublicForm() {
         {/^(1re|Terminale)/.test(f.cls) && <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={!!f.repeating} onChange={(e) => setF({ ...f, repeating: e.target.checked })} />L'enfant redouble cette classe</label>}
         <Field label="Responsable (nom et prénom)">{input('contact')}</Field>
         <div className="grid grid-cols-2 gap-2">
-          <Field label="Téléphone / WhatsApp">{input('phone', { inputMode: 'tel', placeholder: '+261 34 …' })}</Field>
+          <Field label="Téléphone">{input('phone', { inputMode: 'tel', placeholder: '+261 34 …' })}</Field>
           <Field label="E-mail (facultatif)">{input('email', { type: 'email' })}</Field>
         </div>
         <Field label="Comment nous avez-vous connus ?"><select value={f.source} onChange={(e) => setF({ ...f, source: e.target.value })} className={inputCls}>{PREREG_SOURCES.map((x) => <option key={x}>{x}</option>)}</select></Field>

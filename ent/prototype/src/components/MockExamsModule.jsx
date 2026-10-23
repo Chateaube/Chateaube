@@ -58,7 +58,7 @@ function Transcript({ session, student, extra, official }) {
         </div>
       </div>
       {full ? <FullBacTable full={full} kind={session.kind} student={student} td={td} /> : (<>
-      <table className="mt-5 w-full border-collapse">
+      <table data-grid className="mt-5 w-full border-collapse">
         <thead><tr className="font-bold"><th className={`${td} px-2 py-1 text-left`}>ÉPREUVE</th><th className={`w-[11%] ${td}`}>COEF.</th><th className={`w-[13%] ${td}`}>NOTE /20</th><th className={`w-[13%] ${td}`}>POINTS</th></tr></thead>
         <tbody>
           {exam.parts.map((p) => {
@@ -96,7 +96,7 @@ function Transcript({ session, student, extra, official }) {
 function FullBacTable({ full, kind, student, td }) {
   return (
     <>
-      <table className="mt-5 w-full border-collapse">
+      <table data-grid className="mt-5 w-full border-collapse">
         <thead><tr className="font-bold"><th className={`${td} px-2 py-1 text-left`}>ÉPREUVE</th><th className={`w-[11%] ${td}`}>COEF.</th><th className={`w-[13%] ${td}`}>NOTE /20</th><th className={`w-[13%] ${td}`}>POINTS</th></tr></thead>
         {full.sections.map((sec) => (
           <tbody key={sec.title}>
@@ -201,7 +201,7 @@ function EntryTab({ data, setData, role }) {
           })}
           <Card title={`${s.title} — ${s.cls}`} subtitle={`${exam.official} · notes sur 20, « abs » pour un absent (compté 0)${isTeacher ? ' · vous saisissez votre épreuve' : ''}`}>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] text-sm">
+              <table data-grid className="w-full min-w-[900px] text-sm">
                 <thead><tr className="border-b border-slate-200 text-left text-xs text-slate-500"><th className="py-2 pr-2">Élève</th>{exam.parts.flatMap(cells).map((c) => <th key={c.id} className="px-1 text-center">{c.label}<span className="block font-normal">{c.part.subs ? '2 meilleures' : `coef. ${c.part.coef}`}</span></th>)}{!isTeacher && <><th className="px-2 text-right">Moyenne</th><th className="px-2">Résultat</th></>}</tr></thead>
                 <tbody>{students.map((st, i) => (
                   <tr key={st} className="border-b border-slate-100">
@@ -304,7 +304,7 @@ function OfficialTab({ data, setData }) {
       </div>
       {report && <div role="status" className={`mb-3 rounded-lg p-2 text-sm ${report.errors.length ? 'bg-amber-50 text-amber-900' : 'bg-emerald-50 text-emerald-800'}`}>{report.ok} élève{report.ok > 1 ? 's' : ''} importé{report.ok > 1 ? 's' : ''}.{report.errors.map((e) => <span key={e} className="block">· {e}</span>)}</div>}
       <div className="-mx-5 overflow-x-auto px-5">
-        <table className="w-full min-w-[900px] text-sm">
+        <table data-grid className="w-full min-w-[900px] text-sm">
           <thead><tr className="border-b border-slate-200 text-left text-xs text-slate-600">
             <th className="py-2 pr-2 font-medium">Élève</th>
             {parts.map((p) => <th key={p.id} className="px-1 text-center font-medium">{p.label}<span className="block font-normal">coef. {p.coef}</span></th>)}
@@ -359,7 +359,7 @@ function ProjectionTab({ data, setData }) {
       </details>
       <p className="mb-3 text-xs text-slate-600">Bac sur 100 coefficients : {firstParts.reduce((t, p) => t + p.coef, 0)} acquis en 1re (notes officielles), {EXAMS[kind].parts.reduce((t, p) => t + p.coef, 0)} en Terminale, estimés par {last ? `« ${last.title} » du ${formatDateFr(last.date).replace(/^\S+ /, '')}` : 'le bac blanc, pas encore passé'}. En vert : le niveau du bac blanc suffit ; en orange : il manque des points.</p>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[820px] text-sm">
+        <table data-grid className="w-full min-w-[820px] text-sm">
           <thead><tr className="border-b border-slate-200 text-left text-xs text-slate-500">
             <th className="py-2 pr-2">Élève</th><th className="px-2 text-center">Notes de 1re<span className="block font-normal">officielles</span></th>
             <th className="px-2 text-center">Bac blanc<span className="block font-normal">épreuves de Tle</span></th><th className="px-2 text-center">Pour 10</th><th className="px-2 text-center">Pour 12</th><th className="px-2 text-center">Pour 14</th><th className="px-2 text-center">Moyenne projetée</th></tr></thead>

@@ -47,10 +47,13 @@ export default function TodoList({ who = 'DIRECTION', title = 'Mes tâches' }) {
             <input type="checkbox" checked={t.done} onChange={() => toggle(t.id)} aria-label={`Fait : ${t.title}`} className="h-5 w-5" />
             <span className={`min-w-0 flex-1 ${t.done ? 'text-slate-500 line-through' : 'text-slate-900'}`}>{t.title}
               <span className="block text-xs text-slate-600">{canAssign && t.assignee !== 'DIRECTION' ? `Confiée à ${assigneeLabel(t.assignee)}` : canAssign ? 'Pour moi' : 'Confiée par la Direction'}{t.due ? ` · pour le ${fr(t.due)}` : ''}{t.done && t.doneAt ? ` · faite le ${fr(t.doneAt)}` : ''}</span></span>
-            {isOverdue(t, today) && <Badge tone="red">en retard</Badge>}
-            {isDueToday(t, today) && <Badge tone="amber">aujourd'hui</Badge>}
-            {!t.done && <Badge tone={PRIORITIES[t.priority][0]}>{PRIORITIES[t.priority][1]}</Badge>}
-            {(canAssign || t.createdBy === who) && <button type="button" onClick={() => remove(t.id)} className="text-xs text-slate-600 underline hover:text-red-700">Supprimer</button>}
+            {/* sur téléphone, les étiquettes passent sous le texte */}
+            <span className="flex basis-full flex-wrap items-center gap-2 pl-7 sm:basis-auto sm:pl-0">
+              {isOverdue(t, today) && <Badge tone="red">en retard</Badge>}
+              {isDueToday(t, today) && <Badge tone="amber">aujourd'hui</Badge>}
+              {!t.done && <Badge tone={PRIORITIES[t.priority][0]}>{PRIORITIES[t.priority][1]}</Badge>}
+              {(canAssign || t.createdBy === who) && <button type="button" onClick={() => remove(t.id)} className="text-xs text-slate-600 underline hover:text-red-700">Supprimer</button>}
+            </span>
           </li>
         ))}
       </ul>

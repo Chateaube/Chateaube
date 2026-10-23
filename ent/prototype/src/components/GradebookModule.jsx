@@ -133,7 +133,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
           <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-600">Aucune note pour ce trimestre. Ajoutez une première évaluation (DS, oral, exposé…).</p>
         ) : (
           <div className="-mx-5 overflow-x-auto">
-            <table className="w-full text-sm" style={{ minWidth: 260 + evaluations.length * 130 }}>
+            <table data-grid className="w-full text-sm" style={{ minWidth: 260 + evaluations.length * 130 }}>
               <thead>
                 <tr className="border-y border-slate-100 bg-slate-50 text-left align-bottom text-xs text-slate-500">
                   <th className="sticky left-0 bg-slate-50 px-4 py-2 font-medium">Élève</th>
@@ -463,7 +463,7 @@ export default function GradebookModule({ settings, go }) {
     <div className="space-y-5">
       <div>
         <p className="text-sm font-semibold text-navy-500">{TERM.label} · conseil de classe le {TERM.council}</p>
-        <h1 className="text-2xl font-semibold text-navy-900">Notes & appréciations</h1>
+        <h1 className="text-2xl font-semibold text-navy-900">Notes et appréciations</h1>
       </div>
       <div className="flex gap-2 overflow-x-auto pb-1">
         {SERVICES.map((s) => {

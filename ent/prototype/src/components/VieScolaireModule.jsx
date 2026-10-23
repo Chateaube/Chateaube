@@ -408,6 +408,8 @@ export default function VieScolaireModule({ settings, role = 'VIE_SCOLAIRE' }) {
   const tabs = role === 'ENSEIGNANT' ? TABS.filter(([id]) => ['passport', 'measures', 'phones'].includes(id)) : TABS;
   const [intent] = useState(() => takeIntent('vs'));
   const [tab, setTab] = useState(tabs.some(([id]) => id === intent?.tab) ? intent.tab : tabs[0][0]);
+  const [pick, setPick] = useState({ n: 0 });
+  const open = (t, filter) => { setTab(t); if (filter) setPick({ n: pick.n + 1, filter }); };
   const [rows, setRowsState] = useState(loadAttendance);
   const setRows = (l) => { setRowsState(l); saveAttendance(l); };
   const [log, setLog] = useState(MEASURES_LOG);
@@ -423,10 +425,11 @@ export default function VieScolaireModule({ settings, role = 'VIE_SCOLAIRE' }) {
         <h1 className="text-2xl font-semibold text-navy-900">{role === 'ENSEIGNANT' ? 'Vie de classe' : 'Absences, retards et punitions'}</h1>
       </div>
       {role !== 'ENSEIGNANT' && <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Absences aujourd'hui" value={today.filter((r) => r.kind === 'ABSENCE').length} />
-        <Stat label="Retards aujourd'hui" value={today.filter((r) => r.kind === 'RETARD').length} />
-        <Stat label="Parents pas encore informés" value={log.filter((m) => !m.parentAck).length} tone="amber" />
-        <Stat label="Objets en garde" value={phones.filter((p) => p.action !== 'AVERTISSEMENT' && !p.returned).length} hint={phones.some((p) => objectState(p, NOW, settings) === 'A_DECIDER') ? `${phones.filter((p) => objectState(p, NOW, settings) === 'A_DECIDER').length} durée à décider` : undefined} />
+        {/* chaque chiffre ouvre la liste qui l'explique (mêmes calculs que les filtres) */}
+        <Stat onClick={() => open('attendance', 'ALL')} label="Absences aujourd'hui" value={today.filter((r) => r.kind === 'ABSENCE').length} />
+        <Stat onClick={() => open('attendance', 'ALL')} label="Retards aujourd'hui" value={today.filter((r) => r.kind === 'RETARD').length} />
+        <Stat onClick={() => open('attendance', 'PARENTS')} label="Parents pas encore prévenus" value={rows.filter((r) => !r.notified).length} tone="amber" />
+        <Stat onClick={() => open('phones')} label="Objets en garde" value={phones.filter((p) => p.action !== 'AVERTISSEMENT' && !p.returned).length} hint={phones.some((p) => objectState(p, NOW, settings) === 'A_DECIDER') ? `${phones.filter((p) => objectState(p, NOW, settings) === 'A_DECIDER').length} durée à décider` : undefined} />
       </div>}
       {message && <p role="status" className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800"><Icon name="check" />{message}</p>}
       <div className="flex gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1" role="tablist">
@@ -435,7 +438,7 @@ export default function VieScolaireModule({ settings, role = 'VIE_SCOLAIRE' }) {
             className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ${tab === id ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>{label}</button>
         ))}
       </div>
-      {tab === 'attendance' && <AttendanceTab initialFilter={intent?.filter} rows={rows} setRows={setRows} toast={setMessage} role={role} />}
+      {tab === 'attendance' && <AttendanceTab key={`att-${pick.n}`} initialFilter={pick.filter ?? intent?.filter} rows={rows} setRows={setRows} toast={setMessage} role={role} />}
       {tab === 'measures' && <MeasuresTab log={log} setLog={setLog} role={role} toast={setMessage} />}
       {tab === 'leave' && <EarlyLeaveTab toast={setMessage} />}
       {tab === 'passport' && <div className="space-y-5">{role !== 'ENSEIGNANT' && <ColleSessionsCard role={role} />}<PassportTab role={role} toast={setMessage} /></div>}
