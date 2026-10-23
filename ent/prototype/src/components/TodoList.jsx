@@ -10,7 +10,7 @@ const fr = (iso) => iso.split('-').reverse().join('/');
 const field = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
 const BLANK = { title: '', assignee: 'DIRECTION', priority: 'NORMALE', due: '' };
 
-export default function TodoList({ who = 'DIRECTION', title = 'Mes tâches' }) {
+export default function TodoList({ who = 'DIRECTION', title = 'Mes tâches', bare = false }) {
   const today = localToday();
   const canAssign = who === 'DIRECTION';
   const [all, setAll] = useState(loadTasks);
@@ -30,8 +30,9 @@ export default function TodoList({ who = 'DIRECTION', title = 'Mes tâches' }) {
   const toggle = (id) => save(all.map((t) => (t.id === id ? { ...t, done: !t.done, doneAt: t.done ? null : today } : t)));
   const remove = (id) => save(all.filter((t) => t.id !== id));
 
-  return (
-    <Card title={`${title} (${open.length})`} subtitle={canAssign ? 'Vos tâches et celles que vous confiez à l\'équipe' : 'Les tâches que la Direction vous a confiées'}>
+  // bare : dans une autre carte (accueil « À faire »), sans cadre ni titre
+  const body = (
+    <>
       <div className="flex flex-wrap items-end gap-2">
         <input value={d.title} onChange={(e) => setD({ ...d, title: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && add()} aria-label="Nouvelle tâche" placeholder="Nouvelle tâche…" className={`min-w-[12rem] flex-1 ${field}`} />
         {canAssign && <select value={d.assignee} onChange={(e) => setD({ ...d, assignee: e.target.value })} aria-label="Confier à" className={field}>{ASSIGNEES.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}</select>}
@@ -58,6 +59,7 @@ export default function TodoList({ who = 'DIRECTION', title = 'Mes tâches' }) {
         ))}
       </ul>
       {mine.length > open.length && <button type="button" onClick={() => setShowDone(!showDone)} className="mt-2 text-xs font-medium text-navy-700 underline">{showDone ? 'Masquer les tâches faites' : `Voir les tâches faites (${mine.length - open.length})`}</button>}
-    </Card>
+    </>
   );
+  return bare ? body : <Card title={`${title} (${open.length})`} subtitle={canAssign ? 'Vos tâches et celles que vous confiez à l\'équipe' : 'Les tâches que la Direction vous a confiées'}>{body}</Card>;
 }

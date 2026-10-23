@@ -15,7 +15,7 @@ import { findStudents } from '../rules/search.js';
 // Tout part dans les écrans habituels (absences et retards, objets confisqués, soins) et dans le journal.
 
 const ACTIONS = [
-  ['RETARD', 'Retard', 'clock'], ['ABSENCE', 'Absence', 'users'], ['OBJET', 'Confiscation', 'box'], ['SOIN', 'Infirmerie', 'care'],
+  ['RETARD', 'Retard', 'clock'], ['ABSENCE', 'Absence', 'users'], ['OBJET', 'Confiscation', 'box'], ['SOIN', 'Soins', 'care'],
 ];
 const SLOTS = [['Matin', '07h00–12h00'], ['Après-midi', '13h00–17h00'], ['Journée', 'Journée']];
 const nowHm = () => new Date().toTimeString().slice(0, 5);
@@ -55,7 +55,7 @@ function Sheet({ action, role, onClose, onSaved }) {
       text = `Passage à l'infirmerie : ${f.care.toLowerCase()} — ${CARE_OUTCOMES[f.outcome].toLowerCase()}`;
     }
     logActivity({ who, role, kind: { RETARD: 'ABSENCE', ABSENCE: 'ABSENCE', OBJET: 'OBJET', SOIN: 'SOIN' }[action], student: student.name, text });
-    onSaved(`${{ RETARD: 'Retard noté', ABSENCE: 'Absence notée', OBJET: 'Confiscation notée', SOIN: 'Passage à l\'infirmerie noté' }[action]} pour ${student.name} (${student.cls}).${action === 'RETARD' || action === 'ABSENCE' ? ' Les parents seront prévenus avec les autres (Absences et retards).' : ''}`);
+    onSaved(`${{ RETARD: 'Retard noté', ABSENCE: 'Absence notée', OBJET: 'Confiscation notée', SOIN: 'Passage aux soins noté' }[action]} pour ${student.name} (${student.cls}).${action === 'RETARD' || action === 'ABSENCE' ? ' Les parents seront prévenus avec les autres (Absences et retards).' : ''}`);
   };
 
   return (
@@ -103,7 +103,7 @@ function Sheet({ action, role, onClose, onSaved }) {
 
 /** Quatre boutons (ordinateur) et barre fixée en bas (téléphone). */
 // Enseignant : confiscation en classe seulement (l'objet est remis à la vie scolaire).
-const ROLE_ACTIONS = { ENSEIGNANT: ['OBJET'] };
+const ROLE_ACTIONS = { ENSEIGNANT: ['OBJET'], BUREAU: ['SOIN', 'ABSENCE'] }; // secrétariat : soins et absences
 
 export default function QuickEntry({ role = 'VIE_SCOLAIRE' }) {
   const allowed = ACTIONS.filter(([k]) => !ROLE_ACTIONS[role] || ROLE_ACTIONS[role].includes(k));

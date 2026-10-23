@@ -18,7 +18,6 @@ export default function CpeHome({ go, account }) {
         <h1 className="text-2xl font-semibold text-navy-900">Bonjour M. Be</h1>
         <p className="text-sm text-slate-600">{day.length ? `${day.length} chose${day.length > 1 ? 's' : ''} à traiter aujourd'hui.` : 'Rien d\'urgent aujourd\'hui.'}</p>
       </div>
-      <AbsentToggle role="VIE_SCOLAIRE" />
       <QuickEntry role="VIE_SCOLAIRE" />
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 xl:grid-cols-2">
         <TodoList who="VIE_SCOLAIRE" title="Mes tâches" />
@@ -41,7 +40,8 @@ export default function CpeHome({ go, account }) {
         <Button variant="secondary" onClick={() => go?.('tt-changes')}><Icon name="clock" />Annuler un cours aujourd'hui</Button>
         <Button variant="secondary" onClick={() => go?.('news')}><Icon name="megaphone" />Annonces</Button>
       </div>
-      <ActivityJournal />
+      <ActivityJournal go={go} />
+      <AbsentToggle role="VIE_SCOLAIRE" />
     </div>
   );
 }

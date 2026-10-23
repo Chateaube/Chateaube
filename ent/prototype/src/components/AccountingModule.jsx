@@ -25,6 +25,7 @@ import { loadMovements, saveMovements, counted, WITHDRAWERS, withdrawalStatus } 
 import { TIMETABLE } from '../data/timetable.js';
 import { teacherHours } from '../rules/teachingHours.js';
 import { loadTeacherAbsences } from '../absencesStore.js';
+import { takeIntent } from '../navIntent.js';
 
 const TODAY = '2026-10-13';
 const fmtDate = (iso) => iso.split('-').reverse().join('/');
@@ -345,7 +346,7 @@ const MANUAL_NATURES = { IN: CASH_NATURES.IN.filter((n) => n !== 'Encaissement f
 export default function AccountingModule({ settings, role, account }) {
   const [lock, setLock] = useState(loadLock);
   const canEdit = role === 'DIRECTION' && !lock; // classes, tarifs, articles et services : Direction uniquement, tant que ce n'est pas verrouillé
-  const [tab, setTab] = useState('collect');
+  const [tab, setTab] = useState(() => takeIntent('accounting')?.tab ?? 'collect');
   const [fees, setFees] = useState(CLASS_FEES);
   const [articles, setArticles] = useState(ARTICLES);
   const [movements, setMovementsState] = useState(loadMovements);

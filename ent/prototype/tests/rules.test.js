@@ -1915,3 +1915,17 @@ test('horaires de travail : pas de réponse en dehors, message lu à la reprise'
   assert.equal(nextOpening('2026-10-16T19:00', s), '2026-11-02T07:00'); // vendredi soir avant les vacances
   assert.equal(openingLabel('2026-11-02T07:00'), 'lundi 2 novembre à 7h');
 });
+
+import { pulse, trend, periodRange, upcoming } from '../src/rules/schoolPulse.js';
+test('l\'école sur 7 ou 30 jours : période, période précédente, évolution, à venir', () => {
+  assert.deepEqual(periodRange('2026-10-13', 7), { from: '2026-10-07', to: '2026-10-13', prevFrom: '2026-09-30', prevTo: '2026-10-06' });
+  const abs = [{ date: '2026-10-13', kind: 'ABSENCE' }, { date: '2026-10-08', kind: 'ABSENCE' }, { date: '2026-10-08', kind: 'RETARD' }, { date: '2026-10-01', kind: 'ABSENCE' }, { date: '2026-09-01', kind: 'ABSENCE' }];
+  const p = pulse({ absences: { list: abs, date: (x) => x.date, keep: (x) => x.kind === 'ABSENCE' }, soins: { list: [{ at: '2026-10-12T10:00' }], date: (x) => x.at } }, '2026-10-13', 7);
+  assert.deepEqual(p.absences, { now: 2, before: 1 });
+  assert.equal(trend(p.absences), '+1');
+  assert.equal(trend({ now: 1, before: 3 }), '−2');
+  assert.equal(trend(p.soins), '+1');
+  assert.equal(pulse({ a: { list: abs, date: (x) => x.date } }, '2026-10-13', 30).a.now, 4);
+  const ev = [{ id: 'x', date: '2026-10-20' }, { id: 'y', date: '2026-10-10' }, { id: 'z', date: '2026-10-10', end: '2026-10-15' }, { id: 'w', date: '2026-12-20' }];
+  assert.deepEqual(upcoming(ev, '2026-10-13').map((e) => e.id), ['z', 'x']);
+});
