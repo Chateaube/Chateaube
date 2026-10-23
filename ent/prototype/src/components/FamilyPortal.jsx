@@ -64,6 +64,7 @@ import { parentNotice } from '../rules/care.js';
 // sans paiements, sans accusés de lecture ni signatures).
 
 const TODAY = '2026-10-13';
+const MONTHS_FR = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 const NOW = '2026-10-13T18:30';
 const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 const longDate = (iso) => formatDateFr(iso).replace(/^\S+ /, '');           // « 20 janvier 2027 »
@@ -164,43 +165,64 @@ function BulletinPickup({ child, settings }) {
   return <div className={`rounded-2xl p-4 text-sm ${status === 'BLOQUE' ? 'bg-red-50 text-red-900' : 'bg-navy-50 text-navy-900'}`}><p className="font-semibold">Bulletin — {child.name}</p><p>{msg}</p></div>;
 }
 
-function Home({ child, isParent, openFiche, openReenrol, settings, onSeen, openSchoolLife, ambiance }) {
-  const due = HOMEWORK.filter((h) => h.cls === child.cls && h.due && h.due > TODAY).sort((a, b) => a.due.localeCompare(b.due)).slice(0, 2);
+function Home({ child, isParent, openFiche, openReenrol, settings, onSeen, openSchoolLife, ambiance, go, pending = 0, others = [], pickChild }) {
+  const due = HOMEWORK.filter((h) => h.cls === child.cls && h.due && h.due > TODAY).sort((a, b) => a.due.localeCompare(b.due)).slice(0, isParent ? 2 : 5);
+  const [done, setDone] = useDone();
+  const alerts = PARENT.alerts.filter((a) => !a.child || a.child === child.id); // les alertes de l'enfant choisi (et celles de la famille)
+  // « À faire » : tout ce qui attend une action des parents pour cet enfant, chacun avec son bouton
+  const todo = isParent ? [
+    ...alerts.map((a) => ({ id: a.title, text: a.title, detail: a.body, tone: a.tone, to: a.to, action: a.action })),
+    ...(authPending(child).length ? [{ id: 'auth', text: `${authPending(child).length} autorisation${authPending(child).length > 1 ? 's' : ''} à donner`, detail: authPending(child).map((a) => a.label).join(' · '), tone: 'amber', to: 'documents', action: 'Répondre' }] : []),
+    ...(pending ? [{ id: 'acks', text: `${pending} information${pending > 1 ? 's' : ''} de vie scolaire à confirmer`, tone: 'amber', to: 'life', action: 'Voir' }] : []),
+    ...(!ficheOf(fullName(child))?.signedAt ? [{ id: 'fiche', text: `Fiche signalétique ${FICHE_YEAR} à signer`, detail: 'Déjà pré-remplie : vérifier, compléter, signer.', tone: 'navy', to: 'fiche', action: 'Remplir et signer' }] : []),
+  ] : [];
   return (
     <>
       {isParent && <UrgentBanner child={child} onSeen={onSeen} />}
-      {isParent && <AbsencesToJustify student={fullName(child)} childName={child.name} now={NOW} by={ACCOUNT.name} onDone={onSeen} />}
-      <Announcements isParent={isParent} />
-      <SchoolLifePreview open={openSchoolLife} social={settings?.social} />
-      <AmbianceHomeCard key={ambiance?.id} ambiance={ambiance} />
-      {isParent && PARENT.alerts.map((a) => (
-        <div key={a.title} className={`rounded-2xl p-4 ${a.tone === 'red' ? 'bg-red-50' : 'bg-amber-50'}`}>
-          <p className={`text-sm font-semibold ${a.tone === 'red' ? 'text-red-900' : 'text-amber-900'}`}>{a.title}</p>
-          <p className={`text-sm ${a.tone === 'red' ? 'text-red-800' : 'text-amber-800'}`}>{a.body}</p>
-        </div>
+      {isParent && others.map((o) => (
+        <button key={o.id} type="button" onClick={() => pickChild(o.id)} className="flex w-full items-center justify-between rounded-2xl bg-amber-50 px-4 py-2 text-left text-sm text-amber-900">
+          <span><strong>{o.name}</strong> : {o.count} point{o.count > 1 ? 's' : ''} à voir</span><span aria-hidden="true">›</span>
+        </button>
       ))}
-      {isParent && !ficheOf(fullName(child))?.signedAt && (
-        <div className="rounded-2xl bg-navy-50 p-4">
-          <p className="text-sm font-semibold text-navy-900">Fiche signalétique {FICHE_YEAR} — {child.name}</p>
-          <p className="text-sm text-navy-800">À vérifier, compléter et signer en ligne. Elle est déjà pré-remplie.</p>
-          <Button className="mt-2 !py-1 text-xs" onClick={openFiche}>Remplir et signer</Button>
-        </div>
+      {isParent && <AbsencesToJustify student={fullName(child)} childName={child.name} now={NOW} by={ACCOUNT.name} onDone={onSeen} />}
+      {todo.length > 0 && (
+        <Section title={`À faire pour ${child.name} (${todo.length})`}>
+          <ul className="space-y-2">
+            {todo.map((x) => (
+              <li key={x.id} className={`rounded-xl p-3 ${x.tone === 'red' ? 'bg-red-50' : x.tone === 'amber' ? 'bg-amber-50' : 'bg-navy-50'}`}>
+                <p className={`text-sm font-semibold ${x.tone === 'red' ? 'text-red-900' : x.tone === 'amber' ? 'text-amber-900' : 'text-navy-900'}`}>{x.text}</p>
+                {x.detail && <p className="text-sm text-slate-700">{x.detail}</p>}
+                {x.to && <Button className="mt-2 text-sm" onClick={() => go(x.to)}>{x.action}</Button>}
+              </li>
+            ))}
+          </ul>
+        </Section>
       )}
+      <NowNextCard child={child} isParent={isParent} settings={settings} />
+      {due.length > 0 && (
+        <Section title={isParent ? 'Prochains devoirs' : 'Devoirs à faire'} action={<button type="button" onClick={() => go('homework')} className="text-xs font-medium text-navy-700">Tout voir ›</button>}>
+          <ul className="space-y-1.5">
+            {due.map((h) => (
+              <li key={h.id} className="flex items-start gap-2 text-sm text-slate-700">
+                {!isParent && <input type="checkbox" className="mt-1 h-5 w-5" checked={!!done[h.id]} onChange={() => setDone({ ...done, [h.id]: !done[h.id] })} aria-label={`Fait : ${h.subject}`} />}
+                <span className={done[h.id] ? 'text-slate-400 line-through' : ''}><span className="font-medium">{shortDate(h.due)} · {h.subject} :</span> {h.todo}</span>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
+      <Announcements isParent={isParent} />
       {isParent && <BulletinPickup child={child} settings={settings} />}
       <BookDueSoon child={child} />
       {isParent && profileOf(child) && nextClass(child.cls) && (
         <div className="rounded-2xl bg-emerald-50 p-4">
           <p className="text-sm font-semibold text-emerald-900">Réinscriptions 2027-2028 ouvertes</p>
           <p className="text-sm text-emerald-800">{nextClass(profileOf(child).cls) ? `Réinscrivez ${child.name} en ${nextClass(profileOf(child).cls)} depuis votre téléphone, avec les pièces en photo.` : `Dites-nous si ${child.name} poursuit ailleurs l'an prochain.`}</p>
-          <Button className="mt-2 !py-1 text-xs" onClick={openReenrol}>Réinscrire {child.name} pour 2027-2028</Button>
+          <Button className="mt-2 text-sm" onClick={openReenrol}>Réinscrire {child.name} pour 2027-2028</Button>
         </div>
       )}
-      <NowNextCard child={child} isParent={isParent} settings={settings} />
-      {due.length > 0 && (
-        <Section title="Prochains devoirs">
-          {due.map((h) => <p key={h.id} className="text-sm text-slate-700"><span className="font-medium">{shortDate(h.due)} · {h.subject} :</span> {h.todo}</p>)}
-        </Section>
-      )}
+      <SchoolLifePreview open={openSchoolLife} social={settings?.social} />
+      <AmbianceHomeCard key={ambiance?.id} ambiance={ambiance} />
       {isParent && <PhoneAlerts items={phoneItems()} nowHm={NOW.slice(11, 16)} />}
     </>
   );
@@ -249,20 +271,33 @@ function NowNextCard({ child, isParent, settings }) {
 }
 
 /* ---------- Notes : par matière, chronologiques, sans bulletin ---------- */
+// nouvelle note : publiée depuis moins de 3 jours
+const isNew = (n) => n.date >= new Date(Date.parse(`${TODAY}T12:00:00Z`) - 3 * 864e5).toISOString().slice(0, 10);
+/** Moyenne indicative de la matière (sur 20, coefficients compris) ; la moyenne officielle est celle du bulletin. */
+function subjectAvg(notes) {
+  const ok = notes.filter((n) => n.status === 'NOTE' && n.value != null);
+  const w = ok.reduce((s, n) => s + (n.coef ?? 1), 0);
+  return w ? ok.reduce((s, n) => s + (n.value / (n.scale ?? 20)) * 20 * (n.coef ?? 1), 0) / w : null;
+}
+
 function NoteCard({ n }) {
   const scale = n.scale === 20 ? '' : ` / ${n.scale}`;
   return (
     <li className="rounded-lg border border-slate-200 p-3">
-      <p className="text-sm font-medium text-slate-800">Note du {longDate(n.date)}</p>
-      <p className="text-xs text-slate-500">{n.type} · {n.title}{n.themes?.length ? ` · ${n.themes.join(', ')}` : ''}</p>
-      <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
-        <dt className="text-slate-500">Note élève :</dt>
-        <dd className="text-right font-semibold tabular-nums text-navy-900">{n.status === 'NOTE' ? `${fmt2(n.value)}${scale}` : n.status === 'ABSENT' ? 'Absent.e' : n.status === 'DISPENSE' ? 'Dispensé.e' : 'Non noté.e'}</dd>
-        <dt className="text-slate-500">Moyenne classe :</dt><dd className="text-right tabular-nums">{fmt2(n.avg)}{scale}</dd>
-        <dt className="text-slate-500">Note la plus haute :</dt><dd className="text-right tabular-nums">{fmt2(n.max)}{scale}</dd>
-        <dt className="text-slate-500">Note la plus basse :</dt><dd className="text-right tabular-nums">{fmt2(n.min)}{scale}</dd>
-        <dt className="text-slate-500">Coefficient :</dt><dd className="text-right tabular-nums">{String(n.coef).replace('.', ',')}</dd>
-      </dl>
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="min-w-0 text-sm font-medium text-slate-800">{n.title}{isNew(n) && <> <Badge tone="navy">nouveau</Badge></>}</p>
+        <p className="shrink-0 font-semibold tabular-nums text-navy-900">{n.status === 'NOTE' ? `${fmt2(n.value)}${scale || ' / 20'}` : n.status === 'ABSENT' ? 'Absent.e' : n.status === 'DISPENSE' ? 'Dispensé.e' : 'Non noté.e'}</p>
+      </div>
+      <p className="text-xs text-slate-600">{shortDate(n.date)} · {n.type} · classe {fmt2(n.avg)}{scale}</p>
+      <details className="mt-1 text-sm">
+        <summary className="cursor-pointer text-xs font-medium text-navy-700">Détails</summary>
+        <dl className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
+          <dt className="text-slate-600">Note la plus haute :</dt><dd className="text-right tabular-nums">{fmt2(n.max)}{scale}</dd>
+          <dt className="text-slate-600">Note la plus basse :</dt><dd className="text-right tabular-nums">{fmt2(n.min)}{scale}</dd>
+          <dt className="text-slate-600">Coefficient :</dt><dd className="text-right tabular-nums">{String(n.coef).replace('.', ',')}</dd>
+          {n.themes?.length > 0 && <><dt className="text-slate-600">Thèmes :</dt><dd className="text-right">{n.themes.join(', ')}</dd></>}
+        </dl>
+      </details>
       {n.remark && <p className="mt-2 rounded-md bg-navy-50 px-2 py-1.5 text-xs text-navy-900"><span className="font-medium">Remarque :</span> {n.remark}</p>}
       {n.comment && <p className="mt-2 text-xs text-slate-600"><span className="font-medium">Commentaire du professeur :</span> {n.comment}</p>}
     </li>
@@ -290,8 +325,8 @@ function Notes({ child, audience, settings }) {
   return (
     <>
       {exams.length > 0 && (
-        <details open className="rounded-2xl bg-white/70 p-2 shadow-soft">
-          <summary className="cursor-pointer px-2 py-1.5 text-sm font-semibold text-slate-800">Examens blancs ({exams.length})</summary>
+        <details className="rounded-2xl bg-white/70 p-2 shadow-soft">
+          <summary className="cursor-pointer px-2 py-1.5 text-sm font-semibold text-slate-800">Examens blancs ({exams.length}) — voir les relevés</summary>
           <div className="mt-2 space-y-3">{exams.map((x) => <ExamResultCard key={x.id} session={x} student={fullName(child)} official={loadMockExams().official?.[fullName(child)]} />)}</div>
         </details>
       )}
@@ -304,7 +339,11 @@ function Notes({ child, audience, settings }) {
         <Section key={subject}>
           <button onClick={() => setOpen(open === subject ? null : subject)} className="flex w-full items-center justify-between text-left">
             <span className="flex items-center gap-2.5 text-sm font-semibold text-slate-900"><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: subjectColor(subject) }} />{subject}</span>
-            <span className="text-xs text-slate-500">{notes.length} note{notes.length > 1 ? 's' : ''} {open === subject ? '▴' : '▾'}</span>
+            <span className="flex items-center gap-2 text-xs text-slate-600">
+              {notes.some(isNew) && <Badge tone="navy">nouveau</Badge>}
+              {subjectAvg(notes) != null && <strong className="text-sm tabular-nums text-navy-900">{fmt2(subjectAvg(notes))}</strong>}
+              {notes.length} note{notes.length > 1 ? 's' : ''} {open === subject ? '▴' : '▾'}
+            </span>
           </button>
           {open === subject && <ul className="mt-3 space-y-2">{notes.map((n) => <NoteCard key={n.id} n={n} />)}</ul>}
         </Section>
@@ -314,8 +353,15 @@ function Notes({ child, audience, settings }) {
 }
 
 /* ---------- Devoirs (cahier de textes) ---------- */
+const DONE_KEY = 'ent-devoirs-faits-v1';
+const loadDone = () => { try { return JSON.parse(localStorage.getItem(DONE_KEY)) ?? {}; } catch { return {}; } };
+function useDone() {
+  const [done, set] = useState(loadDone);
+  return [done, (v) => { set(v); try { localStorage.setItem(DONE_KEY, JSON.stringify(v)); } catch { /* stockage indisponible */ } }];
+}
+
 function Homework({ child, isParent }) {
-  const [done, setDone] = useState({});
+  const [done, setDone] = useDone();
   const entries = HOMEWORK.filter((h) => h.cls === child.cls);
   const todo = entries.filter((h) => h.due && h.due > TODAY).sort((a, b) => a.due.localeCompare(b.due));
   return (
@@ -351,10 +397,11 @@ function SchoolTab({ child, isParent, acks, setAcks, settings, audience, pending
   return (
     <>
       {pending > 0 && (
-        <a href="#suivi" className="block rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900 ring-1 ring-amber-200">{pending} information{pending > 1 ? 's' : ''} de vie scolaire à confirmer — voir plus bas ›</a>
+        <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900 ring-1 ring-amber-200">{pending} information{pending > 1 ? 's' : ''} de vie scolaire à lire ci-dessous.</p>
       )}
-      <SchoolLifeModule compact role={audience} settings={settings} cls={child.cls} author={isParent ? 'Parent' : `${child.name} (${child.cls})`} />
+      {/* le suivi de l'enfant d'abord, puis les photos et nouvelles de l'école */}
       <div id="suivi" className="scroll-mt-2"><SchoolLife child={child} isParent={isParent} acks={acks} setAcks={setAcks} settings={settings} /></div>
+      <SchoolLifeModule compact role={audience} settings={settings} cls={child.cls} author={isParent ? 'Parent' : `${child.name} (${child.cls})`} />
     </>
   );
 }
@@ -394,10 +441,8 @@ function SchoolLife({ child, isParent, acks, setAcks, settings }) {
                   ? <JustifyAbsence absence={it.absence} now={NOW} by={ACCOUNT.name} onDone={() => setAttendance(loadAttendance())} />
                   : <p className="mt-1 text-xs text-slate-600">{{ EN_ATTENTE: 'Justification envoyée par tes parents.', NON_JUSTIFIEE: 'Non justifiée.', A_JUSTIFIER: 'Tes parents peuvent la justifier.' }[justification(it.absence, NOW).status]}</p>)}
                 {isParent ? (
-                  <label className={`mt-2 flex items-center gap-2 text-sm ${ack ? 'text-emerald-700' : 'text-slate-800'}`}>
-                    <input type="checkbox" checked={!!ack} disabled={!!ack} onChange={() => setAcks({ ...acks, [it.key]: NOW })} />
-                    J'ai pris connaissance{ack && ` · ${shortDate(ack.slice(0, 10)).toLowerCase()}`}
-                  </label>
+                  ack ? <p className="mt-2 text-sm text-emerald-700">✓ Lu · {shortDate(ack.slice(0, 10)).toLowerCase()}</p>
+                    : <Button className="mt-2 text-sm" onClick={() => setAcks({ ...acks, [it.key]: NOW })}>J'ai lu</Button>
                 ) : ack && <p className="mt-1 text-xs text-emerald-700">Vu par tes parents</p>}
               </li>
             );
@@ -409,8 +454,13 @@ function SchoolLife({ child, isParent, acks, setAcks, settings }) {
 }
 
 /* ---------- Documents ---------- */
+// réponses gardées le temps de la visite (l'accueil sait ce qui reste à donner)
+let authAnswers = AUTH_ANSWERS;
+const authPending = (child) => AUTHORIZATIONS.filter((a) => !authAnswers[child.id]?.[a.id]);
+
 function Documents({ child, isParent }) {
-  const [answers, setAnswers] = useState(AUTH_ANSWERS);
+  const [answers, setAnswersState] = useState(authAnswers);
+  const setAnswers = (v) => { authAnswers = v; setAnswersState(v); };
   const [docs, setDocs] = useState(DOCUMENTS);
   const [requested, setRequested] = useState(REQUESTED);
   const mine = answers[child.id] ?? {};
@@ -418,15 +468,18 @@ function Documents({ child, isParent }) {
     <>
       <Section title={`Autorisations — ${child.name}`}>
         <ul className="space-y-3">
-          {AUTHORIZATIONS.map((a) => (
-            <li key={a.id}>
-              <p className="text-sm font-medium text-slate-800">{a.label}</p>
-              <p className="text-xs text-slate-500">{a.detail}</p>
+          {/* les autorisations en attente d'abord ; une réponse = un bouton */}
+          {[...AUTHORIZATIONS].sort((x, y) => Number(Boolean(mine[x.id])) - Number(Boolean(mine[y.id]))).map((a) => (
+            <li key={a.id} className={mine[a.id] ? '' : 'rounded-xl bg-amber-50 p-2.5'}>
+              <p className="text-sm font-medium text-slate-800">{a.label}{!mine[a.id] && <> <Badge tone="amber">réponse attendue</Badge></>}</p>
+              <p className="text-xs text-slate-600">{a.detail}</p>
               {isParent ? (
-                <select value={mine[a.id]?.answer ?? ''} onChange={(e) => setAnswers({ ...answers, [child.id]: { ...mine, [a.id]: { answer: e.target.value, at: TODAY } } })}
-                  className={`mt-1 w-full rounded-md border px-2 py-1.5 text-sm ${mine[a.id] ? 'border-slate-300' : 'border-amber-400 bg-amber-50'}`}>
-                  <option value="" disabled>Réponse attendue…</option>{a.options.map((o) => <option key={o}>{o}</option>)}
-                </select>
+                <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label={a.label}>
+                  {a.options.map((o) => (
+                    <button key={o} type="button" aria-pressed={mine[a.id]?.answer === o} onClick={() => setAnswers({ ...answers, [child.id]: { ...mine, [a.id]: { answer: o, at: TODAY } } })}
+                      className={`min-h-[44px] rounded-xl px-4 text-sm font-medium ring-1 ${mine[a.id]?.answer === o ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-800 ring-slate-300'}`}>{o}</button>
+                  ))}
+                </div>
               ) : <p className="mt-1 text-sm text-slate-700">{mine[a.id]?.answer ?? 'En attente de la réponse de tes parents'}</p>}
               {mine[a.id] && <p className="mt-0.5 text-[11px] text-slate-500">Signé électroniquement le {longDate(mine[a.id].at)}</p>}
             </li>
@@ -521,15 +574,19 @@ function Orientation({ child, isParent }) {
 }
 
 /* ---------- Paiements & messages (parent) ---------- */
-function Payments() {
+function Payments({ settings }) {
   const fam = FAMILIES.find((f) => f.id === PARENT.familyId);
   const { rows, byJournal, totals } = useMemo(() => accountStatement(fam.lines), [fam]);
-  const [info, setInfo] = useState(false);
+  const [info, setInfo] = useState(true); // « Comment payer ? » ouvert d'emblée
+  const dueDay = settings?.tuition?.dueDay ?? 5;
+  const [y, m] = TODAY.split('-').map(Number);
+  const nextDue = Number(TODAY.slice(8, 10)) <= dueDay ? `${dueDay} ${MONTHS_FR[m - 1]}` : `${dueDay} ${MONTHS_FR[m % 12]}${m === 12 ? ` ${y + 1}` : ''}`;
   return (
     <>
       <Section>
-        <p className="text-xs text-slate-500">Reste à payer (famille)</p>
+        <p className="text-xs text-slate-600">Reste à payer (famille)</p>
         <p className={`text-2xl font-semibold tabular-nums ${totals.balance > 0 ? 'text-red-700' : 'text-emerald-700'}`}>{formatAr(totals.balance)}</p>
+        <p className="mt-1 text-sm text-slate-700">Prochaine échéance des frais de scolarité : <strong>le {nextDue}</strong></p>
         <div className="mt-3 space-y-1.5">
           {Object.entries(JOURNALS).map(([k, j]) => (
             <div key={k} className="flex items-center justify-between text-sm"><Badge tone={j.tone}>{j.label}</Badge><span className="tabular-nums">{(byJournal[k]?.balance ?? 0) > 0 ? formatAr(byJournal[k].balance) : 'À jour'}</span></div>
@@ -679,7 +736,7 @@ export default function FamilyPortal({ settings, audience = 'PARENT', ambiance }
       <div className="flex h-[780px] max-h-[calc(100vh-6rem)] flex-col overflow-hidden rounded-[36px] border-[10px] border-slate-800 bg-paper shadow-2xl">
         <header className="rounded-b-[28px] px-5 pb-4 pt-5 text-white" style={{ background: 'linear-gradient(135deg, #003366, #00427f 55%, var(--amb-topbar-end))' }}>
           <p className="text-xs text-white">Chateaubriand · Tamatave{ambiance ? <> · <span aria-hidden="true">{ambiance.symbol} </span>{ambiance.label}</> : ''}</p>
-          <h1 className="mt-0.5 font-display text-xl font-semibold">{isParent ? `Bonjour ${PARENT.name}` : `Bonjour ${child.name} · ${child.cls}`}</h1>
+          <h1 className="mt-0.5 font-display text-xl font-semibold text-white">{isParent ? `Bonjour ${PARENT.name}` : `Bonjour ${child.name} · ${child.cls}`}</h1>
           {isParent && !['payments', 'messages'].includes(view) && (
             <div className="mt-3 flex gap-2">
               {PARENT.children.map((c) => (
@@ -694,7 +751,9 @@ export default function FamilyPortal({ settings, audience = 'PARENT', ambiance }
         <div role="region" aria-label="Contenu du portail" className="flex-1 space-y-3 overflow-y-auto p-4">
           <TermsGate phone viewer={audience} account={isParent ? ACCOUNT.id : 'aina'}>
           {!isTab && <button onClick={() => go('more')} className="text-sm font-medium text-navy-500">‹ Autres</button>}
-          {view === 'home' && <Home child={child} isParent={isParent} settings={settings} openFiche={() => go('fiche')} openReenrol={() => go('reenrol')} onSeen={() => setTick((t) => t + 1)} openSchoolLife={() => go('life')} ambiance={ambiance} />}
+          {view === 'home' && <Home child={child} isParent={isParent} settings={settings} openFiche={() => go('fiche')} openReenrol={() => go('reenrol')} onSeen={() => setTick((t) => t + 1)} openSchoolLife={() => go('life')} ambiance={ambiance}
+            go={go} pending={[...loadAttendance(), ...MEASURES_LOG].filter((x) => x.student === fullName(child) && !x.parentAck && !acks[x.id] && (x.notified ?? true)).length}
+            others={PARENT.children.filter((c) => c.id !== child.id && childCount(c) > 0).map((c) => ({ id: c.id, name: c.name, count: childCount(c) }))} pickChild={setChildId} />}
           {view === 'more' && <Others audience={audience} menu={menu} badges={badges} open={go} mandates={student.mandates} />}
           {view.startsWith('mandate-') && <StudentMandates student={student} me={fullName(child)} view={view} />}
           {['schoollife', 'life'].includes(view) && <SchoolTab key={child.id} child={child} isParent={isParent} acks={acks} setAcks={setAcks} settings={settings} audience={audience} pending={pendingAcks} />}
@@ -702,7 +761,7 @@ export default function FamilyPortal({ settings, audience = 'PARENT', ambiance }
           {view === 'agenda' && <AgendaModule key={child.id} compact role={audience} cls={child.cls} settings={settings} today={TODAY} />}
           {view === 'reenrol' && (profileOf(child) ? <FamilyRequestForm key={`r-${child.id}`} profile={profileOf(child)} kind="REINSCRIPTION" guardianName={ACCOUNT.name} /> : <Section><p className="text-sm text-slate-500">Fiche introuvable.</p></Section>)}
           {view === 'update' && (profileOf(child) ? <FamilyRequestForm key={`u-${child.id}`} profile={profileOf(child)} kind="MISE_A_JOUR" guardianName={ACCOUNT.name} /> : <Section><p className="text-sm text-slate-500">Fiche introuvable.</p></Section>)}
-          {view === 'fiche' && <FicheForm key={child.id} studentKey={fullName(child)} profile={profileOf(child)} account={ACCOUNT.id} accountName={ACCOUNT.name} />}
+          {view === 'fiche' && <FicheForm key={child.id} studentKey={fullName(child)} profile={profileOf(child)} account={ACCOUNT.id} accountName={ACCOUNT.name} onUpdate={() => go('update')} />}
           {view === 'signature' && <MySignature />}
           {view === 'library' && (<>
             <LibraryLoans child={child} isParent={isParent} />
@@ -714,7 +773,7 @@ export default function FamilyPortal({ settings, audience = 'PARENT', ambiance }
           {view === 'documents' && <Documents child={child} isParent={isParent} />}
           {view === 'stages' && <Internships key={child.id} child={child} isParent={isParent} />}
           {view === 'orientation' && <Orientation key={child.id} child={child} isParent={isParent} />}
-          {view === 'payments' && <Payments />}
+          {view === 'payments' && <Payments settings={settings} />}
           {view === 'messages' && <div className="-m-4 h-full bg-white p-3"><Messenger audience={audience} compact /></div>}
           </TermsGate>
         </div>

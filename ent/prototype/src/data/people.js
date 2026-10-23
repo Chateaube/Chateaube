@@ -76,8 +76,8 @@ export const PARENT = {
     },
   ],
   alerts: [
-    { tone: 'red', title: 'Frais de scolarité d\'octobre en attente', body: '760 000 Ar à régler (échéance du 5 octobre). Les relances reprennent en novembre.' },
-    { tone: 'amber', title: 'Pièce manquante — dossier Pré-Bac d\'Aina', body: 'Photo d\'identité à déposer avant le 30 octobre.' },
+    { tone: 'red', title: 'Frais de scolarité d\'octobre en attente', body: '760 000 Ar à régler (échéance du 5 octobre). Les relances reprennent en novembre.', to: 'payments', action: 'Voir et payer' },
+    { tone: 'amber', child: 'aina', title: 'Pièce manquante — dossier Pré-Bac d\'Aina', body: 'Photo d\'identité à déposer avant le 30 octobre.', to: 'update', action: 'Déposer la photo' },
   ],
   news: [
     { date: '12/10', title: 'Réunion parents-professeurs', body: 'Jeudi 22 octobre à 16h, salle polyvalente (1re et Terminale).' },

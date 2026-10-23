@@ -214,3 +214,8 @@ main label { min-width: 0; max-width: 100%; }
     radial-gradient(farthest-side at 0 50%, rgba(15,23,42,.18), transparent) left center / 10px 100% no-repeat scroll,
     radial-gradient(farthest-side at 100% 50%, rgba(15,23,42,.18), transparent) right center / 10px 100% no-repeat scroll;
 }
+
+/* Portail des familles : boutons d'au moins 44 px de haut (pouce sur téléphone) */
+[aria-label="Contenu du portail"] button:not([role="radio"]):not([role="tab"]),
+[aria-label="Navigation du portail"] button { min-height: 44px; }
+[aria-label="Contenu du portail"] summary { min-height: 40px; display: flex; align-items: center; }

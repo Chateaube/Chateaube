@@ -106,6 +106,11 @@ const PATHS = {
   menu: 'M3 6h14M3 10h14M3 14h14',
   care: 'M8 3h4v5h5v4h-5v5H8v-5H3V8h5z',
   box: 'M3 6l7-3 7 3v8l-7 3-7-3zM3 6l7 3 7-3M10 9v8',
+  book: 'M3 4h5a2 2 0 0 1 2 2v11a2 2 0 0 0-2-2H3zM17 4h-5a2 2 0 0 0-2 2v11a2 2 0 0 1 2-2h5z',
+  doc: 'M5 2h7l4 4v12H5zM12 2v4h4M8 10h5M8 13h5',
+  sign: 'M3 15c2-4 4-6 5-6s-1 5 1 5 2-3 3-3 1 2 3 2M3 18h14',
+  compass: 'M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM13 7l-2 4-4 2 2-4z',
+  refresh: 'M15 8a6 6 0 1 0 1 4M15 3v5h-5',
 };
 
 export function Icon({ name, className = 'h-4 w-4' }) {

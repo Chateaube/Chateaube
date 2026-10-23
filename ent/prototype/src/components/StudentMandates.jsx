@@ -97,16 +97,18 @@ function CouncilPrep({ mandate, me }) {
 export default function StudentMandates({ student, me, view }) {
   const delegate = student.mandates.find((m) => m.kind === 'DELEGUE');
   const bde = student.mandates.find((m) => m.kind === 'BDE');
+  const [bdeTab, setBdeTab] = useState('EVENT'); // BDE : un formulaire à la fois
   const box = (title, sub, children) => <section className="rounded-2xl bg-white p-4 shadow-soft"><h2 className="font-display text-[15px] font-semibold text-slate-900">{title}</h2><p className="mb-3 text-xs text-slate-600">{sub}</p>{children}</section>;
   return (
     <div className="space-y-3">
       {view === 'mandate-class' && delegate && can(student, 'ANNONCE_CLASSE') && box(`Écrire à ma classe — ${delegate.cls}`, 'Message aux élèves de la classe : relu par la CPE, validé par la Direction.', <AnnouncementForm mandate={delegate} me={me} scopeChoices={[['CLASS', delegate.cls]]} />)}
       {view === 'mandate-council' && delegate && can(student, 'LIAISON_CONSEIL') && box('Préparer le conseil de classe', 'Les remarques de la classe, transmises au secrétariat pour le conseil.', <CouncilPrep mandate={delegate} me={me} />)}
       {view === 'mandate-bde' && bde && box(`BDE${bde.president ? ' — présidence' : ''}`, 'Annonces aux élèves et événements : relus par la CPE, validés par la Direction.', <>
-        <h3 className="mb-1 text-sm font-semibold text-slate-800">Proposer un événement</h3>
-        {can(student, 'EVENEMENT') && <EventForm me={me} />}
-        <h3 className="mb-1 mt-4 text-sm font-semibold text-slate-800">Rédiger une annonce</h3>
-        {can(student, 'ANNONCE_ELEVES') && <AnnouncementForm mandate={bde} me={me} scopeChoices={[['ALL', 'Tous les élèves du site']]} />}
+        <div className="mb-3 grid grid-cols-2 gap-1 rounded-full bg-slate-100 p-1" role="tablist" aria-label="BDE">
+          {[['EVENT', 'Événement'], ['NEWS', 'Annonce']].map(([k, l]) => <button key={k} type="button" role="tab" aria-selected={bdeTab === k} onClick={() => setBdeTab(k)} className={`min-h-[40px] rounded-full text-sm font-medium ${bdeTab === k ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>{l}</button>)}
+        </div>
+        {bdeTab === 'EVENT' && can(student, 'EVENEMENT') && <EventForm me={me} />}
+        {bdeTab === 'NEWS' && can(student, 'ANNONCE_ELEVES') && <AnnouncementForm mandate={bde} me={me} scopeChoices={[['ALL', 'Tous les élèves du site']]} />}
       </>)}
     </div>
   );

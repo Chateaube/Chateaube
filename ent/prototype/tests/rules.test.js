@@ -1524,7 +1524,8 @@ test('navigation : portail famille en 4 sections de 3 au plus, entrées réserv�
   assert.equal(new Set(entries.map(([id]) => id)).size, entries.length, 'entrée présente deux fois');
   FAMILY_SECTIONS.forEach(([title, items]) => assert.ok(items.length <= 3, `${title} : plus de 3 entrées`));
   const parentOnly = entries.filter((e) => e[3] === 'PARENT').map((e) => e[0]).sort();
-  assert.deepEqual(parentOnly, ['fiche', 'payments', 'reenrol', 'signature', 'update']);
+  assert.deepEqual(parentOnly, ['fiche', 'payments', 'reenrol', 'signature']); // « Mettre à jour » : depuis la fiche
+  assert.ok(!entries.some(([id]) => id === 'update'));
 });
 
 import { sortTasks, taskErrors, tasksFor, isOverdue } from '../src/rules/tasks.js';

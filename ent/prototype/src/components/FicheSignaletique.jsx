@@ -79,8 +79,11 @@ function GuardianFields({ g, onChange, title }) {
 }
 
 /** Formulaire du parent (portail famille). */
-export function FicheForm({ studentKey, profile, account, accountName, onSigned }) {
+const STEPS = ['Élève', 'Responsables', 'Santé et autorisations', 'Signature'];
+
+export function FicheForm({ studentKey, profile, account, accountName, onSigned, onUpdate }) {
   const [existing, setExisting] = useState(() => ficheOf(studentKey));
+  const [step, setStep] = useState(0); // la fiche en quatre étapes courtes
   const [f, setF] = useState(existing ?? prefill(profile, account));
   const [signature, setSignature] = useState(null);
   const [tried, setTried] = useState(false);
@@ -90,7 +93,13 @@ export function FicheForm({ studentKey, profile, account, accountName, onSigned 
   const input = (k, extra = {}) => <input value={f[k]} onChange={(e) => set({ [k]: e.target.value })} className={inputCls} {...extra} />;
   const setSibling = (i, patch) => set({ siblings: f.siblings.map((s, k) => (k === i ? { ...s, ...patch } : s)) });
 
-  if (existing?.signedAt) return <FicheView fiche={existing} />;
+  if (existing?.signedAt) return (
+    <div className="space-y-3">
+      <FicheView fiche={existing} />
+      {/* « Mettre à jour nos informations » : depuis la fiche, plus une entrée à part */}
+      {onUpdate && <Button variant="secondary" className="w-full" onClick={onUpdate}>Signaler un changement (adresse, téléphone…)</Button>}
+    </div>
+  );
 
   const submit = () => {
     setTried(true);
@@ -110,13 +119,15 @@ export function FicheForm({ studentKey, profile, account, accountName, onSigned 
         <p className="mt-1 text-xs text-navy-100">Pré-remplie avec ce que l'école connaît déjà : vérifiez, complétez, puis signez. Plus de fiche papier à écrire à la main.</p>
       </div>
 
+      <ol className="grid grid-cols-4 gap-1" aria-label="Étapes">
+        {STEPS.map((s, i) => (
+          <li key={s}><button type="button" onClick={() => setStep(i)} aria-current={step === i ? 'step' : undefined}
+            className={`w-full rounded-lg px-1 py-1.5 text-[11px] font-medium leading-tight ${step === i ? 'bg-navy-500 text-white' : i < step ? 'bg-navy-50 text-navy-900' : 'bg-slate-100 text-slate-600'}`}>{i + 1}. {s}</button></li>
+        ))}
+      </ol>
+
+      {step === 0 && <>
       <Block title="Élève">
-        <div className="flex gap-1.5">
-          {[['TNR', 'Tananarive 101'], ['TMV', 'Tamatave 501']].map(([id, l]) => (
-            <button key={id} type="button" aria-pressed={f.site === id} onClick={() => set({ site: id })}
-              className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${f.site === id ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-600 ring-slate-300'}`}>{l}</button>
-          ))}
-        </div>
         <div className="flex gap-3">
           <div className="flex-1 space-y-2">
             <Field label="Nom(s)">{input('lastName')}</Field>
@@ -166,9 +177,15 @@ export function FicheForm({ studentKey, profile, account, accountName, onSigned 
         <button type="button" onClick={() => set({ siblings: [...f.siblings, { name: '', birthDate: '', cls: '', school: '' }] })} className="text-sm font-medium text-navy-500">＋ Ajouter un frère ou une sœur</button>
       </Block>
 
+      </>}
+
+      {step === 1 && <>
       <GuardianFields title="Représentant légal" g={f.guardians[0]} onChange={(g) => set({ guardians: [g, f.guardians[1]] })} />
       <GuardianFields title="Autre personne responsable" g={f.guardians[1]} onChange={(g) => set({ guardians: [f.guardians[0], g] })} />
 
+      </>}
+
+      {step === 2 && <>
       <Block title="Informations médicales">
         <Field label="Allergies connues">{input('allergies')}</Field>
         <p className="text-[11px] text-slate-500">L'école n'a pas d'infirmerie : le seul médicament donné est le Doliprane (paracétamol), par le secrétariat, comme le prévoit le règlement intérieur. Signalez toute allergie au paracétamol.</p>
@@ -184,6 +201,9 @@ export function FicheForm({ studentKey, profile, account, accountName, onSigned 
         <label className="flex gap-2 rounded-lg bg-amber-50 p-2 text-sm font-medium text-amber-900"><input type="checkbox" className="mt-1" checked={f.accept} onChange={(e) => set({ accept: e.target.checked })} />Nous déclarons avoir pris connaissance et approuvé l'ensemble des informations mentionnées ci-dessus.</label>
       </Block>
 
+      </>}
+
+      {step === 3 && <>
       <Block title="Signature">
         <Field label="Fait à">{input('place')}</Field>
         <p className="text-xs text-slate-500">Le {fmt(new Date().toISOString().slice(0, 10))} · {accountName}</p>
@@ -201,6 +221,13 @@ export function FicheForm({ studentKey, profile, account, accountName, onSigned 
         </ul>
       )}
       <Button className="w-full" onClick={submit}>Signer et envoyer la fiche</Button>
+      </>}
+      {step < 3 && (
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="secondary" disabled={step === 0} onClick={() => setStep(step - 1)}>‹ Précédent</Button>
+          <Button onClick={() => setStep(step + 1)}>Suivant ›</Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -220,7 +247,6 @@ export function FicheView({ fiche: f, compact = false }) {
           {row('Élève', `${f.lastName} ${f.firstName}`)}
           {row('Né(e) le', `${fmt(f.birthDate)} à ${f.birthPlace}`)}
           {row('Genre', f.sex === 'F' ? 'Féminin' : 'Masculin')}
-          {row('Site', f.site === 'TMV' ? 'Tamatave 501' : 'Tananarive 101')}
           {row('Classe', f.cls)}
           {row('Entrée', f.enteredOn)}
           {row('Établissement précédent', f.previousSchool)}
