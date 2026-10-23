@@ -33,6 +33,10 @@ export default function CareModule({ role = 'BUREAU' }) {
   const who = role === 'DIRECTION' ? 'Direction' : 'Mme Hanta';
   const kit = inv.filter((i) => i.cat === 'Trousse de secours' && !i.paracetamol);
   const [d, setD] = useState(blank);
+  const [pending, setPending] = useState(null); // élève envoyé par la CPE, dont on complète le passage
+  const today = NOW.slice(0, 10);
+  const here = visits.filter((v) => v.at.startsWith(today) && (!v.outcome || v.outcome === 'REPOS'));
+  const backToClass = (v) => { const next = visits.map((x) => (x.id === v.id ? { ...x, outcome: 'CLASSE', backAt: new Date().toTimeString().slice(0, 5) } : x)); setVisits(next); saveVisits(next); setMsg(`${v.student} est reparti·e en classe.`); };
   const [tried, setTried] = useState(false);
   const [msg, setMsg] = useState('');
   const doli = inv.find((i) => i.paracetamol);
@@ -47,7 +51,7 @@ export default function CareModule({ role = 'BUREAU' }) {
     const used = Object.entries(d.products ?? {}).filter(([, n]) => n > 0);
     for (const [id, n] of used) { const it = inv.find((i) => i.id === id); if (n > usable(it)) { setMsg(`Plus assez de « ${it.name} » dans la trousse (${usable(it)} restant).`); return; } }
     const v = { ...d, id: `c${Date.now()}`, by: who, products: used.map(([id, n]) => ({ name: inv.find((i) => i.id === id).name, n })), notice: parentNotice(d, firstNameOf(d.student)) };
-    const next = [v, ...visits]; setVisits(next); saveVisits(next);
+    const next = [v, ...visits.filter((x) => x.id !== pending)]; setVisits(next); saveVisits(next); setPending(null);
     const note = `${d.student} (${d.reason === 'Autre' ? d.detail : d.reason.toLowerCase()})`;
     const nextInv = inv.map((i) => {
       if (d.paracetamol && doli && i.id === doli.id) return consume(i, 1, who, d.at, note);
@@ -71,6 +75,22 @@ export default function CareModule({ role = 'BUREAU' }) {
         <Stat label="Doliprane en stock" value={doli ? usable(doli) : 0} tone={doli && usable(doli) <= doli.min ? 'amber' : 'slate'} hint={doli ? `seuil ${doli.min}` : ''} />
         <Stat label={`Élèves passés ${FREQUENT_VISITS} fois ou plus`} value={frequent.length} tone={frequent.length ? 'amber' : 'slate'} />
       </div>
+      {here.length > 0 && (
+        <section aria-label="Au secrétariat maintenant" className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-3">
+          <p className="mb-2 text-sm font-semibold text-amber-900">Au secrétariat maintenant ({here.length})</p>
+          <ul className="space-y-2">
+            {here.map((v) => (
+              <li key={v.id} className="flex flex-col gap-2 rounded-xl bg-white p-2.5 text-sm sm:flex-row sm:items-center sm:justify-between">
+                <span><strong>{v.student}</strong> · depuis {v.at.slice(11, 16).replace(':', 'h')} · {v.reason}{v.sentBy ? ` · envoyé·e par ${v.sentBy}` : ''}{v.outcome === 'REPOS' ? ' · au repos' : ''}</span>
+                <span className="flex gap-2">
+                  {!v.outcome && canGive && <Button variant="secondary" className="!py-1 text-xs" onClick={() => { setPending(v.id); setD({ ...blank, student: v.student, reason: CARE_REASONS.includes(v.reason) ? v.reason : 'Autre', at: v.at }); }}>Noter les soins</Button>}
+                  <Button className="!py-1 text-xs" onClick={() => backToClass(v)}>Retour en classe</Button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {msg && <p role="status" className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800"><Icon name="check" />{msg}</p>}
       {frequent.length > 0 && (
         <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
@@ -84,7 +104,7 @@ export default function CareModule({ role = 'BUREAU' }) {
             {visits.map((v) => (
               <li key={v.id} className="flex flex-wrap items-start justify-between gap-2 py-2">
                 <span className="min-w-0"><span className="font-medium text-slate-900">{v.student}</span> <span className="text-slate-500">· {classOf(v.student) ?? ''}</span>
-                  <span className="block text-xs text-slate-500">{fmtDT(v.at)} · {v.reason === 'Autre' ? v.detail : v.reason}{v.detail && v.reason !== 'Autre' ? ` (${v.detail})` : ''} · {CARE_OUTCOMES[v.outcome]} · {v.by}</span></span>
+                  <span className="block text-xs text-slate-500">{fmtDT(v.at)} · {v.reason === 'Autre' ? v.detail : v.reason}{v.detail && v.reason !== 'Autre' ? ` (${v.detail})` : ''} · {CARE_OUTCOMES[v.outcome] ?? 'en cours'} · {v.by}</span></span>
                 <span className="flex flex-wrap justify-end gap-1">{v.paracetamol ? <Badge tone="navy">Doliprane · {v.dose}</Badge> : <Badge>sans médicament</Badge>}{(v.products ?? []).map((x) => <Badge key={x.name} tone="slate">{x.n} × {x.name}</Badge>)}</span>
               </li>
             ))}

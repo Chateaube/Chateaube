@@ -162,7 +162,9 @@ export function ColleSessionsCard({ role }) {
           <li key={x.day} className="flex flex-wrap items-center justify-between gap-2 py-2">
             <span><span className="font-medium text-slate-900">{formatDateFr(x.day).replace(/ \d{4}$/, '')}, {x.from.replace(':', 'h')}–{x.to.replace(':', 'h')}</span>
               <span className="block text-xs text-slate-600">{colles.filter((c) => c.kind !== 'TIG' && c.status === 'A_FAIRE' && c.when?.startsWith(x.day)).map((c) => `${c.student} ${c.when.slice(11, 16).replace(':', 'h')} (${c.hours} h)`).join(' · ')}</span></span>
-            {canPick ? (
+            {canPick && !watch[x.day] && WATCHERS[role] ? (
+              <Button className="!py-1 text-xs" onClick={() => { const w = { ...watch, [x.day]: role }; setWatch(w); saveWatch(w); }}>Je surveille</Button>
+            ) : canPick ? (
               <select value={watch[x.day] ?? ''} onChange={(e) => { const w = { ...watch, [x.day]: e.target.value || undefined }; setWatch(w); saveWatch(w); }} aria-label={`Surveillance — ${x.day}`}
                 className={`${inputCls} ${watch[x.day] ? '' : 'border-amber-400 bg-amber-50'}`}>
                 <option value="">Qui surveille ?</option>{Object.entries(WATCHERS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}

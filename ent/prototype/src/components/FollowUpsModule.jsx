@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Badge, Button, Card } from './ui.jsx';
+import { Badge, Button, Card, Tel } from './ui.jsx';
 import { ClassStudentPicker } from './VieScolaireModule.jsx';
 import { loadPassport } from './PassportTab.jsx';
 import { ATTENDANCE, MEASURES_LOG, classOf, STAFF_NAMES } from '../data/schoollife.js';
@@ -67,7 +67,7 @@ export default function FollowUpsModule({ role, student, embedded = false }) {
                 <li className="text-xs text-slate-600">Moyenne {facts.average ?? '—'} · absences non justifiées {facts.unjustified} · retards {facts.lates} · punitions et colles {facts.measures}</li>
               </ul>
               {f.contact && (
-                <p className="mt-2 text-xs text-slate-700">Contact : <strong>{f.contact.name}</strong>, {f.contact.role}{f.contact.phone ? ` · ${f.contact.phone}` : ''}
+                <p className="mt-2 text-xs text-slate-700">Contact : <strong>{f.contact.name}</strong>, {f.contact.role}{f.contact.phone && <> · <Tel n={f.contact.phone} /></>}
                   {f.contact.parentConsent ? (f.contact.email && <a className="ml-2 font-medium text-navy-700 underline" href={`mailto:${f.contact.email}?subject=${encodeURIComponent(`Suivi de ${f.student}`)}&body=${encodeURIComponent(followUpReport(f, facts, ev, `au ${fr(NOW.slice(0, 10))}`))}`}>Écrire (e-mail prérempli)</a>)
                     : <span className="ml-2 text-red-700">accord des parents manquant : ne rien transmettre</span>}</p>
               )}

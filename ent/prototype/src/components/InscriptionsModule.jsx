@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Avatar, Badge, Button, Card, Icon, Stat } from './ui.jsx';
+import { Avatar, Badge, Button, Card, Icon, Stat, Tel } from './ui.jsx';
 import { PREREGISTRATIONS, PREREG_SOURCES, ENROLL_CLASSES, LANGUAGES, RELATIONS } from '../data/enrollment.js';
 import {
   PREREG_STEPS, PREREG_OTHER, nextPreregStep, nextClass, validateProfile, accountsFor, missingDocuments, documentsFor, nextMatricule,
@@ -361,7 +361,7 @@ function ProfileCard({ p, onReenrol, onComplete, created }) {
               <li key={g.name} className="flex items-start gap-2">
                 <Avatar name={g.name} className="h-7 w-7 text-[10px]" />
                 <span className="min-w-0">{g.name} <span className="text-slate-500">({g.relation})</span>
-                  <span className="block text-xs text-slate-500">{g.phone}{g.email ? ` · ${g.email}` : ''}</span>
+                  <span className="block text-xs text-slate-500"><Tel n={g.phone} />{g.email ? ` · ${g.email}` : ''}</span>
                   <span className="flex flex-wrap gap-1">{g.payer && <Badge tone="navy">responsable financier</Badge>}</span>
                 </span>
               </li>

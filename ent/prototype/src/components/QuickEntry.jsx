@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Button, Icon } from './ui.jsx';
+import { Avatar, Button, Icon } from './ui.jsx';
+import { loadProfiles, profileKey } from '../profilesStore.js';
 import { loadAttendance, saveAttendance } from '../attendanceStore.js';
 import { loadObjects, saveObjects } from '../objectsStore.js';
 import { loadVisits, saveVisits } from '../careStore.js';
@@ -18,7 +19,10 @@ const ACTIONS = [
   ['RETARD', 'Retard', 'clock'], ['ABSENCE', 'Absence', 'users'], ['OBJET', 'Confiscation', 'box'], ['SOIN', 'Soins', 'care'],
 ];
 const SLOTS = [['Matin', '07h00–12h00'], ['Après-midi', '13h00–17h00'], ['Journée', 'Journée']];
+const MOTIFS = ['Utilisé en classe', 'Sonnerie en cours', 'Photo ou vidéo', 'Pendant un contrôle', 'Écouteurs en classe'];
 const nowHm = () => new Date().toTimeString().slice(0, 5);
+/** Minutes de retard : depuis le début de l'heure de cours (les cours commencent à l'heure pile). */
+export const lateMinutes = (arrival) => { const [h, m] = arrival.split(':').map(Number); return h < 7 ? 0 : m; };
 
 function Chips({ options, value, onChange, label }) {
   return (
@@ -34,28 +38,34 @@ function Chips({ options, value, onChange, label }) {
 function Sheet({ action, role, onClose, onSaved }) {
   const [query, setQuery] = useState('');
   const [student, setStudent] = useState(null);
-  const [f, setF] = useState({ minutes: 5, slot: 'Matin', object: 'Téléphone', reason: '', care: 'Mal de tête', outcome: 'CLASSE' });
+  const [f, setF] = useState({ arrival: nowHm(), slot: 'Matin', object: 'Téléphone', reason: '', care: 'Mal de tête', outcome: 'CLASSE' });
+  const [count, setCount] = useState(0); // saisies enregistrées en série
+  const photoOf = useMemo(() => Object.fromEntries(loadProfiles().filter((p) => p.photo).map((p) => [profileKey(p), p.photo])), []);
+  const minutes = lateMinutes(f.arrival);
+  const sendsToDesk = role !== 'BUREAU'; // la CPE ou un professeur envoie l'élève au secrétariat, qui donne les soins
   const matches = useMemo(() => findStudents(query), [query]);
   const who = ACTOR[role] ?? ACTOR.VIE_SCOLAIRE;
   const label = ACTIONS.find(([k]) => k === action)[1];
-  const ready = student && (action !== 'OBJET' || f.reason.trim());
+  const ready = student && (action !== 'OBJET' || f.reason.trim()) && (action !== 'RETARD' || minutes > 0);
 
-  const save = () => {
+  const save = (next = false) => {
     const t = nowHm(); const id = `${action.toLowerCase()}${Date.now()}`;
     let text = '';
     if (action === 'RETARD' || action === 'ABSENCE') {
-      const slot = action === 'RETARD' ? `${t.replace(':', 'h')} (+${f.minutes} min)` : SLOTS.find(([k]) => k === f.slot)[1];
+      const slot = action === 'RETARD' ? `${f.arrival.replace(':', 'h')} (+${minutes} min)` : SLOTS.find(([k]) => k === f.slot)[1];
       saveAttendance([{ id, date: DEMO_TODAY, student: student.name, kind: action, slot, by: who, justified: false, notified: false, parentAck: null }, ...loadAttendance()]);
-      text = action === 'RETARD' ? `Retard de ${f.minutes} min${f.minutes > LATE_LIMIT ? ' (compté absent pour l\'heure commencée)' : ''}` : `Absence (${f.slot.toLowerCase()})`;
+      text = action === 'RETARD' ? `Retard de ${minutes} min${minutes > LATE_LIMIT ? ' (compté absent pour l\'heure commencée)' : ''}` : `Absence (${f.slot.toLowerCase()})`;
     } else if (action === 'OBJET') {
       saveObjects([{ id, student: student.name, at: `${DEMO_TODAY}T${t}`, object: f.object, confiscatedBy: who, receivedBy: role === 'ENSEIGNANT' ? 'M. Be (CPE)' : who, reason: f.reason.trim(), returned: null }, ...loadObjects()]);
       text = `${f.object} confisqué : ${f.reason.trim()} (durée à décider par la Direction ou le secrétariat)`;
     } else {
-      saveVisits([{ id, at: `${DEMO_TODAY}T${t}`, student: student.name, reason: f.care, paracetamol: false, outcome: f.outcome, by: who }, ...loadVisits()]);
-      text = `Passage à l'infirmerie : ${f.care.toLowerCase()} — ${CARE_OUTCOMES[f.outcome].toLowerCase()}`;
+      // envoyé par la CPE : l'élève est « au secrétariat maintenant » jusqu'au « Retour en classe »
+      saveVisits([{ id, at: `${DEMO_TODAY}T${t}`, student: student.name, reason: f.care, paracetamol: false, outcome: sendsToDesk ? null : f.outcome, by: who, ...(sendsToDesk ? { sentBy: who } : {}) }, ...loadVisits()]);
+      text = sendsToDesk ? `Envoyé au secrétariat (soins) : ${f.care.toLowerCase()}` : `Soins au secrétariat : ${f.care.toLowerCase()} — ${CARE_OUTCOMES[f.outcome].toLowerCase()}`;
     }
     logActivity({ who, role, kind: { RETARD: 'ABSENCE', ABSENCE: 'ABSENCE', OBJET: 'OBJET', SOIN: 'SOIN' }[action], student: student.name, text });
-    onSaved(`${{ RETARD: 'Retard noté', ABSENCE: 'Absence notée', OBJET: 'Confiscation notée', SOIN: 'Passage aux soins noté' }[action]} pour ${student.name} (${student.cls}).${action === 'RETARD' || action === 'ABSENCE' ? ' Les parents seront prévenus avec les autres (Absences et retards).' : ''}`);
+    const msg = `${{ RETARD: 'Retard noté', ABSENCE: 'Absence notée', OBJET: 'Confiscation notée', SOIN: sendsToDesk ? 'Envoyé au secrétariat' : 'Soins notés' }[action]} pour ${student.name} (${student.cls}).${action === 'RETARD' || action === 'ABSENCE' ? ' Les parents seront prévenus avec les autres (Absences et retards).' : ''}`;
+    if (next) { setCount(count + 1); setStudent(null); setQuery(''); setF({ ...f, arrival: nowHm(), reason: '' }); onSaved(msg, true); } else onSaved(msg);
   };
 
   return (
@@ -63,7 +73,7 @@ function Sheet({ action, role, onClose, onSaved }) {
       <div role="dialog" aria-modal="true" aria-label={`Saisie express : ${label}`} onClick={(e) => e.stopPropagation()}
         className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-4 shadow-2xl sm:rounded-3xl">
         <div className="mb-3 flex items-center justify-between">
-          <p className="font-display text-lg font-semibold text-navy-900">{label}</p>
+          <p className="font-display text-lg font-semibold text-navy-900">{action === 'SOIN' && sendsToDesk ? 'Envoyer au secrétariat (soins)' : label}{count > 0 && <span className="ml-2 text-xs font-normal text-emerald-700">{count} déjà noté{count > 1 ? 's' : ''}</span>}</p>
           <button type="button" onClick={onClose} aria-label="Fermer" className="rounded-full p-2 text-slate-500 hover:bg-slate-100"><Icon name="x" /></button>
         </div>
         {!student ? (
@@ -72,28 +82,35 @@ function Sheet({ action, role, onClose, onSaved }) {
               <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ex. Fitia, Rasoa, 1re STMG" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base" />
             </label>
             <ul className="mt-2 divide-y divide-slate-100">
-              {matches.map((s) => <li key={s.name}><button type="button" onClick={() => setStudent(s)} className="flex min-h-[44px] w-full items-center justify-between px-1 text-left text-sm"><span className="font-medium text-slate-900">{s.name}</span><span className="text-xs text-slate-600">{s.cls}</span></button></li>)}
+              {matches.map((s) => <li key={s.name}><button type="button" onClick={() => setStudent(s)} className="flex min-h-[44px] w-full items-center justify-between px-1 text-left text-sm"><span className="flex items-center gap-2 font-medium text-slate-900"><Avatar name={s.name} photo={photoOf[s.name]} className="h-8 w-8 text-[10px]" />{s.name}</span><span className="text-xs text-slate-600">{s.cls}</span></button></li>)}
               {query.trim() && !matches.length && <li className="py-2 text-sm text-slate-600">Aucun élève trouvé.</li>}
             </ul>
           </>
         ) : (
           <div className="space-y-3">
-            <p className="flex items-center justify-between rounded-xl bg-navy-50 px-3 py-2 text-sm"><span><strong>{student.name}</strong> · {student.cls}</span><button type="button" onClick={() => setStudent(null)} className="text-xs font-medium text-navy-700">Changer</button></p>
+            <p className="flex items-center justify-between rounded-xl bg-navy-50 px-3 py-2 text-sm"><span className="flex items-center gap-2"><Avatar name={student.name} photo={photoOf[student.name]} className="h-12 w-12 text-xs" /><span><strong>{student.name}</strong> · {student.cls}</span></span><button type="button" onClick={() => setStudent(null)} className="text-xs font-medium text-navy-700">Changer</button></p>
             {action === 'RETARD' && <>
-              <Chips label="Minutes de retard" value={f.minutes} onChange={(minutes) => setF({ ...f, minutes })} options={[5, 10, 15, 20, 30].map((m) => [m, `${m} min`])} />
-              {f.minutes > LATE_LIMIT && <p className="text-xs text-amber-800">Plus de {LATE_LIMIT} min : compté absent pour l'heure commencée, il entre à l'heure suivante.</p>}
+              <label className="flex items-center gap-3 text-sm text-slate-700">Arrivé·e à
+                <input type="time" value={f.arrival} onChange={(e) => setF({ ...f, arrival: e.target.value })} className="rounded-xl border border-slate-300 px-3 py-2 text-base" />
+                <strong className="text-navy-900">{minutes > 0 ? `${minutes} min de retard` : 'à l\'heure'}</strong>
+              </label>
+              {minutes > LATE_LIMIT && <p className="text-xs text-amber-800">Plus de {LATE_LIMIT} min : compté absent pour l'heure commencée, il entre à l'heure suivante.</p>}
             </>}
             {action === 'ABSENCE' && <Chips label="Créneau" value={f.slot} onChange={(slot) => setF({ ...f, slot })} options={SLOTS.map(([k]) => [k, k])} />}
             {action === 'OBJET' && <>
               <Chips label="Objet" value={f.object} onChange={(object) => setF({ ...f, object })} options={OBJECTS.filter((o) => o !== 'Autre').map((o) => [o, o.replace(/ \(Puff\)/, '')])} />
-              <input value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} placeholder="Motif (ex. sorti en classe)" aria-label="Motif" className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" />
+              <Chips label="Motif" value={f.reason} onChange={(reason) => setF({ ...f, reason })} options={MOTIFS.map((m) => [m, m])} />
+              <input value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} placeholder="Ou un autre motif" aria-label="Motif" className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" />
             </>}
             {action === 'SOIN' && <>
               <Chips label="Motif" value={f.care} onChange={(care) => setF({ ...f, care })} options={CARE_REASONS.map((r) => [r, r])} />
-              <Chips label="Suite" value={f.outcome} onChange={(outcome) => setF({ ...f, outcome })} options={Object.entries(CARE_OUTCOMES).map(([k, l]) => [k, l.split(' (')[0].split(' :')[0]])} />
-              <p className="text-xs text-slate-600">Un médicament (Doliprane…) : passez par l'écran Soins (secrétariat), qui vérifie les allergies et la dernière prise.</p>
+              {!sendsToDesk && <Chips label="Suite" value={f.outcome} onChange={(outcome) => setF({ ...f, outcome })} options={Object.entries(CARE_OUTCOMES).map(([k, l]) => [k, l.split(' (')[0].split(' :')[0]])} />}
+              <p className="text-xs text-slate-600">{sendsToDesk ? 'Le secrétariat le voit aussitôt dans « Au secrétariat maintenant » et note le retour en classe.' : 'Un médicament (Doliprane…) : passez par l\'écran Soins, qui vérifie les allergies et la dernière prise.'}</p>
             </>}
-            <Button className="w-full !py-3 text-base" disabled={!ready} onClick={save}>Enregistrer</Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button className="!py-3 text-base" disabled={!ready} onClick={() => save(false)}>Enregistrer</Button>
+              <Button variant="secondary" className="!py-3 text-base" disabled={!ready} onClick={() => save(true)}>Enregistrer et suivant</Button>
+            </div>
           </div>
         )}
       </div>
@@ -122,7 +139,7 @@ export default function QuickEntry({ role = 'VIE_SCOLAIRE' }) {
         {buttons('flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-[11px] font-semibold text-navy-900')}
       </nav>
       {done && <p role="status" className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800"><Icon name="check" />{done}</p>}
-      {action && <Sheet action={action} role={role} onClose={() => setAction(null)} onSaved={(m) => { setDone(m); setAction(null); }} />}
+      {action && <Sheet action={action} role={role} onClose={() => setAction(null)} onSaved={(m, keepOpen) => { setDone(m); if (!keepOpen) setAction(null); }} />}
     </>
   );
 }

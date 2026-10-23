@@ -38,7 +38,7 @@ const hm = (iso) => iso.slice(11, 16).replace(':', 'h');
 /** Élèves passés au secrétariat aujourd'hui et qui n'en sont pas repartis en classe. */
 function careUrgent(today) {
   return loadVisits().filter((v) => v.at.startsWith(today) && v.outcome !== 'CLASSE')
-    .map((v) => ({ id: `care-${v.id}`, level: 'URGENT', to: 'care', text: `${v.student} au secrétariat depuis ${hm(v.at)} (${v.reason.toLowerCase()}) — ${CARE_OUTCOMES[v.outcome].toLowerCase()}` }));
+    .map((v) => ({ id: `care-${v.id}`, level: 'URGENT', to: 'care', text: `${v.student} au secrétariat depuis ${hm(v.at)} (${v.reason.toLowerCase()}) — ${v.outcome ? CARE_OUTCOMES[v.outcome].toLowerCase() : `envoyé·e par ${v.sentBy ?? v.by}, à prendre en charge`}` }));
 }
 
 export function notificationsFor(role, { account, covering = true } = {}) {

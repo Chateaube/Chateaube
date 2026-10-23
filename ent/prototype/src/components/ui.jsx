@@ -139,3 +139,9 @@ export function StudentSelect({ students, value, onChange, suffix, label = 'Él�
     </div>
   );
 }
+
+/** Numéro cliquable : un appui ouvre l'appel sur le téléphone. */
+export function Tel({ n, className = '' }) {
+  if (!n) return null;
+  return <a href={`tel:${n.replace(/[^+\d]/g, '')}`} className={`font-medium text-navy-700 underline decoration-dotted underline-offset-2 ${className}`}>{n}</a>;
+}

@@ -46,6 +46,7 @@ export function frequentVisitors(visits, month, min = FREQUENT_VISITS) {
 export function parentNotice(v, firstName) {
   const h = v.at.slice(11, 16).replace(':', 'h');
   const what = v.reason === 'Autre' ? v.detail : v.reason.toLowerCase();
+  if (!v.outcome) return `${firstName} a été envoyé·e au secrétariat à ${h} : ${what}. Il ou elle est pris·e en charge ; vous aurez des nouvelles ici.`;
   const med = v.paracetamol ? ` Un Doliprane lui a été donné (${v.dose}).` : ' Aucun médicament ne lui a été donné.';
   return `${firstName} est passé·e au secrétariat à ${h} : ${what}.${med} Suite : ${CARE_OUTCOMES[v.outcome].toLowerCase()}. Pensez à lui demander ce soir comment il ou elle se sent.`;
 }

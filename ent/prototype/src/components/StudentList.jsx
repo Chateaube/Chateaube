@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Avatar, Badge, Button, Card } from './ui.jsx';
+import { Avatar, Badge, Button, Card, Tel } from './ui.jsx';
 import { loadProfiles } from '../profilesStore.js';
 import { filterStudents, studentsCsv, accessSlips } from '../rules/studentList.js';
 import { nationalityLabels, missingDocuments } from '../rules/enrollment.js';
@@ -86,7 +86,7 @@ export default function StudentList({ role, onOpen, embedded = false, rowAction 
                     <td className="px-2">{p.cls}</td>
                     <td className="px-2 tabular-nums">{fmt(p.birthDate)}</td>
                     <td className="px-2">{nationalityLabels(p.nationalities ?? [], p.otherNationality).join(', ') || '—'}</td>
-                    <td className="px-2 text-xs">{(p.guardians ?? []).map((g) => <span key={g.name} className="block">{g.name} · {g.phone}</span>)}{!p.guardians?.length && <Badge tone="amber">à compléter</Badge>}</td>
+                    <td className="px-2 text-xs">{(p.guardians ?? []).map((g) => <span key={g.name} className="block">{g.name} · <Tel n={g.phone} /></span>)}{!p.guardians?.length && <Badge tone="amber">à compléter</Badge>}</td>
                     <td className="px-4">{missing.length ? <Badge tone="amber">{missing.length} pièce{missing.length > 1 ? 's' : ''} manquante{missing.length > 1 ? 's' : ''}</Badge> : <Badge tone="green">complet</Badge>}</td>
                     {rowAction && <td className="px-4">{rowAction(p)}</td>}
                   </tr>
