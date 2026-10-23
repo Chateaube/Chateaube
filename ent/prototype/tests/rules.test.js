@@ -839,7 +839,7 @@ test('liste des élèves : filtre, export complet, codes d\'accès sans doublon'
   const out = studentsCsv(list, 'Liste');
   assert.match(out, /Nationalité\(s\)/);
   assert.match(out, /5e;RAKOTO;Toky;Toky;;;;Malgache, Française/);
-  assert.match(out, /Mme Rakoto Voahangy;Mère;\+261 34 12 345 67;voahangy@gmail.com;oui;oui/);
+  assert.match(out, /Mme Rakoto Voahangy;Mère;\+261 34 12 345 67;voahangy@gmail.com;oui/); // règle les frais (plus de colonne WhatsApp)
   const slips = accessSlips(list);
   assert.equal(slips.length, 2); // la mère a un seul accès pour ses deux enfants
   assert.equal(slips.find((s) => s.name === mere.name).children.length, 2);
