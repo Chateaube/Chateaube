@@ -1875,9 +1875,10 @@ test('recherche : élèves sans accents ni majuscules, actions et écrans access
   assert.deepEqual(findStudents('hery', list).map((s) => s.name), ['RAKOTO Héry']);
   assert.equal(findStudents('6e', list).length, 2);
   assert.deepEqual(findStudents('  ', list), []);
-  const items = [{ id: 'enrol', label: 'Inscriptions' }, { id: 'vs', label: 'Absences, retards et punitions' }, { id: 'student-file', label: 'Fil de l\'élève' }];
+  const items = [{ id: 'eleves', label: 'Élèves' }, { id: 'vs', label: 'Absences, retards et punitions' }];
   const r = searchAll('certificat fitia', items, (q) => findStudents(q, list));
-  assert.deepEqual(r.map((x) => `${x.type}:${x.id}:${x.label}`), ['ACTION:enrol:Imprimer un certificat de scolarité', 'STUDENT:student-file:RAMAROSON Fitia']);
+  assert.deepEqual(r.map((x) => `${x.type}:${x.id}:${x.label}`), ['ACTION:eleves:Certificat de scolarité (ouvrir l\'élève)', 'STUDENT:eleves:RAMAROSON Fitia']);
+  assert.equal(searchAll('fitia', [{ id: 'student-file', label: 'Fil de l\'élève' }], (q) => findStudents(q, list))[0].id, 'student-file'); // enseignant
   assert.equal(searchAll('encaisser', items).length, 0); // la caisse n'est pas dans ses écrans
   assert.deepEqual(searchAll('absences', items).map((x) => x.id), ['vs', 'vs']);
 });

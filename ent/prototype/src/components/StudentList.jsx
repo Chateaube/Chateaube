@@ -13,7 +13,7 @@ import { printOnly } from '../print.js';
 const fmt = (iso) => (iso ? iso.split('-').reverse().join('/') : '—');
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
 
-export default function StudentList({ role }) {
+export default function StudentList({ role, onOpen, embedded = false, rowAction }) {
   const [profiles] = useState(loadProfiles);
   const [cls, setCls] = useState('');
   const [query, setQuery] = useState('');
@@ -40,8 +40,8 @@ export default function StudentList({ role }) {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-navy-500">Année 2026-2027 · Tamatave</p>
-          <h1 className="text-2xl font-semibold text-navy-900">Liste des élèves</h1>
+          {!embedded && <><p className="text-sm font-semibold text-navy-500">Année 2026-2027 · Tamatave</p>
+          <h1 className="text-2xl font-semibold text-navy-900">Liste des élèves</h1></>}
           <p className="text-sm text-slate-500">{list.length} élève{list.length > 1 ? 's' : ''}{noPhoto ? ` · ${noPhoto} sans photo d'identité` : ''}</p>
         </div>
         {readOnly ? <p className="text-xs text-slate-500">Consultation seulement : impression et export réservés au secrétariat et à la Direction.</p> : <div className="flex flex-wrap gap-2">
@@ -73,7 +73,7 @@ export default function StudentList({ role }) {
             <thead>
               <tr className="border-y border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
                 <th className="px-4 py-2 font-medium">Élève</th><th className="px-2 font-medium">Classe</th><th className="px-2 font-medium">Né(e) le</th>
-                <th className="px-2 font-medium">Nationalité(s)</th><th className="px-2 font-medium">Responsables</th><th className="px-4 font-medium">Dossier</th>
+                <th className="px-2 font-medium">Nationalité(s)</th><th className="px-2 font-medium">Responsables</th><th className="px-4 font-medium">Dossier</th>{rowAction && <th className="px-4 font-medium">Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -82,12 +82,13 @@ export default function StudentList({ role }) {
                 return (
                   <tr key={p.id} className="border-b border-slate-100 last:border-0">
                     <td className="px-4 py-2"><span className="flex items-center gap-2"><Avatar name={`${p.firstName} ${p.lastName}`} photo={p.photo} className="h-8 w-8 text-[10px]" />
-                      <span><span className="font-medium text-slate-900">{p.lastName} {usualFirstName(p)}</span>{p.firstName !== usualFirstName(p) && <span className="block text-xs text-slate-500">{p.firstName}</span>}</span></span></td>
+                      <span>{onOpen ? <button type="button" onClick={() => onOpen(p)} className="text-left font-medium text-navy-800 underline decoration-dotted underline-offset-2 hover:text-navy-500">{p.lastName} {usualFirstName(p)}</button> : <span className="font-medium text-slate-900">{p.lastName} {usualFirstName(p)}</span>}{p.firstName !== usualFirstName(p) && <span className="block text-xs text-slate-500">{p.firstName}</span>}</span></span></td>
                     <td className="px-2">{p.cls}</td>
                     <td className="px-2 tabular-nums">{fmt(p.birthDate)}</td>
                     <td className="px-2">{nationalityLabels(p.nationalities ?? [], p.otherNationality).join(', ') || '—'}</td>
                     <td className="px-2 text-xs">{(p.guardians ?? []).map((g) => <span key={g.name} className="block">{g.name} · {g.phone}</span>)}{!p.guardians?.length && <Badge tone="amber">à compléter</Badge>}</td>
                     <td className="px-4">{missing.length ? <Badge tone="amber">{missing.length} pièce{missing.length > 1 ? 's' : ''} manquante{missing.length > 1 ? 's' : ''}</Badge> : <Badge tone="green">complet</Badge>}</td>
+                    {rowAction && <td className="px-4">{rowAction(p)}</td>}
                   </tr>
                 );
               })}

@@ -12,7 +12,7 @@ const TONE = { PUNITION: 'red', COLLE: 'amber', OBJET: 'amber', ABSENCE: 'navy',
 const summary = (kinds) => Object.entries(kinds).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${n} ${(ACTIVITY_KINDS[k] ?? k).toLowerCase()}`).join(' · ');
 
 // Accès direct depuis chaque ligne : l'écran concerné, et le fil de l'élève
-const KIND_TO = { ABSENCE: ['vs', { tab: 'attendance' }], JUSTIF: ['vs', { tab: 'attendance' }], PARENTS: ['vs', { tab: 'attendance' }], PUNITION: ['vs', { tab: 'measures' }], COLLE: ['vs', { tab: 'passport' }], OUBLI: ['vs', { tab: 'passport' }], OBJET: ['vs', { tab: 'phones' }], SOIN: ['care'], SORTIE: ['vs', { tab: 'leave' }], PROF: ['hours'], SUIVI: ['student-followups'] };
+const KIND_TO = { ABSENCE: ['vs', { tab: 'attendance' }], JUSTIF: ['vs', { tab: 'attendance' }], PARENTS: ['vs', { tab: 'attendance' }], PUNITION: ['vs', { tab: 'measures' }], COLLE: ['vs', { tab: 'passport' }], OUBLI: ['vs', { tab: 'passport' }], OBJET: ['vs', { tab: 'phones' }], SOIN: ['care'], SORTIE: ['vs', { tab: 'leave' }], PROF: ['hours'], SUIVI: ['eleves', { tab: 'suivis' }] };
 
 export default function ActivityJournal({ today = DEMO_TODAY, go }) {
   const [period, setPeriod] = useState('JOUR');
@@ -46,7 +46,7 @@ export default function ActivityJournal({ today = DEMO_TODAY, go }) {
                     {go && (
                       <span className="flex basis-full gap-1.5 sm:basis-auto">
                         {KIND_TO[e.kind] && <button type="button" onClick={() => { const [to, intent] = KIND_TO[e.kind]; if (intent) setIntent(to, intent); go(to); }} className="rounded-md px-2 py-0.5 text-xs font-medium text-navy-700 ring-1 ring-slate-200 hover:bg-navy-50">Ouvrir</button>}
-                        {e.student && <button type="button" onClick={() => { setIntent('student-file', { student: e.student }); go('student-file'); }} className="rounded-md px-2 py-0.5 text-xs font-medium text-navy-700 ring-1 ring-slate-200 hover:bg-navy-50">Fil de l'élève</button>}
+                        {e.student && <button type="button" onClick={() => { setIntent('eleves', { student: e.student, view: 'fil' }); go('eleves'); }} className="rounded-md px-2 py-0.5 text-xs font-medium text-navy-700 ring-1 ring-slate-200 hover:bg-navy-50">Fil de l'élève</button>}
                       </span>
                     )}
                   </li>

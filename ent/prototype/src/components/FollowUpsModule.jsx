@@ -31,7 +31,7 @@ function factsOf(student) {
   };
 }
 
-export default function FollowUpsModule({ role }) {
+export default function FollowUpsModule({ role, student, embedded = false }) {
   const actor = ACTOR[role] ?? ACTOR.VIE_SCOLAIRE;
   const [list, setList] = useState(loadFollowUps);
   const [draft, setDraft] = useState(null);
@@ -39,7 +39,7 @@ export default function FollowUpsModule({ role }) {
   const [note, setNote] = useState({});
   const [msg, setMsg] = useState('');
   const save = (l) => { setList(l); saveFollowUps(l); };
-  const open = list.filter((f) => !f.closed);
+  const open = list.filter((f) => !f.closed && (!student || f.student === student));
   const rows = open.map((f) => ({ f, facts: factsOf(f.student) })).map((x) => ({ ...x, ev: evaluateFollowUp(x.f, x.facts) }))
     .sort((a, b) => (a.ev.status === b.ev.status ? a.f.student.localeCompare(b.f.student) : a.ev.status === 'ALERTE' ? -1 : 1));
   const addNote = (f, text) => save(list.map((x) => (x.id === f.id ? { ...x, notes: [...x.notes, { at: NOW.slice(0, 10), by: actor, text }] } : x)));
@@ -49,16 +49,56 @@ export default function FollowUpsModule({ role }) {
     setMsg(`Point envoyé aux parents de ${f.student} :\n${followUpReport(f, facts, ev, `au ${fr(NOW.slice(0, 10))}`)}`);
   };
   const errors = draft ? followUpErrors(draft) : [];
+  // une carte de suivi (fonction, pas composant : les champs gardent la saisie en cours)
+  const renderCard = ({ f, facts, ev }) => (
+        <Card key={f.id} title={`${f.student} — ${classOf(f.student) ?? ''}`}
+          subtitle={`${FOLLOWUP_KINDS[f.kind]} · référent : ${f.referent} · depuis le ${fr(f.since)} · point aux parents ${EVERY[f.every]}`}
+          action={<Badge tone={ev.status === 'ALERTE' ? 'red' : 'green'}>{ev.status === 'ALERTE' ? `Alerte : ${ev.failed.length} condition${ev.failed.length > 1 ? 's' : ''} non tenue${ev.failed.length > 1 ? 's' : ''}` : 'Tout va bien'}</Badge>}>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div>
+              <p className="mb-1 text-xs font-semibold text-slate-700">Aujourd'hui</p>
+              <ul className="space-y-1 text-sm">
+                {ev.checks.length === 0 && <li className="text-slate-600">Pas de condition fixée : suivi simple.</li>}
+                {ev.checks.map((c) => (
+                  <li key={c.id} className={`flex justify-between gap-2 rounded-md px-2 py-1 ${c.ok === false ? 'bg-red-50 text-red-900' : 'bg-emerald-50 text-emerald-900'}`}>
+                    <span>{c.ok === false ? '✗' : '✓'} {c.label}</span><span className="tabular-nums">{c.value ?? '—'} <span className="text-xs">({c.unit} {c.limit})</span></span>
+                  </li>
+                ))}
+                <li className="text-xs text-slate-600">Moyenne {facts.average ?? '—'} · absences non justifiées {facts.unjustified} · retards {facts.lates} · punitions et colles {facts.measures}</li>
+              </ul>
+              {f.contact && (
+                <p className="mt-2 text-xs text-slate-700">Contact : <strong>{f.contact.name}</strong>, {f.contact.role}{f.contact.phone ? ` · ${f.contact.phone}` : ''}
+                  {f.contact.parentConsent ? (f.contact.email && <a className="ml-2 font-medium text-navy-700 underline" href={`mailto:${f.contact.email}?subject=${encodeURIComponent(`Suivi de ${f.student}`)}&body=${encodeURIComponent(followUpReport(f, facts, ev, `au ${fr(NOW.slice(0, 10))}`))}`}>Écrire (e-mail prérempli)</a>)
+                    : <span className="ml-2 text-red-700">accord des parents manquant : ne rien transmettre</span>}</p>
+              )}
+            </div>
+            <div>
+              <p className="mb-1 text-xs font-semibold text-slate-700">Notes du suivi</p>
+              <ul className="max-h-40 space-y-1 overflow-y-auto text-sm" tabIndex={0} aria-label={`Notes — ${f.student}`}>
+                {f.notes.map((n, i) => <li key={i}><span className="text-xs text-slate-600">{fr(n.at)} · {n.by} :</span> {n.text}</li>)}
+              </ul>
+              <div className="mt-2 flex gap-2">
+                <input value={note[f.id] ?? ''} onChange={(e) => setNote({ ...note, [f.id]: e.target.value })} placeholder="Ajouter une note (entretien, appel…)" aria-label={`Note — ${f.student}`} className={`min-w-0 flex-1 ${field}`} />
+                <Button variant="secondary" disabled={!(note[f.id] ?? '').trim()} onClick={() => { addNote(f, note[f.id].trim()); setNote({ ...note, [f.id]: '' }); }}>Noter</Button>
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+            <Button onClick={() => sendPoint(f, facts, ev)}>Envoyer le point aux parents</Button>
+            <Button variant="secondary" onClick={() => { if (window.confirm(`Clore le suivi de ${f.student} ?`)) { save(list.map((x) => (x.id === f.id ? { ...x, closed: { at: NOW.slice(0, 10), by: actor } } : x))); } }}>Clore le suivi</Button>
+          </div>
+        </Card>
+  );
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
+        {!embedded ? <div>
           <p className="text-sm font-semibold text-navy-500">Direction et CPE · confidentiel</p>
           <h1 className="text-2xl font-semibold text-navy-900">Suivis individuels</h1>
           <p className="text-sm text-slate-600">Dossiers lourds, suivis demandés par les parents, contrats avec conditions. Les professeurs et les familles ne voient pas cette page.</p>
-        </div>
-        <Button onClick={() => { setDraft({ student: '', kind: 'DOSSIER', referent: actor, since: NOW.slice(0, 10), every: 'SEMAINE', conditions: {}, contact: { name: '', role: '', phone: '', email: '', parentConsent: false }, firstNote: '' }); setTried(false); }}>＋ Nouveau suivi</Button>
+        </div> : <p className="text-sm text-slate-600">Confidentiel (Direction et CPE) : ni les professeurs ni la famille ne voient ce suivi.</p>}
+        <Button onClick={() => { setDraft({ student: student ?? '', kind: 'DOSSIER', referent: actor, since: NOW.slice(0, 10), every: 'SEMAINE', conditions: {}, contact: { name: '', role: '', phone: '', email: '', parentConsent: false }, firstNote: '' }); setTried(false); }}>＋ Nouveau suivi</Button>
       </div>
       {msg && <pre role="status" className="whitespace-pre-wrap rounded-lg bg-emerald-50 p-3 font-sans text-sm text-emerald-900">{msg}</pre>}
 
@@ -103,45 +143,13 @@ export default function FollowUpsModule({ role }) {
       )}
 
       {rows.length === 0 && !draft && <Card><p className="text-sm text-slate-600">Aucun suivi en cours.</p></Card>}
-      {rows.map(({ f, facts, ev }) => (
-        <Card key={f.id} title={`${f.student} — ${classOf(f.student) ?? ''}`}
-          subtitle={`${FOLLOWUP_KINDS[f.kind]} · référent : ${f.referent} · depuis le ${fr(f.since)} · point aux parents ${EVERY[f.every]}`}
-          action={<Badge tone={ev.status === 'ALERTE' ? 'red' : 'green'}>{ev.status === 'ALERTE' ? `Alerte : ${ev.failed.length} condition${ev.failed.length > 1 ? 's' : ''} non tenue${ev.failed.length > 1 ? 's' : ''}` : 'Tout va bien'}</Badge>}>
-          <div className="grid gap-4 lg:grid-cols-2">
-            <div>
-              <p className="mb-1 text-xs font-semibold text-slate-700">Aujourd'hui</p>
-              <ul className="space-y-1 text-sm">
-                {ev.checks.length === 0 && <li className="text-slate-600">Pas de condition fixée : suivi simple.</li>}
-                {ev.checks.map((c) => (
-                  <li key={c.id} className={`flex justify-between gap-2 rounded-md px-2 py-1 ${c.ok === false ? 'bg-red-50 text-red-900' : 'bg-emerald-50 text-emerald-900'}`}>
-                    <span>{c.ok === false ? '✗' : '✓'} {c.label}</span><span className="tabular-nums">{c.value ?? '—'} <span className="text-xs">({c.unit} {c.limit})</span></span>
-                  </li>
-                ))}
-                <li className="text-xs text-slate-600">Moyenne {facts.average ?? '—'} · absences non justifiées {facts.unjustified} · retards {facts.lates} · punitions et colles {facts.measures}</li>
-              </ul>
-              {f.contact && (
-                <p className="mt-2 text-xs text-slate-700">Contact : <strong>{f.contact.name}</strong>, {f.contact.role}{f.contact.phone ? ` · ${f.contact.phone}` : ''}
-                  {f.contact.parentConsent ? (f.contact.email && <a className="ml-2 font-medium text-navy-700 underline" href={`mailto:${f.contact.email}?subject=${encodeURIComponent(`Suivi de ${f.student}`)}&body=${encodeURIComponent(followUpReport(f, facts, ev, `au ${fr(NOW.slice(0, 10))}`))}`}>Écrire (e-mail prérempli)</a>)
-                    : <span className="ml-2 text-red-700">accord des parents manquant : ne rien transmettre</span>}</p>
-              )}
-            </div>
-            <div>
-              <p className="mb-1 text-xs font-semibold text-slate-700">Notes du suivi</p>
-              <ul className="max-h-40 space-y-1 overflow-y-auto text-sm" tabIndex={0} aria-label={`Notes — ${f.student}`}>
-                {f.notes.map((n, i) => <li key={i}><span className="text-xs text-slate-600">{fr(n.at)} · {n.by} :</span> {n.text}</li>)}
-              </ul>
-              <div className="mt-2 flex gap-2">
-                <input value={note[f.id] ?? ''} onChange={(e) => setNote({ ...note, [f.id]: e.target.value })} placeholder="Ajouter une note (entretien, appel…)" aria-label={`Note — ${f.student}`} className={`min-w-0 flex-1 ${field}`} />
-                <Button variant="secondary" disabled={!(note[f.id] ?? '').trim()} onClick={() => { addNote(f, note[f.id].trim()); setNote({ ...note, [f.id]: '' }); }}>Noter</Button>
-              </div>
-            </div>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
-            <Button onClick={() => sendPoint(f, facts, ev)}>Envoyer le point aux parents</Button>
-            <Button variant="secondary" onClick={() => { if (window.confirm(`Clore le suivi de ${f.student} ?`)) { save(list.map((x) => (x.id === f.id ? { ...x, closed: { at: NOW.slice(0, 10), by: actor } } : x))); } }}>Clore le suivi</Button>
-          </div>
-        </Card>
-      ))}
+      {rows.filter((r) => r.ev.status === 'ALERTE' || student).map((r) => renderCard(r))}
+      {!student && rows.some((r) => r.ev.status !== 'ALERTE') && (
+        <details className="rounded-2xl bg-white/80 p-3 shadow-soft">
+          <summary className="cursor-pointer text-sm font-semibold text-emerald-800">Tout va bien ({rows.filter((r) => r.ev.status !== 'ALERTE').length}) : {rows.filter((r) => r.ev.status !== 'ALERTE').map((r) => r.f.student).join(', ')}</summary>
+          <div className="mt-3 space-y-4">{rows.filter((r) => r.ev.status !== 'ALERTE').map((r) => renderCard(r))}</div>
+        </details>
+      )}
     </div>
   );
 }

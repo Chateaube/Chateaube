@@ -19,7 +19,7 @@ import { takeIntent } from '../navIntent.js';
 
 const NOW = '2026-10-13T11:00';
 const MEASURE = Object.fromEntries(MEASURES.map((m) => [m.id, m]));
-const KIND = { ABSENCE: ['red', 'Absence'], RETARD: ['amber', 'Retard'], MESURE: ['violet', 'Punition / sanction'], OBJET: ['slate', 'Objet'], COLLE: ['amber', 'Colle'], SOIN: ['green', 'Infirmerie'], JOURNAL: ['navy', 'Journal'] };
+const KIND = { ABSENCE: ['red', 'Absence'], RETARD: ['amber', 'Retard'], MESURE: ['violet', 'Punition / sanction'], OBJET: ['slate', 'Objet'], COLLE: ['amber', 'Colle'], SOIN: ['green', 'Soins'], JOURNAL: ['navy', 'Journal'] };
 const fmt = (at) => `${formatDateFr(at.slice(0, 10)).replace(/ \d{4}$/, '')}${at.length > 10 ? ` · ${at.slice(11, 16).replace(':', 'h')}` : ''}`;
 
 /** Événements d'un élève, du plus récent au plus ancien ; health=false retire les soins et le journal. */
@@ -36,24 +36,27 @@ export function studentEvents(name, { health = true } = {}) {
   return list.sort((a, b) => b.at.localeCompare(a.at));
 }
 
-export default function StudentTimeline({ role }) {
+export default function StudentTimeline({ role, student: fixed, embedded = false }) {
   const health = role !== 'ENSEIGNANT';
-  const first = takeIntent('student-file')?.student;
-  const [student, setStudent] = useState(first ?? CLASSES['1re STMG'][0]);
+  // ouvert depuis la recherche ou le journal : sur l'élève ; sinon sur la recherche (aucun élève choisi)
+  const first = fixed ?? takeIntent('student-file')?.student;
+  const [picked, setStudent] = useState(first ?? null);
+  const student = fixed ?? picked;
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState('ALL');
   const matches = useMemo(() => findStudents(query), [query]);
-  const events = studentEvents(student, { health }).filter((e) => kind === 'ALL' || e.kind === kind);
+  const events = student ? studentEvents(student, { health }).filter((e) => kind === 'ALL' || e.kind === kind) : [];
   const kinds = Object.keys(KIND).filter((k) => health || !['SOIN', 'JOURNAL'].includes(k));
   return (
     <div className="space-y-5">
-      <div>
+      {!embedded && <div>
         <p className="text-sm font-semibold text-navy-500">Partagé par l'équipe · selon les droits de chacun</p>
         <h1 className="text-2xl font-semibold text-navy-900">Fil de l'élève</h1>
-      </div>
+      </div>}
       <Card>
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="relative min-w-0 flex-1 text-xs text-slate-600">Rechercher un élève (nom, prénom ou classe)
+        {!fixed && <div className="flex flex-col gap-2">
+          {student && <p className="text-base"><strong className="text-navy-900">{student}</strong> · {classOf(student)}</p>}
+          <label className="relative w-full text-xs text-slate-600">Rechercher un élève (nom, prénom ou classe)
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ex. Fitia, 1re STMG" className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
             {matches.length > 0 && (
               <ul className="absolute z-20 mt-1 w-full rounded-lg bg-white shadow-lg ring-1 ring-slate-200">
@@ -61,16 +64,16 @@ export default function StudentTimeline({ role }) {
               </ul>
             )}
           </label>
-          <p className="pb-1.5 text-sm"><strong className="text-navy-900">{student}</strong> · {classOf(student)}</p>
-        </div>
+        </div>}
         <div className="mt-3 flex flex-wrap gap-1.5">
           {['ALL', ...kinds].map((k) => (
             <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)} className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${kind === k ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-700 ring-slate-300'}`}>{k === 'ALL' ? 'Tout' : KIND[k][1]}</button>
           ))}
         </div>
       </Card>
-      <Card title={`${events.length} événement${events.length > 1 ? 's' : ''}`} subtitle={health ? undefined : 'Les passages à l\'infirmerie et le journal interne ne sont pas montrés aux enseignants.'}>
-        {events.length === 0 ? <p className="text-sm text-slate-600">Rien à signaler ✓</p> : (
+      {!student ? <Card><p className="text-sm text-slate-600">Cherchez un élève par son nom, son prénom ou sa classe.</p></Card> : (
+      <Card title={`${events.length} événement${events.length > 1 ? 's' : ''}`} subtitle={health ? undefined : 'Les passages aux soins et le journal interne ne sont pas montrés aux enseignants.'}>
+        {events.length === 0 ? <p className="text-sm text-slate-600">Rien à signaler pour cet élève ✓</p> : (
           <ol className="relative space-y-3 border-l border-slate-200 pl-4">
             {events.map((e) => (
               <li key={`${e.kind}-${e.id}`} className="relative">
@@ -82,6 +85,7 @@ export default function StudentTimeline({ role }) {
           </ol>
         )}
       </Card>
+      )}
     </div>
   );
 }

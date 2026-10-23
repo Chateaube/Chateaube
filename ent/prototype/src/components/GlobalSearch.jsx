@@ -33,7 +33,7 @@ export default function GlobalSearch({ nav, go }) {
   }, []);
   const close = (refocus = true) => { setOpen(false); setQ(''); setSel(0); if (refocus) btn.current?.focus(); };
   // après un choix, le focus va au contenu de l'écran ouvert (pas au bouton : « Entrée » le rouvrirait)
-  const pick = (r) => { if (r.type === 'STUDENT') setIntent('student-file', { student: r.label }); close(false); go(r.id); setTimeout(() => document.getElementById('contenu')?.focus(), 0); };
+  const pick = (r) => { if (r.type === 'STUDENT') setIntent(r.id, { student: r.label, view: 'fil' }); close(false); go(r.id); setTimeout(() => document.getElementById('contenu')?.focus(), 0); };
   return (
     <>
       <button ref={btn} type="button" onClick={(e) => { e.stopPropagation(); setOpen(true); }} aria-label="Rechercher (Ctrl+K)"

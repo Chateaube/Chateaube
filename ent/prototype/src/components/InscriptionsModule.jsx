@@ -15,6 +15,11 @@ import { RequestsTab } from './FamilyRequests.jsx';
 import { seniority } from '../rules/documents.js';
 import { SPECIALTIES, SPECIALTY_COUNT } from '../rules/bulletin.js';
 import { CertificateButton } from './Certificate.jsx';
+import ScreenTabs from './ScreenTabs.jsx';
+import StudentList from './StudentList.jsx';
+import StudentTimeline from './StudentTimeline.jsx';
+import FollowUpsModule from './FollowUpsModule.jsx';
+import { takeIntent } from '../navIntent.js';
 import { FicheView, SignatureCompare, FICHE_YEAR } from './FicheSignaletique.jsx';
 import { ficheOf, saveFiche } from '../ficheStore.js';
 
@@ -327,14 +332,14 @@ function ProfileCard({ p, onReenrol, onComplete, created }) {
       action={(
         <span className="flex flex-wrap gap-2">
           <CertificateButton profile={p} />
-          <Button variant="secondary" className="!py-1 text-xs" onClick={() => onComplete(p)}>Compléter la fiche</Button>
-          {nextClass(p.cls) && <Button variant="secondary" className="!py-1 text-xs" onClick={() => onReenrol(p)}>Réinscrire en {nextClass(p.cls)}</Button>}
+          {onComplete && <Button variant="secondary" className="!py-1 text-xs" onClick={() => onComplete(p)}>Compléter la fiche</Button>}
+          {onReenrol && nextClass(p.cls) && <Button variant="secondary" className="!py-1 text-xs" onClick={() => onReenrol(p)}>Réinscrire en {nextClass(p.cls)}</Button>}
         </span>
       )}>
       {created && <p className="mb-3 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">Fiche enregistrée. Les comptes ci-dessous sont prêts : invitations envoyées par e-mail et dans l'application.</p>}
       <div className="grid gap-4 md:grid-cols-[auto_1fr_1fr]">
         {p.photo ? <img src={p.photo} alt={`Photo de ${p.firstName}`} className="h-28 w-[84px] rounded-lg object-cover" />
-          : <button type="button" onClick={() => onComplete(p)} className="flex h-28 w-[84px] items-center justify-center rounded-lg border border-dashed border-amber-400 bg-amber-50 text-center text-[11px] text-amber-800">Pas de photo<br />d'identité</button>}
+          : <button type="button" onClick={() => onComplete?.(p)} className="flex h-28 w-[84px] items-center justify-center rounded-lg border border-dashed border-amber-400 bg-amber-50 text-center text-[11px] text-amber-800">Pas de photo<br />d'identité</button>}
         <div className="space-y-1 text-sm">
           {p.number && <p><span className="text-slate-500">N° :</span> {p.number}{p.exam ? ` · ${p.exam}` : ''}</p>}
           {(p.email || p.phones?.length > 0) && <p><span className="text-slate-500">Contact de l'élève :</span> {[p.email, ...(p.phones ?? [])].filter(Boolean).join(' · ')}</p>}
@@ -378,34 +383,42 @@ function ProfileCard({ p, onReenrol, onComplete, created }) {
   );
 }
 
-const TABS = [['prereg', 'Pré-inscriptions'], ['online', 'Demandes des familles'], ['new', 'Inscrire'], ['profiles', 'Fiches élèves']];
-
+// Écran « Élèves » (Direction, secrétariat, CPE) : un seul endroit pour la liste par classe, l'inscription,
+// les demandes des familles et les pré-inscriptions. Un clic sur un élève ouvre son dossier :
+// Fiche (identité, responsables, certificat, réinscription) · Fil (ce qui s'est passé) · Suivi (confidentiel).
 const initialProfiles = loadProfiles;
+const fullNameOf = (p) => `${p.lastName} ${p.firstName}`;
 
 export default function InscriptionsModule({ role }) {
-  const [tab, setTab] = useState('prereg');
   const [prereg, setPreregState] = useState(() => [...loadRequests().prereg, ...PREREGISTRATIONS]);
   // pré-inscriptions envoyées en ligne : leur avancement est gardé avec elles
   const setPrereg = (next) => { next.filter((x) => x.online).forEach((x) => updateOnlinePrereg(x.id, { status: x.status })); setPreregState(next); };
   const [pendingOnline] = useState(() => loadRequests().requests.filter((r) => r.status === 'A_TRAITER').length);
   const [profiles, setProfiles] = useState(initialProfiles);
   const [form, setForm] = useState(null); // { initial, kind, preregId? }
-  const [selected, setSelected] = useState(() => initialProfiles()[0]?.id);
+  // ouvert depuis la recherche, le journal ou une alerte : directement sur le dossier de l'élève
+  const [intent] = useState(() => takeIntent('eleves') ?? takeIntent('student-file') ?? takeIntent('enrol'));
+  const fromIntent = intent?.student && initialProfiles().find((p) => fullNameOf(p) === intent.student || `${p.lastName} ${usualFirstName(p)}` === intent.student);
+  const [selected, setSelected] = useState(fromIntent?.id ?? null);
+  const [dossierTab, setDossierTab] = useState(intent?.view ?? (fromIntent ? 'fil' : 'fiche'));
   const [created, setCreated] = useState(null);
-  const [query, setQuery] = useState('');
+  // en dehors de la campagne de pré-inscription, on ouvre sur les demandes des familles s'il y en a, sinon sur la liste
+  const [tab, setTab] = useState(intent?.tab ?? (pendingOnline > 0 ? 'online' : 'list'));
+  const canFollow = ['DIRECTION', 'VIE_SCOLAIRE'].includes(role);
+  const canEdit = role !== 'VIE_SCOLAIRE';
+  const TABS = [['list', 'Élèves'], ['online', 'Demandes des familles'], ['prereg', 'Pré-inscriptions'], ...(canFollow ? [['suivis', 'Suivis individuels']] : [])];
 
   const startNew = (from) => {
     const base = emptyProfile();
     if (from) {
       const [last, ...first] = from.child.split(' ');
       base.lastName = last; base.firstName = first.join(' '); base.birthDate = from.birthDate ?? ''; base.cls = from.cls; base.previousSchool = from.previousSchool; base.previousSystem = from.previousSystem; base.dnb = from.dnb; base.repeating = from.repeating;
-      base.guardians = [{ ...emptyGuardian(), name: from.contact, relation: /^M\.? /.test(from.contact) ? 'Père' : 'Mère', phone: from.phone, email: from.email ?? '', whatsapp: true, payer: true }];
+      base.guardians = [{ ...emptyGuardian(), name: from.contact, relation: /^M\.? /.test(from.contact) ? 'Père' : 'Mère', phone: from.phone, email: from.email ?? '', payer: true }];
     }
     setForm({ initial: base, kind: 'INSCRIPTION', preregId: from?.id });
-    setTab('new');
   };
-  const complete = (p) => { setForm({ initial: { ...p, guardians: p.guardians.length ? p.guardians : [{ ...emptyGuardian(), payer: true }] }, kind: 'COMPLETER' }); setTab('new'); };
-  const reenrol = (p) => { setForm({ initial: { ...p, cls: nextClass(p.cls) }, kind: 'REINSCRIPTION' }); setTab('new'); };
+  const complete = (p) => setForm({ initial: { ...p, guardians: p.guardians.length ? p.guardians : [{ ...emptyGuardian(), payer: true }] }, kind: 'COMPLETER' });
+  const reenrol = (p) => setForm({ initial: { ...p, cls: nextClass(p.cls) }, kind: 'REINSCRIPTION' });
   const save = (input) => {
     // inscription définitive d'un nouvel élève : matricule de l'année (TG-001…), jamais réattribué
     const p = form.kind === 'INSCRIPTION' && !input.number ? { ...input, number: nextMatricule(input.cls, profiles.map((x) => x.number)) } : input;
@@ -414,48 +427,50 @@ export default function InscriptionsModule({ role }) {
     setProfiles(next);
     if (!saveProfiles(next)) window.alert('Le navigateur manque de place : la fiche est modifiée pour cette session seulement.');
     if (form.preregId) setPrereg(prereg.map((x) => (x.id === form.preregId ? { ...x, status: 'INSCRITE' } : x)));
-    setSelected(id); setCreated(id); setForm(null); setTab('profiles');
+    setSelected(id); setCreated(id); setForm(null); setTab('list'); setDossierTab('fiche');
   };
-  const list = useMemo(() => profiles.filter((p) => `${p.lastName} ${p.firstName} ${p.cls}`.toLowerCase().includes(query.toLowerCase())), [profiles, query]);
   const current = profiles.find((p) => p.id === selected);
+  const openDossier = (p) => { setSelected(p.id); setCreated(null); setDossierTab('fiche'); };
+
+  if (form) {
+    return (
+      <div className="space-y-5">
+        <button type="button" onClick={() => setForm(null)} className="text-sm font-medium text-navy-700">‹ Retour aux élèves</button>
+        <ProfileForm key={form.initial.id ?? form.preregId ?? 'new'} initial={form.initial} kind={form.kind} onSave={save} onCancel={() => setForm(null)} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-navy-500">Année 2026-2027 · réinscriptions 2027-2028 · Tamatave</p>
-          <h1 className="text-2xl font-semibold text-navy-900">Inscriptions</h1>
-          <p className="text-sm text-slate-500">Chaque inscription ou réinscription crée la fiche élève, d'où sont créés les comptes de l'élève et des parents.</p>
+          <h1 className="text-2xl font-semibold text-navy-900">Élèves</h1>
         </div>
-        <Button onClick={() => startNew(null)}>＋ Inscrire un élève</Button>
-      </div>
-      <div className="flex gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1" role="tablist">
-        {TABS.map(([id, label]) => (
-          <button key={id} role="tab" aria-selected={tab === id} onClick={() => { setTab(id); if (id === 'new' && !form) startNew(null); }}
-            className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium ${tab === id ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>{label}{id === 'online' && pendingOnline > 0 && <span className="ml-1.5 rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white">{pendingOnline}</span>}</button>
-        ))}
+        {canEdit && <Button onClick={() => startNew(null)}>＋ Inscrire un élève</Button>}
       </div>
 
-      {tab === 'prereg' && <PreregTab items={prereg} setItems={setPrereg} onConvert={startNew} canEdit={role === 'DIRECTION'} />}
-      {tab === 'online' && <RequestsTab profiles={profiles} onApply={(p) => { const next = profiles.map((x) => (x.id === p.id ? p : x)); setProfiles(next); saveProfiles(next); }} />}
-      {tab === 'new' && form && <ProfileForm key={form.initial.id ?? form.preregId ?? 'new'} initial={form.initial} kind={form.kind} onSave={save} onCancel={() => { setForm(null); setTab('profiles'); }} />}
-      {tab === 'profiles' && (
-        <div className="grid gap-5 xl:grid-cols-[280px_1fr] xl:items-start">
-          <Card title={`Fiches élèves (${profiles.length})`}>
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Rechercher…" className={`w-full ${inputCls}`} />
-            <ul className="-mx-2 mt-2 space-y-0.5">
-              {list.map((p) => (
-                <li key={p.id}>
-                  <button onClick={() => { setSelected(p.id); setCreated(null); }} className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm ${p.id === selected ? 'bg-navy-50 font-medium text-navy-900' : 'hover:bg-slate-50'}`}>
-                    <Avatar name={`${p.firstName} ${p.lastName}`} photo={p.photo} className="h-7 w-7 text-[10px]" />
-                    <span>{p.lastName} {p.firstName}<span className="block text-xs font-normal text-slate-500">{p.cls}{seniority(p.enteredOn) ? ` · ${seniority(p.enteredOn).isNew ? 'nouveau' : `ancien, ${seniority(p.enteredOn).years} an${seniority(p.enteredOn).years > 1 ? 's' : ''}`}` : ''}</span></span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </Card>
-          {current && <ProfileCard p={current} onReenrol={reenrol} onComplete={complete} created={created === current.id} />}
+      {current ? (
+        <div className="space-y-4">
+          <button type="button" onClick={() => setSelected(null)} className="text-sm font-medium text-navy-700">‹ Retour à la liste</button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Avatar name={`${current.firstName} ${current.lastName}`} photo={current.photo} className="h-12 w-12 text-sm" />
+            <div><p className="text-lg font-semibold text-navy-900">{current.lastName} {usualFirstName(current)}</p><p className="text-sm text-slate-600">{current.cls}{current.number ? ` · ${current.number}` : ''}</p></div>
+          </div>
+          <ScreenTabs label="Dossier de l'élève" value={dossierTab} onChange={setDossierTab} tabs={[
+            ['fiche', 'Fiche', <ProfileCard key="fiche" p={current} onReenrol={canEdit ? reenrol : null} onComplete={canEdit ? complete : null} created={created === current.id} />],
+            ['fil', 'Fil de l\'élève', <StudentTimeline key="fil" role={role} student={fullNameOf(current)} embedded />],
+            ...(canFollow ? [['suivi', 'Suivi', <FollowUpsModule key="suivi" role={role} student={fullNameOf(current)} embedded />]] : []),
+          ]} />
         </div>
+      ) : (
+        <ScreenTabs label="Élèves" value={tab} onChange={setTab} tabs={[
+          ['list', 'Élèves', <StudentList key="list" role={role} embedded onOpen={openDossier} rowAction={canEdit ? (p) => <CertificateButton profile={p} /> : undefined} />],
+          ['online', `Demandes des familles${pendingOnline ? ` (${pendingOnline})` : ''}`, <RequestsTab key="online" profiles={profiles} onApply={(p) => { const next = profiles.map((x) => (x.id === p.id ? p : x)); setProfiles(next); saveProfiles(next); }} />],
+          ['prereg', 'Pré-inscriptions', <PreregTab key="prereg" items={prereg} setItems={setPrereg} onConvert={startNew} canEdit={role === 'DIRECTION'} />],
+          ...(canFollow ? [['suivis', 'Suivis individuels', <FollowUpsModule key="suivis" role={role} embedded />]] : []),
+        ].filter(([id]) => TABS.some(([t]) => t === id))} />
       )}
     </div>
   );

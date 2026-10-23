@@ -35,7 +35,7 @@ function series() {
     colles: { label: 'Colles données', list: loadPassport().colles, date: (c) => c.date, to: ['vs', { tab: 'passport' }] },
     objets: { label: 'Objets confisqués', list: loadObjects(), date: (p) => p.at, keep: (p) => p.action !== 'AVERTISSEMENT', to: ['vs', { tab: 'phones' }] },
     soins: { label: 'Passages aux soins', list: loadVisits(), date: (v) => v.at, to: ['care'] },
-    demandes: { label: 'Démarches des familles', list: loadRequests().requests, date: (r) => r.submittedAt ?? r.date ?? TODAY, to: ['enrol'] },
+    demandes: { label: 'Démarches des familles', list: loadRequests().requests, date: (r) => r.submittedAt ?? r.date ?? TODAY, to: ['eleves', { tab: 'online' }] },
   };
 }
 

@@ -85,11 +85,11 @@ function ownNotifications(role, { account } = {}) {
     const ideas = loadSuggestions().filter((x) => x.status === 'NOUVELLE').length;
     add(ideas, { id: 'ideas', to: 'resources', count: ideas, text: `${ideas} idée${ideas > 1 ? 's' : ''} de l'équipe sans réponse`, action: 'Répondre' });
     const req = pendingCount();
-    add(req, { id: 'req', to: 'enrol', count: req, text: `${req} démarche${req > 1 ? 's' : ''} en ligne des familles chez le secrétariat`, action: 'Voir' });
+    add(req, { id: 'req', to: 'eleves', intent: { tab: 'online' }, count: req, text: `${req} démarche${req > 1 ? 's' : ''} en ligne des familles chez le secrétariat`, action: 'Voir' });
   }
   if (role === 'BUREAU') {
     const req = pendingCount();
-    add(req, { id: 'req', to: 'enrol', count: req, text: `${req} démarche${req > 1 ? 's' : ''} en ligne des familles à traiter`, action: 'Traiter' });
+    add(req, { id: 'req', to: 'eleves', intent: { tab: 'online' }, count: req, text: `${req} démarche${req > 1 ? 's' : ''} en ligne des familles à traiter`, action: 'Traiter' });
     const stock = inventoryAlerts(loadInventory(), today).filter((a) => a.kind !== 'CASSE').length;
     add(stock, { id: 'stock', to: 'inventory', count: stock, text: `${stock} article${stock > 1 ? 's' : ''} à recommander ou bientôt périmé${stock > 1 ? 's' : ''}`, action: 'Voir' });
   }
@@ -111,7 +111,7 @@ function ownNotifications(role, { account } = {}) {
   }
   if (['DIRECTION', 'VIE_SCOLAIRE'].includes(role)) {
     const alerts = followUpAlerts();
-    add(alerts.length, { id: 'followups', to: 'student-followups', count: alerts.length, text: `${alerts.length} suivi${alerts.length > 1 ? 's' : ''} individuel${alerts.length > 1 ? 's' : ''} en alerte : ${alerts.map((f) => f.student).join(', ')}`, action: 'Voir' });
+    add(alerts.length, { id: 'followups', to: 'eleves', intent: { tab: 'suivis' }, count: alerts.length, text: `${alerts.length} suivi${alerts.length > 1 ? 's' : ''} individuel${alerts.length > 1 ? 's' : ''} en alerte : ${alerts.map((f) => f.student).join(', ')}`, action: 'Voir' });
   }
   if (['DIRECTION', 'BUREAU'].includes(role)) {
     const toDecide = loadObjects().filter((p) => objectState(p, `${today}T11:00`, DEFAULT_SETTINGS) === 'A_DECIDER').length;

@@ -99,6 +99,7 @@ const STUDENT_LIST = { id: 'students-list', label: 'Liste des élèves', icon: '
 const SIGNATURES = { id: 'signatures', label: 'Documents à signer', icon: 'pen', screen: SignaturesModule };
 const FOLLOW_UP = { id: 'followup', label: 'Autorisations, stages et orientation', icon: 'pen', screen: FollowUpModule };
 const ACCOUNTING = { id: 'accounting', label: 'Caisse et comptabilité', icon: 'wallet', screen: AccountingModule };
+const ELEVES = { id: 'eleves', label: 'Élèves', icon: 'users', screen: InscriptionsModule }; // liste, inscriptions, dossier (fiche, fil, suivi)
 const STUDENT_FILE = { id: 'student-file', label: 'Fil de l\'élève', icon: 'clock', screen: StudentTimeline };
 const FOLLOWUPS = { id: 'student-followups', label: 'Suivis individuels', icon: 'users', screen: FollowUpsModule };
 const MANDATES = { id: 'mandates', label: 'Engagements et attestations', icon: 'users', screen: MandatesAdmin };
@@ -113,9 +114,9 @@ const PROFILES = {
     home: 'dashboard',
     nav: arrangeNav(DIRECTION_TREE, [
       { group: 'Aujourd\'hui', items: [{ id: 'dashboard', label: 'Mes décisions', icon: 'home', screen: DirectionDashboard }, SIGNATURES, FEEDBACK] },
-      { group: 'Élèves', items: [INSCRIPTIONS, STUDENT_LIST, STUDENT_FILE, { id: 'students', label: 'Mobilité Tamatave → Tana', icon: 'swap' }] },
+      { group: 'Élèves', items: [ELEVES, { id: 'students', label: 'Mobilité Tamatave → Tana', icon: 'swap' }] },
       { group: 'Pédagogie', items: [COUNCIL, BULLETINS, MOCK_EXAMS, GRADE_SHEETS, ...OVERSIGHT, { id: 'timetable', label: 'Emplois du temps', icon: 'clock', screen: TimetableView }, { id: 'exams', label: 'Examens & Campus France', icon: 'cap' }] },
-      { group: 'Vie scolaire', items: [VIE_SCOLAIRE, CARE, HOURS, TT_CHANGES, FOLLOW_UP, MANDATES, FOLLOWUPS] },
+      { group: 'Vie scolaire', items: [VIE_SCOLAIRE, CARE, HOURS, TT_CHANGES, FOLLOW_UP, MANDATES] },
       { group: 'Finances', items: [ACCOUNTING] },
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, AGENDA] },
       { group: 'Équipe et matériel', items: [{ id: 'staff', label: 'Gestion des agents', icon: 'users', screen: StaffModule }, RESOURCES, INVENTORY, MANUALS, LIBRARY, BOOKING] },
@@ -131,7 +132,7 @@ const PROFILES = {
       { group: 'Caisse', items: [ACCOUNTING] },
       { group: 'Vie scolaire', items: [VIE_SCOLAIRE, CARE, HOURS, TT_CHANGES, FOLLOW_UP] },
       { group: 'Notes et bulletins', items: [COUNCIL, BULLETINS, MOCK_EXAMS, ...OVERSIGHT] }, // grilles : onglet des conseils
-      { group: 'Élèves', items: [INSCRIPTIONS, STUDENT_LIST, STUDENT_FILE, SIGNATURES, IMPORT] },
+      { group: 'Élèves', items: [ELEVES, SIGNATURES, IMPORT] },
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, AGENDA, RESOURCES] },
       { group: 'Matériel et bibliothèque', items: [MANUALS, LIBRARY, BOOKING, INVENTORY] },
     ],
@@ -142,7 +143,7 @@ const PROFILES = {
     home: 'cpe-home',
     nav: [
       { group: 'Aujourd\'hui', items: [{ id: 'cpe-home', label: 'Ma journée', icon: 'home', screen: CpeHome }, VIE_SCOLAIRE, CARE, HOURS, TT_CHANGES] }, // CPE : annulation du jour seulement
-      { group: 'Élèves', items: [STUDENT_FILE, ro(STUDENT_LIST), FOLLOWUPS] },
+      { group: 'Élèves', items: [ELEVES] },
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, ro(AGENDA), RESOURCES] },
       { group: 'Ressources', items: [ro(BOOKING), ro({ id: 'books-cpe', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who="M. Be" kind="CPE" /> }), ro(OVERSIGHT[1])] },
     ],
@@ -251,12 +252,15 @@ export default function App() {
   const quickRef = useRef(null); const bellRef = useRef(null); const accountRef = useRef(null);
   const [quickOpen, setQuickOpen] = useState(false);
   const [collapsed, setCollapsed] = useState({});
+  const [navSeq, setNavSeq] = useState(0); // chaque navigation recharge l'écran (une recherche peut viser l'écran déjà ouvert)
   const [largeText, setLargeText] = useState(loadLargeText);
   useEffect(() => { applyLargeText(largeText); }, [largeText]);
   const [favorites, setFavorites] = useState(() => loadFavorites(profile));
   useEffect(() => { setFavorites(loadFavorites(profile)); }, [profile]);
   const [tick, setTick] = useState(0); // recalcul des notifications après « J'ai vu »
-  const goTo = (id) => { setScreen(id); setMobileOpen(false); setBellOpen(false); setQuickOpen(false); setTick((t) => t + 1); };
+  // anciens écrans regroupés dans « Élèves » : on y arrive avec la même intention (élève, onglet)
+  const ALIASES = { enrol: 'eleves', 'students-list': 'eleves', 'student-followups': 'eleves', 'student-file': 'eleves' };
+  const goTo = (raw) => { const id = NAV.some((g) => g.items.some((i) => i.id === raw)) ? raw : (ALIASES[raw] ?? raw); setScreen(id); setNavSeq((n) => n + 1); setMobileOpen(false); setBellOpen(false); setQuickOpen(false); setTick((t) => t + 1); };
   const staffProfile = !['PARENT', 'ELEVE', 'VISITEUR'].includes(profile);
   const notes = staffProfile ? notificationsFor(profile, { account }) : { urgent: [], todo: [], info: [] };
   const counts = countsByScreen(notes.todo);
@@ -475,8 +479,8 @@ export default function App() {
           {currentItem?.readOnly && <p className="mb-3 inline-block rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">Consultation seulement</p>}
           <ReadOnlyGuard key={`${profile}-${screen}-guard`} active={!!currentItem?.readOnly}>
           {profile === 'ENSEIGNANT'
-            ? <TermsGate viewer="ENSEIGNANT" account="mme-ranaivo"><Current key={`${profile}-${screen}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={goTo} role={profile} site={site} /></TermsGate>
-            : <Current key={`${profile}-${screen}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={goTo} role={profile} site={site} ambiance={ambiance} readOnly={!!currentItem?.readOnly} />}
+            ? <TermsGate viewer="ENSEIGNANT" account="mme-ranaivo"><Current key={`${profile}-${screen}-${navSeq}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={goTo} role={profile} site={site} /></TermsGate>
+            : <Current key={`${profile}-${screen}-${navSeq}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={goTo} role={profile} site={site} ambiance={ambiance} readOnly={!!currentItem?.readOnly} />}
           </ReadOnlyGuard>
         </main>
       </div>
