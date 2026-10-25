@@ -1,5 +1,6 @@
 // Journal de l'école gardé dans le navigateur (démonstration ; avec le serveur, table activity_log).
 import { ATTENDANCE, MEASURES_LOG, PHONES } from './data/schoollife.js';
+import { demoOr } from './demoData.js';
 
 const KEY = 'ent-journal-v1';
 export const DEMO_TODAY = '2026-10-13';
@@ -19,7 +20,8 @@ const DEMO = [
 ];
 
 export function loadJournal() {
-  try { return [...(JSON.parse(localStorage.getItem(KEY)) ?? []), ...DEMO]; } catch { return DEMO; }
+  const demo = demoOr(DEMO, []);
+  try { return [...(JSON.parse(localStorage.getItem(KEY)) ?? []), ...demo]; } catch { return demo; }
 }
 
 /** Ajoute une ligne au journal (date de démonstration, heure réelle). */

@@ -360,7 +360,7 @@ export default function AccountingModule({ settings, role, account }) {
   const [articles, setArticles] = useState(ARTICLES);
   const [movements, setMovementsState] = useState(loadMovements);
   const setMovements = (m) => setMovementsState((prev) => { const next = typeof m === 'function' ? m(prev) : m; saveMovements(next); return next; });
-  const [accounts, setAccounts] = useState(CASH_ACCOUNTS);
+  const [accounts, setAccounts] = useState(() => [...CASH_ACCOUNTS]);
   const [receipts, setReceipts] = useState(RECEIPTS_TODAY);
   const [audit, setAudit] = useState(CASH_AUDIT);
   const [closings, setClosings] = useState(CASH_CLOSINGS);

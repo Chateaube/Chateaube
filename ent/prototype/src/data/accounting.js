@@ -1,4 +1,5 @@
 // Données de démonstration — Comptabilité Tamatave (montants FICTIFS à remplacer).
+import { liveArray, liveObject, demoOr } from '../demoData.js';
 
 // Journaux comptables étanches
 export const JOURNALS = {
@@ -41,7 +42,7 @@ export const ARTICLES = [
 ];
 
 // Familles et état de compte (débit = facturé, crédit = payé)
-export const FAMILIES = [
+const DEMO_FAMILIES = [
   {
     id: 'fam1', name: 'Famille RAKOTOARISOA', payer: 'Mme Rakotoarisoa Hanta', phone: '+261 34 •• •• •12',
     children: [{ name: 'Aina', cls: '1re STMG' }, { name: 'Toky', cls: '5e' }],
@@ -83,7 +84,7 @@ export const CASH_NATURES = {
   // les salaires ont leur propre rubrique (onglet Salaires, avec émargement) : pas de saisie libre ici
   OUT: ['Dépense de fonctionnement', 'Prélèvement Direction', 'Reversement centre d\'examen', 'Remboursement famille', 'Dépôt en banque', 'Autre sortie'],
 };
-export const CASH_MOVEMENTS = [
+const DEMO_CASH_MOVEMENTS = [
   { id: 'c1', date: '2026-10-13', time: '07:42', dir: 'IN', nature: 'Encaissement famille', journal: 'ECOLAGE', label: 'Frais de scolarité octobre — RAZAFY Kanto', method: 'Espèces', amount: 420_000, agent: 'Mme Soa', receipt: 'ECO-TMV-00410' },
   { id: 'c2', date: '2026-10-13', time: '08:15', dir: 'IN', nature: 'Encaissement famille', journal: 'DROITS_EXAMEN', label: 'Droits DNB — RAVELO Hasina', method: 'Chèque n° 3318820', amount: 350_000, agent: 'Mme Soa', receipt: 'EXA-TMV-00055' },
   { id: 'c3', date: '2026-10-13', time: '09:05', dir: 'IN', nature: 'Encaissement famille', journal: 'FRAIS_ANNEXES', label: 'Tee-shirt × 2 — RASOA Lova', method: 'Espèces', amount: 70_000, agent: 'Mme Soa', receipt: 'ANX-TMV-00207' },
@@ -97,7 +98,7 @@ const R = (number, journal, time, studentId, student, cls, lines, method, extra 
   number, journal, date: '2026-10-13', time, at: `13/10/2026 ${time}`, studentId, student, cls, lines,
   total: lines.reduce((t, l) => t + l.amount, 0), method, ref: null, bank: null, bearer: '', cashier: 'Mme Soa (bureau)', status: 'VALIDE', ...extra,
 });
-export const RECEIPTS_TODAY = [
+const DEMO_RECEIPTS_TODAY = [
   R('ECO-TMV-00410', 'ECOLAGE', '07:42', 'e5', 'RAZAFY Kanto', '1re STMG', [{ key: 'ECO-10', label: 'Frais de scolarité octobre 2026', amount: 420_000 }], 'ESPECES', { bearer: 'Mme Razafy Voahangy (parent)' }),
   R('EXA-TMV-00055', 'DROITS_EXAMEN', '08:15', null, 'RAVELO Hasina', '3e', [{ key: 'EXAMEN', label: 'Droits DNB', amount: 350_000 }], 'CHEQUE', { ref: '3318820', bank: 'BNI Madagascar', bearer: 'M. Ravelo Haja (parent)' }),
   R('ANX-TMV-00207', 'FRAIS_ANNEXES', '09:05', null, 'RASOA Lova', '6e', [{ key: 'ART-ts', label: 'Tee-shirt scolaire × 2', amount: 70_000 }], 'ESPECES', {
@@ -106,15 +107,15 @@ export const RECEIPTS_TODAY = [
   }),
   R('EXA-TMV-00056', 'DROITS_EXAMEN', '11:10', 'e3', 'RANDRIA Mamy', 'Terminale Générale', [{ key: 'EXAMEN', label: 'Droits Bac', amount: 600_000 }], 'VIREMENT', { ref: '77104', bank: 'BOA Madagascar', bearer: 'M. Randria Feno (parent)' }),
 ];
-export const CASH_AUDIT = [
+const DEMO_CASH_AUDIT = [
   { at: '13/10/2026 15:02', by: 'Mme Soa (bureau)', action: 'Demande d\'annulation', receipt: 'ANX-TMV-00207', detail: 'Mauvaise taille : la famille a rendu les deux tee-shirts neufs, remboursement en espèces' },
   { at: '12/10/2026 17:05', by: 'Mme Soa (bureau)', action: 'Clôture de caisse', receipt: '—', detail: 'Caisse juste : 2 950 000 Ar comptés' },
 ];
 
 // Espèces en caisse (coffre du secrétariat) à l'ouverture du 13 octobre, et clôtures précédentes
 // Versements : mercredi après-midi (pas de cours) et vendredi après les cours ; rappel au secrétariat
-export const CASH_SAFE = { morning: 2_950_000, lastDeposit: '2026-10-09', depositDays: [3, 5], depositSlots: { 3: 'après-midi', 5: 'après les cours' }, maxAmount: 2_500_000 };
-export const CASH_CLOSINGS = [
+const DEMO_CASH_SAFE = { morning: 2_950_000, lastDeposit: '2026-10-09', depositDays: [3, 5], depositSlots: { 3: 'après-midi', 5: 'après les cours' }, maxAmount: 2_500_000 };
+const DEMO_CASH_CLOSINGS = [
   { date: '2026-10-12', expected: 2_950_000, counted: 2_950_000, diff: 0, status: 'JUSTE', explanation: '', by: 'Mme Soa (bureau)', at: '12/10/2026 17:05' },
   { date: '2026-10-09', expected: 980_000, counted: 975_000, diff: -5_000, status: 'MANQUANT', explanation: 'Monnaie rendue en trop à un parent (erreur de rendu), signalé à la Direction', by: 'Mme Soa (bureau)', at: '09/10/2026 17:12' },
 ];
@@ -133,7 +134,7 @@ export const REDUCTION_TYPES = [
 export const CASH_YEAR_OPENING = { ECOLAGE: 150_000, FRAIS_ANNEXES: 20_000, DROITS_EXAMEN: 0 };
 const NAMES = ['RAKOTO Fanja', 'RABE Lova', 'RANDRIA Tiana', 'RASOA Mialy', 'RAZAFY Hery', 'RAVELO Noro', 'RAHARISON Toky', 'RAJAONA Fy'];
 const MONTHS_FR = { '09': 'septembre', 10: 'octobre' };
-export const CASH_HISTORY = (() => {
+const DEMO_CASH_HISTORY = (() => {
   const out = [];
   let n = 0;
   for (let d = new Date(Date.UTC(2026, 8, 7)); d < new Date(Date.UTC(2026, 9, 13)); d.setUTCDate(d.getUTCDate() + 1)) {
@@ -159,13 +160,14 @@ export const CASH_HISTORY = (() => {
 })();
 // Solde d'ouverture du jour (13 octobre) = clôture de la veille
 const opening = { ...CASH_YEAR_OPENING };
-for (const m of CASH_HISTORY) opening[m.journal] += m.dir === 'IN' ? m.amount : -m.amount;
-export const CASH_OPENING = opening;
+for (const m of DEMO_CASH_HISTORY) opening[m.journal] += m.dir === 'IN' ? m.amount : -m.amount;
+export const CASH_OPENING = liveObject(() => demoOr(opening, CASH_YEAR_OPENING));
+export const CASH_HISTORY = liveArray(() => demoOr(DEMO_CASH_HISTORY, []));
 
 // Encaissement : comptes élèves (clés payées) — la grille et le plan donnent les montants
 export const BANKS = ['BNI Madagascar', 'BOA Madagascar', 'BFV-SG', 'BMOI', 'Société Générale', 'AccèsBanque', 'Autre'];
 
-export const STUDENT_ACCOUNTS = [
+const DEMO_STUDENT_ACCOUNTS = [
   { id: 'e1', name: 'RAKOTOARISOA Aina', cls: '1re STMG', family: 'Famille RAKOTOARISOA', isNew: false, enrolledOn: '2026-09-01',
     paid: ['REINSCRIPTION', 'FASCICULE', 'LOCATION', 'CAHIERS', 'ECO-09', 'EXAMEN'],
     exam: { label: 'Droits Pré-Bac (EAF)', amount: 450_000, due: '2026-10-31' } },
@@ -209,3 +211,15 @@ export const PAYROLL = [
   { staffId: 'p9', monthly: 480_000, method: 'ESPECES' },
   { staffId: 'p10', monthly: 450_000, method: 'ESPECES' },
 ];
+
+export const FAMILIES = liveArray(() => demoOr(DEMO_FAMILIES, [])); // vide dès que les vraies données sont importées
+
+export const CASH_MOVEMENTS = liveArray(() => demoOr(DEMO_CASH_MOVEMENTS, [])); // vide dès que les vraies données sont importées
+
+export const RECEIPTS_TODAY = liveArray(() => demoOr(DEMO_RECEIPTS_TODAY, [])); // vide dès que les vraies données sont importées
+
+export const CASH_CLOSINGS = liveArray(() => demoOr(DEMO_CASH_CLOSINGS, [])); // vide dès que les vraies données sont importées
+
+export const CASH_AUDIT = liveArray(() => demoOr(DEMO_CASH_AUDIT, [])); // vide dès que les vraies données sont importées
+export const CASH_SAFE = liveObject(() => demoOr(DEMO_CASH_SAFE, { ...DEMO_CASH_SAFE, morning: 0, lastDeposit: '2026-09-01' }));
+export const STUDENT_ACCOUNTS = liveArray(() => demoOr(DEMO_STUDENT_ACCOUNTS, []));

@@ -1,6 +1,7 @@
 // Emploi du temps hebdomadaire des professeurs (démonstration, Tamatave) : base du volume horaire.
 // En production, il vient de l'import de l'emploi du temps (Excel / logiciel actuel).
 // week : 'A' ou 'B' pour un cours qui n'a lieu qu'une semaine sur deux (sinon toutes les semaines)
+import { liveArray, demoOr } from '../demoData.js';
 const T = (id, teacherId, cls, subject, weekday, start, end, week) => ({ id, teacherId, cls, subject, weekday, start, end, ...(week ? { week } : {}) });
 export const TIMETABLE = [
   T('t1', 'p1', '1re STMG', 'Management', 1, '07:00', '09:00'), T('t2', 'p1', 'Terminale STMG', 'Management', 1, '09:45', '11:45'),
@@ -18,7 +19,7 @@ export const TIMETABLE = [
 ];
 
 // Absences déclarées des professeurs, avec le travail laissé pour la séance surveillée
-export const TEACHER_ABSENCES = [
+const DEMO_TEACHER_ABSENCES = [
   { id: 'a1', teacherId: 'p2', date: '2026-10-08', slotIds: ['t9'], reason: 'Rendez-vous médical', work: 'DEVOIR', workText: 'Exercices 3 à 6 p. 112 (la décolonisation), à rendre à la fin de l\'heure.', declaredBy: 'RASOLO Jean', declaredAt: '2026-10-07' },
   { id: 'a2', teacherId: 'p4', date: '2026-10-12', slotIds: ['t10'], reason: 'Absence imprévue', work: 'AUCUN', workText: '', declaredBy: 'Secrétariat', declaredAt: '2026-10-12' },
   { id: 'a3', teacherId: 'p5', date: '2026-10-14', slotIds: ['t13'], reason: 'Formation', work: 'ACTIVITE', workText: 'Fiche d\'activité « suites géométriques » (photo jointe au secrétariat).', declaredBy: 'TOJO Andry', declaredAt: '2026-10-13' },
@@ -34,3 +35,5 @@ export const TEACHER_LATENESS = [
 export const TEACHER_MAKEUPS = [
   { id: 'm1', teacherId: 'p5', date: '2026-10-10', hours: 1, note: 'Heure rattrapée samedi matin avec la Terminale STMG' },
 ];
+
+export const TEACHER_ABSENCES = liveArray(() => demoOr(DEMO_TEACHER_ABSENCES, [])); // vide dès que les vraies données sont importées

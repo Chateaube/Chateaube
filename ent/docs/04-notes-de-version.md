@@ -1,5 +1,12 @@
 # Notes de version — ce qui change pour l'équipe
 
+## 25 octobre 2026 (suite 4) — les exemples fictifs disparaissent à l'import
+
+- **Plus aucune donnée fictive dès que votre fichier est importé** : élèves et professeurs viennent du fichier ; absences, retards, punitions, passages au secrétariat, objets confisqués, caisse (reçus, clôtures, coffre), dépenses, annonces, événements, devoirs, tâches, suivis, engagements, prêts du CDI et des manuels, examens blancs, pièces demandées, stages et poursuite d'études de Terminale partent de zéro. Les tarifs, les titres de manuels, les réglages et les documents de l'école sont gardés.
+- **Ce qui avait été essayé pendant la démonstration** (dans ce navigateur) est effacé au premier import réel, pour ne pas se mélanger aux vraies saisies.
+- **Retour aux exemples** : Importer et sauvegarder › « Effacer et revenir aux données fictives » (avec confirmation) efface l'import et ce qui a été saisi depuis.
+- Le conseil de classe reste vide tant que les enseignants n'ont pas validé de notes.
+
 ## 25 octobre 2026 (suite 3) — import des vraies données
 
 - **Les données importées remplacent la démonstration partout** : classes et élèves de la vie scolaire, des conseils, des fiches d'orientation, des conventions et lettres, du passeport… plus seulement la liste des élèves et la caisse. Aucun rechargement nécessaire.

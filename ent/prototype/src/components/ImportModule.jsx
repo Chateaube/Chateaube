@@ -3,6 +3,7 @@ import { csvCell } from '../rules/csv.js';
 import { Badge, Button, Card, Stat } from './ui.jsx';
 import { parseTable, analyzeStudents, parseAssignments } from '../rules/importer.js';
 import { loadImport, saveImport, clearImport } from '../importStore.js';
+import { resetDemoState } from '../demoData.js';
 import { hoursByClass, checkAgainstAssignments } from '../rules/timetableImport.js';
 import { ASSIGNMENTS } from '../data/staffAssignments.js';
 import { saveFile } from '../download.js';
@@ -114,6 +115,8 @@ export default function ImportModule({ role = 'DIRECTION' }) {
       // emploi du temps : le nouveau remplace l'ancien en entier (c'est la semaine type de l'année)
       timetable: newTimetable ? extras.timetable.slots : current?.timetable ?? null,
     };
+    // Premier vrai import : ce qui a été saisi pendant la démonstration (absences, punitions, caisse, tâches…) est effacé
+    if (!current?.students?.length && data.students.length) resetDemoState();
     const where = saveImport(data);
     setCurrent(loadImport());
     let more = '';
@@ -127,7 +130,7 @@ export default function ImportModule({ role = 'DIRECTION' }) {
     if (extras?.inventory.length) { saveInventory(extras.inventory); more += ` Inventaire : ${extras.inventory.length} articles.`; }
     if (newTimetable) more += ` Emploi du temps : ${extras.timetable.slots.length} cours.`;
     else if (extras?.timetable?.slots.length) more += role === 'DIRECTION' ? ' Emploi du temps gardé tel quel.' : ' Emploi du temps non remplacé : seule la Direction peut le faire.';
-    setDone(`${data.students.length} élèves et ${data.assignments.length} professeurs importés.${more} Ils remplacent les données de démonstration dans tous les écrans (élèves, classes, vie scolaire, conseils, emplois du temps…).`);
+    setDone(`${data.students.length} élèves et ${data.assignments.length} professeurs importés.${more} Les données fictives ont disparu de tous les écrans : seuls vos élèves et vos professeurs apparaissent, et le reste (absences, punitions, caisse, annonces, tâches…) part de zéro.`);
     setStorage(where);
   };
   const exportToComplete = () => {
@@ -151,9 +154,15 @@ export default function ImportModule({ role = 'DIRECTION' }) {
 
       {current && (
         <Card title="Données actuellement importées" subtitle={`Le ${new Date(current.importedAt).toLocaleString('fr-FR')}`}
-          action={<Button variant="secondary" className="!py-1 text-xs" onClick={() => { clearImport(); setCurrent(null); setDone(null); }}>Effacer et revenir aux données fictives</Button>}>
+          action={<Button variant="secondary" className="!py-1 text-xs" onClick={() => { if (!window.confirm('Effacer les données importées et ce qui a été saisi depuis, puis revenir aux exemples fictifs ?')) return; clearImport(); resetDemoState(); setCurrent(null); setDone(null); }}>Effacer et revenir aux données fictives</Button>}>
           <p className="text-sm text-slate-700">{current.students.length} élèves · {current.assignments.length} professeurs</p>
         </Card>
+      )}
+      {!current && (
+        <p className="rounded-2xl bg-sky-50 p-3 text-sm text-sky-900">
+          Pour l'instant, l'application montre des <strong>exemples fictifs</strong>. Dès que vous importez votre fichier, ils disparaissent tous :
+          vos élèves et vos professeurs les remplacent, et absences, punitions, caisse, annonces ou tâches partent de zéro. Rien d'autre à faire.
+        </p>
       )}
       {done && <p className="rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-800">{done}</p>}
       {storage === 'MEMORY' && (

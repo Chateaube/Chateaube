@@ -2,11 +2,12 @@
 // sans majuscules, sur le nom, le prénom ou la classe ; seuls les écrans accessibles sont proposés.
 import { CLASSES } from '../data/schoollife.js';
 
-const STUDENTS = Object.entries(CLASSES).flatMap(([cls, list]) => list.map((name) => ({ name, cls })));
+// Relu à chaque recherche : les élèves importés remplacent ceux de la démonstration
+const allStudents = () => Object.entries(CLASSES).flatMap(([cls, list]) => list.map((name) => ({ name, cls })));
 const fold = (t) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 /** Élèves dont le nom, le prénom ou la classe contient la recherche (6 au plus). */
-export function findStudents(query, list = STUDENTS) {
+export function findStudents(query, list = allStudents()) {
   const q = fold(query.trim());
   if (!q) return [];
   return list.filter((s) => fold(`${s.name} ${s.cls}`).includes(q) || fold(s.name).split(' ').some((w) => w.startsWith(q))).slice(0, 6);

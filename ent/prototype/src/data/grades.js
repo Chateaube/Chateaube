@@ -1,6 +1,11 @@
 // Données de démonstration — notes, compétences et conseil de classe (FICTIVES).
 import { CLASS_LIST } from './people.js';
 import { COMPETENCY_HISTORY } from './competencyHistory.js';
+import { CLASSES } from './schoollife.js';
+import { demoOr } from '../demoData.js';
+
+// Élèves d'un service : la liste fictive en démonstration, la classe importée avec les vraies données
+const svc = (s, demo) => Object.defineProperty(s, 'students', { get: () => demoOr(demo, CLASSES[s.cls] ?? []), enumerable: true });
 
 export const TERM = { id: 'T1', label: '1er trimestre', council: 'jeudi 10 décembre 2026' };
 
@@ -9,10 +14,10 @@ const PREMIERE_G = ['ANDRIAMANANTENA Ravo', 'RABARY Tiavina', 'RAHERIMALALA Anja
 
 // Services de Mme RANAIVO : une ligne par couple classe × matière
 export const SERVICES = [
-  { id: 's1', cls: '1re STMG', subject: 'Management', students: CLASS_LIST },
-  { id: 's2', cls: 'Terminale STMG', subject: 'Management', students: TLE_STMG },
-  { id: 's3', cls: '1re STMG', subject: 'Enseignement moral et civique', students: CLASS_LIST },
-  { id: 's4', cls: '1re Générale', subject: 'Enseignement moral et civique', students: PREMIERE_G },
+  svc({ id: 's1', cls: '1re STMG', subject: 'Management' }, CLASS_LIST),
+  svc({ id: 's2', cls: 'Terminale STMG', subject: 'Management' }, TLE_STMG),
+  svc({ id: 's3', cls: '1re STMG', subject: 'Enseignement moral et civique' }, CLASS_LIST),
+  svc({ id: 's4', cls: '1re Générale', subject: 'Enseignement moral et civique' }, PREMIERE_G),
 ];
 
 export const EVALUATIONS = {
@@ -141,6 +146,6 @@ export const ABSENCES = {
 };
 
 // Parcours d'ouverture : évalué uniquement par une appréciation (pas de note)
-SERVICES.push({ id: 's5', cls: '1re STMG', subject: 'Parcours d\'ouverture — Orientation', mode: 'APPRECIATION_SEULE', strand: 'ORIENTATION', students: CLASS_LIST });
+SERVICES.push(svc({ id: 's5', cls: '1re STMG', subject: 'Parcours d\'ouverture — Orientation', mode: 'APPRECIATION_SEULE', strand: 'ORIENTATION' }, CLASS_LIST));
 EVALUATIONS.s5 = [];
 GRADES.s5 = {};

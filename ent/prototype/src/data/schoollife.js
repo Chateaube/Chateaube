@@ -1,6 +1,7 @@
 // Données de démonstration — vie scolaire de Tamatave (noms FICTIFS).
 import { CLASS_LIST } from './people.js';
 import { loadImport } from '../importStore.js';
+import { liveArray, demoOr } from '../demoData.js';
 
 // Élèves par classe : le choix d'une classe filtre directement la liste des élèves.
 // Démonstration ci-dessous ; dès qu'un fichier est importé, ce sont les vraies classes (« NOM Prénom »).
@@ -39,7 +40,7 @@ export const classOf = (student) => Object.keys(CLASSES).find((c) => CLASSES[c].
 export const STAFF_NAMES = ['M. Be (CPE)', 'Mme Hanta (secrétariat)', 'Mme Ranaivo', 'M. Rasolo', 'Mme Hery', 'M. Tojo', 'Direction — Cheffe d\'établissement', 'Direction — Directrice adjointe'];
 
 // Absences et retards (issus de l'appel) ; parentAck = « Je suis informé.e »
-export const ATTENDANCE = [
+const DEMO_ATTENDANCE = [
   { id: 'a1', date: '2026-10-13', student: 'RAJAONARIVELO Tsiry', kind: 'ABSENCE', slot: '07h00–09h00', by: 'Mme Ranaivo', justified: false, notified: true, parentAck: null },
   { id: 'a2', date: '2026-10-13', student: 'RAMAROSON Fitia', kind: 'RETARD', slot: '07h00 (+15 min)', by: 'Mme Ranaivo', justified: false, notified: false, parentAck: null },
   { id: 'a3', date: '2026-10-13', student: 'RAVELO Hasina', kind: 'ABSENCE', slot: 'Journée', by: 'M. Rasolo', justified: true, reason: 'Certificat médical', notified: true, parentAck: '2026-10-13T08:12' },
@@ -52,7 +53,7 @@ export const ATTENDANCE = [
 ];
 
 // Punitions (enseignant, vie scolaire) et sanctions (Direction), toujours avec motif
-export const MEASURES_LOG = [
+const DEMO_MEASURES_LOG = [
   { id: 'm1', date: '2026-10-08', student: 'RAJAONARIVELO Tsiry', measure: 'OBSERVATION', reason: 'Bavardages répétés malgré plusieurs rappels', author: 'Mme Hery', authorRole: 'PROFESSEUR', parentAck: '2026-10-08T19:05' },
   { id: 'm2', date: '2026-10-12', student: 'RANDRIAMAMPIANINA Hery', measure: 'RETENUE', reason: 'Travaux non rendus à trois reprises', author: 'M. Rasolo', authorRole: 'PROFESSEUR', when: 'Mercredi 14 octobre, 13h–15h', parentAck: null },
   { id: 'm3', date: '2026-10-12', student: 'RAKOTOARISOA Toky', measure: 'DEVOIR_SUPP', reason: 'Leçon non apprise', author: 'M. Tojo', authorRole: 'PROFESSEUR', parentAck: null },
@@ -63,7 +64,7 @@ export const MEASURES_LOG = [
 // Objets confisqués (téléphone, écouteurs, montre connectée…) : qui a confisqué, à qui l'objet a été remis,
 // durée décidée par la Direction ou le secrétariat (null : à décider), restitution
 // owner : propriétaire du téléphone quand ce n'est pas l'élève pris avec ; action AVERTISSEMENT : téléphone non pris
-export const PHONES = [
+const DEMO_PHONES = [
   { id: 'p0', action: 'AVERTISSEMENT', student: 'RAKOTOARISOA Toky', at: '2026-10-09T11:00', confiscatedBy: 'Mme Ranaivo', reason: 'Téléphone sorti en classe (premier avertissement)', returned: null },
   { id: 'p1', student: 'RANDRIAMAMPIANINA Hery', at: '2026-10-12T10:20', duration: '5J', confiscatedBy: 'M. Rasolo', receivedBy: 'M. Be (CPE)', reason: 'Téléphone utilisé pendant le DS', returned: null },
   { id: 'p2', student: 'RAVOAHANGY Mamitiana', owner: 'RASOA Lova', at: '2026-10-13T08:05', duration: '24H', confiscatedBy: 'Direction — Directrice adjointe', receivedBy: 'Direction — Directrice adjointe', reason: 'Téléphone sorti dans la cour', returned: null },
@@ -71,3 +72,9 @@ export const PHONES = [
   { id: 'p5', student: 'RAKOTONIRINA Hanitra', object: 'Montre connectée', at: '2026-10-12T14:30', duration: '24H', durationBy: 'Mme Hanta (secrétariat)', confiscatedBy: 'Mme Hery', receivedBy: 'Secrétariat', reason: 'Messages consultés pendant l\'évaluation', returned: null },
   { id: 'p3', student: 'RABEMANANJARA Lina', at: '2026-10-08T14:00', duration: '24H', confiscatedBy: 'Mme Ranaivo', receivedBy: 'M. Be (CPE)', reason: 'Appel en classe', returned: { at: '2026-10-09T14:10', by: 'M. Be (CPE)', to: 'Mme Rabemananjara (mère)' } },
 ];
+
+export const ATTENDANCE = liveArray(() => demoOr(DEMO_ATTENDANCE, [])); // vide dès que les vraies données sont importées
+
+export const MEASURES_LOG = liveArray(() => demoOr(DEMO_MEASURES_LOG, [])); // vide dès que les vraies données sont importées
+
+export const PHONES = liveArray(() => demoOr(DEMO_PHONES, [])); // vide dès que les vraies données sont importées

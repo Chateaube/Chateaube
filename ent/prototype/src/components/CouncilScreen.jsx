@@ -12,11 +12,13 @@ const CLASSES = ['6e', '5e', '4e', '3e', '2de', '1re STMG', '1re Générale', 'T
 const TERMS = [['T1', '1er trimestre'], ['T2', '2e trimestre'], ['T3', '3e trimestre']];
 const DEMO_CLASS = '1re STMG';
 
+import { realData } from '../demoData.js';
+
 export default function CouncilScreen(props) {
   const [cls, setCls] = useState(DEMO_CLASS);
   const [term, setTerm] = useState(TERM.id);
   const field = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
-  const ready = cls === DEMO_CLASS && term === TERM.id;
+  const ready = !realData() && cls === DEMO_CLASS && term === TERM.id; // avec les vraies données : vide tant que rien n'est validé
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">

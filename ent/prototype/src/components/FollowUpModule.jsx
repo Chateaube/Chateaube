@@ -7,6 +7,8 @@ import { Badge, Button, Card, Stat } from './ui.jsx';
 import { CLASSES } from '../data/schoollife.js';
 import { AUTHORIZATIONS, DOCUMENTS, REQUESTED, STAGE_TYPES } from '../data/family.js';
 import { TLE_STUDENTS, STEPS, EXPORT_WINDOW } from '../data/terminale.js';
+import { realData, demoOr } from '../demoData.js';
+import { loadImport } from '../importStore.js';
 import { higherEdSteps, PROCEDURES, exportWindowOpen, campusFranceCsv, DESTINATIONS, trackSteps, addTrack, closeTrack, trackProgress } from '../rules/orientation.js';
 
 // Suivi côté établissement (Direction, Bureau, Vie scolaire) : autorisations, documents
@@ -15,15 +17,16 @@ import { higherEdSteps, PROCEDURES, exportWindowOpen, campusFranceCsv, DESTINATI
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
 // Réponses de démonstration, stables d'un affichage à l'autre
 const answerOf = (student, auth) => {
+  if (realData()) return null; // vraies données : les réponses arrivent du portail des familles
   const h = [...`${student}${auth.id}`].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 997, 7);
   if (h % 7 === 0) return null;          // pas encore de réponse
   return auth.options[h % 5 === 1 ? 1 : 0];
 };
 
 function Authorizations() {
-  const [cls, setCls] = useState('1re STMG');
+  const [cls, setCls] = useState(() => ('1re STMG' in CLASSES ? '1re STMG' : Object.keys(CLASSES)[0]));
   const [onlyIssues, setOnlyIssues] = useState(false);
-  const students = CLASSES[cls];
+  const students = CLASSES[cls] ?? [];
   const rows = students.map((s) => ({ s, answers: AUTHORIZATIONS.map((a) => answerOf(s, a)) }))
     .filter((r) => !onlyIssues || r.answers.some((x) => x === null || x.startsWith('Je n\'') || x.startsWith('Aucune')));
   return (
@@ -99,11 +102,11 @@ function Documents() {
 }
 
 function Requested() {
-  const [items, setItems] = useState([
+  const [items, setItems] = useState(() => demoOr([
     ...REQUESTED.map((r) => ({ ...r, student: r.child === 'aina' ? 'RAKOTOARISOA Aina' : 'RAKOTOARISOA Toky' })),
     { id: 'r4', student: 'RANDRIA Mamy', title: 'Attestation de recensement — dossier Bac', due: '2026-10-30', received: false },
     { id: 'r5', student: 'RAZAFY Kanto', title: 'Photo d\'identité — dossier Pré-Bac', due: '2026-10-30', received: 'PENDING' },
-  ]);
+  ], []));
   return (
     <Card title="Pièces demandées aux familles" subtitle="Dossiers d'examen, certificats, justificatifs">
       <ul className="divide-y divide-slate-100">
@@ -121,11 +124,11 @@ function Requested() {
 }
 
 function StagesOrientation({ settings }) {
-  const stages = [
+  const stages = demoOr([
     { student: 'RAVELO Hasina', cls: '3e', title: STAGE_TYPES[0].label, company: 'Port de Toamasina — capitainerie', from: '2027-02-22', to: '2027-02-26', referent: 'M. Rasolo', signatures: { entreprise: true, etablissement: true, famille: true } },
     { student: 'ANDRIAMIHAJA Miora', cls: '3e', title: STAGE_TYPES[0].label, company: 'Clinique Saint-Joseph — accueil', from: '2027-02-22', to: '2027-02-26', referent: 'M. Rasolo', signatures: { entreprise: true, etablissement: false, famille: false } },
     { student: 'Élèves de 2de (24)', cls: '2de', title: STAGE_TYPES[1].label, company: 'Conventions à constituer', from: '2027-04-12', to: '2027-04-16', referent: 'Direction', signatures: { entreprise: false, etablissement: false, famille: false } },
-  ];
+  ], []);
   const signed = (s) => Object.values(s.signatures).filter(Boolean).length;
   return (
     <div className="space-y-5">
@@ -200,13 +203,21 @@ function OrientationSheets({ role }) {
   );
 }
 
+// Terminales : exemples fictifs, ou élèves importés avec une procédure pas encore commencée
+const tleStudents = () => (realData()
+  ? (loadImport()?.students ?? []).filter((s) => /^Terminale/.test(s.cls)).map((s) => ({
+    lastName: s.lastName, firstName: s.firstName, cls: s.cls, birthDate: s.birthDate, nationalities: s.nationalities ?? [], email: s.email ?? '',
+    parcoursup: { account: false, confirmed: false }, campus: { file: false }, tls: { appointment: false },
+  }))
+  : TLE_STUDENTS);
+
 function Terminale() {
   // pistes de chaque élève (France en plan B pour tous, autres pays au besoin)
-  const [students, setStudents] = useState(() => TLE_STUDENTS.map((st, i) => ({
+  const [students, setStudents] = useState(() => tleStudents().map((st, i) => ({
     ...st,
     tracks: [
       { id: 'FRANCE', dest: 'FRANCE', done: { account: st.parcoursup.account, confirmed: st.parcoursup.confirmed, campus: st.campus.file, tls: st.tls.appointment }, closed: null },
-      ...(i === 7 ? [{ id: 'CANADA-1', dest: 'CANADA', label: '', done: { dossier: true }, closed: null }] : []),
+      ...(i === 7 && !realData() ? [{ id: 'CANADA-1', dest: 'CANADA', label: '', done: { dossier: true }, closed: null }] : []),
     ],
   })));
   const [closing, setClosing] = useState(null); // { i, id, reason }

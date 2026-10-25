@@ -4,10 +4,7 @@ import { CLASSES } from './schoollife.js';
 
 export const NOW = { date: '2026-10-13', time: '10:20' };
 
-export const ROSTERS = {
-  ...CLASSES,
-  '2de': ['ANDRIANAIVO Mickaël', 'RABARY Sandra', 'RAHERIMALALA Tojo', 'RAKOTOMALALA Ny Aina', 'RANDRIANARISOA Lalaina', 'RAVONINJATOVO Haja', 'RAZAFIARISON Mendrika'],
-};
+export const ROSTERS = CLASSES; // classes de démonstration ou classes importées
 
 const S = (id, date, start, end, cls, subject, room, done = null) => ({ id, date, start, end, cls, subject, room, done });
 export const WEEK_SESSIONS = [

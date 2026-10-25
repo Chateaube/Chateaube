@@ -1,4 +1,5 @@
 // Annonces : effectifs par site (démonstration, chiffres FICTIFS) et quelques annonces publiées.
+import { liveArray, demoOr } from '../demoData.js';
 export const SITES = { TMV: 'Tamatave', TNR: 'Tana' };
 
 export const POPULATION = {
@@ -14,7 +15,7 @@ export const POPULATION = {
   },
 };
 
-export const ANNOUNCEMENTS = [
+const DEMO_ANNOUNCEMENTS = [
   {
     id: 'n1', title: 'Journée portes ouvertes — samedi 7 novembre', at: '2026-10-12T09:00',
     text: 'Venez découvrir l\'établissement avec vos proches : visite des salles, rencontre avec les professeurs, inscriptions pour 2027-2028. De 8h à 12h.',
@@ -54,3 +55,5 @@ export const ANNOUNCEMENTS = [
     pinned: false, ack: false, photos: [], reads: 0,
   },
 ];
+
+export const ANNOUNCEMENTS = liveArray(() => demoOr(DEMO_ANNOUNCEMENTS, [])); // vide dès que les vraies données sont importées

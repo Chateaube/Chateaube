@@ -1,5 +1,6 @@
 // Passages au secrétariat et inventaire du matériel (prototype : gardés dans ce navigateur).
 import { INVENTORY, CARE_VISITS } from './data/inventory.js';
+import { demoOr } from './demoData.js';
 
 const VISITS_KEY = 'ent-passages-v1';
 const INV_KEY = 'ent-inventaire-v2'; // v2 : fournitures
@@ -8,5 +9,5 @@ const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); retu
 
 export const loadVisits = () => read(VISITS_KEY, CARE_VISITS);
 export const saveVisits = (v) => write(VISITS_KEY, v);
-export const loadInventory = () => read(INV_KEY, INVENTORY);
+export const loadInventory = () => read(INV_KEY, demoOr(INVENTORY, []));
 export const saveInventory = (v) => write(INV_KEY, v);

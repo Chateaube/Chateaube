@@ -1,5 +1,6 @@
 // Inventaire de démonstration — Tamatave (quantités fictives).
 import { RESOURCES } from './demo.js';
+import { liveArray, demoOr } from '../demoData.js';
 
 const ROOM = { 'tmv-lab': 'Laboratoire', 'tmv-pc': 'Secrétariat' };
 export const INVENTORY = [
@@ -28,7 +29,7 @@ export const INVENTORY = [
 ];
 
 // Passages de démonstration (élèves fictifs)
-export const CARE_VISITS = [
+const DEMO_CARE_VISITS = [
   { id: 'c1', at: '2026-10-02T10:15', student: 'RASOA Lova', reason: 'Mal de tête', paracetamol: true, dose: '1 comprimé 500 mg', outcome: 'REPOS', by: 'Mme Hanta' },
   { id: 'c2', at: '2026-10-07T13:40', student: 'RASOA Lova', reason: 'Mal de tête', paracetamol: false, outcome: 'CLASSE', by: 'Mme Hanta' },
   { id: 'c3', at: '2026-10-09T09:50', student: 'RAMAROSON Fitia', reason: 'Blessure légère', detail: 'genou écorché en récréation', paracetamol: false, outcome: 'CLASSE', by: 'Mme Hanta' },
@@ -36,3 +37,5 @@ export const CARE_VISITS = [
   { id: 'c6', at: '2026-10-13T10:20', student: 'RAZAFY Kanto', reason: 'Malaise', paracetamol: false, outcome: 'REPOS', by: 'Mme Hanta' },
   { id: 'c4', at: '2026-10-12T11:05', student: 'RASOA Lova', reason: 'Mal de ventre', paracetamol: false, outcome: 'REPOS', by: 'Mme Hanta' },
 ];
+
+export const CARE_VISITS = liveArray(() => demoOr(DEMO_CARE_VISITS, [])); // vide dès que les vraies données sont importées

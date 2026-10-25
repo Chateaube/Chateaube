@@ -12,6 +12,7 @@ import { DEMO_SPECIALTIES } from '../data/manuals.js';
 import { kitFor, kitTotals } from '../rules/manuals.js';
 import { loadManuals } from '../manualsStore.js';
 import { useOnline } from '../online.js';
+import { liveArray } from '../demoData.js';
 
 /**
  * Tarifs d'un élève : grille de sa classe + lot de manuels (location des titres à rendre,
@@ -43,7 +44,7 @@ const importedAccounts = () => {
     isNew: seniority(s.enteredOn)?.isNew ?? false, specialties: s.specialties ?? [], enrolledOn: seniority(s.enteredOn)?.isNew && s.enteredOn > '2026-09-01' ? s.enteredOn : '2026-09-01', paid: [],
   }));
 };
-const DEMO_ACCOUNTS = [
+const demoAccounts = () => [
   ...STUDENT_ACCOUNTS,
   ...Object.entries(CLASSES).flatMap(([cls, names]) => names
     .filter((n) => !STUDENT_ACCOUNTS.some((a) => a.name === n))
@@ -52,8 +53,16 @@ const DEMO_ACCOUNTS = [
       paid: ['REINSCRIPTION', 'FASCICULE', 'LOCATION', 'CAHIERS', 'ECO-09', ...(i % 2 ? ['ECO-10'] : [])],
     }))),
 ];
-export const CASH_ACCOUNTS = importedAccounts() ?? DEMO_ACCOUNTS;
-const CASH_CLASSES = CLASS_FEES.map((f) => f.cls).filter((c) => CASH_ACCOUNTS.some((a) => a.cls === c));
+// Relu quand l'import change (l'import peut se faire sans recharger la page)
+let accountsCache = { key: undefined, value: [] };
+const currentAccounts = () => {
+  const imp = loadImport();
+  const key = imp?.students?.length ? `${imp.importedAt}|${imp.students.length}` : null;
+  if (key !== accountsCache.key) accountsCache = { key, value: importedAccounts() ?? demoAccounts() };
+  return accountsCache.value;
+};
+export const CASH_ACCOUNTS = liveArray(currentAccounts);
+const cashClasses = () => CLASS_FEES.map((f) => f.cls).filter((c) => CASH_ACCOUNTS.some((a) => a.cls === c));
 
 /** « −25 % scolarité, −50 % inscription » */
 export const reductionText = (rates) => [rates.ECOLAGE && (rates.ECOLAGE === 100 ? 'frais de scolarité offerts' : `−${rates.ECOLAGE} % frais de scolarité`), rates.INSCRIPTION && `−${rates.INSCRIPTION} % inscription`].filter(Boolean).join(', ') + ' ; autres frais à 100 %';
@@ -98,14 +107,14 @@ function DueTile({ item, checked, onToggle }) {
 }
 
 export default function CollectPayment({ settings, articles = [], accounts: sharedAccounts, setAccounts: setSharedAccounts, reductionTypes = [], onCollected, cashier = 'Mme Hanta (bureau)', closed = false }) {
-  const [localAccounts, setLocalAccounts] = useState(CASH_ACCOUNTS);
+  const [localAccounts, setLocalAccounts] = useState(() => [...CASH_ACCOUNTS]);
   const accounts = sharedAccounts ?? localAccounts;
   const online = useOnline();
   const setAccounts = setSharedAccounts ?? setLocalAccounts;
   const [cls, setCls] = useState('');
   const [bearer, setBearer] = useState({ role: 'PARENT', name: '' });
   const [query, setQuery] = useState('');
-  const [studentId, setStudentId] = useState(CASH_ACCOUNTS.find((a) => a.id === 'e2')?.id ?? CASH_ACCOUNTS[0].id);
+  const [studentId, setStudentId] = useState(CASH_ACCOUNTS.find((a) => a.id === 'e2')?.id ?? CASH_ACCOUNTS[0]?.id);
   const [selected, setSelected] = useState(null); // null = proposition par défaut
   const [instrument, setInstrument] = useState({ method: 'ESPECES', ref: '', bank: '' });
   const [receipts, setReceipts] = useState(null);
@@ -173,7 +182,7 @@ export default function CollectPayment({ settings, articles = [], accounts: shar
         <label className="block text-xs font-medium text-slate-600">Classe
           <select value={cls} onChange={(e) => setCls(e.target.value)} className={`mt-1 w-full ${inputCls}`}>
             <option value="">Toutes les classes</option>
-            {CASH_CLASSES.map((c) => <option key={c} value={c}>{c} ({accounts.filter((a) => a.cls === c).length})</option>)}
+            {cashClasses().map((c) => <option key={c} value={c}>{c} ({accounts.filter((a) => a.cls === c).length})</option>)}
           </select>
         </label>
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nom de l'élève ou de la famille…" className={`mt-2 w-full ${inputCls}`} />
