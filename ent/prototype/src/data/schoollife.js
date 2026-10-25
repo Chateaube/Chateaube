@@ -6,6 +6,7 @@ export const CLASSES = {
   '5e': ['RAKOTOARISOA Toky', 'RASOA Lova', 'RANDRIA Tiavina', 'RAVOAHANGY Mamitiana', 'RAZAFIMAHEFA Noro'],
   '4e': ['RASOAMANANA Fy', 'RAKOTONIRINA Hanitra', 'RAMANANA Toavina', 'RAZAKA Feno'],
   '3e': ['RAVELO Hasina', 'ANDRIAMIHAJA Miora', 'RABEARIVELO Tsilavina', 'RAHARIMANANA Lalaina'],
+  '2de': ['RAKOTOMALALA Fanja', 'RASOLOFO Ny Aina', 'ANDRIANTSOA Mahery', 'RAZAFINDRAKOTO Tahiry'], // fictifs
   '1re STMG': CLASS_LIST,
   'Terminale STMG': ['ANDRIANARIVO Tojo', 'RABEMANANJARA Lina', 'RAKOTONDRABE Fanilo', 'RAMANANTSOA Nathan', 'RANDRIANASOLO Ony', 'RAZANAMPARANY Sarobidy'],
   'Terminale Générale': ['RANDRIA Mamy', 'RAKOTOVAO Andry', 'RAZAFINDRATSIMA Volana'],

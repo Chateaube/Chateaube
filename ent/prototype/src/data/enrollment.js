@@ -38,7 +38,7 @@ export const STUDENT_PROFILES = [
       { name: 'M. Randria Feno', relation: 'Père', phone: '+261 32 44 900 48', email: 'feno.randria@gmail.com', whatsapp: false, payer: true, pickup: true },
     ],
     health: { allergies: 'Aucune', emergency: 'M. Randria Feno — +261 32 44 900 48' },
-    authorizations: { image: false, exit: 'Sortie libre aux heures sans cours' },
+    authorizations: { image: false, exit: 'Sortie après la dernière heure de cours de la demi-journée' },
     documents: ['ACTE', 'PHOTOS', 'BULLETINS', 'VACCINS'],
   },
 ];

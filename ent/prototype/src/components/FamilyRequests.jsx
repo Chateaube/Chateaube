@@ -14,7 +14,7 @@ import { PREREG_SOURCES, ENROLL_CLASSES } from '../data/enrollment.js';
 const inputCls = 'w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm';
 const fmt = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('/') : '');
 const DOC_LABEL = Object.fromEntries(REQUIRED_DOCUMENTS.map((d) => [d.id, d.label.replace(' (nouvel élève)', '')]));
-export const KIND_LABEL = { REINSCRIPTION: 'Réinscription 2027-2028', MISE_A_JOUR: 'Mise à jour des informations', PIECE: 'Pièce déposée' };
+export const KIND_LABEL = { REINSCRIPTION: 'Réinscription 2027-2028', MISE_A_JOUR: 'Mise à jour des informations', PIECE: 'Pièce déposée', RDV: 'Demande de rendez-vous', DISPENSE_EPS: 'Dispense d\'EPS' };
 const STATUS = { A_TRAITER: ['amber', 'en attente du secrétariat'], VALIDEE: ['green', 'validée'], REFUSEE: ['red', 'refusée'] };
 
 function Field({ label, children }) {
@@ -250,6 +250,24 @@ export function applyRequest(p, r, nextYearNumbers = []) {
   };
 }
 
+const fmtSlot = (s) => `${s.date.split('-').reverse().join('/')} à ${s.time.replace(':', 'h')}`;
+/** Demande de rendez-vous : accepter un des créneaux proposés, ou en proposer un autre (comme dans le passeport). */
+function RdvBody({ r, onDone }) {
+  const [other, setOther] = useState({ date: '', time: '' });
+  const answer = (text) => { decideRequest(r.id, 'VALIDEE', 'Secrétariat', text); onDone(); };
+  return (
+    <div className="space-y-2 text-sm text-slate-700">
+      <p>Demande à rencontrer <strong>{r.payload.with}</strong> · motif : {r.payload.reason}</p>
+      <div className="flex flex-wrap gap-2">{(r.payload.slots ?? []).map((s) => <Button key={fmtSlot(s)} variant="secondary" className="!py-1 text-xs" onClick={() => answer(`Accord pour le ${fmtSlot(s)}.`)}>Accord : {fmtSlot(s)}</Button>)}</div>
+      <div className="flex flex-wrap items-end gap-2 text-xs">Sinon, autre proposition :
+        <input type="date" value={other.date} onChange={(e) => setOther({ ...other, date: e.target.value })} aria-label="Autre date" className="rounded-md border border-slate-300 px-2 py-1" />
+        <input type="time" value={other.time} onChange={(e) => setOther({ ...other, time: e.target.value })} aria-label="Autre heure" className="rounded-md border border-slate-300 px-2 py-1" />
+        <Button className="!py-1 text-xs" disabled={!other.date || !other.time} onClick={() => answer(`Autre proposition : le ${fmtSlot(other)}.`)}>Proposer</Button>
+      </div>
+    </div>
+  );
+}
+
 export function RequestsTab({ profiles, onApply }) {
   const [list, setList] = useState(() => loadRequests().requests);
   const [refusing, setRefusing] = useState(null);
@@ -268,7 +286,9 @@ export function RequestsTab({ profiles, onApply }) {
         return (
           <Card key={r.id} title={`${KIND_LABEL[r.kind]} — ${r.studentKey}`} subtitle={`Envoyée le ${fmt(r.submittedAt)} par ${r.from}${p ? ` · ${p.cls}` : ''}`}>
             {r.kind === 'PIECE' && <p className="text-sm text-slate-700">{r.payload?.title}</p>}
-            {r.kind !== 'PIECE' && (lines.length ? <ul className="space-y-0.5 text-sm text-slate-700">{lines.map((l) => <li key={l}>· {l}</li>)}</ul> : <p className="text-sm text-slate-500">Aucune modification des informations.</p>)}
+            {r.kind === 'RDV' && <RdvBody r={r} onDone={refresh} />}
+            {r.kind === 'DISPENSE_EPS' && <p className="text-sm text-slate-700">{r.payload.type === 'PONCTUELLE' ? `Dispense ponctuelle le ${fmt(r.payload.from)} (l'élève assiste au cours)` : `Inaptitude du ${fmt(r.payload.from)} au ${fmt(r.payload.to)} — certificat médical ${r.payload.certificate ? 'joint' : 'à remettre'}`} · {r.payload.reason}</p>}
+            {!['PIECE', 'RDV', 'DISPENSE_EPS'].includes(r.kind) && (lines.length ? <ul className="space-y-0.5 text-sm text-slate-700">{lines.map((l) => <li key={l}>· {l}</li>)}</ul> : <p className="text-sm text-slate-500">Aucune modification des informations.</p>)}
             {r.documents?.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-3">
                 {r.documents.map((d, i) => <span key={i} className="flex flex-col items-center gap-0.5 text-[10px] text-slate-500"><DocumentThumb doc={d} title={d.label} />{DOC_LABEL[d.code] ?? d.label}</span>)}
@@ -283,7 +303,8 @@ export function RequestsTab({ profiles, onApply }) {
               </div>
             ) : (
               <div className="mt-3 flex flex-wrap gap-2">
-                <Button disabled={!p} onClick={() => { onApply(applyRequest(p, r, profiles.map((x) => x.nextYear?.number))); decideRequest(r.id, 'VALIDEE', 'Secrétariat'); refresh(); }}>Valider{r.kind !== 'PIECE' ? ' et mettre à jour la fiche' : ' la pièce'}</Button>
+                {r.kind === 'DISPENSE_EPS' && <Button onClick={() => { decideRequest(r.id, 'VALIDEE', 'Vie scolaire', 'Dispense validée : le professeur d\'EPS est prévenu.'); refresh(); }}>Valider la dispense</Button>}
+                {!['RDV', 'DISPENSE_EPS'].includes(r.kind) && <Button disabled={!p} onClick={() => { onApply(applyRequest(p, r, profiles.map((x) => x.nextYear?.number))); decideRequest(r.id, 'VALIDEE', 'Secrétariat'); refresh(); }}>Valider{r.kind !== 'PIECE' ? ' et mettre à jour la fiche' : ' la pièce'}</Button>}
                 <Button variant="secondary" onClick={() => { setRefusing(r.id); setNote(''); }}>Refuser…</Button>
                 {r.kind === 'REINSCRIPTION' && r.payload?.decision === 'REINSCRIT' && <p className="self-center text-xs text-slate-500">Les frais de réinscription s'encaissent ensuite dans « Encaisser ».</p>}
               </div>

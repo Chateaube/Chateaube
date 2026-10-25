@@ -1,3 +1,4 @@
+import { couponsUsed, ABSENCE_COUPONS } from '../rules/attendance.js';
 import React, { useState } from 'react';
 import { Button } from './ui.jsx';
 import { DocumentInput } from './PhotoInput.jsx';
@@ -60,12 +61,19 @@ export function JustifyAbsence({ absence, now, by, onDone, open: startOpen = fal
 }
 
 /** Accueil des parents : les absences de l'enfant à justifier maintenant, avec le compte à rebours. */
+/** Coupons d'absence du passeport : 12 par an. */
+export function CouponsLine({ student }) {
+  const used = couponsUsed(loadAttendance(), student);
+  return <p className={`mt-1 text-xs ${used >= ABSENCE_COUPONS ? 'font-semibold text-red-800' : 'text-amber-900'}`}>Coupons d'absence utilisés : {used} / {ABSENCE_COUPONS}{used >= ABSENCE_COUPONS ? ' — quota atteint : la vie scolaire délivre un ticket exceptionnel, et le régime de sortie peut être révisé.' : ''}</p>;
+}
+
 export function AbsencesToJustify({ student, childName, now, by, onDone }) {
   const list = loadAttendance().filter((a) => a.student === student && a.notified !== false && justificationState(a, now).status === 'A_JUSTIFIER');
   if (!list.length) return null;
   return (
     <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
       <p className="font-bold">{list.length > 1 ? `${list.length} absences ou retards` : list[0].kind === 'ABSENCE' ? 'Absence' : 'Retard'} à justifier — {childName}</p>
+      <CouponsLine student={student} />
       {list.map((a) => (
         <div key={a.id} className="mt-2 border-t border-amber-200 pt-2 first:border-0 first:pt-0">
           <p>{formatDateFr(a.date).replace(/ \d{4}$/, '')} · {a.slot}</p>

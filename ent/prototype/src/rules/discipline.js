@@ -6,16 +6,28 @@
 
 import { addDays, isoWeekday } from './calendar.js';
 
+// D'après le règlement intérieur (passeport 2026-2027, VII) :
+//  - punitions, par tout membre de l'équipe éducative : mot consigné sur le passeport, excuses écrites ou
+//    orales, devoir supplémentaire, exclusion ponctuelle d'un cours (prise en charge par la vie scolaire),
+//    heures de retenue le mercredi ou le samedi ;
+//  - sanctions, par la cheffe d'établissement : avertissement, blâme, mesure de responsabilisation (20 h
+//    au plus), exclusion temporaire de la classe ou de l'établissement (8 jours au plus) ; au-delà
+//    (jusqu'à 1 mois, ou définitive) : le conseil de discipline ;
+//  - mesures de réparation : travaux d'intérêt collectif, avec l'accord de l'élève mineur et de sa famille.
 export const MEASURES = [
+  { id: 'OBSERVATION', label: 'Mot consigné sur le passeport', kind: 'PUNITION' },
+  // l'avertissement reste donné par les professeurs, la CPE et le secrétariat (choix de la Direction, 2026),
+  // alors que le règlement le range parmi les sanctions de la cheffe d'établissement : à trancher
   { id: 'AVERTISSEMENT', label: 'Avertissement', kind: 'PUNITION' },
-  { id: 'OBSERVATION', label: 'Observation écrite', kind: 'PUNITION' },
+  { id: 'EXCUSES', label: 'Excuses écrites ou orales', kind: 'PUNITION' },
   { id: 'DEVOIR_SUPP', label: 'Devoir supplémentaire', kind: 'PUNITION' },
-  { id: 'RETENUE', label: 'Retenue', kind: 'PUNITION' },
+  { id: 'RETENUE', label: 'Retenue (mercredi ou samedi)', kind: 'PUNITION' },
   { id: 'EXCLUSION_COURS', label: 'Exclusion ponctuelle de cours', kind: 'PUNITION' },
-  { id: 'TIG', label: 'Travail d\'intérêt général (TIG)', kind: 'PUNITION', authors: ['DIRECTION'] },
+  { id: 'TIG', label: 'Travail d\'intérêt collectif (avec l\'accord de la famille)', kind: 'PUNITION', authors: ['DIRECTION'] },
   { id: 'BLAME', label: 'Blâme', kind: 'SANCTION' },
-  { id: 'RESPONSABILISATION', label: 'Mesure de responsabilisation', kind: 'SANCTION' },
-  { id: 'EXCLUSION_TEMP', label: 'Exclusion temporaire (8 jours max.)', kind: 'SANCTION' },
+  { id: 'RESPONSABILISATION', label: 'Mesure de responsabilisation (20 h max.)', kind: 'SANCTION' },
+  { id: 'EXCLUSION_TEMP', label: 'Exclusion temporaire de la classe ou de l\'établissement (8 jours max.)', kind: 'SANCTION' },
+  { id: 'CONSEIL_DISCIPLINE', label: 'Saisine du conseil de discipline (exclusion de plus de 8 jours ou définitive)', kind: 'SANCTION' },
 ];
 
 export const AUTHORS = { PROFESSEUR: 'Enseignant.e', VIE_SCOLAIRE: 'CPE', BUREAU: 'Secrétariat', DIRECTION: 'Direction' };

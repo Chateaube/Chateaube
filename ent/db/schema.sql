@@ -1481,7 +1481,7 @@ ALTER TABLE pre_registration ADD COLUMN channel text NOT NULL DEFAULT 'BUREAU' C
 
 -- Demandes d'une famille déjà inscrite : réinscription, mise à jour de ses informations,
 -- dépôt d'une pièce. Le bureau valide (les données passent dans la fiche) ou refuse avec un motif.
-CREATE TYPE family_request_kind AS ENUM ('REINSCRIPTION', 'MISE_A_JOUR', 'PIECE');
+CREATE TYPE family_request_kind AS ENUM ('REINSCRIPTION', 'MISE_A_JOUR', 'PIECE', 'RDV', 'DISPENSE_EPS'); -- RDV, dispense d'EPS : passeport de vie scolaire
 CREATE TYPE family_request_status AS ENUM ('A_TRAITER', 'VALIDEE', 'REFUSEE');
 CREATE TABLE family_request (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -2439,4 +2439,23 @@ CREATE TABLE homework_file (
   homework_id   uuid NOT NULL REFERENCES homework(id) ON DELETE CASCADE,
   file_key      text NOT NULL,
   name          text NOT NULL CHECK (length(trim(name)) > 0)
+);
+
+-- Lot du 25 octobre 2026 : documents de l'école -------------------------------------------------------
+-- Demande de rendez-vous : au moins un créneau proposé ; dispense d'EPS : une date de début
+ALTER TABLE family_request ADD CONSTRAINT family_request_rdv_ck
+  CHECK (kind <> 'RDV' OR jsonb_array_length(coalesce(payload->'slots', '[]'::jsonb)) > 0);
+ALTER TABLE family_request ADD CONSTRAINT family_request_eps_ck
+  CHECK (kind <> 'DISPENSE_EPS' OR payload ? 'from');
+
+-- Fiches de dialogue d'orientation (2de : passage en 1re ; Terminale : post-bac), étape par étape,
+-- chacune signée par le compte qui la remplit (représentant légal, élève, cheffe d'établissement)
+CREATE TABLE orientation_sheet_step (
+  enrollment_id uuid NOT NULL REFERENCES enrollment(id),
+  step          text NOT NULL CHECK (step IN ('t2Request', 't2Council', 't2Ack', 't3Request', 't3Council', 'answer', 'intentions', 'parentSeen', 'council')),
+  payload       jsonb NOT NULL DEFAULT '{}',
+  signed_by     uuid NOT NULL REFERENCES app_user(id),
+  signed_at     timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (enrollment_id, step),
+  CHECK (step NOT IN ('t2Request', 't3Request') OR jsonb_array_length(coalesce(payload->'ranks', '[]'::jsonb)) > 0)
 );

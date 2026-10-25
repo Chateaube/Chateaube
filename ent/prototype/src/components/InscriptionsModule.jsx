@@ -264,7 +264,7 @@ function ProfileForm({ initial, kind, onSave, onCancel }) {
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={p.authorizations.image} onChange={(e) => set({ authorizations: { ...p.authorizations, image: e.target.checked } })} />Droit à l'image</label>
             <Field label="Sortie de l'établissement" className="mt-2">
               <select value={p.authorizations.exit} onChange={(e) => set({ authorizations: { ...p.authorizations, exit: e.target.value } })} className={`w-full ${inputCls}`}>
-                {['Sortie libre aux heures sans cours', 'Fin de journée uniquement', 'Aucune sortie sans un responsable'].map((o) => <option key={o}>{o}</option>)}
+                {['Sortie après la dernière heure de cours de la demi-journée', 'Fin de journée uniquement', 'Aucune sortie sans un responsable'].map((o) => <option key={o}>{o}</option>)}
               </select>
             </Field>
           </div>

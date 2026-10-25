@@ -28,6 +28,6 @@ export function arrangeNav(tree, groups) {
 export const FAMILY_SECTIONS = [
   ['Paiements et inscription', [['payments', 'Paiements', 'wallet', 'PARENT'], ['reenrol', 'Réinscription', 'refresh', 'PARENT']]],
   ['Papiers', [['documents', 'Documents et autorisations', 'doc'], ['fiche', 'Fiche et coordonnées', 'pen', 'PARENT'], ['signature', 'Ma signature', 'sign', 'PARENT']]],
-  ['Échanges', [['messages', 'Messages', 'bell'], ['schooldocs', 'Règlement et chartes', 'check']]], // vie de l'école : onglet École
+  ['Échanges', [['messages', 'Messages', 'bell'], ['contact', 'Rendez-vous et dispenses', 'calendar'], ['schooldocs', 'Règlement et chartes', 'check']]], // vie de l'école : onglet École
   ['Scolarité', [['library', 'Bibliothèque', 'book'], ['stages', 'Stages', 'cap'], ['orientation', 'Orientation', 'compass']]],
 ];

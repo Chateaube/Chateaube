@@ -1,3 +1,6 @@
+import OrientationSheet, { loadSheets } from './OrientationSheet.jsx';
+import { currentStep, sheetKind } from '../rules/orientationSheet.js';
+import FamilyContact from './FamilyContact.jsx';
 import React, { useMemo, useState } from 'react';
 import ExamResultCard from './ExamResultCard.jsx';
 import { loadMockExams } from '../mockExamStore.js';
@@ -172,6 +175,7 @@ function Home({ child, isParent, openFiche, openReenrol, settings, onSeen, openS
   // « À faire » : tout ce qui attend une action des parents pour cet enfant, chacun avec son bouton
   const todo = isParent ? [
     ...alerts.map((a) => ({ id: a.title, text: a.title, detail: a.body, tone: a.tone, to: a.to, action: a.action })),
+    ...(sheetKind(child.cls) && currentStep(sheetKind(child.cls), loadSheets()[fullName(child)] ?? {})?.who === 'PARENT' ? [{ id: 'orient', text: 'Fiche d\'orientation : votre réponse est attendue', detail: currentStep(sheetKind(child.cls), loadSheets()[fullName(child)] ?? {}).label, tone: 'navy', to: 'orientation', action: 'Ouvrir la fiche' }] : []),
     ...(authPending(child).length ? [{ id: 'auth', text: `${authPending(child).length} autorisation${authPending(child).length > 1 ? 's' : ''} à donner`, detail: authPending(child).map((a) => a.label).join(' · '), tone: 'amber', to: 'documents', action: 'Répondre' }] : []),
     ...(pending ? [{ id: 'acks', text: `${pending} information${pending > 1 ? 's' : ''} de vie scolaire à confirmer`, tone: 'amber', to: 'life', action: 'Voir' }] : []),
     ...(!ficheOf(fullName(child))?.signedAt ? [{ id: 'fiche', text: `Fiche signalétique ${FICHE_YEAR} à signer`, detail: 'Déjà pré-remplie : vérifier, compléter, signer.', tone: 'navy', to: 'fiche', action: 'Remplir et signer' }] : []),
@@ -517,7 +521,7 @@ function Documents({ child, isParent }) {
 /* ---------- Stages ---------- */
 function Internships({ child, isParent }) {
   const [list, setList] = useState(INTERNSHIPS[child.id]);
-  const info = <p className="text-xs text-slate-500">Stages obligatoires : 3e, stage d'observation d'une semaine ; 2de, stage de deux semaines.</p>;
+  const info = <p className="text-xs text-slate-500">Stages obligatoires de 5 jours : en 3e (février), découverte de l'entreprise et des métiers ; en 2de (avril), observation d'un métier.</p>;
   if (!list.length) return <Section title="Stages"><p className="mb-1 text-sm text-slate-500">Aucun stage pour {child.name}.</p>{info}</Section>;
   return list.map((s, i) => (
     <Section key={s.title} title={s.title} action={s.done && <Badge tone="green">Terminé</Badge>}>
@@ -542,10 +546,11 @@ function Internships({ child, isParent }) {
 
 /* ---------- Orientation ---------- */
 function Orientation({ child, isParent }) {
-  const o = ORIENTATION[child.id];
+  const o = ORIENTATION[child.id] ?? { stage: child.cls, steps: [], choices: [] };
   const [asked, setAsked] = useState(false);
   return (
     <>
+      {sheetKind(child.cls) && <Section><OrientationSheet student={fullName(child)} cls={child.cls} role={isParent ? 'PARENT' : 'ELEVE'} by={isParent ? ACCOUNT.name : fullName(child)} /></Section>}
       <Section title={`Orientation — ${o.stage}`}>
         <ol className="relative space-y-3 border-l border-slate-200 pl-4">
           {o.steps.map((s) => (
@@ -763,6 +768,7 @@ export default function FamilyPortal({ settings, audience = 'PARENT', ambiance }
           {view === 'update' && (profileOf(child) ? <FamilyRequestForm key={`u-${child.id}`} profile={profileOf(child)} kind="MISE_A_JOUR" guardianName={ACCOUNT.name} /> : <Section><p className="text-sm text-slate-500">Fiche introuvable.</p></Section>)}
           {view === 'fiche' && <FicheForm key={child.id} studentKey={fullName(child)} profile={profileOf(child)} account={ACCOUNT.id} accountName={ACCOUNT.name} onUpdate={() => go('update')} />}
           {view === 'signature' && <MySignature />}
+          {view === 'contact' && <FamilyContact key={child.id} profile={profileOf(child)} studentKey={fullName(child)} guardianName={ACCOUNT.name} isParent={isParent} go={go} />}
           {view === 'library' && (<>
             <LibraryLoans child={child} isParent={isParent} />
             {!isParent && <BookCatalog key={child.id} compact who={fullName(child)} kind="ELEVE" cls={child.cls} />}

@@ -25,7 +25,7 @@ export { SERVICES, EVALUATIONS, GRADES, REMARKS };
 // Autorisations à signer par la famille (une réponse par enfant)
 export const AUTHORIZATIONS = [
   { id: 'IMAGE', label: 'Droit à l\'image', detail: 'Photos et vidéos des activités scolaires (site, réseaux de l\'établissement, journal).', options: ['J\'autorise', 'Je n\'autorise pas'] },
-  { id: 'SORTIE', label: 'Autorisation de sortie', detail: 'Sortie de l\'établissement en l\'absence d\'un professeur ou en fin de cours.', options: ['Sortie libre aux heures sans cours', 'Sortie en fin de journée uniquement', 'Aucune sortie sans un responsable'] },
+  { id: 'SORTIE', label: 'Autorisation de sortie', detail: 'Régime de sortie (règlement intérieur) : jamais entre deux heures de cours ; sortie pendant les pauses seulement sur présentation du passeport, sans achats à l\'extérieur. Les élèves majeurs sortent librement en dehors de leurs cours.', options: ['Sortie après la dernière heure de cours de la demi-journée, y compris en cas d\'absence d\'un professeur', 'Sortie en fin de journée uniquement', 'Aucune sortie sans un responsable'] },
   { id: 'SORTIES_PEDA', label: 'Sorties pédagogiques', detail: 'Déplacements accompagnés dans Tamatave (piscine, visites, musées).', options: ['J\'autorise', 'Je n\'autorise pas'] },
 ];
 export const AUTH_ANSWERS = {
@@ -47,10 +47,11 @@ export const REQUESTED = [
   { id: 'r3', child: 'toky', title: 'Certificat médical d\'aptitude à la natation', due: '2026-10-16', received: false },
 ];
 
-// Stages : 3e (observation, 1 semaine) et 2de (2 semaines)
+// Stages : 3e (février) et 2de (avril), 5 jours chacun
 export const STAGE_TYPES = [
-  { id: 'STAGE_3E', level: '3e', label: 'Stage d\'observation de 3e', duration: '1 semaine', schoolDays: 5 },
-  { id: 'STAGE_2DE', level: '2de', label: 'Stage de seconde', duration: '2 semaines', schoolDays: 10 },
+  // d'après les conventions de l'école : 5 jours, en février (3e) et en avril (2de)
+  { id: 'STAGE_3E', level: '3e', label: 'Découverte de l\'entreprise et des métiers', duration: '5 jours (février)', schoolDays: 5 },
+  { id: 'STAGE_2DE', level: '2de', label: 'Observation d\'un métier', duration: '5 jours (avril)', schoolDays: 5 },
   { id: 'TERRAIN_1STMG', level: '1re STMG', label: 'Étude de terrain (étude de gestion)', duration: 'visites et entretiens en organisation', schoolDays: 2 },
 ];
 export const INTERNSHIPS = {

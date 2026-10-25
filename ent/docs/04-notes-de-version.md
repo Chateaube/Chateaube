@@ -1,5 +1,23 @@
 # Notes de version — ce qui change pour l'équipe
 
+## 25 octobre 2026 — les documents de l'école dans l'ENT
+
+**Conventions de stage** (Autorisations, stages et orientation › Stages et orientation) : le texte de vos conventions de 3e (découverte de l'entreprise et des métiers) et de 2de (observation d'un métier), articles 1 à 8, avec les signatures. L'étude de terrain de 1re STMG suit la même trame. Une convention par élève, ou toute la classe d'un coup (une par page), avec le nom et la date de naissance de chaque élève. Les stages durent 5 jours (février en 3e, avril en 2de). Nouveau dans Paramètres : l'onglet « Établissement » (adresse, cheffe d'établissement, référente des stages, semaines de stage) ; ce qui est vide s'imprime en pointillés.
+
+**Fiches d'orientation en ligne** (nouvel onglet « Fiches d'orientation ») :
+- 2de : demande des représentants légaux au 2e trimestre (voies par ordre de préférence, changement d'établissement éventuel), avis provisoire du conseil (favorable, défavorable, réservé), accusé de lecture, choix définitif au 3e trimestre, proposition du conseil (oui, non), réponse de la famille (accepte, ou refuse et demande un entretien). La fiche de réflexion personnelle est remplie par l'élève.
+- Terminale : intentions post-bac de l'élève (pays, durée, voies, autres projets, démarches, trois vœux, vie professionnelle), prise de connaissance du représentant légal, avis du conseil. Les ressources (Onisep, MonProjetSup…) sont rappelées.
+- Chaque étape est datée et signée par le compte ; la famille la voit dans « À faire » ; chaque fiche s'imprime.
+
+**Passeport de vie scolaire** :
+- le règlement intérieur et la charte d'usage du numérique, de l'IA et des réseaux sont ceux du passeport 2026-2027 (à accepter à la première connexion ; la charte remplace l'ancien texte « réseaux sociaux ») ;
+- punitions et sanctions selon le règlement (mot sur le passeport, excuses, devoir supplémentaire, retenue du mercredi ou du samedi, exclusion ponctuelle ; blâme, mesure de responsabilisation de 20 h au plus, exclusion de 8 jours au plus, conseil de discipline) ;
+- 12 coupons d'absence par an, affichés aux familles quand elles justifient ;
+- régime de sortie : après la dernière heure de cours de la demi-journée, jamais entre deux cours ;
+- familles : « Rendez-vous et dispenses » — à qui s'adresser, demande de rendez-vous (deux créneaux ; réponse : accord ou autre proposition), dispense d'EPS ponctuelle ou inaptitude avec certificat. Le secrétariat et la vie scolaire répondent dans Élèves › Demandes des familles.
+
+**Base.** Rendez-vous et dispenses dans les demandes des familles, étapes des fiches d'orientation (`orientation_sheet_step`), étude de terrain de 1re STMG ; scénario T66.
+
 ## 23 octobre 2026 — revue fenêtre par fenêtre appliquée
 
 **Accueils.** Direction et secrétariat : l'école sur 7 ou 30 jours (chaque chiffre ouvre sa liste), ce qui arrive à droite, « À faire » qui réunit décisions et tâches, puis « Ce qui s'est passé » par service. CPE : « À traiter », puis sa journée (séances à surveiller, colles avec « Je surveille », objets en garde). Enseignant : le cours en cours, les appels oubliés (« Faire maintenant »), puis « À faire ».

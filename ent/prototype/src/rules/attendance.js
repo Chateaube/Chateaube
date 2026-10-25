@@ -93,3 +93,9 @@ export function timeLeftLabel(a, now) {
   const minutes = Math.floor(ms / 60000);
   return minutes < 60 ? `il reste ${minutes} min` : `il reste ${Math.floor(minutes / 60)} h`;
 }
+
+// Passeport de vie scolaire : 12 coupons d'absence par an. Une fois épuisés, la vie scolaire délivre un
+// ticket exceptionnel et le régime de sortie peut être révisé.
+export const ABSENCE_COUPONS = 12;
+/** Coupons utilisés : absences justifiées par la famille (une demande de justification = un coupon). */
+export const couponsUsed = (attendance, student) => attendance.filter((a) => a.student === student && a.kind === 'ABSENCE' && a.request).length;

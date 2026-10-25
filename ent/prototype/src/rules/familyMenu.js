@@ -1,6 +1,6 @@
 // Portail des familles : le menu dépend de la classe de l'enfant affiché (un parent de plusieurs
 // enfants voit le menu changer quand il change d'enfant).
-//  - Stages : 3e (observation, 1 semaine) et 2de (2 semaines), ou s'il reste un stage passé à consulter ;
+//  - Stages : 3e (février) et 2de (avril), 5 jours chacun, ou s'il reste un stage passé à consulter ;
 //  - Orientation : de la 3e à la Terminale ;
 //  - Réinscription : toutes les classes sauf la Terminale (dernière année dans l'établissement).
 const level = (cls = '') => cls.split(' ')[0];

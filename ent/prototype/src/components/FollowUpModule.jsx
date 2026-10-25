@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { saveFile } from '../download.js';
 import StageConvention from './StageConvention.jsx';
+import OrientationSheet, { loadSheets } from './OrientationSheet.jsx';
+import { currentStep, sheetKind } from '../rules/orientationSheet.js';
 import { Badge, Button, Card, Stat } from './ui.jsx';
 import { CLASSES } from '../data/schoollife.js';
 import { AUTHORIZATIONS, DOCUMENTS, REQUESTED, STAGE_TYPES } from '../data/family.js';
@@ -118,11 +120,11 @@ function Requested() {
   );
 }
 
-function StagesOrientation() {
+function StagesOrientation({ settings }) {
   const stages = [
-    { student: 'RAVELO Hasina', cls: '3e', title: STAGE_TYPES[0].label, company: 'Port de Toamasina — capitainerie', from: '2027-01-18', to: '2027-01-22', referent: 'M. Rasolo', signatures: { entreprise: true, etablissement: true, famille: true } },
-    { student: 'ANDRIAMIHAJA Miora', cls: '3e', title: STAGE_TYPES[0].label, company: 'Clinique Saint-Joseph — accueil', from: '2027-01-18', to: '2027-01-22', referent: 'M. Rasolo', signatures: { entreprise: true, etablissement: false, famille: false } },
-    { student: 'Élèves de 2de (24)', cls: '2de', title: STAGE_TYPES[1].label, company: 'Conventions à constituer', from: '2027-06-07', to: '2027-06-18', referent: 'Direction', signatures: { entreprise: false, etablissement: false, famille: false } },
+    { student: 'RAVELO Hasina', cls: '3e', title: STAGE_TYPES[0].label, company: 'Port de Toamasina — capitainerie', from: '2027-02-22', to: '2027-02-26', referent: 'M. Rasolo', signatures: { entreprise: true, etablissement: true, famille: true } },
+    { student: 'ANDRIAMIHAJA Miora', cls: '3e', title: STAGE_TYPES[0].label, company: 'Clinique Saint-Joseph — accueil', from: '2027-02-22', to: '2027-02-26', referent: 'M. Rasolo', signatures: { entreprise: true, etablissement: false, famille: false } },
+    { student: 'Élèves de 2de (24)', cls: '2de', title: STAGE_TYPES[1].label, company: 'Conventions à constituer', from: '2027-04-12', to: '2027-04-16', referent: 'Direction', signatures: { entreprise: false, etablissement: false, famille: false } },
   ];
   const signed = (s) => Object.values(s.signatures).filter(Boolean).length;
   return (
@@ -144,7 +146,7 @@ function StagesOrientation() {
           </table>
         </div>
       </Card>
-      <StageConvention students={Object.values(CLASSES).flat()} />
+      <StageConvention settings={settings} />
       <Card title="Orientation" subtitle="Calendrier commun ; intentions et avis par classe">
         <ul className="space-y-2 text-sm">
           <li className="flex flex-wrap justify-between gap-2"><span><b>3e</b> — vœux d'orientation après la 3e (2de générale, lycée professionnel)</span><Badge tone="slate">Intentions au 2e trimestre</Badge></li>
@@ -154,6 +156,47 @@ function StagesOrientation() {
         </ul>
       </Card>
     </div>
+  );
+}
+
+/** Fiches de dialogue d'orientation : 2de (passage en 1re) et Terminale (post-bac), élève par élève. */
+function OrientationSheets({ role }) {
+  const classes = Object.keys(CLASSES).filter((c) => sheetKind(c));
+  const [cls, setCls] = useState(classes[0]);
+  const [open, setOpen] = useState(null);
+  const [as, setAs] = useState(['DIRECTION', 'BUREAU'].includes(role) ? role : 'CONSULT'); // aperçu : voir comme la famille ou l'élève
+  const sheets = loadSheets();
+  const kind = sheetKind(cls);
+  const WHO = { PARENT: 'famille', ELEVE: 'élève', DIRECTION: 'Direction' };
+  return (
+    <Card title="Fiches d'orientation" subtitle="En ligne : les familles (et l'élève de Terminale) remplissent leurs parties depuis le portail ; la Direction donne l'avis du conseil. Chaque fiche s'imprime."
+      action={<select value={cls} onChange={(e) => { setCls(e.target.value); setOpen(null); }} aria-label="Classe" className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm">{classes.map((c) => <option key={c}>{c}</option>)}</select>}>
+      <ul className="divide-y divide-slate-100">
+        {(CLASSES[cls] ?? []).map((s) => {
+          const st = currentStep(kind, sheets[s] ?? {});
+          return (
+            <li key={s} className="py-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-sm font-medium text-slate-900">{s}</span>
+                <span className="flex items-center gap-2">
+                  <Badge tone={!st ? 'green' : st.who === 'DIRECTION' ? 'amber' : 'slate'}>{!st ? 'terminée' : `à faire : ${WHO[st.who]}`}</Badge>
+                  <Button variant="secondary" className="!py-1 text-xs" onClick={() => setOpen(open === s ? null : s)}>{open === s ? 'Fermer' : 'Ouvrir'}</Button>
+                </span>
+              </div>
+              {open === s && (
+                <div className="mt-2 rounded-xl bg-slate-50 p-3">
+                  <div className="mb-2 flex flex-wrap items-center gap-1 text-xs" role="group" aria-label="Voir la fiche comme">
+                    <span className="text-slate-600">Voir comme :</span>
+                    {[[role, 'moi'], ['PARENT', 'la famille'], ['ELEVE', 'l\'élève']].map(([r, l]) => <button key={l} type="button" aria-pressed={as === r} onClick={() => setAs(r)} className={`rounded-full px-2.5 py-1 ring-1 ${as === r ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white ring-slate-300'}`}>{l}</button>)}
+                  </div>
+                  <OrientationSheet key={`${s}-${as}`} student={s} cls={cls} role={as} by={as === 'PARENT' ? 'Représentant légal' : as === 'ELEVE' ? s : 'La cheffe d\'établissement'} />
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </Card>
   );
 }
 
@@ -251,9 +294,9 @@ function Terminale() {
 }
 
 // trois onglets : les papiers des familles, les stages et l'orientation, la Terminale
-const TABS = [['auth', 'Autorisations et pièces'], ['stages', 'Stages et orientation'], ['tle', 'Terminale : poursuite d\'études']];
+const TABS = [['auth', 'Autorisations et pièces'], ['stages', 'Stages et orientation'], ['fiches', 'Fiches d\'orientation (2de, Tle)'], ['tle', 'Terminale : poursuite d\'études']];
 
-export default function FollowUpModule() {
+export default function FollowUpModule({ settings, role = 'DIRECTION' }) {
   const [tab, setTab] = useState('auth');
   return (
     <div className="space-y-5">
@@ -274,7 +317,8 @@ export default function FollowUpModule() {
         ))}
       </div>
       {tab === 'auth' && <><Authorizations /><Requested /><Documents /></>}
-      {tab === 'stages' && <StagesOrientation />}
+      {tab === 'stages' && <StagesOrientation settings={settings} />}
+      {tab === 'fiches' && <OrientationSheets role={role} />}
       {tab === 'tle' && <Terminale />}
     </div>
   );

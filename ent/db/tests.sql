@@ -506,8 +506,8 @@ DO $$ BEGIN
   ASSERT NOT EXISTS (SELECT 1 FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid
                      WHERE t.typname = 'notif_channel' AND e.enumlabel = 'SMS'), 'T26: canal SMS présent';
   ASSERT (SELECT bool_and(reminder_due) FROM v_pending_parent_ack WHERE kind = 'MESURE') IS NOT NULL, 'T26: vue des relances';
-  ASSERT (SELECT school_days FROM internship_type WHERE code = 'STAGE_3E') = 5, 'T26: stage de 3e = 1 semaine';
-  ASSERT (SELECT school_days FROM internship_type WHERE code = 'STAGE_2DE') = 10, 'T26: stage de 2de = 2 semaines';
+  ASSERT (SELECT school_days FROM internship_type WHERE code = 'STAGE_3E') = 5, 'T26: stage de 3e = 5 jours';
+  ASSERT (SELECT school_days FROM internship_type WHERE code = 'STAGE_2DE') = 5, 'T26: stage de 2de = 5 jours (convention de l''école)';
 END $$;
 
 -- T27. Devoir : publication aux élèves puis aux parents (+1 jour), « ramener sur 20 », remarques
@@ -1853,5 +1853,30 @@ DO $$ DECLARE e uuid := '30000000-0000-0000-0000-000000000001'; cpe uuid := '000
   END;
 END $$;
 
+
+-- T66 — rendez-vous (un créneau au moins), dispense d'EPS, fiche d'orientation étape par étape
+DO $$ DECLARE e uuid := '30000000-0000-0000-0000-000000000001'; g uuid := 'e0000000-0000-0000-0000-000000000001';
+  u uuid := '00000000-0000-0000-0000-000000000001'; s uuid; BEGIN
+  SELECT student_id INTO s FROM enrollment WHERE id = e;
+  INSERT INTO family_request (kind, student_id, submitted_by, payload) VALUES ('RDV', s, g, '{"with":"La vie scolaire (CPE)","reason":"Retards","slots":[{"date":"2026-10-28","time":"10:00"}]}');
+  BEGIN
+    INSERT INTO family_request (kind, student_id, submitted_by, payload) VALUES ('RDV', s, g, '{"with":"Le secrétariat","reason":"Certificat"}');
+    RAISE EXCEPTION 'T66: rendez-vous sans créneau';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO family_request (kind, student_id, submitted_by, payload) VALUES ('DISPENSE_EPS', s, g, '{"type":"PONCTUELLE","from":"2026-10-27","reason":"Entorse"}');
+  INSERT INTO orientation_sheet_step (enrollment_id, step, payload, signed_by) VALUES (e, 't2Request', '{"ranks":["STMG","G"]}', u);
+  BEGIN
+    INSERT INTO orientation_sheet_step (enrollment_id, step, payload, signed_by) VALUES (e, 't3Request', '{"ranks":[]}', u);
+    RAISE EXCEPTION 'T66: choix sans voie';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO orientation_sheet_step (enrollment_id, step, payload, signed_by) VALUES (e, 't2Request', '{"ranks":["G"]}', u);
+    RAISE EXCEPTION 'T66: étape signée deux fois';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T65 passent'
+\echo 'OK — tous les scénarios T1 à T66 passent'

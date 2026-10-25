@@ -203,13 +203,14 @@ INSERT INTO discipline_measure_type (code, label, kind) VALUES
 
 INSERT INTO authorization_type (code, label, options) VALUES
   ('IMAGE', 'Droit à l''image', '{"J''autorise","Je n''autorise pas"}'),
-  ('SORTIE', 'Autorisation de sortie', '{"Sortie libre aux heures sans cours","Sortie en fin de journée uniquement","Aucune sortie sans un responsable"}'),
+  ('SORTIE', 'Autorisation de sortie', '{"Sortie après la dernière heure de cours de la demi-journée, y compris en cas d''absence d''un professeur","Sortie en fin de journée uniquement","Aucune sortie sans un responsable"}'),
   ('SORTIES_PEDA', 'Sorties pédagogiques', '{"J''autorise","Je n''autorise pas"}');
 
 INSERT INTO school_life_policy (year_id, site_id) SELECT y.id, s.id FROM academic_year y, site s WHERE s.code = 'TMV';
 INSERT INTO internship_type (code, level_code, label, school_days) VALUES
-  ('STAGE_3E', '3E', 'Stage d''observation de 3e', 5),
-  ('STAGE_2DE', '2NDE', 'Stage de seconde', 10);
+  ('STAGE_3E', '3E', 'Découverte de l''entreprise et des métiers', 5),
+  ('STAGE_2DE', '2NDE', 'Observation d''un métier', 5),
+  ('TERRAIN_1STMG', '1RE', 'Étude de terrain (étude de gestion, 1re STMG)', 2);
 
 -- Ambiances (école laïque ; mêmes ambiances que l'interface, rules/ambiances.js ; notes complètes côté interface)
 INSERT INTO season (code, label, category, from_md, to_md, palette, motif, symbol, greeting, note_title, note_body) VALUES

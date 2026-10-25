@@ -14,6 +14,14 @@ export const DEFAULT_SETTINGS = {
   social: { facebook: '', instagram: '', instagramLabel: 'Association des élèves' },
   schoolYear: { start: '2026-09-01', end: '2027-07-04' },
   // Horaires de travail de l'équipe (pas de réponse aux familles en dehors) ; 3 = mercredi, 6 = samedi (fermé)
+  // Établissement : ce qui figure sur les documents imprimés (conventions de stage, fiches d'orientation)
+  school: {
+    address: '27 Rue Nationale, 501 Toamasina, Madagascar',
+    headName: '', // nom de la cheffe d'établissement, à saisir dans Paramètres › Établissement
+    stageReferent: { civility: 'Mademoiselle', name: 'Sheena LO', role: 'Adjointe à la Direction', phone: '+261 34 51 227 78', mail: 'chateaubetamatave@gmail.com' },
+    // semaines de stage de l'année (vides : à écrire à la main sur la convention)
+    stageDates: { STAGE_3E: { from: '', to: '' }, STAGE_2DE: { from: '', to: '' }, TERRAIN_1STMG: { from: '', to: '' } },
+  },
   workHours: { 1: ['07:00', '17:00'], 2: ['07:00', '17:00'], 3: ['07:00', '12:00'], 4: ['07:00', '17:00'], 5: ['07:00', '17:00'], 6: null },
 
   tuition: {

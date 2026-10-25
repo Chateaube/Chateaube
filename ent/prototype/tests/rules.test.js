@@ -1954,3 +1954,27 @@ test('appréciations : reformuler le texte du professeur (3e personne), tutoieme
   assert.ok(checkApp(t).errors.some((e) => e.rule === 'TUTOIEMENT'));
   assert.ok(!checkApp(t, { tutoiement: true }).errors.some((e) => e.rule === 'TUTOIEMENT'));
 });
+
+import { currentStep, stepErrors, sheetKind, ranksLabel } from '../src/rules/orientationSheet.js';
+import { couponsUsed, ABSENCE_COUPONS } from '../src/rules/attendance.js';
+
+test('fiches d\'orientation : 2de et Terminale, étape en cours, ce qui manque', () => {
+  assert.equal(sheetKind('2de'), '2DE');
+  assert.equal(sheetKind('Terminale STMG'), 'TLE');
+  assert.equal(sheetKind('1re STMG'), null);
+  assert.deepEqual([currentStep('2DE', {}).key, currentStep('2DE', {}).who], ['t2Request', 'PARENT']);
+  assert.equal(currentStep('2DE', { t2Request: {} }).who, 'DIRECTION');
+  assert.equal(currentStep('TLE', { intentions: {}, parentSeen: {}, council: {} }), null);
+  assert.ok(stepErrors('t2Request', { ranks: [] })[0].includes('voie'));
+  assert.ok(stepErrors('t2Council', { asked: ['G', 'STMG'], G: 'FAVORABLE' })[0].includes('STMG'));
+  assert.deepEqual(stepErrors('t3Council', { asked: ['G'], G: 'OUI' }), []);
+  assert.ok(stepErrors('answer', { accept: false, contact: ' ' })[0].includes('entretien'));
+  assert.equal(stepErrors('intentions', { countries: ['France'], wishes: ['', '', ''] }).length, 1);
+  assert.equal(ranksLabel(['STMG', 'G']), '1. STMG, 2. Générale');
+});
+
+test('passeport : 12 coupons d\'absence par an (une justification de la famille = un coupon)', () => {
+  assert.equal(ABSENCE_COUPONS, 12);
+  const att = [{ student: 'A', kind: 'ABSENCE', request: {} }, { student: 'A', kind: 'RETARD', request: {} }, { student: 'A', kind: 'ABSENCE' }, { student: 'B', kind: 'ABSENCE', request: {} }];
+  assert.equal(couponsUsed(att, 'A'), 1);
+});

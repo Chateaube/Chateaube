@@ -1,6 +1,8 @@
 import AmbianceSettings from './AmbianceSettings.jsx';
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, Icon } from './ui.jsx';
+import { DEFAULT_SETTINGS } from '../data/settings.js';
+const DEFAULT_SCHOOL = DEFAULT_SETTINGS.school;
 import { CLASS_SUBJECTS } from '../data/grades.js';
 import {
   dunningSchedule, pausesBetween, planMonths, dueDateOf, formatDateFr, monthName, madagascarHolidays,
@@ -160,8 +162,41 @@ function CompetencyEditor({ settings, onChange }) {
   );
 }
 
-// cinq onglets ; les ambiances, facultatives, en dernier
-const SETTINGS_TABS = [['calendar', 'Calendrier'], ['fees', 'Frais et relances'], ['grades', 'Notes et conseil'], ['skills', 'Compétences'], ['ambiances', 'Ambiances et réseaux']];
+/** Ce qui figure sur les documents imprimés : conventions de stage, fiches d'orientation. */
+function SchoolIdentity({ settings, onChange }) {
+  const s = { ...DEFAULT_SCHOOL, ...settings.school };
+  const set = (patch) => onChange({ ...settings, school: { ...s, ...patch } });
+  const ref = s.stageReferent;
+  const f = 'mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm';
+  const STAGES = [['STAGE_3E', 'Stage de 3e'], ['STAGE_2DE', 'Stage de 2de'], ['TERRAIN_1STMG', 'Étude de terrain 1re STMG']];
+  return (
+    <Card title="Établissement" subtitle="Repris sur les conventions de stage et les fiches d'orientation imprimées">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-xs font-medium text-slate-600">Adresse<input value={s.address} onChange={(e) => set({ address: e.target.value })} className={f} /></label>
+        <label className="text-xs font-medium text-slate-600">Cheffe d'établissement (prénom et nom)<input value={s.headName} onChange={(e) => set({ headName: e.target.value })} className={f} /></label>
+      </div>
+      <p className="mt-4 text-sm font-semibold text-navy-900">Référent·e des stages</p>
+      <div className="mt-1 grid gap-3 sm:grid-cols-3">
+        {[['civility', 'Civilité'], ['name', 'Prénom et NOM'], ['role', 'Fonction'], ['phone', 'Téléphone'], ['mail', 'E-mail']].map(([k, l]) => (
+          <label key={k} className="text-xs font-medium text-slate-600">{l}<input value={ref[k] ?? ''} onChange={(e) => set({ stageReferent: { ...ref, [k]: e.target.value } })} className={f} /></label>
+        ))}
+      </div>
+      <p className="mt-4 text-sm font-semibold text-navy-900">Semaines de stage de l'année</p>
+      <div className="mt-1 grid gap-3 sm:grid-cols-3">
+        {STAGES.map(([k, l]) => (
+          <div key={k} className="rounded-lg bg-slate-50 p-2 text-xs text-slate-600"><p className="font-medium text-slate-800">{l}</p>
+            <label className="mt-1 block">Du<input type="date" value={s.stageDates?.[k]?.from ?? ''} onChange={(e) => set({ stageDates: { ...s.stageDates, [k]: { ...s.stageDates?.[k], from: e.target.value } } })} className={f} /></label>
+            <label className="mt-1 block">Au<input type="date" value={s.stageDates?.[k]?.to ?? ''} onChange={(e) => set({ stageDates: { ...s.stageDates, [k]: { ...s.stageDates?.[k], to: e.target.value } } })} className={f} /></label>
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-xs text-slate-600">Laissé vide, un champ s'imprime en pointillés, à remplir à la main.</p>
+    </Card>
+  );
+}
+
+// six onglets ; les ambiances, facultatives, en dernier
+const SETTINGS_TABS = [['calendar', 'Calendrier'], ['fees', 'Frais et relances'], ['grades', 'Notes et conseil'], ['skills', 'Compétences'], ['school', 'Établissement'], ['ambiances', 'Ambiances et réseaux']];
 
 export default function SettingsModule({ settings, onChange, onReset }) {
   const [tab, setTab] = useState('calendar');
@@ -209,6 +244,8 @@ export default function SettingsModule({ settings, onChange, onReset }) {
 
       <div className={`grid gap-5 xl:items-start ${['fees', 'calendar'].includes(tab) ? 'xl:grid-cols-[1fr_360px]' : ''}`}>
         <div className="min-w-0 space-y-5">
+          {tab === 'school' && <SchoolIdentity settings={settings} onChange={onChange} />}
+
           {tab === 'ambiances' && <>
           {/* Ambiance saisonnière et réseaux de l'école */}
           <Card title="Ambiance saisonnière et réseaux de l'école" subtitle="Repères civiques, culturels, historiques et saisons (Octobre rose, Nouvel An lunaire, 26 juin…), avec une note explicative ; liens montrés aux familles">
