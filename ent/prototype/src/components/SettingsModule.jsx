@@ -168,7 +168,7 @@ function SchoolIdentity({ settings, onChange }) {
   const set = (patch) => onChange({ ...settings, school: { ...s, ...patch } });
   const ref = s.stageReferent;
   const f = 'mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm';
-  const STAGES = [['STAGE_3E', 'Stage de 3e'], ['STAGE_2DE', 'Stage de 2de'], ['TERRAIN_1STMG', 'Étude de terrain 1re STMG']];
+  const STAGES = [['STAGE_3E', 'Stage de 3e'], ['STAGE_2DE', 'Stage de 2de']];
   return (
     <Card title="Établissement" subtitle="Repris sur les conventions de stage et les fiches d'orientation imprimées">
       <div className="grid gap-3 sm:grid-cols-2">
@@ -190,6 +190,7 @@ function SchoolIdentity({ settings, onChange }) {
           </div>
         ))}
       </div>
+      <label className="mt-4 block text-xs font-medium text-slate-600">Enseignant·e référent·e en Sciences de gestion (lettre de l'étude de gestion, 1re STMG)<input value={s.sgnTeacher ?? ''} onChange={(e) => set({ sgnTeacher: e.target.value })} className={f} /></label>
       <p className="mt-3 text-xs text-slate-600">Laissé vide, un champ s'imprime en pointillés, à remplir à la main.</p>
     </Card>
   );

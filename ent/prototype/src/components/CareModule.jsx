@@ -26,11 +26,14 @@ export function allergiesOf(student) {
 const firstNameOf = (student) => loadProfiles().find((p) => profileKey(p) === student)?.firstName ?? student.split(' ').slice(1).join(' ');
 
 export default function CareModule({ role = 'BUREAU' }) {
-  const canGive = ['BUREAU', 'DIRECTION'].includes(role); // la trousse est au secrétariat ; la Direction peut aussi enregistrer
+  // l'élève souffrant est accueilli par la vie scolaire ou par le secrétariat (les deux) ; le Doliprane,
+  // rangé dans la trousse du secrétariat, n'est donné que par le secrétariat ou la Direction
+  const canGive = ['BUREAU', 'DIRECTION', 'VIE_SCOLAIRE'].includes(role);
+  const canMedicate = ['BUREAU', 'DIRECTION'].includes(role);
   const [visits, setVisits] = useState(loadVisits);
   const [inv, setInv] = useState(loadInventory);
   const blank = { student: '', reason: '', detail: '', paracetamol: false, dose: '1 comprimé 500 mg', outcome: '', at: NOW, products: {} };
-  const who = role === 'DIRECTION' ? 'Direction' : 'Mme Hanta';
+  const who = role === 'DIRECTION' ? 'Direction' : role === 'VIE_SCOLAIRE' ? 'M. Be (CPE)' : 'Mme Hanta';
   const kit = inv.filter((i) => i.cat === 'Trousse de secours' && !i.paracetamol);
   const [d, setD] = useState(blank);
   const [pending, setPending] = useState(null); // élève envoyé par la CPE, dont on complète le passage
@@ -67,7 +70,7 @@ export default function CareModule({ role = 'BUREAU' }) {
       <div>
         <p className="text-sm font-semibold text-navy-500">Tamatave</p>
         <h1 className="text-2xl font-semibold text-navy-900">Soins (secrétariat)</h1>
-        <p className="text-sm text-slate-500">Passages au secrétariat. Pas d'infirmerie : seul le Doliprane est donné, par le secrétariat (règlement intérieur).</p>
+        <p className="text-sm text-slate-600">Élèves souffrants, accueillis par la vie scolaire ou le secrétariat. Pas d'infirmerie : seul le Doliprane est donné, par le secrétariat.</p>
       </div>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Passages ce mois-ci" value={visits.filter((v) => v.at.startsWith(month)).length} />
@@ -119,7 +122,7 @@ export default function CareModule({ role = 'BUREAU' }) {
                 <select value={d.reason} onChange={(e) => setD({ ...d, reason: e.target.value })} className={`mt-1 w-full ${inputCls}`}><option value="">Choisir…</option>{CARE_REASONS.map((r) => <option key={r}>{r}</option>)}</select>
               </label>
               <label className="block text-xs text-slate-600">{d.reason === 'Autre' ? 'Préciser' : 'Précision (facultatif)'}<input value={d.detail} onChange={(e) => setD({ ...d, detail: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>
-              <label className="flex items-center gap-2 text-xs text-slate-700"><input type="checkbox" checked={d.paracetamol} disabled={allergicToParacetamol(allergies)} onChange={(e) => setD({ ...d, paracetamol: e.target.checked })} />Doliprane donné</label>
+              <label className="flex items-center gap-2 text-xs text-slate-700"><input type="checkbox" checked={d.paracetamol} disabled={!canMedicate || allergicToParacetamol(allergies)} onChange={(e) => setD({ ...d, paracetamol: e.target.checked })} />Doliprane donné</label>
               {kit.length > 0 && (
                 <fieldset className="rounded-md bg-slate-50 p-2 text-xs text-slate-700">
                   <legend className="px-1 font-medium">Utilisé dans la trousse (déduit du stock)</legend>

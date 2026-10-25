@@ -52,7 +52,7 @@ export const STAGE_TYPES = [
   // d'après les conventions de l'école : 5 jours, en février (3e) et en avril (2de)
   { id: 'STAGE_3E', level: '3e', label: 'Découverte de l\'entreprise et des métiers', duration: '5 jours (février)', schoolDays: 5 },
   { id: 'STAGE_2DE', level: '2de', label: 'Observation d\'un métier', duration: '5 jours (avril)', schoolDays: 5 },
-  { id: 'TERRAIN_1STMG', level: '1re STMG', label: 'Étude de terrain (étude de gestion)', duration: 'visites et entretiens en organisation', schoolDays: 2 },
+  { id: 'TERRAIN_1STMG', level: '1re STMG', label: 'Étude de gestion (entretien en organisation)', duration: 'entretien de 20 à 30 min, lettre de l\'école', schoolDays: 1 },
 ];
 export const INTERNSHIPS = {
   // Aina a fait son stage de seconde l'an dernier (historique conservé)

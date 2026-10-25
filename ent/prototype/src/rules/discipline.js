@@ -16,8 +16,7 @@ import { addDays, isoWeekday } from './calendar.js';
 //  - mesures de réparation : travaux d'intérêt collectif, avec l'accord de l'élève mineur et de sa famille.
 export const MEASURES = [
   { id: 'OBSERVATION', label: 'Mot consigné sur le passeport', kind: 'PUNITION' },
-  // l'avertissement reste donné par les professeurs, la CPE et le secrétariat (choix de la Direction, 2026),
-  // alors que le règlement le range parmi les sanctions de la cheffe d'établissement : à trancher
+  // l'avertissement peut être donné par tous (professeurs, CPE, secrétariat, Direction) : décision du 25 octobre 2026
   { id: 'AVERTISSEMENT', label: 'Avertissement', kind: 'PUNITION' },
   { id: 'EXCUSES', label: 'Excuses écrites ou orales', kind: 'PUNITION' },
   { id: 'DEVOIR_SUPP', label: 'Devoir supplémentaire', kind: 'PUNITION' },

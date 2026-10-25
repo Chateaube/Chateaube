@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Card } from './ui.jsx';
 import CouncilGrid from './CouncilGrid.jsx';
 import { TERM } from '../data/grades.js';
+import CouncilOrientation from './CouncilOrientation.jsx';
+import { sheetKind } from '../rules/orientationSheet.js';
 
 // Conseils de classe : une seule page, choix de la classe et du trimestre. L'impression de la grille (avec le
 // choix des colonnes) est en bas de la grille du conseil : plus d'écran « Grilles de notes » à part.
@@ -28,6 +30,8 @@ export default function CouncilScreen(props) {
             : `Pas encore de notes validées pour la ${cls} : la grille se remplit au fur et à mesure que les enseignants valident leurs notes.`}</p>
         </Card>
       )}
+      {/* 2de et Terminale : les fiches d'orientation remplies en ligne par les familles, à traiter en séance */}
+      {sheetKind(cls) && <CouncilOrientation cls={cls} role={props.role} />}
     </div>
   );
 }

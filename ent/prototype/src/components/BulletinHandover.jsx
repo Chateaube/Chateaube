@@ -15,7 +15,9 @@ import { STUDENT_PROFILES } from '../data/enrollment.js';
 
 /** Responsables connus de l'élève (fiche) : on les choisit au lieu de taper le nom. */
 const guardiansOf = (s) => ([...loadProfiles(), ...STUDENT_PROFILES].find((p) => profileKey(p) === s)?.guardians ?? []);
-const firstChoice = (s) => (guardiansOf(s).length ? 'G0' : 'ELEVE');
+// Règlement : le bulletin du 1er trimestre est remis en mains propres aux responsables (réunion
+// parents-professeurs) ; ceux des 2e et 3e trimestres sont confiés à l'élève, avec suivi dans le passeport.
+const firstChoice = (s, term) => (term !== 'T1' ? 'ELEVE' : guardiansOf(s).length ? 'G0' : 'ELEVE');
 
 // Fenêtre de retrait par trimestre et par classe (démonstration : gardée dans ce navigateur)
 const WKEY = 'ent-bulletin-dispo-v1';
@@ -60,7 +62,7 @@ export default function BulletinHandover({ cls, students, settings, role, term }
   const rows = students.map((s) => ({ s, blocks: handoverBlocks(s, settings, manualsData), rec: records[key(s)] }));
   const given = rows.filter((r) => r.rec?.givenAt).length;
   const blocked = rows.filter((r) => r.blocks.length && !r.rec?.override && !r.rec?.givenAt).length;
-  const set = (s, patch) => setForm({ ...form, [s]: { to: firstChoice(s), name: '', motif: '', ...form[s], ...patch } });
+  const set = (s, patch) => setForm({ ...form, [s]: { to: firstChoice(s, term), name: '', motif: '', ...form[s], ...patch } });
   const [windows, setWindows] = useState(loadWindows);
   const wKey = `${term}|${cls}`;
   const w = windows[wKey];
@@ -89,11 +91,11 @@ export default function BulletinHandover({ cls, students, settings, role, term }
       <p className="mt-2 text-xs text-slate-500">Un rappel part {3} jours avant la fin. Les familles dont la situation est à régulariser voient « en attente de régularisation, voir le secrétariat ». Passé le délai, le bulletin n'est pas détruit : il est archivé au dossier et remis sur rendez-vous.</p>
       {archived.length > 0 && <p className="mt-2 text-sm text-slate-700">Non retirés, archivés au dossier : {archived.map((r) => r.s).join(', ')}.</p>}
     </Card>
-    <Card title={`Remise en main propre — ${cls}`} subtitle="Bulletin tamponné, remis au parent ou à l'élève ; il n'est jamais publié dans l'application"
+    <Card title={term === 'T1' ? `Remise en mains propres — ${cls}` : `Bulletins confiés aux élèves — ${cls}`} subtitle={term === 'T1' ? 'Bulletin du 1er trimestre : remis en mains propres aux responsables lors de la réunion parents-professeurs (règlement intérieur)' : 'Bulletins des 2e et 3e trimestres : confiés à l\'élève, avec suivi dans le passeport (règlement intérieur)'}
       action={<span className="flex gap-2"><Badge tone="green">{given} remis</Badge>{blocked > 0 && <Badge tone="red">{blocked} bloqué{blocked > 1 ? 's' : ''}</Badge>}</span>}>
       <ul className="divide-y divide-slate-100">
         {rows.map(({ s, blocks, rec }) => {
-          const f = { to: firstChoice(s), name: '', motif: '', ...form[s] };
+          const f = { to: firstChoice(s, term), name: '', motif: '', ...form[s] };
           const gs = guardiansOf(s);
           const givenTo = f.to === 'ELEVE' ? `l'élève (${s})` : f.to === 'AUTRE' ? f.name.trim() : `${gs[Number(f.to.slice(1))]?.name} (${gs[Number(f.to.slice(1))]?.relation?.toLowerCase() ?? 'responsable'})`;
           const canGive = !blocks.length || rec?.override;
@@ -113,7 +115,7 @@ export default function BulletinHandover({ cls, students, settings, role, term }
                       <option value="ELEVE">à l'élève</option><option value="AUTRE">à une autre personne…</option>
                     </select>
                     {f.to === 'AUTRE' && <input value={f.name} onChange={(e) => set(s, { name: e.target.value })} placeholder="Nom et lien avec l'élève" className="w-44 rounded-md border border-slate-300 px-2 py-1 text-xs" aria-label={`Nom — ${s}`} />}
-                    <Button className="!px-2 !py-1 text-xs" disabled={f.to === 'AUTRE' && !f.name.trim()} onClick={() => setRecords({ ...records, [key(s)]: { ...rec, givenAt: '13/10/2026', givenBy: actor, givenTo } })}>Remis en main propre</Button>
+                    <Button className="!px-2 !py-1 text-xs" disabled={f.to === 'AUTRE' && !f.name.trim()} onClick={() => setRecords({ ...records, [key(s)]: { ...rec, givenAt: '13/10/2026', givenBy: actor, givenTo } })}>{term === 'T1' ? 'Remis en mains propres' : 'Confié à l\'élève'}</Button>
                   </span>
                 ) : isDirection ? (
                   <span className="flex flex-wrap items-center gap-1">

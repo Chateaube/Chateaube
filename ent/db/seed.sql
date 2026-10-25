@@ -210,7 +210,7 @@ INSERT INTO school_life_policy (year_id, site_id) SELECT y.id, s.id FROM academi
 INSERT INTO internship_type (code, level_code, label, school_days) VALUES
   ('STAGE_3E', '3E', 'Découverte de l''entreprise et des métiers', 5),
   ('STAGE_2DE', '2NDE', 'Observation d''un métier', 5),
-  ('TERRAIN_1STMG', '1RE', 'Étude de terrain (étude de gestion, 1re STMG)', 2);
+  ('TERRAIN_1STMG', '1RE', 'Étude de gestion : entretien en organisation (1re STMG)', 1);
 
 -- Ambiances (école laïque ; mêmes ambiances que l'interface, rules/ambiances.js ; notes complètes côté interface)
 INSERT INTO season (code, label, category, from_md, to_md, palette, motif, symbol, greeting, note_title, note_body) VALUES

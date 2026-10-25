@@ -42,7 +42,9 @@ function Sheet({ action, role, onClose, onSaved }) {
   const [count, setCount] = useState(0); // saisies enregistrées en série
   const photoOf = useMemo(() => Object.fromEntries(loadProfiles().filter((p) => p.photo).map((p) => [profileKey(p), p.photo])), []);
   const minutes = lateMinutes(f.arrival);
-  const sendsToDesk = role !== 'BUREAU'; // la CPE ou un professeur envoie l'élève au secrétariat, qui donne les soins
+  // la CPE prend en charge elle-même ou envoie au secrétariat (Doliprane) ; un professeur envoie toujours
+  const [desk, setDesk] = useState(role === 'ENSEIGNANT');
+  const sendsToDesk = role !== 'BUREAU' && desk;
   const matches = useMemo(() => findStudents(query), [query]);
   const who = ACTOR[role] ?? ACTOR.VIE_SCOLAIRE;
   const label = ACTIONS.find(([k]) => k === action)[1];
@@ -61,7 +63,7 @@ function Sheet({ action, role, onClose, onSaved }) {
     } else {
       // envoyé par la CPE : l'élève est « au secrétariat maintenant » jusqu'au « Retour en classe »
       saveVisits([{ id, at: `${DEMO_TODAY}T${t}`, student: student.name, reason: f.care, paracetamol: false, outcome: sendsToDesk ? null : f.outcome, by: who, ...(sendsToDesk ? { sentBy: who } : {}) }, ...loadVisits()]);
-      text = sendsToDesk ? `Envoyé au secrétariat (soins) : ${f.care.toLowerCase()}` : `Soins au secrétariat : ${f.care.toLowerCase()} — ${CARE_OUTCOMES[f.outcome].toLowerCase()}`;
+      text = sendsToDesk ? `Envoyé au secrétariat (soins) : ${f.care.toLowerCase()}` : `${role === 'VIE_SCOLAIRE' ? 'Pris en charge par la vie scolaire' : 'Soins au secrétariat'} : ${f.care.toLowerCase()} — ${CARE_OUTCOMES[f.outcome].toLowerCase()}`;
     }
     logActivity({ who, role, kind: { RETARD: 'ABSENCE', ABSENCE: 'ABSENCE', OBJET: 'OBJET', SOIN: 'SOIN' }[action], student: student.name, text });
     const msg = `${{ RETARD: 'Retard noté', ABSENCE: 'Absence notée', OBJET: 'Confiscation notée', SOIN: sendsToDesk ? 'Envoyé au secrétariat' : 'Soins notés' }[action]} pour ${student.name} (${student.cls}).${action === 'RETARD' || action === 'ABSENCE' ? ' Les parents seront prévenus avec les autres (Absences et retards).' : ''}`;
@@ -103,6 +105,7 @@ function Sheet({ action, role, onClose, onSaved }) {
               <input value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} placeholder="Ou un autre motif" aria-label="Motif" className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" />
             </>}
             {action === 'SOIN' && <>
+              {role === 'VIE_SCOLAIRE' && <Chips label="Qui s'en occupe ?" value={desk ? 'DESK' : 'VS'} onChange={(v) => setDesk(v === 'DESK')} options={[['VS', 'La vie scolaire'], ['DESK', 'Envoyer au secrétariat (Doliprane)']]} />}
               <Chips label="Motif" value={f.care} onChange={(care) => setF({ ...f, care })} options={CARE_REASONS.map((r) => [r, r])} />
               {!sendsToDesk && <Chips label="Suite" value={f.outcome} onChange={(outcome) => setF({ ...f, outcome })} options={Object.entries(CARE_OUTCOMES).map(([k, l]) => [k, l.split(' (')[0].split(' :')[0]])} />}
               <p className="text-xs text-slate-600">{sendsToDesk ? 'Le secrétariat le voit aussitôt dans « Au secrétariat maintenant » et note le retour en classe.' : 'Un médicament (Doliprane…) : passez par l\'écran Soins, qui vérifie les allergies et la dernière prise.'}</p>

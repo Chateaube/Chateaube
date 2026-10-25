@@ -20,7 +20,8 @@ export const DEFAULT_SETTINGS = {
     headName: '', // nom de la cheffe d'établissement, à saisir dans Paramètres › Établissement
     stageReferent: { civility: 'Mademoiselle', name: 'Sheena LO', role: 'Adjointe à la Direction', phone: '+261 34 51 227 78', mail: 'chateaubetamatave@gmail.com' },
     // semaines de stage de l'année (vides : à écrire à la main sur la convention)
-    stageDates: { STAGE_3E: { from: '', to: '' }, STAGE_2DE: { from: '', to: '' }, TERRAIN_1STMG: { from: '', to: '' } },
+    stageDates: { STAGE_3E: { from: '', to: '' }, STAGE_2DE: { from: '', to: '' } },
+    sgnTeacher: '', // enseignant·e référent·e en Sciences de gestion (lettre de l'étude de gestion, 1re STMG)
   },
   workHours: { 1: ['07:00', '17:00'], 2: ['07:00', '17:00'], 3: ['07:00', '12:00'], 4: ['07:00', '17:00'], 5: ['07:00', '17:00'], 6: null },
 

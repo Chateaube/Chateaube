@@ -1,5 +1,16 @@
 # Notes de version — ce qui change pour l'équipe
 
+## 25 octobre 2026 (suite) — réponses de la Direction
+
+- **Conventions de 3e et 2de** : mise en page refaite à l'impression ; chaque champ a sa ligne pointillée qui va jusqu'au bout, plus de pointillés coupés à la ligne.
+- **1re STMG — étude de gestion** : la lettre de demande d'entretien de l'école remplace la convention d'étude de terrain. Elle est préremplie (nom, prénom, accords selon l'élève, date), une par élève ou toute la classe. L'enseignant·e référent·e en Sciences de gestion se règle dans Paramètres › Établissement.
+- **Fiches d'orientation au conseil de classe** : pour la 2de et la Terminale, l'écran Conseils de classe affiche les vœux de chaque élève. L'avis du conseil se saisit en séance et la famille le voit aussitôt dans son portail ; la fiche reste imprimable pour le dossier.
+- **Avertissement** : il peut être donné par tous (professeurs, CPE, secrétariat, Direction).
+- **Retard** : 10 minutes, comme aujourd'hui. Le coupon papier du passeport (« > 15 min ») est à corriger.
+- **Horaires** : 7h–17h, inchangés.
+- **Élève souffrant** : pris en charge par la vie scolaire ou par le secrétariat. La CPE note le passage elle-même ou envoie l'élève au secrétariat ; le Doliprane reste donné par le secrétariat (ou la Direction).
+- **Bulletins** : celui du 1er trimestre est remis en mains propres aux responsables ; ceux des 2e et 3e trimestres sont confiés à l'élève.
+
 ## 25 octobre 2026 — les documents de l'école dans l'ENT
 
 **Conventions de stage** (Autorisations, stages et orientation › Stages et orientation) : le texte de vos conventions de 3e (découverte de l'entreprise et des métiers) et de 2de (observation d'un métier), articles 1 à 8, avec les signatures. L'étude de terrain de 1re STMG suit la même trame. Une convention par élève, ou toute la classe d'un coup (une par page), avec le nom et la date de naissance de chaque élève. Les stages durent 5 jours (février en 3e, avril en 2de). Nouveau dans Paramètres : l'onglet « Établissement » (adresse, cheffe d'établissement, référente des stages, semaines de stage) ; ce qui est vide s'imprime en pointillés.
