@@ -80,6 +80,7 @@ export function mergeStudents(previous, incoming) {
 }
 
 export default function ImportModule({ role = 'DIRECTION' }) {
+  const [storage, setStorage] = useState(null); // 'LOCAL' ou 'MEMORY' après un import
   const [current, setCurrent] = useState(loadImport);
   const [studentsText, setStudentsText] = useState('');
   const [staffText, setStaffText] = useState('');
@@ -113,7 +114,7 @@ export default function ImportModule({ role = 'DIRECTION' }) {
       // emploi du temps : le nouveau remplace l'ancien en entier (c'est la semaine type de l'année)
       timetable: newTimetable ? extras.timetable.slots : current?.timetable ?? null,
     };
-    saveImport(data);
+    const where = saveImport(data);
     setCurrent(loadImport());
     let more = '';
     if (extras && Object.keys(extras.official).length) {
@@ -126,7 +127,8 @@ export default function ImportModule({ role = 'DIRECTION' }) {
     if (extras?.inventory.length) { saveInventory(extras.inventory); more += ` Inventaire : ${extras.inventory.length} articles.`; }
     if (newTimetable) more += ` Emploi du temps : ${extras.timetable.slots.length} cours.`;
     else if (extras?.timetable?.slots.length) more += role === 'DIRECTION' ? ' Emploi du temps gardé tel quel.' : ' Emploi du temps non remplacé : seule la Direction peut le faire.';
-    setDone(`${data.students.length} élèves et ${data.assignments.length} professeurs importés.${more} Ils apparaissent dans Élèves, Encaisser et la consultation des professeurs.`);
+    setDone(`${data.students.length} élèves et ${data.assignments.length} professeurs importés.${more} Ils remplacent les données de démonstration dans tous les écrans (élèves, classes, vie scolaire, conseils, emplois du temps…).`);
+    setStorage(where);
   };
   const exportToComplete = () => {
     const cell = csvCell;
@@ -153,7 +155,12 @@ export default function ImportModule({ role = 'DIRECTION' }) {
           <p className="text-sm text-slate-700">{current.students.length} élèves · {current.assignments.length} professeurs</p>
         </Card>
       )}
-      {done && <p className="rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-800">{done} Rechargez la page si un écran était déjà ouvert.</p>}
+      {done && <p className="rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-800">{done}</p>}
+      {storage === 'MEMORY' && (
+        <p role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+          <strong>Ce navigateur n'enregistre pas les données</strong> (aperçu intégré, navigation privée ou mémoire pleine) : l'essai fonctionne maintenant, mais tout disparaîtra si la page est rechargée. Pour garder les données (12 heures), ouvrez l'application installable dans une fenêtre normale de Chrome ou d'Edge.
+        </p>
+      )}
       <TemplateZone onBook={onBook} extras={extras} />
 
       {assignments && (

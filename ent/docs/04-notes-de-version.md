@@ -1,5 +1,10 @@
 # Notes de version — ce qui change pour l'équipe
 
+## 25 octobre 2026 (suite 3) — import des vraies données
+
+- **Les données importées remplacent la démonstration partout** : classes et élèves de la vie scolaire, des conseils, des fiches d'orientation, des conventions et lettres, du passeport… plus seulement la liste des élèves et la caisse. Aucun rechargement nécessaire.
+- **Navigateur qui refuse l'enregistrement** (aperçu intégré comme celui de claude.ai, navigation privée, mémoire pleine) : avant, l'import affichait « importés » mais rien n'était gardé. Maintenant les données restent en mémoire pendant la visite, et un avertissement explique qu'elles disparaîtront au rechargement. Pour les garder 12 heures, il faut ouvrir l'application installable dans une fenêtre normale.
+
 ## 25 octobre 2026 (suite 2)
 
 - **Accueil Direction** : deux rangées équilibrées. En haut, « L'école sur 7 jours » et un nouveau bloc **Finances** : encaissé et dépensé ce mois, trésorerie nette, reste à recouvrer ; chaque chiffre ouvre la Trésorerie. En dessous, « À faire » et « En cours et à venir », raccourci à 6 lignes d'une ligne chacune ; le reste est dans l'agenda.

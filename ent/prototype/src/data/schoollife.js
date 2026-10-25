@@ -1,8 +1,10 @@
 // Données de démonstration — vie scolaire de Tamatave (noms FICTIFS).
 import { CLASS_LIST } from './people.js';
+import { loadImport } from '../importStore.js';
 
-// Élèves par classe : le choix d'une classe filtre directement la liste des élèves
-export const CLASSES = {
+// Élèves par classe : le choix d'une classe filtre directement la liste des élèves.
+// Démonstration ci-dessous ; dès qu'un fichier est importé, ce sont les vraies classes (« NOM Prénom »).
+const DEMO_CLASSES = {
   '5e': ['RAKOTOARISOA Toky', 'RASOA Lova', 'RANDRIA Tiavina', 'RAVOAHANGY Mamitiana', 'RAZAFIMAHEFA Noro'],
   '4e': ['RASOAMANANA Fy', 'RAKOTONIRINA Hanitra', 'RAMANANA Toavina', 'RAZAKA Feno'],
   '3e': ['RAVELO Hasina', 'ANDRIAMIHAJA Miora', 'RABEARIVELO Tsilavina', 'RAHARIMANANA Lalaina'],
@@ -11,6 +13,25 @@ export const CLASSES = {
   'Terminale STMG': ['ANDRIANARIVO Tojo', 'RABEMANANJARA Lina', 'RAKOTONDRABE Fanilo', 'RAMANANTSOA Nathan', 'RANDRIANASOLO Ony', 'RAZANAMPARANY Sarobidy'],
   'Terminale Générale': ['RANDRIA Mamy', 'RAKOTOVAO Andry', 'RAZAFINDRATSIMA Volana'],
 };
+const ORDER = ['6e', '5e', '4e', '3e', '2de', '1re STMG', '1re Générale', 'Terminale STMG', 'Terminale Générale'];
+let cache = { key: null, value: DEMO_CLASSES };
+function current() {
+  const imp = loadImport();
+  const key = imp?.students?.length ? `${imp.importedAt}|${imp.students.length}` : null;
+  if (key === cache.key) return cache.value;
+  const byClass = {};
+  (imp?.students ?? []).filter((s) => s.cls && s.lastName).forEach((s) => (byClass[s.cls] ??= []).push(`${s.lastName} ${s.firstName}`.trim()));
+  const sorted = Object.fromEntries(Object.keys(byClass).sort((a, b) => ((ORDER.indexOf(a) + 1) || 99) - ((ORDER.indexOf(b) + 1) || 99)).map((c) => [c, byClass[c].sort((a, b) => a.localeCompare(b, 'fr'))]));
+  cache = { key, value: key ? sorted : DEMO_CLASSES };
+  return cache.value;
+}
+// lu à chaque utilisation : un import (même gardé seulement en mémoire) est pris en compte sans recharger
+export const CLASSES = new Proxy({}, {
+  get: (_, k) => current()[k],
+  has: (_, k) => k in current(),
+  ownKeys: () => Reflect.ownKeys(current()),
+  getOwnPropertyDescriptor: (_, k) => (k in current() ? { value: current()[k], enumerable: true, configurable: true, writable: false } : undefined),
+});
 // Nouveaux élèves (entrés cette année) : règle du carnet de liaison plus souple (2 oublis = 1 h de colle)
 export const NEW_STUDENTS = ['RAJAONARIVELO Tsiry', 'RAZAKA Feno', 'RAZANAMPARANY Sarobidy', 'RANDRIA Tiavina'];
 export const classOf = (student) => Object.keys(CLASSES).find((c) => CLASSES[c].includes(student));
