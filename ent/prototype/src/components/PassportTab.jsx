@@ -3,6 +3,7 @@ import { Badge, Button, Card } from './ui.jsx';
 import { ClassStudentPicker } from './VieScolaireModule.jsx';
 import { ATTENDANCE, NEW_STUDENTS } from '../data/schoollife.js';
 import { passport, colleErrors, FORGET_KINDS, COLLE_STATUS, LATES_PER_COLLE, CARNET, carnetPerColle, nextColleSlot, upcomingColleSessions } from '../rules/discipline.js';
+import { colleSlotsLabel } from '../rules/discipline.js';
 import { formatDateFr } from '../rules/calendar.js';
 import { WATCHERS, loadWatch, saveWatch } from '../colleWatchStore.js';
 import { loadProfiles } from '../profilesStore.js';
@@ -32,7 +33,7 @@ const DEMO = {
     { id: 'c1', student: 'RAJAONARIVELO Tsiry', kind: 'COLLE', cause: 'OUBLI', forgetId: 'o1', hours: 1, date: '2026-10-07', when: '2026-10-14T13:00', reason: 'Oubli : matériel (calculatrice) le 07/10', status: 'FAITE', by: 'M. Be (CPE)' },
     { id: 'c3', student: 'RAKOTONIRINA Hanitra', kind: 'COLLE', cause: 'AUTRE', hours: 1, date: '2026-10-12', when: '2026-10-14T13:00', reason: 'Bavardages répétés (Mme Hery)', status: 'A_FAIRE', by: 'Mme Hery' },
     { id: 'c4', student: 'RAKOTONIRINA Hanitra', kind: 'COLLE', cause: 'AUTRE', hours: 1, date: '2026-10-13', when: '2026-10-14T14:00', reason: 'Montre connectée pendant l\'évaluation (CPE)', status: 'A_FAIRE', by: 'M. Be (CPE)' },
-    { id: 'c5', student: 'RAZAKA Feno', kind: 'COLLE', cause: 'AUTRE', hours: 2, date: '2026-10-12', when: '2026-10-17T08:00', reason: 'Travail non rendu (M. Tojo)', status: 'A_FAIRE', by: 'M. Tojo' },
+    { id: 'c5', student: 'RAZAKA Feno', kind: 'COLLE', cause: 'AUTRE', hours: 2, date: '2026-10-12', when: '2026-10-21T13:00', reason: 'Travail non rendu (M. Tojo)', status: 'A_FAIRE', by: 'M. Tojo' },
     { id: 'c2', student: 'RASOA Lova', kind: 'TIG', cause: 'AUTRE', hours: 1, date: '2026-10-09', when: '2026-10-16T12:00', reason: 'Dégradation d\'une table : ponçage et nettoyage', status: 'A_FAIRE', by: 'M. Be (CPE)' },
   ],
 };
@@ -90,7 +91,7 @@ export default function PassportTab({ role, toast }) {
             </div>
             {!isTeacher && p.toGive.length > 0 && (
               <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-                <p className="mb-1 font-semibold">Colles à donner <span className="font-normal">· mercredi 13h–17h ou samedi 8h–12h ; proposées à la suite des autres colles de l'élève</span></p>
+                <p className="mb-1 font-semibold">Colles à donner <span className="font-normal">· {colleSlotsLabel()} ; proposées à la suite des autres colles de l'élève</span></p>
                 {p.toGive.map((g, i) => (
                   <div key={i} className="flex flex-wrap items-center gap-2 py-1">
                     <span className="flex-1">{g.reason}</span>
@@ -156,7 +157,7 @@ export function ColleSessionsCard({ role }) {
   const canPick = ['VIE_SCOLAIRE', 'BUREAU', 'DIRECTION'].includes(role);
   if (!sessions.length) return null;
   return (
-    <Card title="Colles à surveiller" subtitle="Mercredi 13h–17h et samedi 8h–12h : la CPE ou le secrétariat surveille, à tour de rôle ou au choix">
+    <Card title="Colles à surveiller" subtitle={`${colleSlotsLabel().replace(/^./, (c) => c.toUpperCase())} : la CPE ou le secrétariat surveille, à tour de rôle ou au choix`}>
       <ul className="divide-y divide-slate-100 text-sm">
         {sessions.map((x) => (
           <li key={x.day} className="flex flex-wrap items-center justify-between gap-2 py-2">

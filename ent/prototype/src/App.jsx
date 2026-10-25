@@ -59,6 +59,7 @@ import { useScreenGuard } from './screenGuard.js';
 import { useOnline } from './online.js';
 
 import { DEFAULT_SETTINGS } from './data/settings.js';
+import { setSaturdayColles } from './rules/discipline.js';
 import { DIRECTION_ACCOUNTS } from './data/demo.js';
 import TimetableHub from './components/TimetableHub.jsx';
 
@@ -220,6 +221,7 @@ function loadSettings() {
 
 export default function App() {
   const [settings, setSettingsState] = useState(loadSettings);
+  setSaturdayColles(Boolean(settings.discipline?.saturdayColles)); // colles du samedi : réglage de la Direction
   const setSettings = (next) => {
     setSettingsState(next);
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* navigation privée */ }

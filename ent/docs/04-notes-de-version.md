@@ -1,5 +1,11 @@
 # Notes de version — ce qui change pour l'équipe
 
+## 25 octobre 2026 (suite 2)
+
+- **Accueil Direction** : deux rangées équilibrées. En haut, « L'école sur 7 jours » et un nouveau bloc **Finances** : encaissé et dépensé ce mois, trésorerie nette, reste à recouvrer ; chaque chiffre ouvre la Trésorerie. En dessous, « À faire » et « En cours et à venir », raccourci à 6 lignes d'une ligne chacune ; le reste est dans l'agenda.
+- **Bulletins des 2e et 3e trimestres** : confiés à l'élève (proposé d'abord) ou remis à un responsable, au choix à chaque remise.
+- **Colles** : le mercredi après-midi seulement, l'école étant fermée le samedi. Paramètres › Établissement permet de rouvrir le samedi matin.
+
 ## 25 octobre 2026 (suite) — réponses de la Direction
 
 - **Conventions de 3e et 2de** : mise en page refaite à l'impression ; chaque champ a sa ligne pointillée qui va jusqu'au bout, plus de pointillés coupés à la ligne.

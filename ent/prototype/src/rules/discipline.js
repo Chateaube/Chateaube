@@ -20,7 +20,7 @@ export const MEASURES = [
   { id: 'AVERTISSEMENT', label: 'Avertissement', kind: 'PUNITION' },
   { id: 'EXCUSES', label: 'Excuses écrites ou orales', kind: 'PUNITION' },
   { id: 'DEVOIR_SUPP', label: 'Devoir supplémentaire', kind: 'PUNITION' },
-  { id: 'RETENUE', label: 'Retenue (mercredi ou samedi)', kind: 'PUNITION' },
+  { id: 'RETENUE', label: 'Retenue (colle)', kind: 'PUNITION' },
   { id: 'EXCLUSION_COURS', label: 'Exclusion ponctuelle de cours', kind: 'PUNITION' },
   { id: 'TIG', label: 'Travail d\'intérêt collectif (avec l\'accord de la famille)', kind: 'PUNITION', authors: ['DIRECTION'] },
   { id: 'BLAME', label: 'Blâme', kind: 'SANCTION' },
@@ -177,7 +177,13 @@ export function passport(student, { attendance = [], forgets = [], colles = [] }
  * Les colles ont lieu le mercredi après-midi ou le samedi matin. Deux colles d'un même élève ne se
  * chevauchent jamais : données pour deux raisons différentes (un professeur, la CPE…), elles se suivent
  * (deux demandes = deux heures d'affilée). */
-export const COLLE_SLOTS = { 3: { label: 'mercredi après-midi', from: '13:00', to: '17:00' }, 6: { label: 'samedi matin', from: '08:00', to: '12:00' } };
+// Le samedi matin n'est ouvert que si la Direction l'active (Paramètres › Notes et conseil) : l'école
+// est fermée le samedi. Par défaut, les colles ont lieu le mercredi après-midi seulement.
+const SATURDAY = { label: 'samedi matin', from: '08:00', to: '12:00' };
+export const COLLE_SLOTS = { 3: { label: 'mercredi après-midi', from: '13:00', to: '17:00' } };
+export function setSaturdayColles(on) { if (on) COLLE_SLOTS[6] = SATURDAY; else delete COLLE_SLOTS[6]; }
+/** « mercredi 13h–17h » ou « mercredi 13h–17h ou samedi 8h–12h », selon les réglages. */
+export const colleSlotsLabel = () => Object.values(COLLE_SLOTS).map((s) => `${s.label.split(' ')[0]} ${Number(s.from.slice(0, 2))}h–${Number(s.to.slice(0, 2))}h`).join(' ou ');
 const toMin = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
 const toTime = (n) => `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
 const colleEnd = (c) => toMin(c.when.slice(11, 16)) + 60 * (c.hours ?? 1);
@@ -186,7 +192,7 @@ const colleEnd = (c) => toMin(c.when.slice(11, 16)) + 60 * (c.hours ?? 1);
 export function colleSlotError(when, hours = 1) {
   if (!when || when.length < 16) return 'Indiquer le jour et l\'heure de la colle.';
   const slot = COLLE_SLOTS[isoWeekday(when.slice(0, 10))];
-  if (!slot) return 'Une colle a lieu le mercredi après-midi (13h–17h) ou le samedi matin (8h–12h).';
+  if (!slot) return COLLE_SLOTS[6] ? 'Une colle a lieu le mercredi après-midi (13h–17h) ou le samedi matin (8h–12h).' : 'Une colle a lieu le mercredi après-midi (13h–17h).';
   const start = toMin(when.slice(11, 16));
   if (start < toMin(slot.from) || start + 60 * hours > toMin(slot.to)) return `Le ${slot.label}, une colle se place entre ${slot.from.replace(':', 'h')} et ${slot.to.replace(':', 'h')}.`;
   return null;

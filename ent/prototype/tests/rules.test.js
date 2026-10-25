@@ -1647,8 +1647,10 @@ test('journal : regroupé par service, tous les enseignants ensemble', () => {
   assert.deepEqual(g[2].kinds, { ABSENCE: 1, OUBLI: 1 });
 });
 
-import { colleSlotError, colleOverlap, nextColleSlot, upcomingColleSessions } from '../src/rules/discipline.js';
-test('colles : mercredi après-midi ou samedi matin, jamais en même temps, successives', () => {
+import { colleSlotError, colleOverlap, nextColleSlot, upcomingColleSessions, setSaturdayColles } from '../src/rules/discipline.js';
+test('colles : mercredi après-midi (samedi matin si la Direction l\'active), jamais en même temps, successives', () => {
+  assert.match(colleSlotError('2026-10-24T08:00', 2), /mercredi après-midi \(13h–17h\)\.$/); // samedi fermé par défaut
+  setSaturdayColles(true);
   assert.equal(colleSlotError('2026-10-21T13:00', 1), null); // mercredi
   assert.equal(colleSlotError('2026-10-24T08:00', 2), null); // samedi
   assert.match(colleSlotError('2026-10-22T13:00', 1), /mercredi après-midi/); // jeudi
@@ -1663,6 +1665,8 @@ test('colles : mercredi après-midi ou samedi matin, jamais en même temps, succ
   assert.match(colleErrors({ kind: 'COLLE', hours: 1, when: '2026-10-21T13:00', student: 'A', colles }).join(' '), /Proposé : 2026-10-21 à 14h00/);
   assert.deepEqual(upcomingColleSessions([...colles, { student: 'B', kind: 'COLLE', hours: 2, when: '2026-10-21T13:00', status: 'A_FAIRE' }], '2026-10-20'),
     [{ day: '2026-10-21', students: 2, hours: 3, from: '13:00', to: '15:00' }]);
+  setSaturdayColles(false);
+  assert.equal(nextColleSlot('A', [...colles, { student: 'A', kind: 'COLLE', hours: 2, when: '2026-10-21T14:00', status: 'A_FAIRE' }, { student: 'A', kind: 'COLLE', hours: 1, when: '2026-10-21T16:00', status: 'A_FAIRE' }], 1, '2026-10-20'), '2026-10-28T13:00'); // mercredi suivant
 });
 
 import { lateOutcome, tally as tally2 } from '../src/rules/attendance.js';

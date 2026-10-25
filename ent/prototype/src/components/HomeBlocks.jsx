@@ -17,11 +17,19 @@ import { pulse, trend, upcoming } from '../rules/schoolPulse.js';
 import { formatDateFr } from '../rules/calendar.js';
 import { notificationsFor, TODAY } from '../notify.js';
 import { setIntent } from '../navIntent.js';
+import { FAMILIES, CASH_HISTORY, CASH_YEAR_OPENING } from '../data/accounting.js';
+import { EXPENSES } from '../data/treasury.js';
+import { loadMovements, counted } from '../cashStore.js';
+import { accountStatement } from '../rules/accounting.js';
+import { toTransactions, treasuryKpis, monthlyFlows } from '../rules/treasury.js';
+import { formatAr } from '../rules/finance.js';
 
 // Blocs des accueils Direction et Secrétariat, dans l'ordre voulu par la Direction :
 // 1. l'école sur 7 ou 30 jours (chiffres cliquables) avec, à droite, ce qui est en cours ou à venir ;
 // 2. « À faire » : décisions et tâches réunies ; 3. « Ce qui s'est passé » (ActivityJournal).
 
+// « Mer. 14 oct. » : une ligne, pour que la liste reste courte
+const compactDay = (iso) => { const d = new Date(`${iso}T12:00:00Z`); return `${['Dim.', 'Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.'][d.getUTCDay()]} ${d.getUTCDate()} ${['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'][d.getUTCMonth()]}`; };
 const shortDay = (iso) => { const t = formatDateFr(iso).replace(/ \d{4}$/, ''); return t.charAt(0).toUpperCase() + t.slice(1); };
 
 /** Indicateurs de vie scolaire (mêmes calculs que les écrans qu'ils ouvrent). */
@@ -64,7 +72,7 @@ export function PulseCard({ go, only }) {
 }
 
 /** En cours et à venir (3 semaines) : événements de l'école, vacances, colles, absences de professeurs. */
-export function UpcomingCard({ settings = DEFAULT_SETTINGS, go }) {
+export function UpcomingCard({ settings = DEFAULT_SETTINGS, go, max = 5 }) {
   const teacher = (id) => STAFF.find((x) => x.id === id)?.name ?? id;
   const events = [
     ...SCHOOL_EVENTS.map((e) => ({ ...e, tone: 'navy' })),
@@ -72,14 +80,15 @@ export function UpcomingCard({ settings = DEFAULT_SETTINGS, go }) {
     ...upcomingColleSessions(loadPassport().colles, TODAY, 21).map((c) => ({ id: `colle-${c.day}`, date: c.day, start: c.from, title: `Colles : ${c.students} élève${c.students > 1 ? 's' : ''}`, tone: 'violet', to: 'vs' })),
     ...TEACHER_ABSENCES.map((a) => ({ id: `abs-${a.id}`, date: a.date, allDay: true, title: `Absence de ${teacher(a.teacherId)}`, tone: 'red', to: 'hours' })),
   ];
-  const list = upcoming(events, TODAY, 21).slice(0, 9);
+  const all = upcoming(events, TODAY, 21);
+  const list = all.slice(0, max); // court : le reste est dans l'agenda
   return (
-    <Card title="En cours et à venir" subtitle="Les trois prochaines semaines" action={<Button variant="secondary" className="!py-1 text-xs" onClick={() => go?.('agenda')}>Agenda ›</Button>}>
+    <Card title="En cours et à venir" subtitle={all.length > max ? `${max} prochains sur ${all.length} (3 semaines)` : 'Les trois prochaines semaines'} action={<Button variant="secondary" className="!py-1 text-xs" onClick={() => go?.('agenda')}>Agenda ›</Button>}>
       {list.length === 0 ? <p className="text-sm text-slate-600">Rien de prévu.</p> : (
         <ul className="space-y-2">
           {list.map((e) => (
-            <li key={e.id} className="flex gap-3 text-sm">
-              <span className="w-24 shrink-0 text-xs font-semibold text-slate-600">{e.date < TODAY ? 'En cours' : shortDay(e.date)}{!e.allDay && e.start ? <span className="block font-normal">{e.start.replace(':', 'h')}</span> : ''}</span>
+            <li key={e.id} className="flex gap-2 text-sm">
+              <span className="w-[4.5rem] shrink-0 text-xs font-semibold text-slate-600">{e.date < TODAY ? 'En cours' : compactDay(e.date)}{!e.allDay && e.start ? <span className="block font-normal">{e.start.replace(':', 'h')}</span> : ''}</span>
               <span className="min-w-0 flex-1 text-slate-900">{e.title}{e.place && <span className="block text-xs text-slate-600">{e.place}</span>}</span>
             </li>
           ))}
@@ -121,3 +130,32 @@ export function InfoCard({ items }) {
   );
 }
 
+
+/** Finances en un coup d'œil (Direction) : mêmes calculs que Caisse › Trésorerie, sans les salaires. */
+export function FinanceCard({ go }) {
+  const tx = toTransactions({
+    cash: [...CASH_HISTORY, ...counted(loadMovements())],
+    expenses: EXPENSES,
+    dues: FAMILIES.map((f) => ({ id: f.id, amount: accountStatement(f.lines).totals.balance, due: TODAY })).filter((d) => d.amount > 0),
+  });
+  const k = treasuryKpis(tx, Object.values(CASH_YEAR_OPENING).reduce((a, b) => a + b, 0));
+  const [m] = monthlyFlows(tx, [TODAY.slice(0, 7)]);
+  const open = () => { setIntent('accounting', { tab: 'treasury' }); go?.('accounting'); };
+  const tile = (label, value, tone) => (
+    <button type="button" onClick={open} className="rounded-xl border border-slate-200 bg-white p-3 text-left transition hover:border-navy-300 hover:shadow-sm">
+      <span className="block text-xs font-medium text-slate-600">{label}</span>
+      <span className={`mt-1 block font-display text-lg font-semibold tabular-nums ${tone}`}>{formatAr(value)}</span>
+    </button>
+  );
+  return (
+    <Card title="Finances" subtitle="Ce mois-ci et la trésorerie de l'année" action={<Button variant="secondary" className="!py-1 text-xs" onClick={open}>Trésorerie ›</Button>}>
+      <div className="grid grid-cols-2 gap-2">
+        {tile('Encaissé ce mois', m.in, 'text-emerald-700')}
+        {tile('Dépensé ce mois', m.out, 'text-slate-900')}
+        {tile('Trésorerie nette', k.net, k.net < 0 ? 'text-red-700' : 'text-navy-900')}
+        {tile('Reste à recouvrer', k.toCollect, 'text-amber-700')}
+      </div>
+      <p className="mt-2 text-xs text-slate-600">Salaires du mois : dans Caisse › Salaires.</p>
+    </Card>
+  );
+}

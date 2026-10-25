@@ -190,6 +190,10 @@ function SchoolIdentity({ settings, onChange }) {
           </div>
         ))}
       </div>
+      <div className="mt-4 rounded-lg bg-slate-50 p-3">
+        <Toggle checked={Boolean(settings.discipline?.saturdayColles)} onChange={(v) => onChange({ ...settings, discipline: { ...settings.discipline, saturdayColles: v } })} label="Colles aussi le samedi matin (8h–12h)" />
+        <p className="mt-1 text-xs text-slate-600">Désactivé : les colles ont lieu le mercredi après-midi (13h–17h) seulement, l'école étant fermée le samedi.</p>
+      </div>
       <label className="mt-4 block text-xs font-medium text-slate-600">Enseignant·e référent·e en Sciences de gestion (lettre de l'étude de gestion, 1re STMG)<input value={s.sgnTeacher ?? ''} onChange={(e) => set({ sgnTeacher: e.target.value })} className={f} /></label>
       <p className="mt-3 text-xs text-slate-600">Laissé vide, un champ s'imprime en pointillés, à remplir à la main.</p>
     </Card>

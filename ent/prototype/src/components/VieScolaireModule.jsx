@@ -5,6 +5,7 @@ import { loadObjects, saveObjects } from '../objectsStore.js';
 import { isMinor, leaveErrors } from '../rules/earlyLeave.js';
 import { loadProfiles } from '../profilesStore.js';
 import { MEASURES, AUTHORS, validateMeasure, phoneReturnAt, PHONE_DURATIONS, PHONE_ACTIONS, phoneDurationFor, validateReturn, ackReminderDue, OBJECTS, objectOf, HANDED_TO, canDecideDuration, objectState, colleErrors, nextColleSlot } from '../rules/discipline.js';
+import { colleSlotsLabel } from '../rules/discipline.js';
 import { justificationState as justification, LATE_LIMIT } from '../rules/attendance.js';
 import { loadAttendance, saveAttendance } from '../attendanceStore.js';
 import { takeIntent } from '../navIntent.js';
@@ -168,7 +169,7 @@ function MeasuresTab({ log, setLog, role, toast }) {
           <label className="block text-xs text-slate-600">Motif<textarea rows={2} value={draft.reason} onChange={(e) => setDraft({ ...draft, reason: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>
           {draft.measureId === 'RETENUE' && (
             <div className="grid grid-cols-[1fr_90px] gap-2">
-              <label className="block text-xs text-slate-600">Colle le (mercredi 13h–17h ou samedi 8h–12h)<input type="datetime-local" value={draft.when} onChange={(e) => setDraft({ ...draft, when: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>
+              <label className="block text-xs text-slate-600">Colle le ({colleSlotsLabel()})<input type="datetime-local" value={draft.when} onChange={(e) => setDraft({ ...draft, when: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>
               <label className="block text-xs text-slate-600">Durée<select value={draft.hours ?? 1} onChange={(e) => setDraft({ ...draft, hours: Number(e.target.value) })} className={`mt-1 w-full ${inputCls}`}><option value={1}>1 h</option><option value={2}>2 h</option></select></label>
               {draft.student && (
                 <div className="col-span-2 flex flex-wrap gap-1.5" role="group" aria-label="Créneaux libres">
