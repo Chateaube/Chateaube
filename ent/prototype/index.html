@@ -7,6 +7,24 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Écran de secours : si l'application ne démarre pas, un message remplace la page blanche.
+      window.__entFail = function (msg) {
+        var root = document.getElementById('root');
+        if (!root || root.dataset.failed) return;
+        root.dataset.failed = '1';
+        root.innerHTML = '<div style="max-width:520px;margin:12vh auto;padding:24px;font:15px system-ui,sans-serif;color:#0f172a;background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.08)">'
+          + '<h1 style="font-size:20px;margin:0 0 8px">L\u2019application n\u2019a pas pu s\u2019ouvrir</h1>'
+          + '<p style="margin:0 0 16px;color:#475569">Les données gardées dans ce navigateur l\u2019en empêchent sans doute. Le bouton ci-dessous les efface (réglages compris) et rouvre l\u2019application avec les exemples ; il suffira de réimporter votre fichier.</p>'
+          + '<button id="ent-reset" style="padding:10px 16px;border:0;border-radius:10px;background:#1e3a8a;color:#fff;font-weight:600;cursor:pointer">Réparer et rouvrir</button>'
+          + '<p style="margin:16px 0 0;font-size:12px;color:#94a3b8">Détail : ' + String(msg).replace(/[<>&]/g, '') + '</p></div>';
+        document.getElementById('ent-reset').onclick = function () {
+          try { Object.keys(localStorage).filter(function (k) { return k.indexOf('ent-') === 0; }).forEach(function (k) { localStorage.removeItem(k); }); } catch (e) {}
+          location.reload();
+        };
+      };
+      window.addEventListener('error', function (e) { setTimeout(function () { var r = document.getElementById('root'); if (r && !r.children.length) window.__entFail(e.message); }, 0); });
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

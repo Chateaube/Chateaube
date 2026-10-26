@@ -1,5 +1,5 @@
 // Examens blancs de démonstration (élèves et notes FICTIFS).
-import { CLASSES } from './schoollife.js';
+import { CLASSES, DEMO_CLASSES } from './schoollife.js';
 import { DEMO_SPECIALTIES } from './manuals.js';
 import { EXAMS } from '../rules/mockExam.js';
 
@@ -9,7 +9,7 @@ const marks = (kind, levels) => (student, i) => Object.fromEntries(ids(kind).map
   const v = levels[i % levels.length] + (((k * 7 + i * 3) % 9) - 4) * 0.75;
   return [id, Math.max(2, Math.min(19.5, Math.round(v * 2) / 2))];
 }));
-const fill = (cls, fn) => Object.fromEntries(CLASSES[cls].map((n, i) => [n, fn(n, i)]));
+const fill = (cls, fn) => Object.fromEntries(DEMO_CLASSES[cls].map((n, i) => [n, fn(n, i)]));
 
 export const MOCK_SESSIONS = [
   { id: 'x1', kind: 'BAC_STMG', cls: 'Terminale STMG', title: 'Bac blanc n°1', date: '2026-10-05', counts: {}, marks: fill('Terminale STMG', marks('BAC_STMG', [12.5, 9.5, 15, 7.5, 12, 11])) },

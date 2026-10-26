@@ -1,5 +1,10 @@
 # Notes de version — ce qui change pour l'équipe
 
+## 26 octobre 2026 — correctif : page blanche à l'ouverture
+
+- **Page blanche après un import** : une fois le fichier importé, l'application ne s'ouvrait plus (dans Chrome, au rechargement ou à l'ouverture suivante), car des exemples des examens blancs, des manuels et des fiches élèves se construisaient sur vos classes au lieu des classes fictives. Corrigé : elle s'ouvre normalement avec vos données.
+- **Écran de secours** : si l'application ne peut pas démarrer, un message remplace la page blanche, avec un bouton « Réparer et rouvrir » qui efface les données gardées dans le navigateur.
+
 ## 25 octobre 2026 (suite 4) — les exemples fictifs disparaissent à l'import
 
 - **Plus aucune donnée fictive dès que votre fichier est importé** : élèves et professeurs viennent du fichier ; absences, retards, punitions, passages au secrétariat, objets confisqués, caisse (reçus, clôtures, coffre), dépenses, annonces, événements, devoirs, tâches, suivis, engagements, prêts du CDI et des manuels, examens blancs, pièces demandées, stages et poursuite d'études de Terminale partent de zéro. Les tarifs, les titres de manuels, les réglages et les documents de l'école sont gardés.

@@ -4,5 +4,11 @@ import { watchTables } from './tableCards.js';
 import App from './App.jsx';
 import './index.css';
 
-createRoot(document.getElementById('root')).render(<App />);
+// Erreur d'affichage : écran de secours plutôt qu'une page blanche
+class Guard extends React.Component {
+  componentDidCatch(error) { window.__entFail?.(error?.message ?? error); }
+  render() { return this.props.children; }
+}
+
+createRoot(document.getElementById('root')).render(<Guard><App /></Guard>);
 watchTables();

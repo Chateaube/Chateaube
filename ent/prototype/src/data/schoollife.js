@@ -5,7 +5,7 @@ import { liveArray, demoOr } from '../demoData.js';
 
 // Élèves par classe : le choix d'une classe filtre directement la liste des élèves.
 // Démonstration ci-dessous ; dès qu'un fichier est importé, ce sont les vraies classes (« NOM Prénom »).
-const DEMO_CLASSES = {
+export const DEMO_CLASSES = {
   '5e': ['RAKOTOARISOA Toky', 'RASOA Lova', 'RANDRIA Tiavina', 'RAVOAHANGY Mamitiana', 'RAZAFIMAHEFA Noro'],
   '4e': ['RASOAMANANA Fy', 'RAKOTONIRINA Hanitra', 'RAMANANA Toavina', 'RAZAKA Feno'],
   '3e': ['RAVELO Hasina', 'ANDRIAMIHAJA Miora', 'RABEARIVELO Tsilavina', 'RAHARIMANANA Lalaina'],

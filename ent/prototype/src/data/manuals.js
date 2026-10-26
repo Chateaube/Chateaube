@@ -4,7 +4,7 @@
 // - Désignation d'un manuel : matière, niveau, éditeur et année du programme (souvent sans titre propre).
 // - Tous les élèves d'une classe reçoivent le même lot ; en 1re et Terminale générales, les
 //   manuels de spécialité ne vont qu'aux élèves qui suivent la spécialité.
-import { CLASSES } from './schoollife.js';
+import { DEMO_CLASSES } from './schoollife.js';
 import { TLE_G_STUDENTS } from './bulletins.js';
 
 export const RENTAL_PRICE = 25_000;
@@ -74,7 +74,7 @@ export const DEMO_SPECIALTIES = Object.fromEntries(TLE_G_STUDENTS.map((s) => [s.
 // Prêts de la rentrée (lot complet de la classe) : manuels rendus en fin d'année (30 juin)
 const YEAR_END = '2027-06-30';
 let n = 0;
-const handOut = (cls) => CLASSES[cls].flatMap((student) => MANUALS
+const handOut = (cls) => DEMO_CLASSES[cls].flatMap((student) => MANUALS
   .filter((m) => m.levels.includes(cls) && (!m.specialty || (DEMO_SPECIALTIES[student] ?? []).includes(m.specialty)))
   .map((m) => ({ id: `l${++n}`, manualId: m.id, student, cls, stateOut: m.returnable ? 'BON' : 'NEUF', issuedOn: '2026-09-07', ...(m.returnable ? { dueBack: YEAR_END } : { sold: true }) })));
 export const LOANS = [...handOut('1re STMG'), ...handOut('5e'), ...handOut('Terminale Générale')]
