@@ -33,7 +33,7 @@ export function feesFor(account, manuals = loadManuals().manuals) {
 
 // Comptes de la caisse : comptes détaillés de la démo + les autres élèves des classes
 // (réinscription, fascicule, location et septembre déjà réglés)
-// Élèves importés : un compte par élève, sans paiement connu (les règlements ne sont pas importés)
+// Élèves importés : un compte par élève ; les frais déjà payés viennent de l'onglet « 7 Paiements »
 const importedAccounts = () => {
   const imp = loadImport();
   const list = imp?.profiles ?? imp?.students;
@@ -41,7 +41,9 @@ const importedAccounts = () => {
   return list.filter((s) => CLASS_FEES.some((f) => f.cls === s.cls)).map((s) => ({
     // nouvel élève : frais d'inscription et compte ouvert au mois d'arrivée ; ancien : réinscription
     id: s.id, name: `${s.lastName} ${s.firstName}`, cls: s.cls, family: `Famille ${s.lastName}`,
-    isNew: seniority(s.enteredOn)?.isNew ?? false, specialties: s.specialties ?? [], enrolledOn: seniority(s.enteredOn)?.isNew && s.enteredOn > '2026-09-01' ? s.enteredOn : '2026-09-01', paid: [],
+    isNew: seniority(s.enteredOn)?.isNew ?? false, specialties: s.specialties ?? [], enrolledOn: seniority(s.enteredOn)?.isNew && s.enteredOn > '2026-09-01' ? s.enteredOn : '2026-09-01',
+    // frais déjà réglés : onglet « 7 Paiements » du modèle
+    paid: (imp.payments?.paid?.[`${s.lastName} ${s.firstName}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim()] ?? []),
   }));
 };
 const demoAccounts = () => [
@@ -57,11 +59,26 @@ const demoAccounts = () => [
 let accountsCache = { key: undefined, value: [] };
 const currentAccounts = () => {
   const imp = loadImport();
-  const key = imp?.students?.length ? `${imp.importedAt}|${imp.students.length}` : null;
+  const key = imp?.students?.length ? `${imp.importedAt}|${imp.students.length}|${imp.payments?.movements?.length ?? 0}` : null;
   if (key !== accountsCache.key) accountsCache = { key, value: importedAccounts() ?? demoAccounts() };
   return accountsCache.value;
 };
 export const CASH_ACCOUNTS = liveArray(currentAccounts);
+
+/**
+ * Situation de chaque compte à une date : dû à date, réglé, en retard (premier mois en retard).
+ * journal : 'ECOLAGE' pour les frais de scolarité seuls ; rien pour tous les frais. Réductions non comptées.
+ */
+export function duesStatus(accounts, settings, today, journal) {
+  const sum = (l) => l.reduce((s, i) => s + i.amount, 0);
+  return accounts.map((a) => {
+    const fees = feesFor(a);
+    if (!fees) return null;
+    const items = studentDues(a, fees, settings, today).filter((i) => (!journal || i.journal === journal) && i.due <= today && i.status !== 'EXONERE');
+    const late = items.filter((i) => i.status === 'ECHU');
+    return { account: a, due: sum(items), paid: sum(items.filter((i) => i.status === 'PAYE')), overdue: sum(late), firstDue: late.map((i) => i.due).sort()[0] ?? null };
+  }).filter(Boolean);
+}
 const cashClasses = () => CLASS_FEES.map((f) => f.cls).filter((c) => CASH_ACCOUNTS.some((a) => a.cls === c));
 
 /** « −25 % scolarité, −50 % inscription » */

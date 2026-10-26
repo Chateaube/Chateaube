@@ -18,6 +18,8 @@ import { formatDateFr } from '../rules/calendar.js';
 import { notificationsFor, TODAY } from '../notify.js';
 import { setIntent } from '../navIntent.js';
 import { FAMILIES, CASH_HISTORY, CASH_YEAR_OPENING } from '../data/accounting.js';
+import { CASH_ACCOUNTS, duesStatus } from './CollectPayment.jsx';
+import { realData } from '../demoData.js';
 import { EXPENSES } from '../data/treasury.js';
 import { loadMovements, counted } from '../cashStore.js';
 import { accountStatement } from '../rules/accounting.js';
@@ -132,13 +134,16 @@ export function InfoCard({ items }) {
 
 
 /** Finances en un coup d'œil (Direction) : mêmes calculs que Caisse › Trésorerie, sans les salaires. */
-export function FinanceCard({ go }) {
+export function FinanceCard({ go, settings }) {
+  const real = realData() && settings;
   const tx = toTransactions({
     cash: [...CASH_HISTORY, ...counted(loadMovements())],
     expenses: EXPENSES,
-    dues: FAMILIES.map((f) => ({ id: f.id, amount: accountStatement(f.lines).totals.balance, due: TODAY })).filter((d) => d.amount > 0),
+    dues: real
+      ? duesStatus(CASH_ACCOUNTS, settings, TODAY).map((x) => ({ id: x.account.id, amount: x.overdue, due: TODAY })).filter((d) => d.amount > 0)
+      : FAMILIES.map((f) => ({ id: f.id, amount: accountStatement(f.lines).totals.balance, due: TODAY })).filter((d) => d.amount > 0),
   });
-  const k = treasuryKpis(tx, Object.values(CASH_YEAR_OPENING).reduce((a, b) => a + b, 0));
+  const k = treasuryKpis(tx, realData() ? 0 : Object.values(CASH_YEAR_OPENING).reduce((a, b) => a + b, 0));
   const [m] = monthlyFlows(tx, [TODAY.slice(0, 7)]);
   const open = () => { setIntent('accounting', { tab: 'treasury' }); go?.('accounting'); };
   const tile = (label, value, tone) => (

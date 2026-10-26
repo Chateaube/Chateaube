@@ -1,5 +1,11 @@
 # Notes de version — ce qui change pour l'équipe
 
+## 26 octobre 2026 (suite) — reprise des paiements déjà reçus
+
+- **Onglet « 7 Paiements » du modèle enfin lu** : une ligne par paiement (élève, article, montant, date, mode, n° de reçu, payé par). Les frais correspondants sont marqués réglés sur le compte de l'élève, et le paiement rejoint l'historique de la caisse. Plusieurs frais sur une même ligne sont compris : « Frais de scolarité septembre et octobre », « Réinscription et fascicule ».
+- **Lignes à corriger** : élève absent de l'onglet 1, article non reconnu, mois de scolarité manquant, montant ou date illisible. Chaque ligne est signalée avec la raison et n'est pas reprise ; on corrige le fichier et on réimporte (la reprise précédente est remplacée, rien n'est doublé).
+- **Avec les vraies données, les chiffres financiers viennent des comptes des élèves** : impayés et relances, reste à recouvrer (accueil Direction et Trésorerie), journal des frais de scolarité. Les droits d'examen fictifs ne s'affichent plus. Le fond de caisse part de zéro : il se constate au premier comptage, à la clôture du jour.
+
 ## 26 octobre 2026 — correctif : page blanche à l'ouverture
 
 - **Page blanche après un import** : une fois le fichier importé, l'application ne s'ouvrait plus (dans Chrome, au rechargement ou à l'ouverture suivante), car des exemples des examens blancs, des manuels et des fiches élèves se construisaient sur vos classes au lieu des classes fictives. Corrigé : elle s'ouvre normalement avec vos données.

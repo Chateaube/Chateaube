@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, Icon } from './ui.jsx';
 import { DUNNING_CASES, EXAM_FEES, SITE_KPIS, TODAY } from '../data/demo.js';
+import { realData } from '../demoData.js';
+import { CASH_ACCOUNTS, duesStatus } from './CollectPayment.jsx';
 import { dunningStages, splitExamFee, formatAr } from '../rules/finance.js';
 import { dunningSchedule, stageOn, formatDateFr, monthOf, monthName } from '../rules/calendar.js';
 
@@ -35,11 +37,16 @@ export function DunningAlerts({ settings, site = 'TMV' }) {
   const [decisions, setDecisions] = useState({});
   const [notified, setNotified] = useState({});
   const [toast, setToast] = useState(null);
-  const cases = useMemo(() => DUNNING_CASES.map((c) => {
+  // vraies données : les élèves dont des frais de scolarité sont en retard (comptes et paiements repris)
+  const source = useMemo(() => (realData()
+    ? duesStatus(CASH_ACCOUNTS, settings, TODAY, 'ECOLAGE').filter((x) => x.overdue > 0)
+      .map((x) => ({ id: x.account.id, student: x.account.name, cls: x.account.cls, site: 'TMV', overdue: x.overdue, due: x.firstDue, guardian: x.account.family }))
+    : DUNNING_CASES), [settings]);
+  const cases = useMemo(() => source.map((c) => {
     const schedule = dunningSchedule(c.due, settings);
     const decision = { VALIDEE: 'MISE_A_PIED', DELAI: 'DELAI' }[decisions[c.id]];
     return { ...c, schedule, stage: decision ?? stageOn(refDate, schedule, settings) };
-  }), [settings, refDate, decisions]);
+  }), [source, settings, refDate, decisions]);
   const stages = dunningStages(settings);
   const frozen = !settings.dunning.activeMonths.includes(monthOf(refDate));
   const visibleCases = cases.filter((c) => site === 'ALL' || c.site === site);
@@ -135,11 +142,14 @@ export function DunningAlerts({ settings, site = 'TMV' }) {
 }
 
 /** Deux journaux séparés : frais de scolarité et droits d'examen (part reversée aux centres). */
-export function SeparateJournals({ site = 'TMV' }) {
+export function SeparateJournals({ site = 'TMV', settings }) {
   const inSite = (s) => site === 'ALL' || s === site;
   const ids = site === 'ALL' ? Object.keys(SITE_KPIS) : [site];
-  const kpi = ids.reduce((acc, id) => { const k = SITE_KPIS[id]; acc.due += k.tuitionDue; acc.paid += k.tuitionPaid; return acc; }, { due: 0, paid: 0 });
-  const exams = EXAM_FEES.filter((e) => inSite(e.site)).map((e) => { const collected = e.unit * e.paid; return { ...e, collected, ...splitExamFee(collected, 40_000 * e.paid) }; });
+  const real = realData() && settings;
+  const kpi = real
+    ? duesStatus(CASH_ACCOUNTS, settings, TODAY, 'ECOLAGE').reduce((acc, x) => ({ due: acc.due + x.due, paid: acc.paid + x.paid }), { due: 0, paid: 0 })
+    : ids.reduce((acc, id) => { const k = SITE_KPIS[id]; acc.due += k.tuitionDue; acc.paid += k.tuitionPaid; return acc; }, { due: 0, paid: 0 });
+  const exams = (realData() ? [] : EXAM_FEES).filter((e) => inSite(e.site)).map((e) => { const collected = e.unit * e.paid; return { ...e, collected, ...splitExamFee(collected, 40_000 * e.paid) }; });
   const examTotals = exams.reduce((t, e) => ({ collected: t.collected + e.collected, retained: t.retained + e.retained, toRemit: t.toRemit + e.toRemit, paid: t.paid + e.paid, candidates: t.candidates + e.candidates }), { collected: 0, retained: 0, toRemit: 0, paid: 0, candidates: 0 });
   return (
       <Card title="Comptabilité séparée" subtitle="Deux journaux étanches : aucun flux commun entre frais de scolarité et droits d'examen">

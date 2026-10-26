@@ -1982,3 +1982,31 @@ test('passeport : 12 coupons d\'absence par an (une justification de la famille 
   const att = [{ student: 'A', kind: 'ABSENCE', request: {} }, { student: 'A', kind: 'RETARD', request: {} }, { student: 'A', kind: 'ABSENCE' }, { student: 'B', kind: 'ABSENCE', request: {} }];
   assert.equal(couponsUsed(att, 'A'), 1);
 });
+
+// Reprise des paiements déjà reçus (onglet 7 du modèle)
+import { articleKeys, readDate, readAmount, parsePayments } from '../src/rules/paymentsImport.js';
+test('paiements repris : libellés, dates, montants, lignes à corriger', () => {
+  assert.deepEqual(articleKeys('Frais de scolarité septembre et octobre'), ['ECO-09', 'ECO-10']);
+  assert.deepEqual(articleKeys('Réinscription + fascicule'), ['REINSCRIPTION', 'FASCICULE']);
+  assert.deepEqual(articleKeys('Inscription'), ['INSCRIPTION']);
+  assert.deepEqual(articleKeys('Frais de scolarité'), ['ECO-?']);
+  assert.equal(readDate('5/9/2026'), '2026-09-05');
+  assert.equal(readDate('46270'), '2026-09-05');
+  assert.equal(readAmount('450 000'), 450000);
+  assert.equal(readAmount('abc'), null);
+  const key = (r) => r['Nom de l\'élève'].toUpperCase();
+  const rows = [
+    { line: 3, 'Nom de l\'élève': 'Rabe Lova', Article: 'Frais de scolarité septembre', 'Montant (Ar)': '420000', Date: '05/09/2026', Mode: 'espèces', 'N° de reçu': '12' },
+    { line: 4, 'Nom de l\'élève': 'Rabe Lova', Article: 'Fascicule', 'Montant (Ar)': '80000', Date: '06/09/2026', Mode: 'Chèque' },
+    { line: 5, 'Nom de l\'élève': 'Inconnu X', Article: 'Fascicule', 'Montant (Ar)': '80000', Date: '06/09/2026' },
+    { line: 6, 'Nom de l\'élève': 'Rabe Lova', Article: 'Frais de scolarité', 'Montant (Ar)': '', Date: 'hier' },
+  ];
+  const r = parsePayments(rows, key, new Set(['RABE LOVA']));
+  assert.deepEqual(r.paid['RABE LOVA'], ['ECO-09', 'FASCICULE']);
+  assert.equal(r.movements.length, 2);
+  assert.equal(r.movements[0].journal, 'ECOLAGE');
+  assert.equal(r.movements[0].method, 'Espèces — reçu n° 12');
+  assert.equal(r.movements[1].journal, 'FRAIS_ANNEXES');
+  assert.equal(r.errors.length, 2);
+  assert.match(r.errors[1], /mois de scolarité.*montant.*date/);
+});

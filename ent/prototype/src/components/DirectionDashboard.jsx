@@ -19,7 +19,7 @@ export default function DirectionDashboard({ account, settings, go, site = 'TMV'
       </div>
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <PulseCard go={go} />
-        <FinanceCard go={go} />
+        <FinanceCard go={go} settings={settings} />
       </div>
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <TodoCard role="DIRECTION" account={account} go={go} />

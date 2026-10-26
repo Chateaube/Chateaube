@@ -12,7 +12,7 @@ import { accountStatement, annualCost, cashBalance, monthlyCashReport, cashMonth
 import { printOnly } from '../print.js';
 import { planMonths, monthName } from '../rules/calendar.js';
 import { formatAr } from '../rules/finance.js';
-import CollectPayment, { CASH_ACCOUNTS, feesFor } from './CollectPayment.jsx';
+import CollectPayment, { CASH_ACCOUNTS, feesFor, duesStatus } from './CollectPayment.jsx';
 import { loadManuals } from '../manualsStore.js';
 import { kitFor } from '../rules/manuals.js';
 import { EXPENSES, SUPPLIERS } from '../data/treasury.js';
@@ -21,6 +21,7 @@ import { payOf, rateOn } from '../rules/payroll.js';
 import { ExpensesTab, TreasuryDashboard } from './Treasury.jsx';
 import { featureVisible } from '../features.js';
 import { DunningAlerts, SeparateJournals } from './FinancePanels.jsx';
+import { realData } from '../demoData.js';
 import { loadMovements, saveMovements, counted, WITHDRAWERS, withdrawalStatus } from '../cashStore.js';
 import { TIMETABLE } from '../data/timetable.js';
 import { teacherHours } from '../rules/teachingHours.js';
@@ -383,8 +384,11 @@ export default function AccountingModule({ settings, role, account }) {
     cash: [...CASH_HISTORY, ...counted(movements)],
     expenses,
     payroll: payroll.map((p) => ({ staffId: p.staffId, amount: payOf(p, rateOn(rates, p.staffId, '2026-10-01')), paid: salaryPayments.find((x) => x.staffId === p.staffId) ? TODAY : null, due: '2026-10-30' })),
-    dues: FAMILIES.map((f) => ({ id: f.id, amount: accountStatement(f.lines).totals.balance, due: TODAY })).filter((d) => d.amount > 0),
-  }), [movements, expenses, payroll, rates, salaryPayments]);
+    // reste à recouvrer : comptes des familles (démonstration) ou frais en retard des élèves importés
+    dues: realData()
+      ? duesStatus(accounts, settings, TODAY).map((x) => ({ id: x.account.id, amount: x.overdue, due: TODAY })).filter((d) => d.amount > 0)
+      : FAMILIES.map((f) => ({ id: f.id, amount: accountStatement(f.lines).totals.balance, due: TODAY })).filter((d) => d.amount > 0),
+  }), [movements, expenses, payroll, rates, salaryPayments, accounts, settings]);
   const actor = canEdit ? 'Mme Sheena Lo (Direction)' : 'Mme Hanta (secrétariat)';
   const closed = closings.some((c) => c.date === '2026-10-13');
   const pendingCancels = receipts.filter((r) => r.status === 'ANNULATION_DEMANDEE').length;
@@ -441,7 +445,7 @@ export default function AccountingModule({ settings, role, account }) {
       {tab === 'cash' && <CashTab movements={movements} setMovements={setMovements} role={role} account={account} />}
       {tab === 'expenses' && <ExpensesTab expenses={expenses} setExpenses={setExpenses} suppliers={suppliers} setSuppliers={setSuppliers} onCashOut={cashOut} today={TODAY} />}
       {tab === 'dunning' && <DunningAlerts settings={settings} />}
-      {tab === 'treasury' && role === 'DIRECTION' && <div className="space-y-5"><TreasuryDashboard tx={tx} opening={Object.values(CASH_YEAR_OPENING).reduce((a, b) => a + b, 0)} months={['2026-09', '2026-10']} /><SeparateJournals /></div>}
+      {tab === 'treasury' && role === 'DIRECTION' && <div className="space-y-5"><TreasuryDashboard tx={tx} opening={realData() ? 0 : Object.values(CASH_YEAR_OPENING).reduce((a, b) => a + b, 0)} months={['2026-09', '2026-10']} /><SeparateJournals settings={settings} /></div>}
     </div>
   );
 }

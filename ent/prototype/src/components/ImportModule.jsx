@@ -14,7 +14,8 @@ import { saveInventory } from '../careStore.js';
 import BackupCard from './BackupCard.jsx';
 
 // Onglets du modèle pris en compte dès maintenant ; les autres seront repris par la version serveur
-const USED = { '4 Emploi du temps': 'emploi du temps', '1 Élèves': 'fiches élèves', '2 Responsables': 'responsables des élèves', '3 Personnel': 'professeurs et enseignements', '6 Notes officielles 1re': 'projection au bac', '10 Inventaire': 'inventaire' };
+const fold = (t) => String(t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
+const USED = { '4 Emploi du temps': 'emploi du temps', '1 Élèves': 'fiches élèves', '2 Responsables': 'responsables des élèves', '3 Personnel': 'professeurs et enseignements', '6 Notes officielles 1re': 'projection au bac', '10 Inventaire': 'inventaire', '7 Paiements': 'comptes des élèves et caisse' };
 
 /** Compte rendu de l'emploi du temps lu : cours, lignes à corriger, chevauchements, heures par classe. */
 function TimetableReport({ t }) {
@@ -57,6 +58,12 @@ function TemplateZone({ onBook, extras }) {
             </li>
           ))}
         </ul>
+      )}
+      {extras?.payments?.errors.length > 0 && (
+        <div className="mt-2 rounded-md bg-red-50 p-2 text-xs text-red-800">
+          <p className="font-semibold">Paiements : {extras.payments.errors.length} ligne{extras.payments.errors.length > 1 ? 's' : ''} à corriger (non reprise{extras.payments.errors.length > 1 ? 's' : ''})</p>
+          {extras.payments.errors.slice(0, 12).map((e) => <p key={e}>· {e}</p>)}
+        </div>
       )}
       {extras?.officialErrors?.length > 0 && <p className="mt-2 text-xs text-red-700">{extras.officialErrors.slice(0, 5).join(' ')}</p>}
       {extras?.timetable && <TimetableReport t={extras.timetable} />}
@@ -114,7 +121,18 @@ export default function ImportModule({ role = 'DIRECTION' }) {
       assignments: assignments ?? current?.assignments ?? [],
       // emploi du temps : le nouveau remplace l'ancien en entier (c'est la semaine type de l'année)
       timetable: newTimetable ? extras.timetable.slots : current?.timetable ?? null,
+      // paiements déjà reçus : l'onglet 7 rempli remplace la reprise précédente (c'est la liste de l'année)
+      payments: current?.payments ?? null,
     };
+    let payNote = '';
+    if (extras?.payments?.movements.length) {
+      const inList = new Set(data.students.map((x) => fold(`${x.lastName} ${x.firstName}`)));
+      const kept = extras.payments.movements.filter((m) => inList.has(m.student));
+      const paid = Object.fromEntries(Object.entries(extras.payments.paid).filter(([k]) => inList.has(k)));
+      data.payments = { paid, movements: kept };
+      const total = kept.reduce((s, m) => s + m.amount, 0);
+      payNote = ` Paiements repris : ${kept.length} (${new Intl.NumberFormat('fr-FR').format(total)} Ar), marqués réglés sur les comptes des élèves.${extras.payments.errors.length ? ` ${extras.payments.errors.length} ligne(s) à corriger, non reprises.` : ''}${kept.length < extras.payments.movements.length ? ` ${extras.payments.movements.length - kept.length} paiement(s) d'élèves absents de la liste, non repris.` : ''}`;
+    }
     // Premier vrai import : ce qui a été saisi pendant la démonstration (absences, punitions, caisse, tâches…) est effacé
     if (!current?.students?.length && data.students.length) resetDemoState();
     const where = saveImport(data);
@@ -128,6 +146,7 @@ export default function ImportModule({ role = 'DIRECTION' }) {
       more += ` Notes officielles de 1re : ${Object.keys(extras.official).length} élèves.`;
     }
     if (extras?.inventory.length) { saveInventory(extras.inventory); more += ` Inventaire : ${extras.inventory.length} articles.`; }
+    more += payNote;
     if (newTimetable) more += ` Emploi du temps : ${extras.timetable.slots.length} cours.`;
     else if (extras?.timetable?.slots.length) more += role === 'DIRECTION' ? ' Emploi du temps gardé tel quel.' : ' Emploi du temps non remplacé : seule la Direction peut le faire.';
     setDone(`${data.students.length} élèves et ${data.assignments.length} professeurs importés.${more} Les données fictives ont disparu de tous les écrans : seuls vos élèves et vos professeurs apparaissent, et le reste (absences, punitions, caisse, annonces, tâches…) part de zéro.`);

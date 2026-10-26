@@ -1,5 +1,6 @@
 // Données de démonstration — Comptabilité Tamatave (montants FICTIFS à remplacer).
 import { liveArray, liveObject, demoOr } from '../demoData.js';
+import { loadImport } from '../importStore.js';
 
 // Journaux comptables étanches
 export const JOURNALS = {
@@ -161,8 +162,10 @@ const DEMO_CASH_HISTORY = (() => {
 // Solde d'ouverture du jour (13 octobre) = clôture de la veille
 const opening = { ...CASH_YEAR_OPENING };
 for (const m of DEMO_CASH_HISTORY) opening[m.journal] += m.dir === 'IN' ? m.amount : -m.amount;
-export const CASH_OPENING = liveObject(() => demoOr(opening, CASH_YEAR_OPENING));
-export const CASH_HISTORY = liveArray(() => demoOr(DEMO_CASH_HISTORY, []));
+// Vraies données : l'historique est celui des paiements repris (onglet 7) ; le fond de caisse part de zéro
+// et se constate au premier comptage (clôture du jour).
+export const CASH_OPENING = liveObject(() => demoOr(opening, { ECOLAGE: 0, FRAIS_ANNEXES: 0, DROITS_EXAMEN: 0 }));
+export const CASH_HISTORY = liveArray(() => demoOr(DEMO_CASH_HISTORY, loadImport()?.payments?.movements ?? []));
 
 // Encaissement : comptes élèves (clés payées) — la grille et le plan donnent les montants
 export const BANKS = ['BNI Madagascar', 'BOA Madagascar', 'BFV-SG', 'BMOI', 'Société Générale', 'AccèsBanque', 'Autre'];
