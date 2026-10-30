@@ -1,5 +1,17 @@
 # Notes de version — ce qui change pour l'équipe
 
+## 30 octobre 2026 (suite 4) — reprise de la caisse EduFinance
+
+- **L'export du logiciel de caisse EduFinance** se dépose dans « Importer et sauvegarder », comme le classeur. Un compte rendu s'affiche avant toute modification : tarifs, élèves rapprochés, encaissements, dépenses et versements en banque.
+- **« Reprendre la caisse »** :
+  - les **tarifs réels** de chaque classe remplacent les tarifs d'exemple (inscription, réinscription, scolarité mensuelle, fascicule, location) ;
+  - les frais réglés (inscription ou réinscription, fascicule, mois de scolarité payés) sont **cochés sur le compte de chaque élève**, et les impayés et relances partent de là ;
+  - les encaissements rejoignent l'historique de caisse ;
+  - les dépenses arrivent en Trésorerie, classées automatiquement (salaires et avances, électricité et eau, fournitures, travaux, transport…) ;
+  - les versements en banque sont mis à part : ce sont des transferts, pas des dépenses.
+- **Rapprochement des élèves** : par nom identique, ou très proche quand il n'y a pas d'ambiguïté. Les élèves non reconnus sont listés : on corrige le classeur, on le réimporte et on reprend la caisse. Rien n'est compté deux fois.
+- Nouvelle catégorie de dépense : « Salaires et avances ».
+
 ## 30 octobre 2026 (suite 3) — corrections de l'audit (UX, accessibilité, SEO, qualité)
 
 - **Vraie date du jour** avec les vraies données (la démonstration reste au mardi 13 octobre). Appels oubliés, retards de paiement, délais de justification, semaine des réservations et agenda partent d'aujourd'hui. Après un import, l'application se recharge d'elle-même et rouvre l'écran d'import avec le compte rendu.

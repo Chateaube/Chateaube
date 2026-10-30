@@ -1,6 +1,6 @@
 // Trésorerie : fournisseurs et dépenses (démonstration, montants FICTIFS).
 import { liveArray, demoOr, storedArray } from '../demoData.js';
-export const EXPENSE_CATEGORIES = ['Loyer', 'Électricité et eau', 'Internet et téléphone', 'Fournitures', 'Entretien et réparations', 'Abonnements logiciels', 'Frais d\'examen', 'Transport', 'Autre'];
+export const EXPENSE_CATEGORIES = ['Loyer', 'Électricité et eau', 'Internet et téléphone', 'Fournitures', 'Entretien et réparations', 'Abonnements logiciels', 'Frais d\'examen', 'Transport', 'Salaires et avances', 'Autre'];
 
 export const SUPPLIERS = [
   { id: 's1', name: 'Bailleur des locaux', category: 'Loyer', contact: '+261 34 •• •• •10', note: 'Loyer payé avant le 5 du mois' },

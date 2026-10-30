@@ -13,6 +13,10 @@ import { loadMockExams, saveMockExams } from '../mockExamStore.js';
 import { saveInventory } from '../careStore.js';
 import BackupCard from './BackupCard.jsx';
 import { askConfirm } from './Dialogs.jsx';
+import { isEduFinance, readEduFinance } from '../rules/eduFinanceImport.js';
+import { readStored, writeStored } from '../persist.js';
+import { CLASS_FEES } from '../data/accounting.js';
+import { accountsKey } from './CollectPayment.jsx';
 
 // Onglets du modèle pris en compte dès maintenant ; les autres seront repris par la version serveur
 const fold = (t) => String(t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
@@ -36,14 +40,44 @@ function TimetableReport({ t }) {
   );
 }
 
-function TemplateZone({ onBook, extras }) {
+/** Compte rendu de l'export EduFinance avant de reprendre la caisse. */
+function EduFinanceCard({ edu, hasStudents, onApply, onCancel }) {
+  const fmt = (n) => new Intl.NumberFormat('fr-FR').format(n);
+  const sum = (l) => fmt(l.reduce((s, x) => s + x.amount, 0));
+  const byCat = edu.expenses.reduce((m, x) => ({ ...m, [x.category]: (m[x.category] ?? 0) + x.amount }), {});
+  return (
+    <Card title={`Caisse EduFinance — année ${edu.year ?? '?'}`} subtitle="Rien n'est enregistré avant « Reprendre la caisse »">
+      <ul className="space-y-1 text-sm text-slate-800">
+        <li>Tarifs : {edu.fees.length} classes{edu.unmappedClasses.length > 0 && <span className="text-amber-800"> · classe(s) non reconnue(s), à préciser : {edu.unmappedClasses.join(', ')}</span>}</li>
+        <li>Élèves : {edu.matched.exact + edu.matched.proche} rapprochés sur {edu.students} ({edu.matched.exact} identiques, {edu.matched.proche} au nom très proche)</li>
+        <li>Encaissements : {edu.movements.length} ({sum(edu.movements)} Ar), frais cochés « réglé » sur les comptes</li>
+        <li>Dépenses : {edu.expenses.length} ({sum(edu.expenses)} Ar) · versements en banque mis à part : {edu.transfers.length} ({sum(edu.transfers)} Ar)</li>
+        <li className="text-xs text-slate-600">{Object.entries(byCat).sort((a, b) => b[1] - a[1]).map(([c, v]) => `${c} ${fmt(v)} Ar`).join(' · ')}</li>
+      </ul>
+      {edu.unmatched.length > 0 && (
+        <details className="mt-2 rounded-md bg-amber-50 p-2 text-xs text-amber-950">
+          <summary className="font-semibold">{edu.unmatched.length} élève(s) d'EduFinance absents de la liste des élèves : leurs paiements restent dans l'historique, sans compte coché</summary>
+          <ul className="mt-1 columns-1 sm:columns-2">{edu.unmatched.map((u) => <li key={u.name}>{u.name}{u.cls ? ` (${u.cls})` : ''}</li>)}</ul>
+          <p className="mt-1">Corrigez l'orthographe dans le classeur des élèves (ou ajoutez l'élève), réimportez-le, puis reprenez la caisse à nouveau : rien n'est compté deux fois.</p>
+        </details>
+      )}
+      {!hasStudents && <p className="mt-2 text-sm font-medium text-red-700">Importez d'abord le classeur des élèves : les paiements se rattachent à leurs comptes.</p>}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button disabled={!hasStudents} onClick={onApply}>Reprendre la caisse</Button>
+        <Button variant="secondary" onClick={onCancel}>Annuler</Button>
+      </div>
+    </Card>
+  );
+}
+
+function TemplateZone({ onBook, onEdu, extras }) {
   const file = useRef(null);
   const [err, setErr] = useState('');
   return (
-    <Card title="Importer le modèle Excel" subtitle="Le classeur « modele-import-chateaubriand.xlsx » rempli (onglets 1 à 10), ou seulement le fichier de l'emploi du temps (onglet « EDT à importer »). Les lignes « Exemple » sont ignorées.">
+    <Card title="Importer le modèle Excel" subtitle="Le classeur « modele-import-chateaubriand.xlsx » rempli (onglets 1 à 10), l'export de la caisse EduFinance, ou seulement le fichier de l'emploi du temps (onglet « EDT à importer »). Les lignes « Exemple » sont ignorées.">
       <input ref={file} type="file" accept=".xlsx" className="hidden" onChange={async (e) => {
         const f = e.target.files[0]; e.target.value = ''; if (!f) return;
-        try { setErr(''); onBook(bookToImport(await readXlsx(await f.arrayBuffer()))); } catch (x) { setErr(x.message); }
+        try { setErr(''); const book = await readXlsx(await f.arrayBuffer()); if (isEduFinance(book)) onEdu(book); else onBook(bookToImport(book)); } catch (x) { setErr(x.message); }
       }} />
       <div className="flex flex-wrap items-center gap-3">
         <Button onClick={() => file.current.click()}>Choisir le fichier Excel (.xlsx)</Button>
@@ -98,6 +132,26 @@ export default function ImportModule({ role = 'DIRECTION' }) {
   const [done, setDone] = useState(() => { try { const f = JSON.parse(sessionStorage.getItem('ent-flash')); if (f?.screen === 'import') { sessionStorage.removeItem('ent-flash'); return f.text; } } catch { /* rien */ } return null; });
   const [renumber, setRenumber] = useState(true);
   const [extras, setExtras] = useState(null);
+  const [edu, setEdu] = useState(null); // export EduFinance lu, en attente de « Reprendre la caisse »
+  const applyEdu = () => {
+    const imp = loadImport();
+    // tarifs réels par classe (le plan de paiement de chaque classe est gardé)
+    writeStored('ent-k-tarifs', [...CLASS_FEES].map((f) => ({ ...f, ...(edu.fees.find((x) => x.cls === f.cls) ?? {}) })));
+    // paiements : frais réglés par élève + historique de caisse (versements en banque compris)
+    const transfers = edu.transfers.map((x) => ({ id: x.id, date: x.date, time: '16:00', agent: 'Reprise EduFinance', dir: 'OUT', nature: 'Dépôt en banque', journal: 'ECOLAGE', label: x.label, method: 'Espèces', amount: x.amount }));
+    const paid = { ...(imp.payments?.paid ?? {}) };
+    Object.entries(edu.paid).forEach(([k, v]) => { paid[k] = [...new Set([...(paid[k] ?? []), ...v])]; });
+    const others = (imp.payments?.movements ?? []).filter((m) => !String(m.id).startsWith('edu-'));
+    saveImport({ ...imp, payments: { paid, movements: [...others, ...edu.movements, ...transfers].sort((a, b) => a.date.localeCompare(b.date)) } });
+    // comptes déjà enregistrés sur cet appareil : on y ajoute les frais réglés
+    const accKey = accountsKey(); const accs = readStored(accKey);
+    if (accs) writeStored(accKey, accs.map((a) => { const k = `${a.name}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim(); return edu.paid[k] ? { ...a, paid: [...new Set([...(a.paid ?? []), ...edu.paid[k]])] } : a; }));
+    // dépenses de l'année (une reprise précédente est remplacée, les dépenses saisies dans l'ENT sont gardées)
+    writeStored('ent-s-depenses', [...(readStored('ent-s-depenses') ?? []).filter((x) => !String(x.id).startsWith('edu-')), ...edu.expenses]);
+    const sum = (l) => new Intl.NumberFormat('fr-FR').format(l.reduce((s, x) => s + x.amount, 0));
+    try { sessionStorage.setItem('ent-flash', JSON.stringify({ screen: 'import', text: `Caisse EduFinance reprise : tarifs de ${edu.fees.length} classes, ${edu.movements.length} encaissements (${sum(edu.movements)} Ar), ${edu.expenses.length} dépenses (${sum(edu.expenses)} Ar) et ${edu.transfers.length} versements en banque. Les frais réglés sont cochés sur les comptes des élèves.` })); } catch { /* indisponible */ }
+    window.location.reload();
+  };
   const onBook = (res) => { setExtras(res); if (res.studentsTsv) setStudentsText(res.studentsTsv); if (res.staffTsv) setStaffText(res.staffTsv); setDone(null); };
 
   const analysis = useMemo(() => (studentsText.trim() ? analyzeStudents(parseTable(studentsText).rows) : null), [studentsText]);
@@ -197,7 +251,8 @@ export default function ImportModule({ role = 'DIRECTION' }) {
           <strong>Ce navigateur n'enregistre pas les données</strong> (aperçu intégré, navigation privée ou mémoire pleine) : l'essai fonctionne maintenant, mais tout disparaîtra si la page est rechargée. Pour garder les données, ouvrez l'application installable dans une fenêtre normale de Chrome ou d'Edge.
         </p>
       )}
-      <TemplateZone onBook={onBook} extras={extras} />
+      <TemplateZone onBook={onBook} onEdu={(book) => { setEdu(readEduFinance(book, current?.students ?? [])); setDone(null); }} extras={extras} />
+      {edu && <EduFinanceCard edu={edu} hasStudents={Boolean(current?.students?.length)} onApply={applyEdu} onCancel={() => setEdu(null)} />}
 
       {assignments && (
         <Card title={`Professeurs et enseignements (${assignments.length})`} subtitle="Lus dans l'onglet « 3 Personnel » du modèle">

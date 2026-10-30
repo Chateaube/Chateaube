@@ -2039,3 +2039,32 @@ test('absences : motifs légitimes, 3 jours d\'affilée → justificatif obligat
   assert.deepEqual(familyRequestErrors(a, { reason: 'Maladie', photo: 'data:x' }, '2026-10-15T18:00', { streak: 3 }), []);
   assert.deepEqual(familyRequestErrors(a, { reason: 'Maladie' }, '2026-10-15T18:00', { streak: 2 }), []);
 });
+
+// Reprise de l'export EduFinance (caisse) : tarifs, élèves rapprochés, mois payés, dépenses
+import { readEduFinance, mapClass, expenseCategory, isEduFinance } from '../src/rules/eduFinanceImport.js';
+test('EduFinance : tarifs, rapprochement des élèves, mois de scolarité, dépenses et versements', () => {
+  const book = {
+    annees_scolaires: [['id', 'libelle', 'courante'], ['3', '2025-2026', '0'], ['4', '2026-2027', '1']],
+    classes: [['id', 'nom', 'tarif_inscription', 'tarif_ecolage', 'tarif_fascicule', 'tarif_location', 'tarif_reinscription'], ['1', '1e STMG', '800000', '585000', '120000', '20000', '750000'], ['3', 'Classe test', '1', '1', '1', '1', '1'], ['19', 'Tle 25', '0', '525000', '0', '0', '375000']],
+    eleves: [['id', 'nom', 'prenom', 'classe_id', 'annee_id', 'fascicule_paye', 'location_payee'], ['10', 'RAKOTO', 'Benja', '1', '4', '1', '0'], ['11', 'RABE', 'Lova Tiana', '1', '4', '0', '0'], ['12', 'INCONNU', 'Personne', '1', '4', '0', '0'], ['13', 'ANCIEN', 'Élève', '1', '3', '0', '0']],
+    entrees: [['id', 'annee_id', 'numero', 'date', 'type', 'eleve_nom', 'description', 'montant', 'eleve_id'], ['1', '4', '1ES-001', '05/09/2026', 'reinscription', 'RAKOTO Benja', 'Réinscription', '750000', '10'], ['2', '4', '1ES-002', '06/09/2026', 'ecolage', 'RABE Lova', 'Écolage Septembre', '585000', '11'], ['3', '3', 'X', '01/06/2026', 'inscription', 'ANCIEN Élève', '', '10', '13']],
+    mois_ecolage: [['id', 'eleve_id', 'annee_id', 'mois_index'], ['1', '11', '4', '0'], ['2', '11', '4', '1'], ['3', '10', '4', '0']],
+    sorties: [['id', 'annee_id', 'numero', 'date', 'motif', 'montant'], ['1', '4', 'SOR-1', '21/07/2026', 'Salaire gardien juillet', '300000'], ['2', '4', 'SOR-2', '22/07/2026', 'Versement en banque', '5000000'], ['3', '4', 'SOR-3', '23/07/2026', 'Facture JIRAMA', '640000']],
+  };
+  assert.equal(isEduFinance(book), true);
+  const students = [{ lastName: 'RAKOTO', firstName: 'Benja' }, { lastName: 'RABE', firstName: 'Lova' }];
+  const r = readEduFinance(book, students);
+  assert.equal(r.year, '2026-2027');
+  assert.deepEqual(r.fees, [{ cls: '1re STMG', inscription: 800000, reinscription: 750000, ecolage: 585000, fascicule: 120000, location: 20000 }]);
+  assert.deepEqual(r.unmappedClasses, ['Tle 25']); // « Classe test » ignorée
+  assert.deepEqual(r.matched, { exact: 1, proche: 1 });
+  assert.deepEqual(r.unmatched.map((u) => u.name), ['INCONNU Personne']);
+  assert.deepEqual(r.paid['RAKOTO BENJA'].sort(), ['ECO-09', 'FASCICULE', 'REINSCRIPTION']);
+  assert.deepEqual(r.paid['RABE LOVA'].sort(), ['ECO-09', 'ECO-10']);
+  assert.equal(r.movements.length, 2); // l'encaissement de l'année précédente n'est pas repris
+  assert.equal(r.movements[1].journal, 'ECOLAGE');
+  assert.deepEqual(r.expenses.map((x) => x.category), ['Salaires et avances', 'Électricité et eau']);
+  assert.equal(r.transfers.length, 1);
+  assert.equal(mapClass('2nde'), '2de');
+  assert.equal(expenseCategory('Achat d\'un paquet de plastique'), 'Fournitures');
+});
