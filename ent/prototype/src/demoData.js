@@ -32,7 +32,7 @@ export const DEMO_STATE_KEYS = [
   'ent-engagements-valides-v1', 'ent-examens-blancs-v3', 'ent-fiche-v1', 'ent-fiches-orientation-v1', 'ent-inventaire-v2', 'ent-journal-v1',
   'ent-manuels-v2', 'ent-objets-v1', 'ent-passages-v1', 'ent-passeport-v3', 'ent-remise-v1', 'ent-remplacements-v1', 'ent-retards-prof-v1',
   'ent-signatures-v1', 'ent-sorties-v1', 'ent-suivis-v1', 'ent-surveillance-colles-v1', 'ent-taches-v1', 'ent-vie-ecole-v2', 'ent-vus-v1',
-  'ent-push-envoyes-v1', 'ent-suggestions-v1', 'ent-brouillons-v1', 'ent-profiles-v2',
+  'ent-push-envoyes-v1', 'ent-suggestions-v1', 'ent-brouillons-v1', 'ent-profiles-v2', 'ent-carnet-v1',
 ];
 export function resetDemoState() {
   DEMO_STATE_KEYS.forEach((k) => { try { localStorage.removeItem(k); } catch { /* stockage indisponible */ } });

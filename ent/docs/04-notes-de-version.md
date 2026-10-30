@@ -1,5 +1,12 @@
 # Notes de version — ce qui change pour l'équipe
 
+## 30 octobre 2026 — carnet de notes enregistré
+
+- **Les notes des professeurs sont enregistrées à chaque saisie** : devoirs, notes, remarques, compétences, appréciations et validation. Avant, elles disparaissaient en changeant d'écran ou en rechargeant la page. On remplit donc au fil du trimestre, devoir après devoir, et on valide les notes du trimestre à la fin (avant la date d'arrêt).
+- Un message sous le titre confirme l'enregistrement, ou prévient si le navigateur le refuse (navigation privée, mémoire pleine).
+- Les grilles de notes, le conseil de classe et les bulletins reprennent ces notes enregistrées.
+- Avec les vraies données, le carnet part vide (plus de devoirs fictifs) et s'efface avec « Revenir aux données fictives ».
+
 ## 26 octobre 2026 (suite) — reprise des paiements déjà reçus
 
 - **Onglet « 7 Paiements » du modèle enfin lu** : une ligne par paiement (élève, article, montant, date, mode, n° de reçu, payé par). Les frais correspondants sont marqués réglés sur le compte de l'élève, et le paiement rejoint l'historique de la caisse. Plusieurs frais sur une même ligne sont compris : « Frais de scolarité septembre et octobre », « Réinscription et fascicule ».

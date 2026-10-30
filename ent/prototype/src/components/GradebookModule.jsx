@@ -1,5 +1,7 @@
 import { withMockExams } from '../termGrades.js';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { loadCarnet, saveCarnet } from '../gradebookStore.js';
+import { demoOr } from '../demoData.js';
 import { Badge, Button, Card, Icon, StudentSelect } from './ui.jsx';
 import { Annotated, RulePanel, GradeCell } from './gradeUi.jsx';
 import { takeIntent, setIntent } from '../navIntent.js';
@@ -444,22 +446,31 @@ const STEPS = [['competences', '1. Compétences'], ['notes', '2. Notes'], ['appr
 export default function GradebookModule({ settings, go }) {
   const [serviceId, setServiceId] = useState(() => { const i = takeIntent('grades'); return SERVICES.find((x) => x.cls === i?.cls && x.subject === i?.subject)?.id ?? SERVICES.find((x) => x.cls === i?.cls)?.id ?? 's1'; });
   const [step, setStep] = useState('notes');
-  const [mock] = useState(() => withMockExams(EVALUATIONS, GRADES));
+  // carnet enregistré (saisies précédentes) ; sinon exemples de démonstration, ou vide avec les vraies données
+  const [saved] = useState(loadCarnet);
+  const [mock] = useState(() => withMockExams(saved?.evaluations ?? demoOr(EVALUATIONS, {}), saved?.grades ?? demoOr(GRADES, {})));
   const [evaluations, setEvaluations] = useState(mock.ev);
   const [grades, setGrades] = useState(mock.gr);
-  const [remarks, setRemarks] = useState(REMARKS);
-  const [myComps, setMyComps] = useState(TEACHER_COMPETENCIES);
-  const [validated, setValidated] = useState({});
-  const [comments, setComments] = useState({});
-  const [flags, setFlags] = useState({ 's1:RAJAONARIVELO Tsiry': { ids: ['BAVARD'], note: '' } });
+  const [remarks, setRemarks] = useState(saved?.remarks ?? demoOr(REMARKS, {}));
+  const [myComps, setMyComps] = useState(saved?.myComps ?? TEACHER_COMPETENCIES);
+  const [validated, setValidated] = useState(saved?.validated ?? {});
+  const [comments, setComments] = useState(saved?.comments ?? {});
+  const [flags, setFlags] = useState(saved?.flags ?? demoOr({ 's1:RAJAONARIVELO Tsiry': { ids: ['BAVARD'], note: '' } }, {}));
+  // chaque saisie est enregistrée tout de suite : on remplit les notes au fil du trimestre
+  const [savedOk, setSavedOk] = useState(null);
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) { first.current = false; return; }
+    setSavedOk(saveCarnet({ evaluations, grades, remarks, myComps, validated, comments, flags }));
+  }, [evaluations, grades, remarks, myComps, validated, comments, flags]);
 
   const service = SERVICES.find((s) => s.id === serviceId);
   const appOnly = service.mode === 'APPRECIATION_SEULE';
   const currentStep = appOnly ? 'appreciations' : step;
   const props = {
     service, settings,
-    evaluations: evaluations[serviceId], setEvaluations: (v) => setEvaluations({ ...evaluations, [serviceId]: v }),
-    grades: grades[serviceId], setGrades: (v) => setGrades({ ...grades, [serviceId]: v }),
+    evaluations: evaluations[serviceId] ?? [], setEvaluations: (v) => setEvaluations({ ...evaluations, [serviceId]: v }),
+    grades: grades[serviceId] ?? {}, setGrades: (v) => setGrades({ ...grades, [serviceId]: v }),
     validated: Boolean(validated[serviceId]), setValidated: (v) => setValidated({ ...validated, [serviceId]: v }),
     remarks: remarks[serviceId] ?? {}, setRemarks: (v) => setRemarks({ ...remarks, [serviceId]: v }),
   };
@@ -474,6 +485,11 @@ export default function GradebookModule({ settings, go }) {
       <div>
         <p className="text-sm font-semibold text-navy-500">{TERM.label} · conseil de classe le {TERM.council}</p>
         <h1 className="text-2xl font-semibold text-navy-900">Notes et appréciations</h1>
+        <p className={`text-xs ${savedOk === false ? 'font-medium text-red-700' : 'text-slate-500'}`} role="status">
+          {savedOk === false ? 'Ce navigateur refuse l\'enregistrement : vos dernières saisies seront perdues au rechargement.'
+            : savedOk ? '✓ Enregistré automatiquement — revenez ajouter vos notes quand vous voulez.'
+            : 'Chaque note est enregistrée dès qu\'elle est saisie : remplissez au fil du trimestre, devoir après devoir.'}
+        </p>
       </div>
       <div className="flex gap-2 overflow-x-auto pb-1">
         {SERVICES.map((s) => {
@@ -498,7 +514,7 @@ export default function GradebookModule({ settings, go }) {
         </div>
       )}
       {currentStep === 'notes' && <NotesStep {...props} go={go} competencies={myComps[serviceId] ?? []} />}
-      {currentStep === 'competences' && <CompetenciesStep service={service} settings={settings} evaluations={evaluations[serviceId]} mine={myComps[serviceId] ?? []} setMine={(v) => setMyComps({ ...myComps, [serviceId]: v })} />}
+      {currentStep === 'competences' && <CompetenciesStep service={service} settings={settings} evaluations={evaluations[serviceId] ?? []} mine={myComps[serviceId] ?? []} setMine={(v) => setMyComps({ ...myComps, [serviceId]: v })} />}
       {currentStep === 'appreciations' && <AppreciationsStep {...props} go={go} comments={comments} setComments={setComments} flags={flags} setFlags={setFlags} />}
     </div>
   );

@@ -62,7 +62,7 @@ export default function CouncilGrid({ settings, role, go }) {
     const subjects = CLASS_SUBJECTS.map((s) => ({
       ...s,
       inAverage: !excluded.includes(s.id),
-      avg: s.service ? studentAverage(termGrades().EVALUATIONS[s.service], termGrades().GRADES[s.service][name]) : OTHER_AVERAGES[name][s.id],
+      avg: s.service ? studentAverage(termGrades().EVALUATIONS[s.service], termGrades().GRADES[s.service][name]) : OTHER_AVERAGES[name]?.[s.id],
     }));
     const flags = [
       ...(OTHER_FLAGS[name] ?? []),

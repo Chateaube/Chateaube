@@ -44,7 +44,7 @@ function buildPremiereSTMG(settings) {
   const excluded = settings.grading.excludedSubjects;
   const students = CLASS_LIST.map((name) => ({
     name,
-    avgs: Object.fromEntries(CLASS_SUBJECTS.map((s) => [s.id, s.service ? studentAverage(termGrades().EVALUATIONS[s.service], termGrades().GRADES[s.service][name]) : OTHER_AVERAGES[name][s.id]])),
+    avgs: Object.fromEntries(CLASS_SUBJECTS.map((s) => [s.id, s.service ? studentAverage(termGrades().EVALUATIONS[s.service], termGrades().GRADES[s.service][name]) : OTHER_AVERAGES[name]?.[s.id]])),
   }));
   const generals = students.map((st) => generalAverage(CLASS_SUBJECTS.map((s) => ({ ...s, inAverage: !excluded.includes(s.id), avg: st.avgs[s.id] }))));
   const ga = loadGA();
