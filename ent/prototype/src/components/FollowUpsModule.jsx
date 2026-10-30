@@ -8,12 +8,14 @@ import { justification } from '../rules/attendance.js';
 import { FOLLOWUP_KINDS, CONDITIONS, followUpErrors, evaluateFollowUp, followUpReport } from '../rules/followup.js';
 import { loadFollowUps, saveFollowUps } from '../followupsStore.js';
 import { logActivity, ACTOR } from '../activityStore.js';
+import { nowIso } from '../clock.js';
+import { askConfirm } from './Dialogs.jsx';
 
 // Suivis individuels (Direction et CPE seulement) : élèves au dossier lourd, suivi demandé par les parents,
 // contrat avec conditions (financement d'un club sportif…). L'état se calcule tout seul : absences non
 // justifiées, retards, punitions et colles, moyenne générale, comparés aux conditions fixées.
 
-const NOW = '2026-10-13T11:00';
+const NOW = nowIso('11:00');
 const field = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
 const fr = (iso) => iso.split('-').reverse().join('/');
 const EVERY = { SEMAINE: 'chaque semaine', MOIS: 'chaque mois', DEMANDE: 'à la demande' };
@@ -85,7 +87,7 @@ export default function FollowUpsModule({ role, student, embedded = false }) {
           </div>
           <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
             <Button onClick={() => sendPoint(f, facts, ev)}>Envoyer le point aux parents</Button>
-            <Button variant="secondary" onClick={() => { if (window.confirm(`Clore le suivi de ${f.student} ?`)) { save(list.map((x) => (x.id === f.id ? { ...x, closed: { at: NOW.slice(0, 10), by: actor } } : x))); } }}>Clore le suivi</Button>
+            <Button variant="secondary" onClick={async () => { if ((await askConfirm(`Clore le suivi de ${f.student} ?`))) { save(list.map((x) => (x.id === f.id ? { ...x, closed: { at: NOW.slice(0, 10), by: actor } } : x))); } }}>Clore le suivi</Button>
           </div>
         </Card>
   );

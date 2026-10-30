@@ -8,11 +8,14 @@ import { useDraft } from '../draftStore.js';
 import { TIMETABLE } from '../data/timetable.js';
 import { DocumentInput, DocumentThumb } from './PhotoInput.jsx';
 import { usePersistent } from '../persist.js';
+import { today } from '../clock.js';
+import { me } from '../identity.js';
+import { askConfirm } from './Dialogs.jsx';
 
 // Cahier de textes de l'enseignant : une entrée par séance (fait en classe + travail à faire).
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
 const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
-const TODAY = '2026-10-13';
+const TODAY = today();
 const shift = (iso, n) => { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const weekday = (iso) => new Date(`${iso}T12:00:00Z`).getUTCDay();
 const short = (iso) => cap(formatDateFr(iso).replace(/ \d{4}$/, ''));
@@ -69,7 +72,7 @@ export default function HomeworkModule() {
                   )}
                   <p className="mt-1.5 flex gap-3 text-xs">
                     <button type="button" className="text-navy-600 underline" onClick={() => { setDraft({ ...blank, ...e, todo: e.todo ?? '', due: e.due ?? '', files: e.files ?? [] }); window.scrollTo?.({ top: 0, behavior: 'smooth' }); }}>Modifier</button>
-                    <button type="button" className="text-red-700 underline" onClick={() => window.confirm('Supprimer cette séance du cahier de textes ?') && setEntries(entries.filter((x) => x.id !== e.id))}>Supprimer</button>
+                    <button type="button" className="text-red-700 underline" onClick={async () => (await askConfirm('Supprimer cette séance du cahier de textes ?')) && setEntries(entries.filter((x) => x.id !== e.id))}>Supprimer</button>
                   </p>
                 </li>
               ))}
@@ -102,7 +105,7 @@ export default function HomeworkModule() {
             </div>
             {draft.todo.trim() && draft.due && draft.due <= draft.date && <p className="text-xs text-red-700">La date de remise doit suivre la séance.</p>}
             <Button className="w-full" disabled={!ok} onClick={() => {
-              const entry = { cls: service.cls, subject: service.subject, teacher: 'Mme Ranaivo', ...draft, todo: draft.todo.trim() || null, due: draft.todo.trim() ? draft.due : null };
+              const entry = { cls: service.cls, subject: service.subject, teacher: me('ENSEIGNANT'), ...draft, todo: draft.todo.trim() || null, due: draft.todo.trim() ? draft.due : null };
               // séance modifiée (même id) ou nouvelle séance
               setEntries(draft.id ? entries.map((x) => (x.id === draft.id ? entry : x)) : [{ ...entry, id: `h${Date.now()}` }, ...entries]);
               clearDraft();

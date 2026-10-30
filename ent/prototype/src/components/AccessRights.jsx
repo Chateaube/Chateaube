@@ -6,6 +6,7 @@ import { STAFF } from '../data/people.js';
 import { staffStatus } from './StaffModule.jsx';
 import { LEVELS, STAFF_PROFILES, baseLevel, levelFor, setLevel, exceptionsOf } from '../rules/access.js';
 import { FEATURES, MODES, featureMode } from '../features.js';
+import { askConfirm } from './Dialogs.jsx';
 
 // Droits d'accès (Direction) : qui voit quoi et qui peut modifier, écran par écran.
 // Par profil (Secrétariat, CPE, Enseignant), puis exceptions par personne (niveau d'accréditation).
@@ -28,7 +29,7 @@ export default function AccessRights({ settings, onChange, catalogue, baseNavs }
 
   const byProfile = (
     <Card title="Par profil" subtitle="Aucun accès : l'écran disparaît du menu · Consulter : lecture seule · Modifier : saisie possible"
-      action={changed > 0 && <Button variant="secondary" onClick={() => { if (window.confirm('Revenir aux droits d\'origine pour tous les profils ? Les exceptions par personne sont gardées.')) save({ ...access, profiles: {} }); }}>Rétablir les droits d'origine</Button>}>
+      action={changed > 0 && <Button variant="secondary" onClick={async () => { if ((await askConfirm('Revenir aux droits d\'origine pour tous les profils ? Les exceptions par personne sont gardées.'))) save({ ...access, profiles: {} }); }}>Rétablir les droits d'origine</Button>}>
       {narrow && (
         <label className="mb-2 block text-xs font-medium text-slate-600">Profil
           <select value={one} onChange={(e) => setOne(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2 text-sm">

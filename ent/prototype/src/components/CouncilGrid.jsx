@@ -260,7 +260,7 @@ export default function CouncilGrid({ settings, role, go }) {
           </label>
           {ga[current]?.status && <p className="mt-2 text-xs">État : <Badge tone={GA_STATUS[ga[current].status][0]}>{GA_STATUS[ga[current].status][1]}</Badge>{ga[current].note && <span className="ml-2 text-red-700">Remarque de la Direction : {ga[current].note}</span>}</p>}
           <textarea rows={4} value={appText} onChange={(e) => setGa({ ...ga, [current]: saveText(ga[current], e.target.value, role) })}
-            placeholder="Appréciation générale du conseil de classe…" className="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            aria-label="Appréciation générale du conseil de classe" placeholder="Appréciation générale du conseil de classe…" className="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
           {gaError && <p className="mt-1 text-sm text-red-700">{gaError}</p>}
           <div className="mt-2 flex flex-wrap gap-2">
             <Button variant="secondary" disabled={!appText.trim() || autoFix(appText) === appText.trim()} onClick={() => setGa({ ...ga, [current]: saveText(ga[current], autoFix(appText), role) })}>Corriger la forme</Button>

@@ -6,6 +6,7 @@ import { sessionState } from '../rules/attendance.js';
 import { loadRecords } from './AttendanceModule.jsx';
 import { setIntent } from '../navIntent.js';
 import QuickEntry from './QuickEntry.jsx';
+import { me } from '../identity.js';
 
 // « Ma journée » de l'enseignant : le cours en cours (appel), ce qu'il reste à faire, puis les cours du jour.
 // L'appel se fait sur un seul écran (Appel), ouvert directement sur la bonne séance.
@@ -25,7 +26,7 @@ export default function TeacherPortal({ go }) {
     <div className="space-y-5 pb-16 sm:pb-0">
       <div>
         <p className="text-sm font-semibold text-navy-500">Ma journée</p>
-        <h1 className="text-2xl font-semibold text-navy-900">Bonjour {TEACHER.name}</h1>
+        <h1 className="text-2xl font-semibold text-navy-900">Bonjour {me('ENSEIGNANT')}</h1>
         <p className="text-sm text-slate-600">{TEACHER.subjects}</p>
       </div>
 

@@ -4,10 +4,11 @@ import logo from '../assets/logo-chateaubriand.png';
 import { accord, schoolYearOf, classLongName, frDate } from '../rules/documents.js';
 import { printOnly } from '../print.js';
 import { addSignatureRequest } from '../signatureStore.js';
+import { today } from '../clock.js';
 
 // Certificat de scolarité selon la matrice de l'établissement : une demi-page A4,
 // imprimé en 1 ou 2 exemplaires selon la demande de l'élève (2 exemplaires = une page découpée).
-const TODAY = '2026-10-13';
+const TODAY = today();
 
 // Signataires possibles (Direction)
 export const SIGNATORIES = [

@@ -1,5 +1,17 @@
 # Notes de version — ce qui change pour l'équipe
 
+## 30 octobre 2026 (suite 3) — corrections de l'audit (UX, accessibilité, SEO, qualité)
+
+- **Vraie date du jour** avec les vraies données (la démonstration reste au mardi 13 octobre). Appels oubliés, retards de paiement, délais de justification, semaine des réservations et agenda partent d'aujourd'hui. Après un import, l'application se recharge d'elle-même et rouvre l'écran d'import avec le compte rendu.
+- **« Qui utilise cet appareil ? »** à la première ouverture avec les vraies données : fonction et nom (liste des professeurs importés proposée). Les saisies, accueils (« Bonjour … »), journaux et reçus portent ce nom au lieu des personnes fictives. « Changer d'utilisateur de cet appareil » dans le menu du compte.
+- **Plus d'effacement au bout de 12 h** : les données de l'appareil ne s'effacent qu'après **30 jours sans utilisation** (chaque ouverture repousse l'échéance). Les tarifs, articles et réductions ne sont jamais effacés. « Effacer les données de cet ordinateur » reste disponible.
+- **Fenêtres de l'application** à la place des fenêtres grises du navigateur (24 confirmations, saisies de motif et alertes) : lisibles sur téléphone, bouton rouge pour les suppressions, Entrée pour valider, Échap pour annuler.
+- **Téléphone et tablette** : boutons, onglets et champs d'au moins 40 px de haut ; cases à cocher agrandies ; petites mentions jamais sous 12 px à l'écran.
+- **Contraste** : pastilles orange en texte foncé (0 texte sous le seuil sur 13 312 vérifiés).
+- **Accessibilité** : un seul titre principal par écran (écrans imbriqués ramenés au niveau 2), 13 champs nommés pour les lecteurs d'écran, Échap ferme la saisie express.
+- **Deux onglets ouverts** : une saisie faite dans un onglet est reprise dans l'autre, sans écrasement.
+- **Moteurs de recherche** : l'application n'est jamais indexée (`noindex`) ; méta-description ajoutée.
+
 ## 30 octobre 2026 (suite 2) — motifs d'absence, saisie express, écrans de la CPE
 
 - **Motifs d'absence légitimes** (service-public.fr) pour les familles et la vie scolaire : maladie (de l'élève, ou d'un proche s'il est contagieux), réunion de famille (mariage, enterrement…), accident de transport, déplacement avec la famille hors vacances, et « Autre » à préciser (la vie scolaire décide). Chaque motif s'explique sous les boutons.

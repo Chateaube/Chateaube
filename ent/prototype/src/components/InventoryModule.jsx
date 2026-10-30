@@ -11,6 +11,9 @@ import { manualBalance } from '../rules/manuals.js';
 import { CLASSES } from '../data/schoollife.js';
 import { DEMO_SPECIALTIES } from '../data/manuals.js';
 import { loadImport } from '../importStore.js';
+import { today } from '../clock.js';
+import { me } from '../identity.js';
+import { askConfirm } from './Dialogs.jsx';
 
 /** Élèves par classe avec leurs spécialités : import de l'année s'il existe, sinon la démonstration. */
 function roster() {
@@ -72,8 +75,8 @@ function ManualsBalance() {
 // Casse signalée, réparée ou jetée ; factures en photo ; ce qui est à recommander.
 
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
-const TODAY = '2026-10-13';
-const BY = { DIRECTION: 'Direction', BUREAU: 'Mme Hanta', VIE_SCOLAIRE: 'M. Be' };
+const TODAY = today();
+const BY = { DIRECTION: me('DIRECTION'), BUREAU: me('BUREAU'), VIE_SCOLAIRE: me('VIE_SCOLAIRE') };
 
 export default function InventoryModule({ role = 'BUREAU' }) {
   const manage = role !== 'VIE_SCOLAIRE'; // la CPE signale la casse ; achats et factures : secrétariat et Direction
@@ -110,7 +113,7 @@ export default function InventoryModule({ role = 'BUREAU' }) {
     saveFile('inventaire.xlsx', buildXlsx([{ name: 'Inventaire', rows, widths: [18, 34, 20, 10, 10, 10, 8, 12], freeze: { row: 3, col: 0 } }]));
   };
   const list = items.filter((i) => i.cat === cat);
-  const removeItem = (it) => { if (window.confirm(`Supprimer « ${it.name} » de l'inventaire ? (son historique et ses factures disparaissent aussi)`)) update(items.filter((x) => x.id !== it.id)); };
+  const removeItem = async (it) => { if ((await askConfirm(`Supprimer « ${it.name} » de l'inventaire ? (son historique et ses factures disparaissent aussi)`))) update(items.filter((x) => x.id !== it.id)); };
   const btn = 'rounded-md px-2 py-1 text-xs font-medium ring-1 ring-slate-200 hover:bg-slate-50';
 
   return (

@@ -10,6 +10,7 @@ import { DEFAULT_SETTINGS } from '../data/settings.js';
 import { printOnly } from '../print.js';
 import { loadChanges } from './TimetableChanges.jsx';
 import { addDays, isoWeekday } from '../rules/calendar.js';
+import { today } from '../clock.js';
 
 // téléphone : une liste par classe (ou par jour) plutôt qu'une grille de 10 colonnes
 
@@ -50,7 +51,7 @@ function Stacked({ columns, items, second }) {
 
 const field = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
 const h = (t) => t.replace(':', 'h');
-const TODAY = '2026-10-13';
+const TODAY = today();
 const ROW = 30; // hauteur d'une ligne (px) : la journée tient sur une page A4 paysage
 const ORDER = ['6e', '5e', '4e', '3e', '2de', '1re STMG', '1re Générale', 'Terminale STMG', 'Terminale Générale'];
 const SHORT_CLASS = { '1re Générale': '1E G', '1re STMG': '1E STMG', 'Terminale Générale': 'TLE G', 'Terminale STMG': 'TLE STMG', '2de': '2NDE' };

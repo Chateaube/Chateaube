@@ -7,6 +7,7 @@ import { CLASS_SUBJECTS } from '../data/grades.js';
 import {
   dunningSchedule, pausesBetween, planMonths, dueDateOf, formatDateFr, monthName, madagascarHolidays,
 } from '../rules/calendar.js';
+import { askConfirm } from './Dialogs.jsx';
 
 const SCHOOL_ORDER = [9, 10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8];
 const WEEKDAYS = [[1, 'Lun.'], [2, 'Mar.'], [3, 'Mer.'], [4, 'Jeu.'], [5, 'Ven.'], [6, 'Sam.'], [7, 'Dim.']];
@@ -236,7 +237,7 @@ export default function SettingsModule({ settings, onChange, onReset }) {
           <p className="text-sm text-slate-500">Calendrier, frais, relances et notes : la Direction les modifie ici.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="secondary" onClick={() => { if (window.confirm('Remettre tous les paramètres (calendrier, frais, relances, notes) à leurs valeurs de départ ? Vos réglages seront perdus.')) onReset(); }}>Valeurs par défaut</Button>
+          <Button variant="secondary" onClick={async () => { if ((await askConfirm('Remettre tous les paramètres (calendrier, frais, relances, notes) à leurs valeurs de départ ? Vos réglages seront perdus.'))) onReset(); }}>Valeurs par défaut</Button>
         </div>
       </div>
 

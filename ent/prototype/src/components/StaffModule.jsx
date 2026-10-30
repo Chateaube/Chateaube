@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { Badge, Button, Card, Stat } from './ui.jsx';
 import { STAFF, POSTES, CONTRATS, contractFor } from '../data/people.js';
 import { usePersistent } from '../persist.js';
+import { today } from '../clock.js';
 
-const TODAY = '2026-10-13';
+const TODAY = today();
 const fmtDate = (iso) => (iso ? iso.split('-').reverse().join('/') : '—');
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
 const ACCESS = { PROFESSEUR: 'Professeur', VIE_SCOLAIRE: 'Vie scolaire', BUREAU: 'Bureau', DIRECTION: 'Direction' };

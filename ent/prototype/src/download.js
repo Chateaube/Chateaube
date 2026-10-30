@@ -1,4 +1,5 @@
 // Téléchargement d'un fichier généré (exports Excel, agenda…).
+import { tell } from './components/Dialogs.jsx';
 // Dans la page publiée sur claude.ai, le fichier passe par la capacité « downloads » (le
 // visiteur confirme l'enregistrement) ; ailleurs (application installée, dist/index.html), par un lien classique.
 const MIME = {
@@ -14,7 +15,7 @@ export async function saveFile(filename, data) {
   try { downloads = await window.claude?.use?.('downloads'); } catch { downloads = null; }
   if (downloads) {
     try { await downloads.save({ filename, data }); return true; } catch (e) {
-      if (e?.code === 'rejected_extension') { window.alert('Ce format se télécharge depuis l\'application de l\'école (lien du téléphone), pas depuis cet aperçu.'); return false; }
+      if (e?.code === 'rejected_extension') { tell('Ce format se télécharge depuis l\'application de l\'école (lien du téléphone), pas depuis cet aperçu.'); return false; }
       return false; // refus du visiteur ou indisponible : rien à faire
     }
   }

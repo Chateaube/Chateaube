@@ -14,6 +14,7 @@ import { loadManuals } from '../manualsStore.js';
 import { useOnline } from '../online.js';
 import { liveArray } from '../demoData.js';
 import { usePersistent, readStored } from '../persist.js';
+import { today } from '../clock.js';
 
 /**
  * Tarifs d'un élève : grille de sa classe + lot de manuels (location des titres à rendre,
@@ -101,7 +102,7 @@ const payerOf = (student) => FAMILIES.find((f) => f.name === student.family)?.pa
 // Impression des seuls tickets, sur rouleau de 80 mm
 const printTickets = () => printOnly('.ticket-print', 'size: 80mm 200mm; margin: 2mm;');
 
-const TODAY = '2026-10-13';
+const TODAY = today();
 const fmtDate = (iso) => iso.split('-').reverse().join('/');
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
 const STATUS_UI = {
@@ -206,7 +207,7 @@ export default function CollectPayment({ settings, articles = [], accounts: shar
             {cashClasses().map((c) => <option key={c} value={c}>{c} ({accounts.filter((a) => a.cls === c).length})</option>)}
           </select>
         </label>
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nom de l'élève ou de la famille…" className={`mt-2 w-full ${inputCls}`} />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Rechercher un élève ou une famille" placeholder="Nom de l'élève ou de la famille…" className={`mt-2 w-full ${inputCls}`} />
         <p className="mt-2 text-[11px] text-slate-500">{matches.length} élève{matches.length > 1 ? 's' : ''}</p>
         <ul className="-mx-2 mt-1 max-h-[420px] space-y-0.5 overflow-y-auto">
           {matches.map((a) => (
@@ -312,7 +313,7 @@ export default function CollectPayment({ settings, articles = [], accounts: shar
             </select>
             {bearer.role !== 'ELEVE' && (
               <input value={bearer.name} onChange={(e) => setBearer({ ...bearer, name: e.target.value })}
-                placeholder={bearer.role === 'PARENT' && defaultPayer ? defaultPayer : 'Nom et prénom'} className={`w-full ${inputCls}`} />
+                aria-label="Nom de la personne qui remet le paiement" placeholder={bearer.role === 'PARENT' && defaultPayer ? defaultPayer : 'Nom et prénom'} className={`w-full ${inputCls}`} />
             )}
             {!bearerName && <p className="text-xs text-red-700">Indiquer le nom de la personne qui remet le paiement.</p>}
           </fieldset>

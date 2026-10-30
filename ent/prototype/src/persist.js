@@ -4,7 +4,7 @@
 // (aperçu intégré, navigation privée, mémoire pleine), les données restent en mémoire pendant la visite.
 //  - « ent-s-… » : saisies de l'année, effacées au premier import des vraies données ;
 //  - « ent-k-… » : réglages de l'école (tarifs, articles, réductions), toujours gardés.
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 const memory = new Map(); // repli quand le stockage est refusé
 const cache = new Map(); // clé → { raw, value } : pas de relecture JSON à chaque accès
@@ -39,6 +39,12 @@ export function usePersistent(key, init) {
     const stored = readStored(key);
     return stored !== undefined ? stored : (typeof init === 'function' ? init() : init);
   });
+  // même donnée ouverte dans un autre onglet : on reprend sa version dès qu'elle est enregistrée (pas d'écrasement)
+  useEffect(() => {
+    const onStorage = (e) => { if (e.key === key && e.newValue !== null) { try { setValue(JSON.parse(e.newValue)); } catch { /* illisible */ } } };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [key]);
   const set = useCallback((next) => setValue((prev) => {
     const v = typeof next === 'function' ? next(prev) : next;
     writeStored(key, v);

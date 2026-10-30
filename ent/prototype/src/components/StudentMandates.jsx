@@ -43,7 +43,7 @@ function AnnouncementForm({ mandate, me, scopeChoices }) {
   return (
     <div className="space-y-2">
       <input value={d.title} onChange={(e) => setD({ ...d, title: e.target.value })} placeholder="Titre" className={inputCls} />
-      <textarea rows={3} value={d.text} onChange={(e) => setD({ ...d, text: e.target.value })} placeholder="Votre message…" className={inputCls} />
+      <textarea rows={3} value={d.text} onChange={(e) => setD({ ...d, text: e.target.value })} aria-label="Texte de l'annonce" placeholder="Votre message…" className={inputCls} />
       {scopeChoices.length > 1 && <select value={d.scope} onChange={(e) => setD({ ...d, scope: e.target.value })} aria-label="Destinataires" className={inputCls}>{scopeChoices.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>}
       {err.length > 0 && <ul className="rounded-md bg-red-50 p-2 text-xs text-red-800">{err.map((x) => <li key={x}>· {x}</li>)}</ul>}
       {msg && <p className="text-xs text-emerald-700">{msg}</p>}

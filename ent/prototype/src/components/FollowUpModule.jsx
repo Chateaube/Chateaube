@@ -11,6 +11,7 @@ import { realData, demoOr } from '../demoData.js';
 import { loadImport } from '../importStore.js';
 import { higherEdSteps, PROCEDURES, exportWindowOpen, campusFranceCsv, DESTINATIONS, trackSteps, addTrack, closeTrack, trackProgress } from '../rules/orientation.js';
 import { usePersistent } from '../persist.js';
+import { today } from '../clock.js';
 
 // Suivi côté établissement (Direction, Bureau, Vie scolaire) : autorisations, documents
 // envoyés et accusés de lecture, pièces manquantes, stages, orientation.
@@ -93,7 +94,7 @@ function Documents() {
           <Button variant="secondary" className="w-full">Joindre le fichier (PDF)</Button>
           <Button className="w-full" disabled={!draft.title.trim()} onClick={() => {
             const total = draft.audience === 'Toute l\'école' ? 186 : CLASSES[draft.audience].length;
-            setDocs([{ id: `d${Date.now()}`, date: '2026-10-13', title: draft.title.trim(), from: 'Direction', audience: draft.audience, signed: draft.signature, readCount: 0, total }, ...docs]);
+            setDocs([{ id: `d${Date.now()}`, date: today(), title: draft.title.trim(), from: 'Direction', audience: draft.audience, signed: draft.signature, readCount: 0, total }, ...docs]);
             setDraft({ title: '', audience: 'Toute l\'école', signature: false });
           }}>Publier et notifier</Button>
         </div>
@@ -223,7 +224,7 @@ function Terminale() {
   })));
   const [closing, setClosing] = useState(null); // { i, id, reason }
   const [adding, setAdding] = useState({});
-  const open = exportWindowOpen('2026-10-13', EXPORT_WINDOW);
+  const open = exportWindowOpen(today(), EXPORT_WINDOW);
   const setTracks = (i, fn) => setStudents(students.map((x, j) => (j === i ? { ...x, tracks: fn(x.tracks) } : x)));
   const toggle = (i, id, k) => setTracks(i, (ts) => ts.map((t) => (t.id === id ? { ...t, done: { ...t.done, [k]: !t.done[k] } } : t)));
   const franceOpen = students.filter((s) => s.tracks.some((t) => t.dest === 'FRANCE' && !t.closed));

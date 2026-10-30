@@ -9,6 +9,7 @@ import { demoOr } from '../demoData.js';
 import { imageToDataUrl } from '../image.js';
 import { atWork, nextOpening, openingLabel } from '../rules/workHours.js';
 import { DEFAULT_SETTINGS } from '../data/settings.js';
+import { today } from '../clock.js';
 
 // Messagerie de l'ENT, pour tous les profils et dans tous les sens : professeurs ↔ élèves,
 // professeurs ↔ parents, professeurs ↔ collègues, familles ↔ établissement ; une classe entière
@@ -58,7 +59,7 @@ export default function Messenger({ audience, compact: forceCompact = false, me 
     Promise.all(imgs.map((f) => imageToDataUrl(f, 1200, 0.7).catch(() => null))).then((urls) => setPhotos((prev) => [...prev, ...urls.filter(Boolean)]));
   };
   const send = () => {
-    const now = '2026-10-13T' + new Date().toTimeString().slice(0, 5);
+    const now = `${today()}T${new Date().toTimeString().slice(0, 5)}`;
     const msgs = [...(text.trim() ? [{ from: 'me', at: now, text: text.trim() }] : []), ...photos.map((p) => ({ from: 'me', at: now, text: '', photo: p }))];
     if (!msgs.length) return;
     if (newTo) {
@@ -147,7 +148,7 @@ export default function Messenger({ audience, compact: forceCompact = false, me 
           <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 7h3l1.5-2h5L14 7h3v9H3zM10 14a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z" /></svg>
         </button>
         {restored && text && <span className="sr-only">Brouillon retrouvé</span>}
-        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={1} placeholder="Écrire un message…" className="min-h-[38px] flex-1 resize-none rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm" />
+        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={1} aria-label="Message" placeholder="Écrire un message…" className="min-h-[38px] flex-1 resize-none rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm" />
         <Button onClick={send} disabled={!text.trim() && !photos.length}>Envoyer</Button>
       </div>
     </div>

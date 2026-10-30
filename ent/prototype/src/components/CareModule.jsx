@@ -8,13 +8,15 @@ import { loadVisits, saveVisits, loadInventory, saveInventory } from '../careSto
 import { CARE_REASONS, CARE_OUTCOMES, careErrors, frequentVisitors, parentNotice, allergicToParacetamol, FREQUENT_VISITS } from '../rules/care.js';
 import { consume, usable } from '../rules/inventory.js';
 import { formatDateFr } from '../rules/calendar.js';
+import { nowIso } from '../clock.js';
+import { me, meLabel } from '../identity.js';
 
 // Soins : registre des passages au secrétariat (mal de tête, blessure…). Pas d'infirmerie :
 // le seul médicament donné est le Doliprane, par le secrétariat, comme le dit le règlement intérieur.
 // Chaque passage est signalé aux parents dans l'application ; un élève qui passe souvent est signalé.
 
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
-const NOW = '2026-10-13T11:00';
+const NOW = nowIso('11:00');
 const fmtDT = (dt) => `${formatDateFr(dt.slice(0, 10)).replace(/ \d{4}$/, '')} à ${dt.slice(11, 16).replace(':', 'h')}`;
 
 /** Allergies connues : fiche signalétique signée, sinon fiche élève. */
@@ -33,7 +35,7 @@ export default function CareModule({ role = 'BUREAU' }) {
   const [visits, setVisits] = useState(loadVisits);
   const [inv, setInv] = useState(loadInventory);
   const blank = { student: '', reason: '', detail: '', paracetamol: false, dose: '1 comprimé 500 mg', outcome: '', at: NOW, products: {} };
-  const who = role === 'DIRECTION' ? 'Direction' : role === 'VIE_SCOLAIRE' ? 'M. Be (CPE)' : 'Mme Hanta';
+  const who = role === 'DIRECTION' ? me('DIRECTION') : role === 'VIE_SCOLAIRE' ? meLabel('VIE_SCOLAIRE') : me('BUREAU');
   const kit = inv.filter((i) => i.cat === 'Trousse de secours' && !i.paracetamol);
   const [d, setD] = useState(blank);
   const [pending, setPending] = useState(null); // élève envoyé par la CPE, dont on complète le passage

@@ -4,6 +4,7 @@ import { RESOURCES, SUGGESTIONS } from '../data/resources.js';
 import { AUDIENCES, forOf, isProtected, visibleFor, SUGGESTION_CATEGORIES, SUGGESTION_STATUS, suggestionErrors, answerSuggestion } from '../rules/resources.js';
 import { documentToDataUrl } from '../image.js';
 import { useScreenGuard } from '../screenGuard.js';
+import { me } from '../identity.js';
 
 // Ressources internes : documents réservés aux professeurs (ou à tout le personnel), partagés par la
 // Direction, le secrétariat ou la CPE : un document, un lien ou un simple texte (une consigne, une
@@ -19,7 +20,7 @@ const SKEY = 'ent-suggestions-v1';
 export const loadSuggestions = () => { try { return JSON.parse(localStorage.getItem(SKEY)) ?? SUGGESTIONS; } catch { return SUGGESTIONS; } };
 const saveS = (l) => { try { localStorage.setItem(SKEY, JSON.stringify(l)); } catch { /* stockage indisponible */ } };
 const fmt = (iso) => iso.split('-').reverse().join('/');
-const WHO = { DIRECTION: 'Direction', BUREAU: 'Secrétariat', VIE_SCOLAIRE: 'CPE', ENSEIGNANT: 'Mme Ranaivo' };
+const WHO = { DIRECTION: 'Direction', BUREAU: 'Secrétariat', VIE_SCOLAIRE: 'CPE', ENSEIGNANT: me('ENSEIGNANT') };
 
 export function Viewer({ r, onClose }) {
   const hidden = useScreenGuard(isProtected(r)); // documents de l'équipe : écran noir en cas de capture

@@ -4,11 +4,12 @@ import { BOOK_TYPES, availability, searchCatalog, reserve, canReserve } from '..
 import { inStock } from '../rules/manuals.js';
 import { loadLibrary, saveLibrary } from '../libraryStore.js';
 import { loadManuals } from '../manualsStore.js';
+import { today } from '../clock.js';
 
 // Catalogue pour tous : livres de la salle d'étude et manuels, avec une barre de recherche.
 // Élèves et professeurs réservent un livre pour une date ; les parents consultent seulement.
 
-const TODAY = '2026-10-13';
+const TODAY = today();
 const fmt = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
 const FILTERS = [['ALL', 'Tout'], ...Object.entries(BOOK_TYPES).map(([k, t]) => [k, t.label.split(' (')[0]]), ['MANUEL', 'Manuels']];
 const STATUS = { A_RETIRER: ['green', 'mis de côté'], ATTENTE: ['amber', 'liste d\'attente'], REMISE: ['navy', 'remis'], ANNULEE: ['slate', 'annulée'], EXPIREE: ['slate', 'non retirée'] };

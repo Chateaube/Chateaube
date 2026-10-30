@@ -27,8 +27,9 @@ import { formatDateFr } from './rules/calendar.js';
 import { DEFAULT_SETTINGS } from './data/settings.js';
 import { inventoryAlerts } from './rules/inventory.js';
 import { CARE_OUTCOMES } from './rules/care.js';
+import { today } from './clock.js';
 
-export const TODAY = '2026-10-13';
+export const TODAY = today();
 const SEEN_KEY = 'ent-urgent-vus-v1';
 export const loadSeen = () => { try { return JSON.parse(localStorage.getItem(SEEN_KEY)) ?? {}; } catch { return {}; } };
 export const markSeen = (ids) => { const s = loadSeen(); ids.forEach((id) => { s[id] = new Date().toISOString(); }); try { localStorage.setItem(SEEN_KEY, JSON.stringify(s)); } catch { /* stockage indisponible */ } };

@@ -6,13 +6,14 @@ import { WORK_KINDS, teacherHours, absenceErrors, sessionsToSupervise, slotHours
 import { loadTeacherAbsences, saveTeacherAbsences, loadLateness, saveLateness } from '../absencesStore.js';
 import { DocumentInput, DocumentThumb } from './PhotoInput.jsx';
 import { formatDateFr } from '../rules/calendar.js';
+import { today } from '../clock.js';
 
 // Heures des professeurs et absences.
 //  - Direction et secrétariat : volume horaire prévu par l'emploi du temps, fait, absences, reste à faire ;
 //  - professeur : ses heures, et la déclaration d'une absence avec le travail laissé (obligatoire) ;
 //  - CPE : les séances à surveiller, avec le travail à distribuer.
 
-const TODAY = '2026-10-13';
+const TODAY = today();
 const ME = 'p1'; // professeur connecté (démonstration : Mme Ranaivo)
 const PERIODS = {
   OCT: ['Octobre 2026', '2026-10-01', '2026-10-31'],

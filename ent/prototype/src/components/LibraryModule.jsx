@@ -9,12 +9,13 @@ import { CONDITIONS, conditionLabel } from '../rules/manuals.js';
 import { loadLibrary, saveLibrary } from '../libraryStore.js';
 import { printOnly } from '../print.js';
 import { usePersistent } from '../persist.js';
+import { today } from '../clock.js';
 
 // Bibliothèque de la salle d'étude / permanence (Tamatave n'a pas de CDI) : romans, annales, documentaires, ouvrages de référence.
 // Élèves : un mois, prolongeable d'un mois en repassant au secrétariat avec le livre.
 // Professeurs : sans date limite. Chaque exemplaire porte une cote (étiquette imprimable).
 
-const TODAY = '2026-10-13';
+const TODAY = today();
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
 const fmt = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
 const daysLate = (due) => Math.round((Date.parse(TODAY) - Date.parse(due)) / 86_400_000);

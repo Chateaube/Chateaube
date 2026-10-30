@@ -7,13 +7,14 @@ import { rateOn, rateHistory, payOf } from '../rules/payroll.js';
 import { formatAr } from '../rules/finance.js';
 import { expectedCash, salaryWindow } from '../rules/cashControl.js';
 import { staffStatus } from './StaffModule.jsx';
+import { today } from '../clock.js';
 
 // Salaires du personnel : rubrique de sortie à part. Les professeurs sont payés à l'heure de cours
 // effectuée face aux élèves (heures proposées d'après les appels, corrigées par la Direction). La Direction prépare et valide l'état de paie
 // du mois ; le Bureau paie. En espèces, le salarié émarge (signe) au moment du paiement et la sortie
 // de caisse est créée ; par virement, on note la référence. Tout est tracé dans l'historique.
 
-const TODAY = '2026-10-13';
+const TODAY = today();
 const MONTH = '2026-10';
 const MONTH_START = '2026-10-01';
 const now = () => `13/10/2026 ${new Date().toTimeString().slice(0, 5)}`;

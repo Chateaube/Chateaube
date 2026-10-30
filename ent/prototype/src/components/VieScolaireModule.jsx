@@ -16,6 +16,10 @@ import { formatDateFr } from '../rules/calendar.js';
 import PassportTab, { loadPassport, savePassport, ColleSessionsCard } from './PassportTab.jsx';
 import { useDraft } from '../draftStore.js';
 import { usePersistent } from '../persist.js';
+import { nowIso, today } from '../clock.js';
+import { me, meLabel } from '../identity.js';
+import { realData } from '../demoData.js';
+import { askText } from './Dialogs.jsx';
 
 // Vie scolaire : absences / retards, punitions et sanctions, objets confisqués.
 // Accessible à la Vie scolaire, au Bureau et à la Direction.
@@ -25,7 +29,7 @@ const FOCUS_TITLE = { passport: 'Colles et passeport', phones: 'Objets en garde'
 const REASONS = JUSTIFY_REASONS; // motifs légitimes (service-public.fr) + Autre
 const MEASURE = Object.fromEntries(MEASURES.map((m) => [m.id, m]));
 const fmtDT = (dt) => { const [d, t] = dt.split('T'); return `${formatDateFr(d).replace(/ \d{4}$/, '')} à ${t.replace(':', 'h')}`; };
-const NOW = '2026-10-13T11:00';
+const NOW = nowIso('11:00');
 
 /** Classe → élèves de la classe (évite de chercher dans une liste de toute l'école). */
 export function ClassStudentPicker({ value, onChange }) {
@@ -129,7 +133,7 @@ function AttendanceTab({ rows, setRows, toast, role, initialFilter }) {
 /* ---------- Punitions & sanctions ---------- */
 function MeasuresTab({ log, setLog, role, toast }) {
   const authorRole = { DIRECTION: 'DIRECTION', ENSEIGNANT: 'PROFESSEUR', BUREAU: 'BUREAU' }[role] ?? 'VIE_SCOLAIRE';
-  const authors = { DIRECTION: ['Cheffe d\'établissement', 'Directrice adjointe'], PROFESSEUR: ['Mme Ranaivo'], BUREAU: ['Mme Hanta (secrétariat)'], VIE_SCOLAIRE: ['M. Be (CPE)'] }[authorRole];
+  const authors = { DIRECTION: realData() ? [me('DIRECTION')] : ['Cheffe d\'établissement', 'Directrice adjointe'], PROFESSEUR: [me('ENSEIGNANT')], BUREAU: [meLabel('BUREAU')], VIE_SCOLAIRE: [meLabel('VIE_SCOLAIRE')] }[authorRole];
   const blank = { student: '', measureId: 'OBSERVATION', reason: '', when: '', author: authors[0] };
   const [draft, setDraft, clearDraft] = useDraft('punition', blank);
   const colles = loadPassport().colles;
@@ -150,10 +154,10 @@ function MeasuresTab({ log, setLog, role, toast }) {
                 {!m.cancelled && (authors.includes(m.author) || ['DIRECTION', 'VIE_SCOLAIRE'].includes(authorRole)) && (
                   <p className="mt-1 flex gap-3 text-xs">
                     <button type="button" className="text-navy-600 underline" onClick={() => setDraft({ ...blank, student: m.student, measureId: m.measure, reason: m.reason, when: m.when ?? '', author: authors.includes(m.author) ? m.author : authors[0], editId: m.id })}>Corriger</button>
-                    <button type="button" className="text-red-700 underline" onClick={() => {
-                      const reason = window.prompt('Motif de l\'annulation (gardé dans le dossier) :');
+                    <button type="button" className="text-red-700 underline" onClick={async () => {
+                      const reason = (await askText('Motif de l\'annulation (gardé dans le dossier) :'));
                       if (!reason?.trim()) return;
-                      setLog(log.map((x) => (x.id === m.id ? { ...x, cancelled: { at: '2026-10-13', by: authors[0], reason: reason.trim() } } : x)));
+                      setLog(log.map((x) => (x.id === m.id ? { ...x, cancelled: { at: today(), by: authors[0], reason: reason.trim() } } : x)));
                       toast('Mesure annulée ; le parent en est informé.');
                     }}>Annuler la mesure</button>
                   </p>
@@ -188,7 +192,7 @@ function MeasuresTab({ log, setLog, role, toast }) {
               {draft.student && (
                 <div className="col-span-2 flex flex-wrap gap-1.5" role="group" aria-label="Créneaux libres">
                   {/* les trois prochains créneaux libres pour cet élève (mercredi après-midi, samedi matin) */}
-                  {(() => { const out = []; let from = '2026-10-13'; for (let k = 0; k < 3; k += 1) { const w = nextColleSlot(draft.student, colles, draft.hours ?? 1, from); if (!w) break; out.push(w); const d = new Date(`${w.slice(0, 10)}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + 1); from = d.toISOString().slice(0, 10); } return out; })().map((w) => (
+                  {(() => { const out = []; let from = today(); for (let k = 0; k < 3; k += 1) { const w = nextColleSlot(draft.student, colles, draft.hours ?? 1, from); if (!w) break; out.push(w); const d = new Date(`${w.slice(0, 10)}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + 1); from = d.toISOString().slice(0, 10); } return out; })().map((w) => (
                     <button key={w} type="button" aria-pressed={draft.when === w} onClick={() => setDraft({ ...draft, when: w })} className={`rounded-full px-3 py-1.5 text-xs font-medium ring-1 ${draft.when === w ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-800 ring-slate-300'}`}>{fmtDT(w)}</button>
                   ))}
                 </div>
@@ -206,12 +210,12 @@ function MeasuresTab({ log, setLog, role, toast }) {
           <Button className="w-full" disabled={errors.length > 0} onClick={() => {
             if (draft.editId) {
               // correction : le parent est prévenu à nouveau et doit reconfirmer
-              setLog(log.map((x) => (x.id === draft.editId ? { ...x, student: draft.student, measure: draft.measureId, reason: draft.reason.trim(), when: draft.when || null, author: draft.author, parentAck: null, editedAt: '2026-10-13' } : x)));
+              setLog(log.map((x) => (x.id === draft.editId ? { ...x, student: draft.student, measure: draft.measureId, reason: draft.reason.trim(), when: draft.when || null, author: draft.author, parentAck: null, editedAt: today() } : x)));
               toast(`Mesure corrigée ; le parent de ${draft.student} est prévenu de la correction.`);
               clearDraft();
               return;
             }
-            setLog([{ id: `m${Date.now()}`, date: '2026-10-13', student: draft.student, measure: draft.measureId, reason: draft.reason.trim(), when: draft.when || null, author: draft.author, authorRole, parentAck: null }, ...log]);
+            setLog([{ id: `m${Date.now()}`, date: today(), student: draft.student, measure: draft.measureId, reason: draft.reason.trim(), when: draft.when || null, author: draft.author, authorRole, parentAck: null }, ...log]);
             logActivity({ who: draft.author, role, kind: 'PUNITION', student: draft.student, text: `${MEASURE[draft.measureId].label} : ${draft.reason.trim()}` });
             // une retenue est une colle : elle entre au passeport, à la suite des autres colles de l'élève
             if (retenue) { const pp = loadPassport(); savePassport({ ...pp, colles: [...pp.colles, { id: `c${Date.now()}`, student: draft.student, kind: 'COLLE', cause: 'AUTRE', hours: draft.hours ?? 1, date: '2026-10-13', when: draft.when, reason: draft.reason.trim(), status: 'A_FAIRE', by: draft.author }] }); }
@@ -233,7 +237,7 @@ const STATE_LABEL = { A_DECIDER: ['amber', 'Durée à décider'], EN_GARDE: ['na
 function PhonesTab({ phones, setPhones, settings, toast, role }) {
   const actor = ACTOR[role] ?? ACTOR.VIE_SCOLAIRE;
   const decider = canDecideDuration(role);
-  const blank = { action: 'CONFISCATION', object: OBJECTS[0], objectNote: '', student: '', owner: '', otherOwner: false, at: NOW, duration: '', confiscatedBy: role === 'ENSEIGNANT' ? 'Mme Ranaivo' : actor, receivedBy: HANDED_TO[0], reason: '' };
+  const blank = { action: 'CONFISCATION', object: OBJECTS[0], objectNote: '', student: '', owner: '', otherOwner: false, at: NOW, duration: '', confiscatedBy: role === 'ENSEIGNANT' ? me('ENSEIGNANT') : actor, receivedBy: HANDED_TO[0], reason: '' };
   const [draft, setDraft, clearDraft] = useDraft('objet', blank);
   const [returning, setReturning] = useState(null);
   const ok = draft.student && draft.at && draft.reason.trim() && (!draft.otherOwner || draft.owner) && (draft.object !== 'Autre' || draft.objectNote.trim());
@@ -449,7 +453,7 @@ export default function VieScolaireModule({ settings, role = 'VIE_SCOLAIRE', ini
   const [phones, setPhonesState] = useState(loadObjects);
   const setPhones = (l) => { setPhonesState(l); saveObjects(l); };
   const [message, setMessage] = useState(null);
-  const today = rows.filter((r) => r.date === '2026-10-13');
+  const todayRows = rows.filter((r) => r.date === today());
   // ouvert depuis son propre menu (CPE : « Colles », « Objets en garde ») : cet écran seul, sans les chiffres ni les onglets
   const focus = ['passport', 'phones'].includes(initialTab) && tab === initialTab;
 
@@ -461,8 +465,8 @@ export default function VieScolaireModule({ settings, role = 'VIE_SCOLAIRE', ini
       </div>
       {role !== 'ENSEIGNANT' && !focus && <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {/* chaque chiffre ouvre la liste qui l'explique (mêmes calculs que les filtres) */}
-        <Stat onClick={() => open('attendance', 'ALL')} label="Absences aujourd'hui" value={today.filter((r) => r.kind === 'ABSENCE').length} />
-        <Stat onClick={() => open('attendance', 'ALL')} label="Retards aujourd'hui" value={today.filter((r) => r.kind === 'RETARD').length} />
+        <Stat onClick={() => open('attendance', 'ALL')} label="Absences aujourd'hui" value={todayRows.filter((r) => r.kind === 'ABSENCE').length} />
+        <Stat onClick={() => open('attendance', 'ALL')} label="Retards aujourd'hui" value={todayRows.filter((r) => r.kind === 'RETARD').length} />
         <Stat onClick={() => open('attendance', 'PARENTS')} label="Parents pas encore prévenus" value={rows.filter((r) => !r.notified).length} tone="amber" />
         <Stat onClick={() => open('phones')} label="Objets en garde" value={phones.filter((p) => p.action !== 'AVERTISSEMENT' && !p.returned).length} hint={phones.some((p) => objectState(p, NOW, settings) === 'A_DECIDER') ? `${phones.filter((p) => objectState(p, NOW, settings) === 'A_DECIDER').length} durée à décider` : undefined} />
       </div>}

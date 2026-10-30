@@ -1488,16 +1488,17 @@ test('exports CSV : une formule n\'est jamais exécutée par Excel, les nombres 
   assert.equal(csvCell(null), '');
 });
 
-import { isExpired, wipeLocalData, REAL_DATA_TTL_HOURS } from '../src/privacy.js';
-test('données réelles : expiration et effacement de ce navigateur (réglages gardés)', () => {
+import { isExpired, wipeLocalData, REAL_DATA_IDLE_DAYS } from '../src/privacy.js';
+test('données réelles : effacées après 30 jours sans utilisation (réglages et tarifs gardés)', () => {
   const now = Date.parse('2026-10-18T20:00:00Z');
-  assert.equal(isExpired('2026-10-18T09:00:00Z', now), REAL_DATA_TTL_HOURS < 11);
-  assert.equal(isExpired('2026-10-17T07:00:00Z', now), true);
+  assert.equal(REAL_DATA_IDLE_DAYS, 30);
+  assert.equal(isExpired('2026-10-17T07:00:00Z', now), false); // utilisée hier : tout est gardé
+  assert.equal(isExpired('2026-09-10T07:00:00Z', now), true);
   assert.equal(isExpired(undefined, now), false);
-  const data = { 'ent-import-v1': '{}', 'ent-fiche-v1': '{}', 'ent-chateaubriand-settings-v3': '{}', 'ent-ambiance-prefs-v1': '{}', autre: 'x' };
+  const data = { 'ent-import-v1': '{}', 'ent-fiche-v1': '{}', 'ent-s-sanctions': '[]', 'ent-k-moi': '{}', 'ent-k-tarifs': '[]', 'ent-chateaubriand-settings-v3': '{}', 'ent-ambiance-prefs-v1': '{}', autre: 'x' };
   const store = { get length() { return Object.keys(data).length; }, key: (i) => Object.keys(data)[i], removeItem: (k) => { delete data[k]; } };
-  assert.equal(wipeLocalData(store), 2);
-  assert.deepEqual(Object.keys(data).sort(), ['autre', 'ent-ambiance-prefs-v1', 'ent-chateaubriand-settings-v3']);
+  assert.equal(wipeLocalData(store), 4);
+  assert.deepEqual(Object.keys(data).sort(), ['autre', 'ent-ambiance-prefs-v1', 'ent-chateaubriand-settings-v3', 'ent-k-tarifs']);
 });
 
 import { DIRECTION_TREE, FAMILY_SECTIONS, arrangeNav } from '../src/rules/navigation.js';

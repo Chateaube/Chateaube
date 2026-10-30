@@ -6,6 +6,7 @@ import { TERM } from '../data/grades.js';
 import { loadEngagements, saveEngagements, loadValidation, saveValidation, loadCatalogue, saveCatalogue } from '../engagementsStore.js';
 import { catalogue, addToCatalogue, setForStudents, engagementErrors } from '../rules/engagements.js';
 import { classMandateErrors, MANDATES } from '../rules/mandates.js';
+import { askConfirm } from './Dialogs.jsx';
 
 // Engagements et attestations (Direction) : délégués, BDE, éco-délégués, parrainage, ASSR…
 // - Par engagement : on coche d'un coup tous les élèves concernés (30 élèves, une seule liste) ;
@@ -109,7 +110,7 @@ function CatalogueTab({ custom, setCustom, cat, eng }) {
     if (e.custom) save(custom.map((c) => (c.id === e.id ? { ...c, hidden: !c.hidden } : c)));
     else save(custom.some((c) => c.id === e.id) ? custom.map((c) => (c.id === e.id ? { ...c, hidden: !c.hidden } : c)) : [...custom, { id: e.id, builtin: true, hidden: true }]);
   };
-  const remove = (e) => { if (window.confirm(`Supprimer « ${e.neutral} » ?`)) save(custom.filter((c) => c.id !== e.id)); };
+  const remove = async (e) => { if ((await askConfirm(`Supprimer « ${e.neutral} » ?`))) save(custom.filter((c) => c.id !== e.id)); };
   return (
     <div className="grid gap-5 xl:grid-cols-[1fr_360px] xl:items-start">
       <Card title="Engagements et attestations proposés" subtitle="« Ne plus proposer » le retire des listes sans rien effacer : les élèves qui l'ont déjà le gardent sur leurs bulletins">

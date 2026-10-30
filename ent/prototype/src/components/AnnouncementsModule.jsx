@@ -6,6 +6,9 @@ import { loadAnnouncements, saveAnnouncement, removeAnnouncement, acknowledge, a
 import { STATUS, canWrite, canPublish, create, edit, submit, approve, sendBack, withdraw, signature, trail, workView, forward, cpeSendBack, REVIEWER } from '../rules/publication.js';
 import { imageToDataUrl } from '../image.js';
 import { DocumentInput, DocumentThumb } from './PhotoInput.jsx';
+import { me } from '../identity.js';
+import { realData } from '../demoData.js';
+import { tell } from './Dialogs.jsx';
 
 // Annonces : un message (texte et photos) à tous les parents, toute l'école, un cycle, des niveaux
 // ou des classes, sur un site ou les deux.
@@ -15,7 +18,7 @@ import { DocumentInput, DocumentThumb } from './PhotoInput.jsx';
 // toute la trace (qui a rédigé, corrigé, publié, quand).
 
 const MY_CLASSES = ['1re STMG', 'Terminale STMG'];
-const ACTOR_NAME = { DIRECTION: 'Cheffe d\'établissement', BUREAU: 'Mme Hanta', VIE_SCOLAIRE: 'M. Be' };
+const ACTOR_NAME = { DIRECTION: realData() ? me('DIRECTION') : 'Cheffe d\'établissement', BUREAU: me('BUREAU'), VIE_SCOLAIRE: me('VIE_SCOLAIRE') };
 const now = () => new Date().toISOString().slice(0, 16);
 const MAX_PHOTOS = 6;
 const fmt = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)} à ${iso.slice(11, 16).replace(':', 'h')}`;
@@ -65,7 +68,7 @@ function ReviewItem({ a, onDone }) {
       {err && <p className="mt-1 text-xs text-red-700">{err}</p>}
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <Button className="!py-1 text-xs" onClick={() => run(() => approve(a, actor, { patch: { title, text, pinned } }), `« ${title} » est publiée.`)}>{title !== a.title || text !== a.text ? 'Corriger et publier' : 'Publier'}</Button>
-        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Remarque pour l'auteur" className="min-w-[12rem] flex-1 rounded-md border border-slate-300 px-2 py-1 text-xs" />
+        <input value={note} onChange={(e) => setNote(e.target.value)} aria-label="Remarque pour l'auteur" placeholder="Remarque pour l'auteur" className="min-w-[12rem] flex-1 rounded-md border border-slate-300 px-2 py-1 text-xs" />
         <Button variant="secondary" className="!py-1 text-xs" onClick={() => run(() => sendBack(a, actor, note), `Renvoyée à ${a.authorName} avec votre remarque.`)}>Renvoyer</Button>
       </div>
     </li>
@@ -147,7 +150,7 @@ export default function AnnouncementsModule({ role, account }) {
       item = edit(current, content, actor);
       if (send) item = submit(item, actor);
     } else item = create('ANNONCE', content, actor, { send });
-    if (!saveAnnouncement(item)) { window.alert('Le navigateur manque de place : retirez une photo.'); return; }
+    if (!saveAnnouncement(item)) { tell('Le navigateur manque de place : retirez une photo.'); return; }
     refresh(item.status === 'PUBLIEE' ? 'Annonce publiée.' : item.status === 'EN_ATTENTE' ? 'Envoyée à la Direction : elle sera publiée après validation.' : 'Brouillon enregistré.');
     setD(empty()); setEditingId(null); setTried(false);
   };
@@ -217,8 +220,8 @@ export default function AnnouncementsModule({ role, account }) {
             </div>
             <div className="space-y-2">
               <p className="text-xs font-semibold text-slate-500">3. Le message</p>
-              <input value={d.title} onChange={(e) => setD({ ...d, title: e.target.value })} placeholder="Titre (ex. Sortie au port jeudi 22 octobre)" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-              <textarea rows={5} value={d.text} onChange={(e) => setD({ ...d, text: e.target.value })} placeholder="Votre message…" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+              <input value={d.title} onChange={(e) => setD({ ...d, title: e.target.value })} aria-label="Titre de l'annonce" placeholder="Titre (ex. Sortie au port jeudi 22 octobre)" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+              <textarea rows={5} value={d.text} onChange={(e) => setD({ ...d, text: e.target.value })} aria-label="Texte de l'annonce" placeholder="Votre message…" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
               <div className="flex flex-wrap items-center gap-2">
                 {d.photos.map((p, i) => (
                   <span key={i} className="relative">

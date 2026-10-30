@@ -22,6 +22,8 @@ import FollowUpsModule from './FollowUpsModule.jsx';
 import { takeIntent } from '../navIntent.js';
 import { FicheView, SignatureCompare, FICHE_YEAR } from './FicheSignaletique.jsx';
 import { ficheOf, saveFiche } from '../ficheStore.js';
+import { today } from '../clock.js';
+import { tell } from './Dialogs.jsx';
 
 // Inscriptions (Bureau et Direction) : pré-inscriptions, inscription ou réinscription avec
 // création de la fiche élève, puis création des comptes de l'ENT.
@@ -35,7 +37,7 @@ const TONE = { DEMANDE: 'slate', DOSSIER: 'navy', ENTRETIEN: 'violet', ACCEPTEE:
 const emptyGuardian = () => ({ name: '', relation: 'Mère', phone: '', email: '', whatsapp: true, payer: false });
 const emptyProfile = () => ({
   lastName: '', firstName: '', sex: 'F', birthDate: '', birthPlace: '', nationalities: ['MG'], cls: '6e', lv1: 'Anglais', lv2: 'Espagnol',
-  enteredOn: '2026-10-13', previousSchool: '', guardians: [{ ...emptyGuardian(), payer: true }], health: { allergies: '', emergency: '' },
+  enteredOn: today(), previousSchool: '', guardians: [{ ...emptyGuardian(), payer: true }], health: { allergies: '', emergency: '' },
   authorizations: { image: true, exit: 'Fin de journée uniquement' }, documents: [],
 });
 
@@ -98,7 +100,7 @@ function PreregTab({ items, setItems, onConvert, canEdit }) {
           <p className="mt-2 text-xs text-slate-500">Le reste (date de naissance, e-mail, pièces, santé…) se complète à l'inscription.</p>
           <div className="mt-3 flex gap-2">
             <Button disabled={!draft.child.trim() || !draft.contact.trim() || !draft.phone.trim()}
-              onClick={() => { setItems([{ ...draft, id: `p${Date.now()}`, receivedOn: '2026-10-13', status: 'DEMANDE' }, ...items]); setDraft(null); }}>Enregistrer</Button>
+              onClick={() => { setItems([{ ...draft, id: `p${Date.now()}`, receivedOn: today(), status: 'DEMANDE' }, ...items]); setDraft(null); }}>Enregistrer</Button>
             <Button variant="secondary" onClick={() => setDraft(null)}>Annuler</Button>
           </div>
         </Card>
@@ -425,7 +427,7 @@ export default function InscriptionsModule({ role }) {
     const id = p.id ?? `f${Date.now()}`;
     const next = p.id ? profiles.map((x) => (x.id === p.id ? p : x)) : [...profiles, { ...p, id }];
     setProfiles(next);
-    if (!saveProfiles(next)) window.alert('Le navigateur manque de place : la fiche est modifiée pour cette session seulement.');
+    if (!saveProfiles(next)) tell('Le navigateur manque de place : la fiche est modifiée pour cette session seulement.');
     if (form.preregId) setPrereg(prereg.map((x) => (x.id === form.preregId ? { ...x, status: 'INSCRITE' } : x)));
     setSelected(id); setCreated(id); setForm(null); setTab('list'); setDossierTab('fiche');
   };

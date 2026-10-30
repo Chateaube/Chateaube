@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Badge, Button } from './ui.jsx';
 import { TRACKS_2DE, PROVISIONAL, STEPS_2DE, STEPS_TLE, sheetKind, currentStep, stepErrors, ranksLabel } from '../rules/orientationSheet.js';
 import { printOnly } from '../print.js';
+import { today } from '../clock.js';
 
 // Fiche de dialogue d'orientation, en ligne (modèles de l'école) : 2de et Terminale (post-bac).
 // Les représentants légaux remplissent leurs parties depuis le portail, l'élève de Terminale ses
@@ -10,7 +11,7 @@ import { printOnly } from '../print.js';
 const KEY = 'ent-fiches-orientation-v1';
 export const loadSheets = () => { try { return JSON.parse(localStorage.getItem(KEY)) ?? {}; } catch { return {}; } };
 const saveSheets = (d) => { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch { /* stockage indisponible */ } };
-const TODAY = '2026-10-13';
+const TODAY = today();
 const dmy = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('/') : '');
 
 const toggle = (list = [], v) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);

@@ -7,6 +7,7 @@ import { POPULATION } from '../data/announcements.js';
 import { CHANGE_TYPES, changeErrors, changeNotice } from '../rules/timetableChanges.js';
 import { publishAnnouncement } from '../announcementsStore.js';
 import { formatDateFr } from '../rules/calendar.js';
+import { me } from '../identity.js';
 
 // Changements d'emploi du temps (Direction, secrétariat ; la CPE : annulation du jour seulement) :
 // chaque changement apparaît dans les agendas ; l'avis aux élèves et aux parents de la classe est publié
@@ -23,7 +24,7 @@ const TONE = { ANNULE: 'red', DEPLACE: 'amber', AJOUT: 'green', DEFINITIF: 'navy
 const DAYS = [[1, 'lundi'], [2, 'mardi'], [3, 'mercredi'], [4, 'jeudi'], [5, 'vendredi'], [6, 'samedi']];
 
 const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
-const ACTOR = { DIRECTION: { role: 'DIRECTION', name: 'Direction' }, BUREAU: { role: 'BUREAU', name: 'Mme Hanta' }, VIE_SCOLAIRE: { role: 'VIE_SCOLAIRE', name: 'M. Be' } };
+const ACTOR = { DIRECTION: { role: 'DIRECTION', name: 'Direction' }, BUREAU: { role: 'BUREAU', name: me('BUREAU') }, VIE_SCOLAIRE: { role: 'VIE_SCOLAIRE', name: me('VIE_SCOLAIRE') } };
 
 export default function TimetableChanges({ role, settings = DEFAULT_SETTINGS }) {
   const sameDayOnly = role === 'VIE_SCOLAIRE'; // la CPE annonce seulement l'annulation d'un cours du jour

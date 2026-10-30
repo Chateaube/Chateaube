@@ -11,13 +11,14 @@ import { MEASURES, objectOf } from '../rules/discipline.js';
 import { formatDateFr } from '../rules/calendar.js';
 import { findStudents } from '../rules/search.js';
 import { takeIntent } from '../navIntent.js';
+import { nowIso } from '../clock.js';
 
 // Fil de l'élève : une seule chronologie partagée par l'équipe (absences, retards, punitions et sanctions,
 // objets confisqués, colles, passages à l'infirmerie, actions notées dans le journal).
 // Chacun ne voit que ce que son rôle permet : les soins (santé) et le journal interne ne sont pas montrés
 // aux enseignants. Évite le « je ne savais pas » entre la vie scolaire, les professeurs et la Direction.
 
-const NOW = '2026-10-13T11:00';
+const NOW = nowIso('11:00');
 const MEASURE = Object.fromEntries(MEASURES.map((m) => [m.id, m]));
 const KIND = { ABSENCE: ['red', 'Absence'], RETARD: ['amber', 'Retard'], MESURE: ['violet', 'Punition / sanction'], OBJET: ['slate', 'Objet'], COLLE: ['amber', 'Colle'], SOIN: ['green', 'Soins'], JOURNAL: ['navy', 'Journal'] };
 const fmt = (at) => `${formatDateFr(at.slice(0, 10)).replace(/ \d{4}$/, '')}${at.length > 10 ? ` · ${at.slice(11, 16).replace(':', 'h')}` : ''}`;

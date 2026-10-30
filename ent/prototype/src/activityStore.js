@@ -1,9 +1,12 @@
 // Journal de l'école gardé dans le navigateur (démonstration ; avec le serveur, table activity_log).
 import { ATTENDANCE, MEASURES_LOG, PHONES } from './data/schoollife.js';
 import { demoOr } from './demoData.js';
+import { today } from './clock.js';
+import { me, meLabel } from './identity.js';
+import { realData } from './demoData.js';
 
 const KEY = 'ent-journal-v1';
-export const DEMO_TODAY = '2026-10-13';
+export const DEMO_TODAY = today(); // nom historique : le jour courant (démo : 13 octobre)
 
 // Lignes de démonstration tirées des données fictives de vie scolaire
 const DEMO = [
@@ -36,4 +39,10 @@ export function logActivity({ who, role, kind, text, student }) {
 }
 
 /** Personne connectée, par profil (démonstration). */
-export const ACTOR = { DIRECTION: 'Direction — Cheffe d\'établissement', BUREAU: 'Mme Hanta (secrétariat)', VIE_SCOLAIRE: 'M. Be (CPE)', ENSEIGNANT: 'Mme Ranaivo' };
+// qui agit, par profil : la personne de cet appareil (vraies données) ou les personnes fictives
+export const ACTOR = {
+  get DIRECTION() { return realData() ? me('DIRECTION') : 'Direction — Cheffe d\'établissement'; },
+  get BUREAU() { return meLabel('BUREAU'); },
+  get VIE_SCOLAIRE() { return meLabel('VIE_SCOLAIRE'); },
+  get ENSEIGNANT() { return me('ENSEIGNANT'); },
+};

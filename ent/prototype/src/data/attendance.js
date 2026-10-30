@@ -1,8 +1,9 @@
 // Appel : séances de la semaine de l'enseignante connectée (Mme Ranaivo, démonstration).
 // Maintenant (démonstration) : mardi 13 octobre 2026, 10 h 20.
 import { CLASSES } from './schoollife.js';
+import { today, nowTime } from '../clock.js';
 
-export const NOW = { date: '2026-10-13', time: '10:20' };
+export const NOW = { date: today(), time: nowTime() };
 
 export const ROSTERS = CLASSES; // classes de démonstration ou classes importées
 

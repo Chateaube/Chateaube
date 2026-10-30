@@ -12,6 +12,7 @@ import { bookToImport, withExtras, SHEET_NAMES } from '../rules/templateImport.j
 import { loadMockExams, saveMockExams } from '../mockExamStore.js';
 import { saveInventory } from '../careStore.js';
 import BackupCard from './BackupCard.jsx';
+import { askConfirm } from './Dialogs.jsx';
 
 // Onglets du modèle pris en compte dès maintenant ; les autres seront repris par la version serveur
 const fold = (t) => String(t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
@@ -93,7 +94,8 @@ export default function ImportModule({ role = 'DIRECTION' }) {
   const [studentsText, setStudentsText] = useState('');
   const [staffText, setStaffText] = useState('');
   const [filter, setFilter] = useState('issues');
-  const [done, setDone] = useState(null);
+  // message laissé avant le rechargement qui suit un import
+  const [done, setDone] = useState(() => { try { const f = JSON.parse(sessionStorage.getItem('ent-flash')); if (f?.screen === 'import') { sessionStorage.removeItem('ent-flash'); return f.text; } } catch { /* rien */ } return null; });
   const [renumber, setRenumber] = useState(true);
   const [extras, setExtras] = useState(null);
   const onBook = (res) => { setExtras(res); if (res.studentsTsv) setStudentsText(res.studentsTsv); if (res.staffTsv) setStaffText(res.staffTsv); setDone(null); };
@@ -109,11 +111,11 @@ export default function ImportModule({ role = 'DIRECTION' }) {
   const shown = analysis?.students.filter((s) => (filter === 'all' ? true : filter === 'errors' ? s.issues.some((i) => i.level === 'error')
     : s.issues.some((i) => !i.text.startsWith('Aucun responsable')))) ?? [];
 
-  const doImport = () => {
+  const doImport = async () => {
     // l'emploi du temps de l'année ne se remplace que par la Direction, et après confirmation
     let newTimetable = Boolean(extras?.timetable?.slots.length);
     if (newTimetable && role !== 'DIRECTION') newTimetable = false;
-    else if (newTimetable && current?.timetable?.length && !window.confirm(`Remplacer l'emploi du temps actuel (${current.timetable.length} cours) par celui du fichier (${extras.timetable.slots.length} cours) ?`)) newTimetable = false;
+    else if (newTimetable && current?.timetable?.length && !(await askConfirm(`Remplacer l'emploi du temps actuel (${current.timetable.length} cours) par celui du fichier (${extras.timetable.slots.length} cours) ?`))) newTimetable = false;
     const data = {
       // Réimport : fusion, jamais d'effacement — un élève déjà importé (même nom, même date de naissance) est
       // mis à jour, un nouveau est ajouté, ceux qui ne figurent pas dans ce fichier sont gardés.
@@ -150,6 +152,12 @@ export default function ImportModule({ role = 'DIRECTION' }) {
     if (newTimetable) more += ` Emploi du temps : ${extras.timetable.slots.length} cours.`;
     else if (extras?.timetable?.slots.length) more += role === 'DIRECTION' ? ' Emploi du temps gardé tel quel.' : ' Emploi du temps non remplacé : seule la Direction peut le faire.';
     setDone(`${data.students.length} élèves et ${data.assignments.length} professeurs importés.${more} Les données fictives ont disparu de tous les écrans : seuls vos élèves et vos professeurs apparaissent, et le reste (absences, punitions, caisse, annonces, tâches…) part de zéro.`);
+    // enregistré dans le navigateur : on recharge pour que tous les écrans (dates, listes) repartent des vraies données
+    if (where === 'LOCAL') {
+      try { sessionStorage.setItem('ent-flash', JSON.stringify({ screen: 'import', text: `${data.students.length} élèves et ${data.assignments.length} professeurs importés.${more} Les exemples fictifs ont disparu ; la date du jour est maintenant la vraie date.` })); } catch { /* indisponible */ }
+      window.location.reload();
+      return;
+    }
     setStorage(where);
   };
   const exportToComplete = () => {
@@ -173,7 +181,7 @@ export default function ImportModule({ role = 'DIRECTION' }) {
 
       {current && (
         <Card title="Données actuellement importées" subtitle={`Le ${new Date(current.importedAt).toLocaleString('fr-FR')}`}
-          action={<Button variant="secondary" className="!py-1 text-xs" onClick={() => { if (!window.confirm('Effacer les données importées et ce qui a été saisi depuis, puis revenir aux exemples fictifs ?')) return; clearImport(); resetDemoState(); setCurrent(null); setDone(null); }}>Effacer et revenir aux données fictives</Button>}>
+          action={<Button variant="secondary" className="!py-1 text-xs" onClick={async () => { if (!(await askConfirm('Effacer les données importées et ce qui a été saisi depuis, puis revenir aux exemples fictifs ?'))) return; clearImport(); resetDemoState(); window.location.reload(); }}>Effacer et revenir aux données fictives</Button>}>
           <p className="text-sm text-slate-700">{current.students.length} élèves · {current.assignments.length} professeurs</p>
         </Card>
       )}
@@ -186,7 +194,7 @@ export default function ImportModule({ role = 'DIRECTION' }) {
       {done && <p className="rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-800">{done}</p>}
       {storage === 'MEMORY' && (
         <p role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
-          <strong>Ce navigateur n'enregistre pas les données</strong> (aperçu intégré, navigation privée ou mémoire pleine) : l'essai fonctionne maintenant, mais tout disparaîtra si la page est rechargée. Pour garder les données (12 heures), ouvrez l'application installable dans une fenêtre normale de Chrome ou d'Edge.
+          <strong>Ce navigateur n'enregistre pas les données</strong> (aperçu intégré, navigation privée ou mémoire pleine) : l'essai fonctionne maintenant, mais tout disparaîtra si la page est rechargée. Pour garder les données, ouvrez l'application installable dans une fenêtre normale de Chrome ou d'Edge.
         </p>
       )}
       <TemplateZone onBook={onBook} extras={extras} />

@@ -1,3 +1,4 @@
+import Embedded from './Embedded.jsx';
 import React, { useState } from 'react';
 import { Avatar, Button, Card } from './ui.jsx';
 import { logActivity, ACTOR } from '../activityStore.js';
@@ -6,6 +7,7 @@ import HomeworkModule from './HomeworkModule.jsx';
 import { ASSIGNMENTS, teacherSummary } from '../data/staffAssignments.js';
 import { loadImport } from '../importStore.js';
 import { TEACHER } from '../data/people.js';
+import { askConfirm } from './Dialogs.jsx';
 
 // Direction et Bureau : consultation des notes, appréciations et du cahier de textes de chaque
 // enseignant.e. Lecture seule ; la Direction peut passer en modification (administratrice).
@@ -24,9 +26,9 @@ export default function TeacherOversight({ view = 'grades', role, ...props }) {
   const [edit, setEdit] = useState(false);
   const hasData = teacher === TEACHER.name;
   // modification : geste sensible, confirmé et noté dans le journal
-  const toggleEdit = () => {
+  const toggleEdit = async () => {
     if (edit) { setEdit(false); return; }
-    if (!window.confirm(`Modifier les notes ou le cahier de textes de ${teacher} ? La modification est enregistrée dans le journal de l'école.`)) return;
+    if (!(await askConfirm(`Modifier les notes ou le cahier de textes de ${teacher} ? La modification est enregistrée dans le journal de l'école.`))) return;
     logActivity({ who: ACTOR.DIRECTION, role: 'DIRECTION', kind: 'PROF', text: `Modification autorisée : ${tab === 'homework' ? 'cahier de textes' : 'notes et appréciations'} de ${teacher}` });
     setEdit(true);
   };
@@ -52,7 +54,7 @@ export default function TeacherOversight({ view = 'grades', role, ...props }) {
         <button key={k} type="button" aria-pressed={tab === k} onClick={() => setTab(k)} className={`nav-control rounded-md px-3 py-1 text-sm font-medium ${tab === k ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>{l}</button>
       ))}</div>
       {hasData ? (
-        <div className={edit ? '' : 'consultation'}><Screen key={`${teacher}-${tab}`} {...props} role={role} /></div>
+        <Embedded className={edit ? '' : 'consultation'}><Screen key={`${teacher}-${tab}`} {...props} role={role} /></Embedded>
       ) : (
         <Card title={`${teacher} — ${tab === 'homework' ? 'cahier de textes' : 'notes et appréciations'}`}>
           <p className="text-sm text-slate-600">Le prototype ne contient des notes que pour {TEACHER.name}. Dans l'ENT, les classes, devoirs, notes, appréciations

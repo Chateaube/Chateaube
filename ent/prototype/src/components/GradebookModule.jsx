@@ -11,13 +11,15 @@ import {
 } from '../data/grades.js';
 import { studentAverage, notesCount, termValidation, classStats, generalAverage, fmtAvg, parentPublishOn, competencyProposals, adjustedAverage, adjustmentErrors } from '../rules/grading.js';
 import { checkAppreciation, autoFix, rephrase } from '../rules/appreciation.js';
+import { today } from '../clock.js';
+import { askConfirm } from './Dialogs.jsx';
 
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
 const fmtDate = (iso) => iso.split('-').reverse().slice(0, 2).join('/');
 const firstName = (full) => full.split(' ').slice(1).join(' ');
 
 /* ---------------- Création d'un devoir ---------------- */
-const TODAY = '2026-10-13';
+const TODAY = today();
 const ddmm = (iso) => iso.split('-').reverse().slice(0, 2).join('/');
 
 function DateField({ label, value, onChange }) {
@@ -160,9 +162,9 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
                       {!validated && !ev.fromMockExam && (
                         <span className="mt-0.5 flex gap-2 text-[11px] font-normal">
                           <button type="button" className="text-navy-600 underline" onClick={() => setDraft({ ...blank, ...ev, comment: ev.comment ?? '', themesText: (ev.themes ?? []).join(', '), competencies: ev.competencies ?? [] })}>Modifier</button>
-                          <button type="button" className="text-red-700 underline" onClick={() => {
+                          <button type="button" className="text-red-700 underline" onClick={async () => {
                             const filled = service.students.filter((s) => grades[s]?.[ev.id]).length;
-                            if (!window.confirm(`Supprimer « ${ev.title} »${filled ? ` et ses ${filled} note${filled > 1 ? 's' : ''}` : ''} ?`)) return;
+                            if (!(await askConfirm(`Supprimer « ${ev.title} »${filled ? ` et ses ${filled} note${filled > 1 ? 's' : ''}` : ''} ?`))) return;
                             setEvaluations(evaluations.filter((x) => x.id !== ev.id));
                             setGrades(Object.fromEntries(Object.entries(grades).map(([s, g]) => { const { [ev.id]: _, ...rest } = g ?? {}; return [s, rest]; })));
                             setValidated(false);
@@ -458,7 +460,7 @@ function AppreciationsStep({ service, evaluations, grades, validated, settings, 
               const on = myFlags.ids.includes(f.id);
               return (
                 <button key={f.id} type="button" aria-pressed={on} onClick={() => toggleFlag(f.id)}
-                  className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${on ? { green: 'bg-emerald-600 text-white ring-emerald-600', amber: 'bg-amber-500 text-white ring-amber-500', red: 'bg-red-600 text-white ring-red-600' }[f.tone] : 'text-slate-600 ring-slate-300 hover:bg-slate-50'}`}>
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${on ? { green: 'bg-emerald-600 text-white ring-emerald-600', amber: 'bg-amber-400 text-slate-900 ring-amber-500', red: 'bg-red-600 text-white ring-red-600' }[f.tone] : 'text-slate-600 ring-slate-300 hover:bg-slate-50'}`}>
                   {f.label}
                 </button>
               );

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { hasRealData, purgeExpired, wipeLocalData, REAL_DATA_TTL_HOURS } from './privacy.js';
+import { hasRealData, purgeExpired, wipeLocalData, REAL_DATA_IDLE_DAYS } from './privacy.js';
 import { Icon, Avatar } from './components/ui.jsx';
 import DirectionDashboard from './components/DirectionDashboard.jsx';
 import BookingModule from './components/BookingModule.jsx';
@@ -62,6 +62,9 @@ import { DEFAULT_SETTINGS } from './data/settings.js';
 import { setSaturdayColles } from './rules/discipline.js';
 import { DIRECTION_ACCOUNTS } from './data/demo.js';
 import TimetableHub from './components/TimetableHub.jsx';
+import { me, loadMe, forgetMe, ROLES } from './identity.js';
+import WhoAmI from './components/WhoAmI.jsx';
+import { askConfirm } from './components/Dialogs.jsx';
 
 // Un portail par profil (cf. docs/02-architecture-ux.md, matrice des droits).
 // Direction = administrateur (accès à tout). Bureau = administration / économat,
@@ -88,7 +91,7 @@ const FEEDBACK = { id: 'feedback', label: 'Avis et idées', icon: 'bell', screen
 const LIBRARY = { id: 'library', label: 'Bibliothèque', icon: 'pen', screen: LibraryModule, feature: 'bibliotheque' };
 const IMPORT = { id: 'import', label: 'Importer et sauvegarder', icon: 'swap', screen: ImportModule };
 const GRADE_SHEETS = { id: 'grade-sheets', label: 'Grilles de notes', icon: 'pen', screen: GradeSheets };
-const BOOKS_FOR_TEACHER = { id: 'books', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who="Mme Ranaivo" kind="PROF" /> };
+const BOOKS_FOR_TEACHER = { id: 'books', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who={me('ENSEIGNANT')} kind="PROF" /> };
 const TT_CHANGES = { id: 'tt-changes', label: 'Changements d\'emploi du temps', icon: 'clock', screen: TimetableChanges };
 const HOURS = { id: 'hours', label: 'Heures et absences des profs', icon: 'clock', screen: TeachingHours };
 const RESOURCES = { id: 'resources', label: 'Ressources et idées', icon: 'pen', screen: InternalResources };
@@ -152,7 +155,7 @@ const PROFILES = {
       { group: 'Aujourd\'hui', items: [{ id: 'cpe-home', label: 'Ma journée', icon: 'home', screen: CpeHome }, VIE_SCOLAIRE, vsTab('cpe-colles', 'Colles', 'passport'), vsTab('cpe-objets', 'Objets en garde', 'phones'), CARE, HOURS, TIMETABLE_RO, { ...TT_CHANGES, label: 'Annuler un cours aujourd\'hui' }] }, // CPE : annulation du jour seulement
       { group: 'Élèves', items: [ELEVES] },
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, ro(AGENDA)] },
-      { group: 'Ressources', items: [RESOURCES, ro(BOOKING), ro({ id: 'books-cpe', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who="M. Be" kind="CPE" /> }), ro(OVERSIGHT_HOMEWORK)] },
+      { group: 'Ressources', items: [RESOURCES, ro(BOOKING), ro({ id: 'books-cpe', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who={me('VIE_SCOLAIRE')} kind="CPE" /> }), ro(OVERSIGHT_HOMEWORK)] },
     ],
   },
   ENSEIGNANT: {
@@ -220,6 +223,7 @@ function loadSettings() {
 }
 
 export default function App() {
+  const realData0 = hasRealData();
   const [settings, setSettingsState] = useState(loadSettings);
   setSaturdayColles(Boolean(settings.discipline?.saturdayColles)); // colles du samedi : réglage de la Direction
   const setSettings = (next) => {
@@ -227,8 +231,10 @@ export default function App() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* navigation privée */ }
   };
 
-  const [profile, setProfile] = useState('DIRECTION');
-  const [screen, setScreen] = useState('dashboard');
+  // vraies données : le profil est celui de la personne de cet appareil
+  const [profile, setProfile] = useState(() => (hasRealData() && loadMe()?.role) || 'DIRECTION');
+  // après un import, l'application rouvre l'écran d'import (message laissé avant le rechargement)
+  const [screen, setScreen] = useState(() => { try { return JSON.parse(sessionStorage.getItem('ent-flash'))?.screen ?? 'dashboard'; } catch { return 'dashboard'; } });
   const [accountId, setAccountId] = useState('u1');
   const account = DIRECTION_ACCOUNTS.find((a) => a.id === accountId);
   // rubriques masquées par la Direction (Droits d'accès → Rubriques de l'école) : retirées du menu
@@ -236,7 +242,9 @@ export default function App() {
   const Current = (NAV.flatMap((g) => g.items).find((i) => i.id === screen) ?? NAV[0].items[0]).screen;
   const switchProfile = (p) => { setProfile(p); setScreen(PROFILES[p].home); };
 
-  const persona = profile === 'DIRECTION' ? { name: account.name, detail: account.email } : PERSONAS[profile];
+  const myself = realData0 ? loadMe() : null;
+  const persona = myself ? { name: myself.name, short: myself.name, detail: ROLES.find(([k]) => k === myself.role)?.[1] ?? '' }
+    : profile === 'DIRECTION' ? { name: account.name, detail: account.email } : PERSONAS[profile];
 
   // Ambiance retenue par l'établissement : Océan (dégradé bleu)
   const theme = 'ocean';
@@ -290,8 +298,8 @@ export default function App() {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [quickOpen, bellOpen, accountOpen]);
-  const wipe = () => {
-    if (!window.confirm('Effacer de cet ordinateur toutes les données de l\'ENT (import, fiches, saisies) ? Les réglages sont gardés.')) return;
+  const wipe = async () => {
+    if (!(await askConfirm('Effacer de cet ordinateur toutes les données de l\'ENT (import, fiches, saisies) ? Les réglages sont gardés.'))) return;
     wipeLocalData(); window.location.reload();
   };
 
@@ -309,7 +317,7 @@ export default function App() {
           <Icon name={item.icon} className={`h-4 w-4 shrink-0 ${active ? 'text-navy-500' : 'text-slate-400'}`} />
           <span className="min-w-0 flex-1 leading-tight">{item.label}</span>
           {item.readOnly && <span className="rounded bg-slate-100 px-1 text-[10px] font-normal text-slate-600">consultation</span>}
-          {n > 0 && <span className="rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white">{n}</span>}
+          {n > 0 && <span className="rounded-full bg-amber-400 px-1.5 text-[10px] font-semibold text-slate-900">{n}</span>}
           {!enabled && <span className="text-[10px] font-normal">bientôt</span>}
         </button>
         {enabled && (
@@ -336,7 +344,7 @@ export default function App() {
           <div key={g.group}>
             <button type="button" onClick={() => setCollapsed({ ...collapsed, [g.group]: isOpen })} aria-expanded={isOpen}
               className="flex min-h-6 w-full items-center justify-between px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600 hover:text-navy-900">
-              <span>{g.group}{!isOpen && n > 0 && <span className="ml-1.5 rounded-full bg-amber-500 px-1.5 text-[10px] text-white">{n}</span>}</span>
+              <span>{g.group}{!isOpen && n > 0 && <span className="ml-1.5 rounded-full bg-amber-400 px-1.5 text-[10px] text-slate-900">{n}</span>}</span>
               <span className={`transition ${isOpen ? '' : '-rotate-90'}`}>▾</span>
             </button>
             {isOpen && <div className="space-y-0.5">{g.items.map((it) => navItem(it))}</div>}
@@ -345,6 +353,7 @@ export default function App() {
       })}
     </div>
   );
+  if (realData && !loadMe()) return <WhoAmI />;
   const QUICK = profile === 'BUREAU' ? [['accounting', 'Encaisser'], ['vs', 'Noter une absence'], ['care', 'Enregistrer un passage (soins)'], ['enrol', 'Imprimer un certificat']] : [];
 
   return (
@@ -363,9 +372,9 @@ export default function App() {
             </span>
           </span>
           <label className="flex items-center gap-1.5"><input type="checkbox" checked={protection} onChange={(e) => setProtection(e.target.checked)} />Protection d'écran (sauf Direction et Secrétariat)</label>
-          {realData && <span className="flex items-center gap-2 text-amber-200">Données réelles sur cet ordinateur : changement de profil bloqué, effacement automatique après {REAL_DATA_TTL_HOURS} h.
+          {realData && <span className="flex items-center gap-2 text-amber-200">Données réelles sur cet ordinateur : changement de profil bloqué, effacement automatique après {REAL_DATA_IDLE_DAYS} jours sans utilisation.
             <button type="button" onClick={wipe} className="rounded-full bg-amber-400 px-2.5 py-0.5 font-semibold text-slate-900">Effacer maintenant</button></span>}
-          {purged && <span role="status" className="text-emerald-300">Données importées de plus de {REAL_DATA_TTL_HOURS} h effacées de cet ordinateur.</span>}
+          {purged && <span role="status" className="text-emerald-300">Données inutilisées depuis plus de {REAL_DATA_IDLE_DAYS} jours effacées de cet ordinateur.</span>}
         </div>
       </div>
 
@@ -411,7 +420,7 @@ export default function App() {
                 <button ref={bellRef} onClick={() => { setBellOpen(!bellOpen); setQuickOpen(false); }} aria-expanded={bellOpen} aria-label={`Notifications : ${notes.urgent.length} urgentes, ${notes.todo.length} à faire`}
                   className="relative flex h-9 w-9 items-center justify-center rounded-full bg-white/15 hover:bg-white/25">
                   <Icon name="bell" className="h-[18px] w-[18px]" />
-                  {bellCount > 0 && <span className={`absolute -right-1 -top-1 rounded-full px-1.5 text-[10px] font-bold text-white ${notes.urgent.length ? 'bg-red-600' : 'bg-amber-500'}`}>{bellCount}</span>}
+                  {bellCount > 0 && <span className={`absolute -right-1 -top-1 rounded-full px-1.5 text-[10px] font-bold ${notes.urgent.length ? 'bg-red-600 text-white' : 'bg-amber-400 text-slate-900'}`}>{bellCount}</span>}
                 </button>
                 {bellOpen && (
                   <div className="absolute right-0 top-full z-40 mt-2 w-[22rem] rounded-2xl bg-white p-3 text-sm text-slate-800 shadow-2xl ring-1 ring-slate-200">
@@ -443,6 +452,7 @@ export default function App() {
                     </label>
                   )}
                   <label className="mt-3 flex items-center gap-2 text-sm text-slate-800"><input type="checkbox" checked={largeText} onChange={(e) => setLargeText(e.target.checked)} className="h-5 w-5" />Texte agrandi (sur cet appareil)</label>
+                  {realData && <button type="button" onClick={async () => { if ((await askConfirm('Changer la personne qui utilise cet appareil ? Les saisies déjà faites restent signées de leur auteur.'))) { forgetMe(); window.location.reload(); } }} className="mt-3 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-left text-sm text-slate-800 hover:bg-slate-50">Changer d'utilisateur de cet appareil</button>}
                   <button type="button" onClick={wipe} className="mt-3 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-left text-sm text-red-700 hover:bg-red-50">Effacer les données de cet ordinateur</button>
                   {profile !== 'VISITEUR' && <div className="mt-3 border-t border-slate-100 pt-2"><FeedbackButton variant="menu" profile={profile} who={persona.detail ?? persona.name} screen={screenLabel} /></div>}
                   <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-600"><span className="flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-navy-900 ring-1 ring-slate-200">G</span>Connexion Google · même compte sur ordinateur et téléphone</p>

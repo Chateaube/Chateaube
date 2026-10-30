@@ -6,6 +6,8 @@ import {
 } from '../rules/booking.js';
 import { usePersistent } from '../persist.js';
 import { demoOr } from '../demoData.js';
+import { today, weekStart, addDays } from '../clock.js';
+import { askConfirm } from './Dialogs.jsx';
 
 const DAY_START = toMin('07:00');
 const DAY_END = toMin('17:00');
@@ -13,11 +15,9 @@ const SPAN = DAY_END - DAY_START;
 const HOURS = Array.from({ length: 11 }, (_, i) => 7 + i);
 const pos = (hhmm) => ((toMin(hhmm) - DAY_START) / SPAN) * 100;
 
-const DAYS = [
-  { date: '2026-10-12', label: 'Lun. 12' }, { date: '2026-10-13', label: 'Mar. 13' },
-  { date: '2026-10-14', label: 'Mer. 14' }, { date: '2026-10-15', label: 'Jeu. 15' },
-  { date: '2026-10-16', label: 'Ven. 16' },
-];
+// semaine en cours, du lundi au vendredi
+const DAY_LABEL = ['Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.'];
+const DAYS = DAY_LABEL.map((l, i) => { const date = addDays(weekStart(today()), i); return { date, label: `${l} ${Number(date.slice(8))}` }; });
 const TYPE_LABEL = Object.fromEntries(RESOURCE_TYPES.map((t) => [t.id, t.label]));
 const h = (hhmm) => hhmm.replace(':', 'h');
 
@@ -89,7 +89,7 @@ export default function BookingModule({ role }) {
   const readOnly = role === 'VIE_SCOLAIRE'; // la CPE consulte le planning
   const [siteId, setSiteId] = useState('TMV');
   const [type, setType] = useState('ALL');
-  const [date, setDate] = useState('2026-10-15');
+  const [date, setDate] = useState(today);
   const [bookings, setBookings] = usePersistent('ent-s-reservations', () => demoOr(INITIAL_BOOKINGS, []));
   const [form, setForm] = useState({ resourceId: 'tmv-vp1', start: '10:30', end: '11:30', cls: '1re STMG', purpose: 'Management — présentation orale' });
   const [confirmation, setConfirmation] = useState(null);
@@ -171,7 +171,7 @@ export default function BookingModule({ role }) {
                 {bookings.filter((b) => b.mine).sort((x, y) => `${x.date}${x.start}`.localeCompare(`${y.date}${y.start}`)).map((b) => (
                   <li key={b.id} className="flex items-center justify-between gap-2 py-1.5">
                     <span>{RESOURCES.find((r) => r.id === b.resourceId)?.label ?? b.resourceId} · {b.date.split('-').reverse().join('/')} · {h(b.start)}–{h(b.end)}</span>
-                    <button type="button" className="text-xs text-red-700 underline" onClick={() => window.confirm('Annuler cette réservation ?') && setBookings((bs) => bs.filter((x) => x.id !== b.id))}>Annuler</button>
+                    <button type="button" className="text-xs text-red-700 underline" onClick={async () => (await askConfirm('Annuler cette réservation ?')) && setBookings((bs) => bs.filter((x) => x.id !== b.id))}>Annuler</button>
                   </li>
                 ))}
               </ul>

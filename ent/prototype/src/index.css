@@ -219,3 +219,12 @@ main label { min-width: 0; max-width: 100%; }
 [aria-label="Contenu du portail"] button:not([role="radio"]):not([role="tab"]),
 [aria-label="Navigation du portail"] button { min-height: 44px; }
 [aria-label="Contenu du portail"] summary { min-height: 40px; display: flex; align-items: center; }
+
+/* Téléphone et tablette : boutons et onglets d'au moins 40 px de haut, partout (pouce). Les petits liens
+   « Modifier / Supprimer » des tableaux restent compacts à l'œil mais la zone de clic grandit. */
+@media (max-width: 1023px), (pointer: coarse) {
+  main button:not(.compact-tap), main [role="tab"], main summary, main select, main input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) { min-height: 40px; }
+  main input[type="checkbox"], main input[type="radio"] { width: 1.25rem; height: 1.25rem; }
+}
+/* Petites mentions à l'écran : jamais sous 12 px (l'impression garde ses tailles) */
+@media screen { main .text-\[10px\], main .text-\[11px\] { font-size: 12px; } }

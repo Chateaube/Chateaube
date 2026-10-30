@@ -83,7 +83,7 @@ function Roll({ session, record, classes, online, onSave, onBack }) {
                   Retard de
                   {LATE.map((mn) => (
                     <button key={mn} type="button" onClick={() => set(n, { status: 'R', minutes: mn })}
-                      className={`rounded-full px-2.5 py-1 font-medium ${m.minutes === mn ? 'bg-amber-500 text-white' : 'bg-amber-50 text-amber-800'}`}>{mn === 30 ? '30 min et +' : `${mn} min`}</button>
+                      className={`rounded-full px-2.5 py-1 font-medium ${m.minutes === mn ? 'bg-amber-400 text-slate-900' : 'bg-amber-50 text-amber-800'}`}>{mn === 30 ? '30 min et +' : `${mn} min`}</button>
                   ))}
                   {(() => {
                     const o = lateOutcome(session, m.minutes);

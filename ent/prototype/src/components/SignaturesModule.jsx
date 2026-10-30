@@ -127,7 +127,7 @@ function Verify({ data }) {
   const found = c.length >= 9 ? data.requests.find((r) => r.code === c) : null;
   return (
     <Card title="Vérifier un document" subtitle="Une administration ou une ambassade demande si un certificat est authentique">
-      <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Code imprimé, ex. ABCD-2345" className={`w-full font-mono uppercase sm:w-64 ${inputCls}`} />
+      <input value={code} onChange={(e) => setCode(e.target.value)} aria-label="Code de vérification imprimé" placeholder="Code imprimé, ex. ABCD-2345" className={`w-full font-mono uppercase sm:w-64 ${inputCls}`} />
       {c.length >= 9 && (found
         ? <p className="mt-2 text-sm text-emerald-800">Authentique : {DOCUMENT_KINDS[found.kind]} de {profileKey(found.profile)} ({found.profile.cls}), signé le {fmt(found.signedAt)} par {signatoryOf(found.signatory).title.replace(',', '')}.</p>
         : <p className="mt-2 text-sm text-red-700">Aucun document signé avec ce code.</p>)}

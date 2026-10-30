@@ -57,7 +57,7 @@ export default function StudentList({ role, onOpen, embedded = false, rowAction 
           <select value={cls} onChange={(e) => setCls(e.target.value)} className={inputCls} aria-label="Classe">
             <option value="">Toutes les classes</option>{classes.map((c) => <option key={c}>{c}</option>)}
           </select>
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nom, prénom ou n°…" className={`min-w-[200px] flex-1 ${inputCls}`} />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Rechercher un élève" placeholder="Nom, prénom ou n°…" className={`min-w-[200px] flex-1 ${inputCls}`} />
         </div>
         {!readOnly && (
           <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-slate-600">

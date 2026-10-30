@@ -6,13 +6,15 @@ import { loadProfiles } from '../profilesStore.js';
 import { MAX_PHOTOS, postErrors, newPost, moderate, visiblePosts, withoutImageRights } from '../rules/schoolLife.js';
 import { STATUS as PSTATUS, canPublish, signature, trail } from '../rules/publication.js';
 import { formatDateFr } from '../rules/calendar.js';
+import { today } from '../clock.js';
+import { me } from '../identity.js';
 
 // Vie de l'école : photos des actions de l'école (Octobre rose, sorties, fêtes…), visibles par tous.
 // Seule la Direction publie ; secrétariat, CPE, professeurs et élèves proposent, la Direction valide après
 // avoir vérifié le droit à l'image, ou renvoie avec une remarque. Liens Facebook et Instagram.
 
 const inputCls = 'w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm';
-const TODAY = '2026-10-13';
+const TODAY = today();
 const STATUS = PSTATUS;
 
 export function SocialLinks({ social, compact = false }) {
@@ -57,8 +59,8 @@ function Proposer({ role, author, cls, onSubmit, parents }) {
   return (
     <Card title={publishes ? 'Publier des photos' : 'Proposer mes photos'} subtitle={publishes ? 'Publiées tout de suite pour toute l\'école' : 'Elles paraîtront après validation par la Direction'}>
       <div className="space-y-2 text-sm">
-        <input value={d.title} onChange={(e) => setD({ ...d, title: e.target.value })} placeholder="Titre (ex. Octobre rose — la 2de en rose)" className={inputCls} />
-        <textarea value={d.text} onChange={(e) => setD({ ...d, text: e.target.value })} rows={2} placeholder="Quelques mots (facultatif)" className={inputCls} />
+        <input value={d.title} onChange={(e) => setD({ ...d, title: e.target.value })} aria-label="Titre de la publication" placeholder="Titre (ex. Octobre rose — la 2de en rose)" className={inputCls} />
+        <textarea value={d.text} onChange={(e) => setD({ ...d, text: e.target.value })} rows={2} aria-label="Texte de la publication (facultatif)" placeholder="Quelques mots (facultatif)" className={inputCls} />
         {parents.length > 0 && (
           <select value={d.parent} onChange={(e) => setD({ ...d, parent: e.target.value })} aria-label="Ajouter à un album" className={inputCls}>
             <option value="">Nouvel album</option>{parents.map((p) => <option key={p.id} value={p.id}>Ajouter à « {p.title} »</option>)}
@@ -80,7 +82,7 @@ function Proposer({ role, author, cls, onSubmit, parents }) {
 const REACTIONS = [['❤️', 'J\'aime'], ['👏', 'Bravo'], ['😂', 'Drôle'], ['😮', 'Waouh'], ['🎉', 'Félicitations']];
 
 export default function SchoolLifeModule({ role = 'DIRECTION', settings, compact = false, author: authorProp, cls }) {
-  const author = authorProp ?? { DIRECTION: 'Direction', BUREAU: 'Secrétariat', VIE_SCOLAIRE: 'CPE', ENSEIGNANT: 'Mme Ranaivo' }[role] ?? 'Aina (1re STMG)';
+  const author = authorProp ?? { DIRECTION: 'Direction', BUREAU: 'Secrétariat', VIE_SCOLAIRE: 'CPE', ENSEIGNANT: me('ENSEIGNANT') }[role] ?? 'Aina (1re STMG)';
   const [posts, setPosts] = useState(loadPosts);
   const [open, setOpen] = useState(null);
   const [decide, setDecide] = useState({}); // id → { checked, reason, err }
@@ -124,7 +126,7 @@ export default function SchoolLifeModule({ role = 'DIRECTION', settings, compact
                       <Photos photos={p.photos} onOpen={setOpen} />
                       {missing.length > 0 && <p className="mt-2 text-xs text-amber-900">Sans autorisation de droit à l'image en {p.cls} : {missing.join(', ')}.</p>}
                       <label className="mt-2 flex items-start gap-2 text-xs text-slate-700"><input type="checkbox" className="mt-0.5" checked={!!d.checked} onChange={(e) => setDecide({ ...decide, [p.id]: { ...d, checked: e.target.checked, err: '' } })} />Les élèves reconnaissables ont l'autorisation de droit à l'image</label>
-                      <input value={d.reason ?? ''} onChange={(e) => setDecide({ ...decide, [p.id]: { ...d, reason: e.target.value, err: '' } })} placeholder="Remarque si vous renvoyez (visible par l'auteur)" className={`mt-2 ${inputCls}`} />
+                      <input value={d.reason ?? ''} onChange={(e) => setDecide({ ...decide, [p.id]: { ...d, reason: e.target.value, err: '' } })} aria-label="Remarque si vous renvoyez" placeholder="Remarque si vous renvoyez (visible par l'auteur)" className={`mt-2 ${inputCls}`} />
                       {d.err && <p className="mt-1 text-xs text-red-700">{d.err}</p>}
                       <div className="mt-2 flex gap-2"><Button className="!py-1 text-xs" onClick={() => act(p, true)}>Publier</Button><Button variant="secondary" className="!py-1 text-xs" onClick={() => act(p, false)}>Renvoyer</Button></div>
                     </li>

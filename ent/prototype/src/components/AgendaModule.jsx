@@ -13,6 +13,8 @@ import { applyChanges } from '../rules/timetableChanges.js';
 import { loadChanges } from './TimetableChanges.jsx';
 import { loadEventProposals, saveEventProposal } from '../studentInitiativesStore.js';
 import { approve, sendBack, trail, forward, cpeSendBack } from '../rules/publication.js';
+import { today, weekStart, addDays } from '../clock.js';
+import { me } from '../identity.js';
 
 // Événements proposés par le BDE : ils n'entrent au calendrier de l'école qu'une fois publiés par la Direction.
 const publishedProposals = () => loadEventProposals().filter((e) => e.status === 'PUBLIEE').map((e) => ({ id: e.id, agenda: 'ECOLE', date: e.date, start: e.start, end: e.end, title: `${e.title} (BDE)`, place: e.place, classes: [] }));
@@ -23,7 +25,7 @@ function ProposalReview({ onChange, role }) {
   const [notes, setNotes] = useState({});
   const [err, setErr] = useState('');
   if (!list.length) return null;
-  const actor = { role: cpe ? 'VIE_SCOLAIRE' : 'DIRECTION', name: cpe ? 'M. Be' : 'Direction', at: new Date().toISOString().slice(0, 16) };
+  const actor = { role: cpe ? 'VIE_SCOLAIRE' : 'DIRECTION', name: cpe ? me('VIE_SCOLAIRE') : me('DIRECTION'), at: new Date().toISOString().slice(0, 16) };
   const run = (e, fn) => { try { saveEventProposal(fn(e)); setList(list.filter((x) => x.id !== e.id)); onChange(); } catch (x) { setErr(x.message); } };
   return (
     <Card title={cpe ? 'Événements proposés par le BDE — à relire' : 'Événements proposés par le BDE — à valider'}>
@@ -49,7 +51,7 @@ function ProposalReview({ onChange, role }) {
 // ajouter dans Google Agenda ou Apple Agenda (.ics ; avec le serveur, lien d'abonnement).
 
 const CLASSES = ['5e', '4e', '3e', '2de', '1re STMG', '1re Générale', 'Terminale STMG', 'Terminale Générale'];
-const START = '2026-10-12';
+const START = weekStart(today()); // lundi de la semaine en cours
 const FAMILY_LABEL = { EXAMENS: 'Examens', ECOLE: 'École' };
 const WINDOW_DAYS = 21; // trois semaines affichées, puis « Voir la suite »
 const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
@@ -104,7 +106,7 @@ function DayAgenda({ visible, shown, setShown, available, today }) {
   );
 }
 
-export default function AgendaModule({ role, cls: fixedCls, settings, compact = false, today = '2026-10-13' }) {
+export default function AgendaModule({ role, cls: fixedCls, settings, compact = false, today: day = today() }) {
   const staff = ['DIRECTION', 'BUREAU', 'VIE_SCOLAIRE', 'ENSEIGNANT'].includes(role);
   const canAdd = ['DIRECTION', 'BUREAU'].includes(role); // la CPE consulte
   const [cls, setCls] = useState(fixedCls ?? '');
@@ -116,7 +118,7 @@ export default function AgendaModule({ role, cls: fixedCls, settings, compact = 
   const events = [...own, ...publishedProposals().filter((p) => !own.some((e) => e.id === p.id))];
   const [draft, setDraft] = useState(null);
   // cours des prochaines semaines, d'après l'emploi du temps (jours de classe), puis les changements
-  const courses = useMemo(() => plannedSessions(role === 'ENSEIGNANT' ? loadTimetable().filter((x) => x.teacherId === 'p1') : loadTimetable(), '2026-10-12', '2026-11-06', settings ?? DEFAULT_SETTINGS)
+  const courses = useMemo(() => plannedSessions(role === 'ENSEIGNANT' ? loadTimetable().filter((x) => x.teacherId === 'p1') : loadTimetable(), START, addDays(START, 25), settings ?? DEFAULT_SETTINGS)
     .map((x) => ({ id: `${x.slotId}-${x.date}`, date: x.date, start: x.start, end: x.end, cls: x.cls, subject: x.subject, room: '' })), [role, settings]);
   const closures = useMemo(() => closuresAsEvents((settings ?? DEFAULT_SETTINGS).calendar), [settings]);
   // l'enseignant ne voit que les devoirs de ses classes
@@ -128,13 +130,13 @@ export default function AgendaModule({ role, cls: fixedCls, settings, compact = 
   const summary = !compact && !cls && role !== 'ENSEIGNANT' ? overview(all) : null;
   const visible = summary ? summary.items : all;
   const [weeks, setWeeks] = useState(1);
-  const until = (() => { const d = new Date(`${today}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + WINDOW_DAYS * weeks); return d.toISOString().slice(0, 10); })();
+  const until = (() => { const d = new Date(`${day}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + WINDOW_DAYS * weeks); return d.toISOString().slice(0, 10); })();
   const allDays = [...new Set(visible.map((i) => i.date))].sort();
   const days = allDays.filter((d) => d <= until);
   const exportIcs = (agenda) => saveFile(`agenda-${agenda.toLowerCase()}${cls ? `-${cls.replace(/\s+/g, '-')}` : ''}.ics`,
     toIcs(items.filter((i) => i.agenda === agenda), `Chateaubriand — ${AGENDAS[agenda].label}${cls ? ` — ${cls}` : ''}`));
 
-  if (compact) return <DayAgenda visible={visible} shown={shown} setShown={setShown} available={available} today={today} />;
+  if (compact) return <DayAgenda visible={visible} shown={shown} setShown={setShown} available={available} today={day} />;
   return (
     <div className="space-y-5">
       <div>

@@ -12,6 +12,8 @@ import { pickupStatus, pickupUntil, PICKUP_LABEL } from '../rules/bulletinPickup
 import { publishAnnouncement } from '../announcementsStore.js';
 import { loadProfiles, profileKey } from '../profilesStore.js';
 import { STUDENT_PROFILES } from '../data/enrollment.js';
+import { today } from '../clock.js';
+import { meLabel } from '../identity.js';
 
 /** Responsables connus de l'élève (fiche) : on les choisit au lieu de taper le nom. */
 const guardiansOf = (s) => ([...loadProfiles(), ...STUDENT_PROFILES].find((p) => profileKey(p) === s)?.guardians ?? []);
@@ -29,7 +31,7 @@ const fr = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
 // Un bulletin n'est pas remis tant que des frais échus restent impayés ou qu'un manuel est dû ;
 // seule la Direction peut lever le blocage, avec un motif.
 
-const TODAY = '2026-10-13';
+const TODAY = today();
 const KEY = 'ent-remise-v1';
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) ?? {}; } catch { return {}; } };
@@ -57,7 +59,7 @@ export default function BulletinHandover({ cls, students, settings, role, term }
   const manualsData = useMemo(loadManuals, []);
   const [form, setForm] = useState({});
   const isDirection = role === 'DIRECTION';
-  const actor = isDirection ? 'Mme Sheena Lo (Direction)' : 'Mme Hanta (secrétariat)';
+  const actor = meLabel(isDirection ? 'DIRECTION' : 'BUREAU');
   const key = (s) => `${term}|${cls}|${s}`;
   const rows = students.map((s) => ({ s, blocks: handoverBlocks(s, settings, manualsData), rec: records[key(s)] }));
   const given = rows.filter((r) => r.rec?.givenAt).length;

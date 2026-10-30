@@ -1,6 +1,7 @@
 import OrientationSheet, { loadSheets } from './OrientationSheet.jsx';
 import { currentStep, sheetKind } from '../rules/orientationSheet.js';
 import FamilyContact from './FamilyContact.jsx';
+import Embedded from './Embedded.jsx';
 import React, { useMemo, useState } from 'react';
 import ExamResultCard from './ExamResultCard.jsx';
 import { loadMockExams } from '../mockExamStore.js';
@@ -64,13 +65,14 @@ import SchoolLifeModule, { SocialLinks } from './SchoolLifeModule.jsx';
 import { loadPassport, isNewStudent } from './PassportTab.jsx';
 import { passport, COLLE_STATUS } from '../rules/discipline.js';
 import { parentNotice } from '../rules/care.js';
+import { nowIso, today } from '../clock.js';
 
 // Portail famille : PARENT (toutes les actions) ou ELEVE (presque la même chose, en lecture,
 // sans paiements, sans accusés de lecture ni signatures).
 
-const TODAY = '2026-10-13';
+const TODAY = today();
 const MONTHS_FR = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-const NOW = '2026-10-13T18:30';
+const NOW = nowIso('18:30');
 const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 const longDate = (iso) => formatDateFr(iso).replace(/^\S+ /, '');           // « 20 janvier 2027 »
 const shortDate = (iso) => cap(formatDateFr(iso).replace(/ \d{4}$/, ''));    // « Mardi 13 octobre »
@@ -694,7 +696,7 @@ function Others({ audience, menu, badges, open, mandates = [] }) {
     return (
       <details key={title} open className="group rounded-2xl bg-white/70 p-2 shadow-soft">
         <summary className="flex cursor-pointer list-none items-center justify-between px-2 py-1.5 text-sm font-semibold text-slate-800">
-          <span>{title}{count > 0 && <span className="ml-2 rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white">{count}</span>}</span>
+          <span>{title}{count > 0 && <span className="ml-2 rounded-full bg-amber-400 px-1.5 text-[10px] font-semibold text-slate-900">{count}</span>}</span>
           <span className="text-slate-400 transition group-open:rotate-180">▾</span>
         </summary>
         <div className="mt-1 grid grid-cols-3 gap-2">
@@ -705,7 +707,7 @@ function Others({ audience, menu, badges, open, mandates = [] }) {
                 className={`relative flex min-h-[78px] flex-col items-center justify-center gap-1 rounded-2xl p-2 text-center text-[12px] font-medium leading-tight ${off ? 'cursor-default bg-slate-100 text-slate-400' : 'bg-white text-slate-800 shadow-soft'}`}>
                 <Icon name={icon} className={`h-5 w-5 ${off ? 'text-slate-300' : 'text-navy-500'}`} />
                 <span>{label}{off && <span className="block text-[10px] font-normal">(ne concerne pas {isParent ? 'votre enfant' : 'ta classe'})</span>}</span>
-                {!off && badges[id] > 0 && <span className="absolute right-1.5 top-1.5 rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white">{badges[id]}</span>}
+                {!off && badges[id] > 0 && <span className="absolute right-1.5 top-1.5 rounded-full bg-amber-400 px-1.5 text-[10px] font-semibold text-slate-900">{badges[id]}</span>}
               </button>
             );
           })}
@@ -749,13 +751,13 @@ export default function FamilyPortal({ settings, audience = 'PARENT', ambiance }
               {PARENT.children.map((c) => (
                 <button key={c.id} onClick={() => setChildId(c.id)} className={`relative rounded-full px-3.5 py-1.5 text-sm font-medium transition ${c.id === childId ? 'bg-white text-navy-900' : 'bg-white/10 text-white hover:bg-white/20'}`}>
                   {c.name} · {c.cls}
-                  {childCount(c) > 0 && <span className={`absolute -right-1 -top-1 rounded-full px-1.5 text-[10px] font-bold text-white ${careAlerts(c).length ? 'bg-red-600' : 'bg-amber-500'}`} aria-label={`${childCount(c)} à voir`}>{childCount(c)}</span>}
+                  {childCount(c) > 0 && <span className={`absolute -right-1 -top-1 rounded-full px-1.5 text-[10px] font-bold ${careAlerts(c).length ? 'bg-red-600 text-white' : 'bg-amber-400 text-slate-900'}`} aria-label={`${childCount(c)} à voir`}>{childCount(c)}</span>}
                 </button>
               ))}
             </div>
           )}
         </header>
-        <div role="region" aria-label="Contenu du portail" className="flex-1 space-y-3 overflow-y-auto p-4">
+        <div role="region" aria-label="Contenu du portail" className="flex-1 space-y-3 overflow-y-auto p-4"><Embedded className="space-y-3">
           <TermsGate phone viewer={audience} account={isParent ? ACCOUNT.id : 'aina'}>
           {!isTab && <button onClick={() => go('more')} className="text-sm font-medium text-navy-500">‹ Autres</button>}
           {view === 'home' && <Home child={child} isParent={isParent} settings={settings} openFiche={() => go('fiche')} openReenrol={() => go('reenrol')} onSeen={() => setTick((t) => t + 1)} openSchoolLife={() => go('life')} ambiance={ambiance}
@@ -784,14 +786,14 @@ export default function FamilyPortal({ settings, audience = 'PARENT', ambiance }
           {view === 'payments' && <Payments settings={settings} />}
           {view === 'messages' && <div className="-m-4 h-full bg-white p-3"><Messenger audience={audience} compact /></div>}
           </TermsGate>
-        </div>
+        </Embedded></div>
         <nav className="grid grid-cols-5 border-t border-slate-100 bg-white px-1 pb-1" aria-label="Navigation du portail">
           {TABS.map(([id, label, icon]) => (
             <button key={id} data-nav={`tab-${id}`} onClick={() => go(id)} aria-current={view === id ? 'page' : undefined}
               className={`relative flex flex-col items-center gap-0.5 py-2 text-[11px] ${view === id ? 'font-semibold text-navy-900' : 'text-slate-400'}`}>
               <Icon name={icon} className="h-5 w-5" />{label}
-              {id === 'life' && pendingAcks > 0 && <span className="absolute right-3 top-1 rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white">{pendingAcks}</span>}
-              {id === 'more' && moreBadge > 0 && <span className="absolute right-3 top-1 rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white">{moreBadge}</span>}
+              {id === 'life' && pendingAcks > 0 && <span className="absolute right-3 top-1 rounded-full bg-amber-400 px-1.5 text-[10px] font-semibold text-slate-900">{pendingAcks}</span>}
+              {id === 'more' && moreBadge > 0 && <span className="absolute right-3 top-1 rounded-full bg-amber-400 px-1.5 text-[10px] font-semibold text-slate-900">{moreBadge}</span>}
             </button>
           ))}
         </nav>

@@ -6,12 +6,13 @@ import { PAYMENT_METHODS } from '../rules/billing.js';
 import { formatAr } from '../rules/finance.js';
 import { DENOMINATIONS, expectedCash, countTotal, closingCheck, requestCancel, decideCancel, depositAlert, validateDeposit, depositReminder, salaryWindow } from '../rules/cashControl.js';
 import { printOnly } from '../print.js';
+import { today } from '../clock.js';
 
 // Reçus et clôture : journal des reçus du jour (duplicata, annulation avec motif validée par la
 // Direction), clôture des espèces chaque soir (comptage, écart justifié) et versements en banque.
 // Chaque action est horodatée et attribuée : on sait qui a fait quoi.
 
-const TODAY = '2026-10-13';
+const TODAY = today();
 const now = () => `13/10/2026 ${new Date().toTimeString().slice(0, 5)}`;
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
 const STATUS = {

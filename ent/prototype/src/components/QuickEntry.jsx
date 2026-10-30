@@ -9,6 +9,7 @@ import { OBJECTS } from '../rules/discipline.js';
 import { CARE_REASONS, CARE_OUTCOMES } from '../rules/care.js';
 import { LATE_LIMIT } from '../rules/attendance.js';
 import { findStudents } from '../rules/search.js';
+import { realData } from '../demoData.js';
 
 // Saisie express de la vie scolaire, debout, téléphone en main (au portail, dans la cour) :
 // une action → l'élève (nom, prénom ou classe) → deux ou trois touches → c'est noté.
@@ -64,7 +65,7 @@ function Sheet({ action, role, onClose, onSaved }) {
       saveAttendance([{ id, date: DEMO_TODAY, student: student.name, kind: action, slot, by: who, justified: false, notified: false, parentAck: null }, ...loadAttendance()]);
       text = action === 'RETARD' ? `Retard de ${minutes} min${minutes > LATE_LIMIT ? ' (compté absent pour l\'heure commencée)' : ''}` : `Absence (${f.slot.toLowerCase()})`;
     } else if (action === 'OBJET') {
-      saveObjects([{ id, student: student.name, at: `${DEMO_TODAY}T${t}`, object: f.object, confiscatedBy: who, receivedBy: role === 'ENSEIGNANT' ? 'M. Be (CPE)' : who, reason: f.reason.trim(), returned: null }, ...loadObjects()]);
+      saveObjects([{ id, student: student.name, at: `${DEMO_TODAY}T${t}`, object: f.object, confiscatedBy: who, receivedBy: role === 'ENSEIGNANT' ? (realData() ? 'Vie scolaire' : 'M. Be (CPE)') : who, reason: f.reason.trim(), returned: null }, ...loadObjects()]);
       text = `${f.object} confisqué : ${f.reason.trim()} (durée à décider par la Direction ou le secrétariat)`;
     } else {
       // envoyé par la CPE : l'élève est « au secrétariat maintenant » jusqu'au « Retour en classe »
@@ -78,7 +79,7 @@ function Sheet({ action, role, onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 sm:items-center" onClick={onClose}>
-      <div role="dialog" aria-modal="true" aria-label={`Saisie express : ${label}`} onClick={(e) => e.stopPropagation()}
+      <div role="dialog" aria-modal="true" aria-label={`Saisie express : ${label}`} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
         className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-4 shadow-2xl sm:rounded-3xl">
         <div className="mb-3 flex items-center justify-between">
           <p className="font-display text-lg font-semibold text-navy-900">{action === 'SOIN' && sendsToDesk ? 'Envoyer au secrétariat (soins)' : label}{count > 0 && <span className="ml-2 text-xs font-normal text-emerald-700">{count} déjà noté{count > 1 ? 's' : ''}</span>}</p>

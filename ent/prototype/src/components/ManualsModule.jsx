@@ -9,6 +9,8 @@ import {
 import { formatAr } from '../rules/finance.js';
 import { loadManuals, saveManuals } from '../manualsStore.js';
 import { loadImport } from '../importStore.js';
+import { today } from '../clock.js';
+import { askConfirm } from './Dialogs.jsx';
 
 // Manuels scolaires (Bureau et Direction) :
 // - manuels de base à rendre, en location (25 000 Ar l'un pour l'année) ;
@@ -18,7 +20,7 @@ import { loadImport } from '../importStore.js';
 // - stock par état, prêts, retours, pertes à régler au prix fixé pour chaque manuel.
 // Les prix sont fixés par la Direction ; le Bureau gère le stock et la distribution.
 
-const TODAY = '2026-10-13';
+const TODAY = today();
 const YEAR_END = '2027-06-30';
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
 const fmt = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
@@ -63,8 +65,8 @@ function KitTab({ manuals, setManuals, loans, setLoans, specialtiesOf }) {
     setLoans([...loans, r.loan]);
     setError('');
   };
-  const distribute = () => {
-    if (!window.confirm(`Remettre tous les titres à tous les élèves de ${cls} qui ne les ont pas encore ?`)) return;
+  const distribute = async () => {
+    if (!(await askConfirm(`Remettre tous les titres à tous les élèves de ${cls} qui ne les ont pas encore ?`))) return;
     let ms = manuals;
     const added = [];
     const errors = [];
@@ -155,9 +157,9 @@ function StockTab({ manuals, setManuals, loans, canEdit }) {
   const shown = manuals.filter((m) => !cls || m.levels.includes(cls));
   const update = (id, patch) => setManuals(manuals.map((m) => (m.id === id ? { ...m, ...patch } : m)));
   const [editing, setEditing] = useState(null); // { id, title, levels }
-  const remove = (m) => {
+  const remove = async (m) => {
     if (loans.some((l) => l.manualId === m.id)) { setStockError(`« ${m.title} » a déjà été remis à des élèves : il ne peut plus être supprimé (sa réforme se fait par « Mouvement de stock »).`); return; }
-    if (window.confirm(`Supprimer « ${m.title} » de la liste des manuels ?`)) { setManuals(manuals.filter((x) => x.id !== m.id)); setStockError(''); }
+    if ((await askConfirm(`Supprimer « ${m.title} » de la liste des manuels ?`))) { setManuals(manuals.filter((x) => x.id !== m.id)); setStockError(''); }
   };
   const setCount = (m, state, raw) => { const n = Math.max(0, Number(raw.replace(/\D/g, '')) || 0); update(m.id, { stock: { ...m.stock, [state]: n } }); };
   const totals = manuals.reduce((t, m) => ({ stock: t.stock + Object.values(m.stock).reduce((a, b) => a + b, 0), lent: t.lent + lentCount(m, loans), torn: t.torn + m.stock.DECHIRE }), { stock: 0, lent: 0, torn: 0 });

@@ -2,6 +2,8 @@ import React from 'react';
 import ActivityJournal from './ActivityJournal.jsx';
 import { PulseCard, UpcomingCard, TodoCard, FinanceCard } from './HomeBlocks.jsx';
 import { notificationsFor } from '../notify.js';
+import { me } from '../identity.js';
+import { realData } from '../demoData.js';
 
 // Accueil de la Direction, dans l'ordre demandé :
 // 1. l'école sur 7 ou 30 jours (chiffres cliquables) et, à droite, ce qui est en cours ou à venir ;
@@ -14,7 +16,7 @@ export default function DirectionDashboard({ account, settings, go, site = 'TMV'
     <div className="space-y-5">
       <div>
         <p className="text-sm font-semibold text-navy-500">Année scolaire 2026-2027 · {site === 'TMV' ? 'Tamatave' : 'Tana'}</p>
-        <h1 className="text-2xl font-semibold text-navy-900">Bonjour {account.name.replace(/ \(.*\)$/, '')}</h1>
+        <h1 className="text-2xl font-semibold text-navy-900">Bonjour {realData() ? me('DIRECTION') : account.name.replace(/ \(.*\)$/, '')}</h1>
         <p className="text-sm text-slate-600">{count ? `${count} point${count > 1 ? 's' : ''} à traiter.` : 'Rien d\'urgent.'}</p>
       </div>
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">

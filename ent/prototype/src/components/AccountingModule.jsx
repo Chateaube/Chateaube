@@ -28,8 +28,11 @@ import { TIMETABLE } from '../data/timetable.js';
 import { teacherHours } from '../rules/teachingHours.js';
 import { loadTeacherAbsences } from '../absencesStore.js';
 import { takeIntent } from '../navIntent.js';
+import { nowTime, today } from '../clock.js';
+import { meLabel } from '../identity.js';
+import { askConfirm } from './Dialogs.jsx';
 
-const TODAY = '2026-10-13';
+const TODAY = today();
 const fmtDate = (iso) => iso.split('-').reverse().join('/');
 const JournalBadge = ({ j }) => <Badge tone={JOURNALS[j].tone}>{JOURNALS[j].label}</Badge>;
 const inputCls = 'rounded-md border border-slate-300 px-2 py-1.5 text-sm';
@@ -136,7 +139,7 @@ function ArticlesTab({ articles, setArticles, canEdit }) {
                     <input type="checkbox" checked={a.active} onChange={(e) => update(a.id, { active: e.target.checked })} />actif
                   </label>
                   <button type="button" aria-label={`Supprimer ${a.label}`} title="Supprimer l'article (les ventes déjà facturées restent dans le journal des reçus)"
-                    onClick={() => window.confirm(`Supprimer « ${a.label} » du catalogue ?\nLes ventes déjà facturées restent sur les états de compte.`) && setArticles(articles.filter((x) => x.id !== a.id))}
+                    onClick={async () => (await askConfirm(`Supprimer « ${a.label} » du catalogue ?\nLes ventes déjà facturées restent sur les états de compte.`)) && setArticles(articles.filter((x) => x.id !== a.id))}
                     className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600"><Icon name="x" /></button></>}
                 </li>
               ))}
@@ -324,7 +327,7 @@ function CashTab({ movements, setMovements, role, account }) {
           <Button disabled={!ok} onClick={() => {
             const { withdrawnBy, ...base } = draft;
             const extra = isWithdrawal ? { withdrawnBy, status: withdrawalStatus({ role, accountName: account?.name, who: withdrawnBy }) } : {};
-            setMovements([...movements, { ...base, ...extra, agent, id: `c${Date.now()}`, date: '2026-10-13', time: new Date().toTimeString().slice(0, 5) }]);
+            setMovements([...movements, { ...base, ...extra, agent, id: `c${Date.now()}`, date: TODAY, time: nowTime() }]);
             setDraft({ ...draft, label: '', amount: null });
           }}>Enregistrer</Button>
         </div>
@@ -390,8 +393,8 @@ export default function AccountingModule({ settings, role, account }) {
       ? duesStatus(accounts, settings, TODAY).map((x) => ({ id: x.account.id, amount: x.overdue, due: TODAY })).filter((d) => d.amount > 0)
       : FAMILIES.map((f) => ({ id: f.id, amount: accountStatement(f.lines).totals.balance, due: TODAY })).filter((d) => d.amount > 0),
   }), [movements, expenses, payroll, rates, salaryPayments, accounts, settings]);
-  const actor = canEdit ? 'Mme Sheena Lo (Direction)' : 'Mme Hanta (secrétariat)';
-  const closed = closings.some((c) => c.date === '2026-10-13');
+  const actor = meLabel(role === 'DIRECTION' ? 'DIRECTION' : 'BUREAU');
+  const closed = closings.some((c) => c.date === TODAY);
   const pendingCancels = receipts.filter((r) => r.status === 'ANNULATION_DEMANDEE').length;
   // Chaque reçu émis à l'encaissement entre dans le journal des reçus et dans la caisse
   const onCollected = (rs) => {
@@ -421,7 +424,7 @@ export default function AccountingModule({ settings, role, account }) {
               {list.map(([id, label]) => (
                 <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
                   className={`rounded-md px-3 py-1.5 text-sm font-medium ${tab === id ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>
-                  {label}{id === 'receipts' && pendingCancels > 0 && <span className="ml-1.5 rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white">{pendingCancels}</span>}
+                  {label}{id === 'receipts' && pendingCancels > 0 && <span className="ml-1.5 rounded-full bg-amber-400 px-1.5 text-[10px] font-semibold text-slate-900">{pendingCancels}</span>}
                 </button>
               ))}
             </div>
@@ -436,7 +439,7 @@ export default function AccountingModule({ settings, role, account }) {
           {lock ? <span>🔒 Paramétrage {lock.year} verrouillé le {lock.at.split('-').reverse().join('/')} par {lock.by} : il ne change plus jusqu'à la fin de l'année.</span>
             : <span>Paramétrage de l'année {settings?.year ?? '2026-2027'} : à fixer une fois, puis à verrouiller.</span>}
           {role === 'DIRECTION' && (lock
-            ? <Button variant="secondary" className="ml-auto" onClick={() => { if (window.confirm('Déverrouiller les tarifs de l\'année ? Toute modification touche les familles déjà facturées.')) { setLock(null); saveLock(null); } }}>Déverrouiller</Button>
+            ? <Button variant="secondary" className="ml-auto" onClick={async () => { if ((await askConfirm('Déverrouiller les tarifs de l\'année ? Toute modification touche les familles déjà facturées.'))) { setLock(null); saveLock(null); } }}>Déverrouiller</Button>
             : <Button className="ml-auto" onClick={() => { const v = { year: settings?.year ?? '2026-2027', at: new Date().toISOString().slice(0, 10), by: actor }; setLock(v); saveLock(v); }}>Verrouiller pour l'année</Button>)}
         </div>
       )}

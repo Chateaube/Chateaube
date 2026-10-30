@@ -4,6 +4,7 @@ import { CLASS_FEES } from '../data/accounting.js';
 import { reductionAmount } from '../rules/billing.js';
 import { reductionText } from './CollectPayment.jsx';
 import { formatAr } from '../rules/finance.js';
+import { askConfirm, askText, tell } from './Dialogs.jsx';
 
 // Réductions sur les frais de scolarité : types et taux fixés par la Direction, puis accordés
 // élève par élève (précision facultative). Le Bureau les consulte et les voit appliquées à l'encaissement.
@@ -55,10 +56,10 @@ export default function Reductions({ canEdit, actor, types, setTypes, accounts, 
                       </td>
                     ))}
                     <td className="px-4 text-right text-xs text-slate-500">{granted.filter((a) => a.reduction.typeId === t.id).length}
-                      {canEdit && <button type="button" onClick={() => {
+                      {canEdit && <button type="button" onClick={async () => {
                         const n = granted.filter((a) => a.reduction.typeId === t.id).length;
-                        if (n) { window.alert(`« ${t.label} » est accordée à ${n} élève${n > 1 ? 's' : ''} : retirez-la d'abord à ces élèves.`); return; }
-                        if (window.confirm(`Supprimer le type « ${t.label} » ?`)) setTypes(types.filter((x) => x.id !== t.id));
+                        if (n) { tell(`« ${t.label} » est accordée à ${n} élève${n > 1 ? 's' : ''} : retirez-la d'abord à ces élèves.`); return; }
+                        if ((await askConfirm(`Supprimer le type « ${t.label} » ?`))) setTypes(types.filter((x) => x.id !== t.id));
                       }} className="ml-3 text-xs font-medium text-red-700">Supprimer</button>}</td>
                   </tr>
                 ))}
@@ -67,7 +68,7 @@ export default function Reductions({ canEdit, actor, types, setTypes, accounts, 
           </div>
           <p className="mt-2 text-xs text-slate-500">Tous les autres frais (fascicule, manuels, cahiers, articles, examens) restent à 100 %. Pas de réduction pour la fratrie.</p>
           {canEdit && (
-            <Button variant="secondary" className="mt-3 !py-1 text-xs" onClick={() => setTypes([...types, { id: `t${Date.now()}`, label: window.prompt('Nom de la réduction ?') || 'Nouvelle réduction', rates: { ECOLAGE: null, INSCRIPTION: null } }])}>＋ Nouveau type</Button>
+            <Button variant="secondary" className="mt-3 !py-1 text-xs" onClick={async () => setTypes([...types, { id: `t${Date.now()}`, label: (await askText('Nom de la réduction ?')) || 'Nouvelle réduction', rates: { ECOLAGE: null, INSCRIPTION: null } }])}>＋ Nouveau type</Button>
           )}
         </Card>
 
@@ -82,7 +83,7 @@ export default function Reductions({ canEdit, actor, types, setTypes, accounts, 
                       <span className="block text-xs text-slate-500">{a.reduction.motif ? `${a.reduction.motif} · ` : ''}accordée par {a.reduction.by} le {a.reduction.at}</span></span>
                     {t && <Badge tone="green">{t.label}</Badge>}
                     {t && <span className="text-xs tabular-nums text-slate-600">{amounts(a, t)}</span>}
-                    {canEdit && <Button variant="ghost" className="!px-2 !py-1 text-xs" onClick={() => window.confirm(`Retirer la réduction de ${a.name} ? Les reçus déjà émis ne changent pas.`) && setAccounts(accounts.map((x) => (x.id === a.id ? { ...x, reduction: null } : x)))}>Retirer</Button>}
+                    {canEdit && <Button variant="ghost" className="!px-2 !py-1 text-xs" onClick={async () => (await askConfirm(`Retirer la réduction de ${a.name} ? Les reçus déjà émis ne changent pas.`)) && setAccounts(accounts.map((x) => (x.id === a.id ? { ...x, reduction: null } : x)))}>Retirer</Button>}
                   </li>
                 );
               })}

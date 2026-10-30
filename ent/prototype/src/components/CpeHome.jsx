@@ -12,6 +12,7 @@ import { sessionsToSupervise } from '../rules/teachingHours.js';
 import { TIMETABLE } from '../data/timetable.js';
 import { STAFF } from '../data/people.js';
 import { setIntent } from '../navIntent.js';
+import { me } from '../identity.js';
 
 // Accueil de la CPE : d'abord ce qui attend (du plus urgent au moins urgent), puis la journée concrète
 // (séances à surveiller, colles, objets en garde), puis les tâches confiées et le journal.
@@ -26,7 +27,7 @@ export default function CpeHome({ go, account }) {
     <div className="space-y-5 pb-16 sm:pb-0">
       <div>
         <p className="text-sm font-semibold text-navy-500">Vie scolaire · Tamatave</p>
-        <h1 className="text-2xl font-semibold text-navy-900">Bonjour M. Be</h1>
+        <h1 className="text-2xl font-semibold text-navy-900">Bonjour {me('VIE_SCOLAIRE')}</h1>
         <p className="text-sm text-slate-600">{day.length ? `${day.length} chose${day.length > 1 ? 's' : ''} à traiter aujourd'hui.` : 'Rien d\'urgent aujourd\'hui.'}</p>
       </div>
       <QuickEntry role="VIE_SCOLAIRE" />

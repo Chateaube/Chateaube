@@ -9,6 +9,8 @@ import { WATCHERS, loadWatch, saveWatch } from '../colleWatchStore.js';
 import { loadProfiles } from '../profilesStore.js';
 import { seniority } from '../rules/documents.js';
 import { logActivity } from '../activityStore.js';
+import { nextWeekday, today } from '../clock.js';
+import { me, meLabel } from '../identity.js';
 
 // Passeport de vie scolaire : oublis, retards, colles et TIG d'un élève.
 // Carnet de liaison oublié = 1 h de colle (nouvel élève : au 2e oubli) ; autres oublis : colle si le
@@ -42,11 +44,11 @@ export const savePassport = (d) => { try { localStorage.setItem(KEY, JSON.string
 const save = savePassport;
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
 const fmt = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}${iso.length > 10 ? ` à ${iso.slice(11, 16).replace(':', 'h')}` : ''}`;
-const TODAY = '2026-10-13';
+const TODAY = today();
 
 export default function PassportTab({ role, toast }) {
   const isTeacher = role === 'ENSEIGNANT';
-  const by = { DIRECTION: 'Direction', BUREAU: 'Mme Hanta (secrétariat)', VIE_SCOLAIRE: 'M. Be (CPE)', ENSEIGNANT: 'Mme Ranaivo' }[role] ?? 'M. Be (CPE)';
+  const by = role === 'DIRECTION' ? me('DIRECTION') : role === 'ENSEIGNANT' ? me('ENSEIGNANT') : meLabel(role === 'BUREAU' ? 'BUREAU' : 'VIE_SCOLAIRE');
   const [data, setData] = useState(loadPassport);
   const [student, setStudent] = useState('RAMAROSON Fitia');
   const [forget, setForget] = useState({ kind: FORGET_KINDS[0], note: '', colle: false });
@@ -141,7 +143,7 @@ export default function PassportTab({ role, toast }) {
                 <input type="datetime-local" value={tig.when} onChange={(e) => setTig({ ...tig, when: e.target.value })} aria-label="Date du TIG" className={`w-full ${inputCls}`} />
                 <div className="flex gap-2"><Button disabled={!tig.reason.trim()} onClick={() => give({ kind: 'TIG', cause: 'AUTRE', hours: 1, reason: tig.reason.trim(), when: tig.when })}>Enregistrer</Button><Button variant="secondary" onClick={() => setTig(null)}>Annuler</Button></div>
               </div>
-            ) : <Button variant="secondary" className="w-full" disabled={!student} onClick={() => setTig({ reason: '', when: '2026-10-16T12:00' })}>Donner un TIG</Button>}
+            ) : <Button variant="secondary" className="w-full" disabled={!student} onClick={() => setTig({ reason: '', when: `${nextWeekday(TODAY, 5)}T12:00` })}>Donner un TIG</Button>}
           </Card>
         )}
       </div>

@@ -1,7 +1,8 @@
 // Données de démonstration — toutes fictives (noms, montants, effectifs).
+import { today } from '../clock.js';
 // Date de référence du prototype : 13 octobre 2026.
 
-export const TODAY = '2026-10-13';
+export const TODAY = today();
 
 export const SITES = [
   { id: 'TANA', name: 'Tananarive', short: 'Tana', cycles: ['Préscolaire', 'Primaire', 'Collège', 'Lycée'] },

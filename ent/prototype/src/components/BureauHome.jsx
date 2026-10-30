@@ -10,6 +10,7 @@ import { depositReminder } from '../rules/cashControl.js';
 import { pendingSignatures } from '../signatureStore.js';
 import { loadRequests } from '../requestsStore.js';
 import { TODAY } from '../notify.js';
+import { me } from '../identity.js';
 
 // Accueil du secrétariat, sur le modèle de celui de la Direction, avec le guichet du jour :
 // 1. l'école sur 7 / 30 jours et ce qui vient ; 2. le guichet (caisse du jour par journal, clôture, chèques,
@@ -32,7 +33,7 @@ export default function BureauHome({ go, settings }) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-navy-500">Secrétariat de Tamatave</p>
-          <h1 className="text-2xl font-semibold text-navy-900">Bonjour Mme Hanta</h1>
+          <h1 className="text-2xl font-semibold text-navy-900">Bonjour {me('BUREAU')}</h1>
         </div>
         <Button onClick={() => go('accounting')}><Icon name="wallet" />Nouvel encaissement</Button>
       </div>
