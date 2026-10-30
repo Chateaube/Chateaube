@@ -3,6 +3,7 @@
 // tâches, annonces, événements… repartent de zéro, et seules les vraies données (et ce que l'équipe
 // saisit ensuite) apparaissent. Sans import, le prototype garde ses exemples fictifs.
 import { loadImport } from './importStore.js';
+import { readStored, clearStored } from './persist.js';
 
 export const realData = () => Boolean(loadImport()?.students?.length);
 export const demoOr = (demo, empty) => (realData() ? empty : demo);
@@ -14,6 +15,9 @@ export function liveArray(fn) {
     has: (_, k) => k in fn(),
   });
 }
+/** Tableau enregistré : ce qui a été saisi (clé `key`), sinon les exemples ou rien avec les vraies données. */
+export const storedArray = (key, fallback) => liveArray(() => readStored(key) ?? fallback());
+
 /** Objet « vivant » (clés lues à chaque usage). */
 export function liveObject(fn) {
   return new Proxy({}, {
@@ -36,4 +40,5 @@ export const DEMO_STATE_KEYS = [
 ];
 export function resetDemoState() {
   DEMO_STATE_KEYS.forEach((k) => { try { localStorage.removeItem(k); } catch { /* stockage indisponible */ } });
+  clearStored('ent-s-'); // toutes les saisies enregistrées par usePersistent
 }

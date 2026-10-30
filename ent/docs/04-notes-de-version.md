@@ -1,5 +1,18 @@
 # Notes de version — ce qui change pour l'équipe
 
+## 30 octobre 2026 (suite) — tout est enregistré, corrections possibles, bonus / malus
+
+- **Chaque saisie est enregistrée, pour tous les profils** : caisse (encaissements, reçus, clôtures, journal, dépenses, fournisseurs, salaires, taux), tarifs, articles et réductions, personnel, cahier de textes, punitions et sanctions, agenda, réservations, messages (photos comprises), documents et pièces demandées, autorisations des familles, stages, poursuite d'études des Terminales, relances d'impayés, passage au conseil, rappels du CDI. On retrouve tout en revenant sur l'écran ou après un rechargement.
+- **Si le navigateur refuse l'enregistrement** (aperçu intégré, navigation privée, mémoire pleine), les saisies restent en mémoire pendant la visite.
+- **Corriger plutôt que recommencer** :
+  - carnet de notes : « Modifier » ou « Supprimer » un devoir (ses notes sont gardées à la modification) ;
+  - cahier de textes : « Modifier » ou « Supprimer » une séance ;
+  - punitions et sanctions : « Corriger » (le parent est prévenu de la correction) ou « Annuler la mesure » avec un motif ; la mesure annulée reste au journal mais ne compte plus ailleurs ; possible pour l'auteur, la CPE et la Direction ;
+  - réservations : « Mes réservations » avec « Annuler ».
+- **Bonus / malus des professeurs** : une colonne dans le carnet de notes, par demi-point, au plus ± 2 points sur la moyenne de la matière, avec un motif obligatoire (participation, travail personnel…). La moyenne ajustée reste entre 0 et 20 ; elle passe dans les grilles, le conseil et les bulletins. Le plafond se règle dans les paramètres (notation).
+- **Base de données** : table des bonus / malus, mesures corrigées ou annulées avec motif (test T67).
+- **Retour aux exemples** : les saisies de l'année sont effacées au premier import des vraies données ; les tarifs, articles et réductions sont gardés.
+
 ## 30 octobre 2026 — carnet de notes enregistré
 
 - **Les notes des professeurs sont enregistrées à chaque saisie** : devoirs, notes, remarques, compétences, appréciations et validation. Avant, elles disparaissaient en changeant d'écran ou en rechargeant la page. On remplit donc au fil du trimestre, devoir après devoir, et on valide les notes du trimestre à la fin (avant la date d'arrêt).

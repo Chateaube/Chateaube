@@ -13,6 +13,7 @@ import { kitFor, kitTotals } from '../rules/manuals.js';
 import { loadManuals } from '../manualsStore.js';
 import { useOnline } from '../online.js';
 import { liveArray } from '../demoData.js';
+import { usePersistent, readStored } from '../persist.js';
 
 /**
  * Tarifs d'un élève : grille de sa classe + lot de manuels (location des titres à rendre,
@@ -63,7 +64,10 @@ const currentAccounts = () => {
   if (key !== accountsCache.key) accountsCache = { key, value: importedAccounts() ?? demoAccounts() };
   return accountsCache.value;
 };
-export const CASH_ACCOUNTS = liveArray(currentAccounts);
+// comptes enregistrés (encaissements faits depuis) ou comptes de départ
+export const CASH_ACCOUNTS = liveArray(() => readStored(accountsKey()) ?? currentAccounts());
+/** Clé d'enregistrement des comptes (paiements encaissés) : une par import, pour repartir des paiements repris. */
+export const accountsKey = () => `ent-s-comptes-${loadImport()?.importedAt ?? 'demo'}`;
 
 /**
  * Situation de chaque compte à une date : dû à date, réglé, en retard (premier mois en retard).
@@ -124,7 +128,7 @@ function DueTile({ item, checked, onToggle }) {
 }
 
 export default function CollectPayment({ settings, articles = [], accounts: sharedAccounts, setAccounts: setSharedAccounts, reductionTypes = [], onCollected, cashier = 'Mme Hanta (bureau)', closed = false }) {
-  const [localAccounts, setLocalAccounts] = useState(() => [...CASH_ACCOUNTS]);
+  const [localAccounts, setLocalAccounts] = usePersistent(accountsKey(), () => [...CASH_ACCOUNTS]);
   const accounts = sharedAccounts ?? localAccounts;
   const online = useOnline();
   const setAccounts = setSharedAccounts ?? setLocalAccounts;

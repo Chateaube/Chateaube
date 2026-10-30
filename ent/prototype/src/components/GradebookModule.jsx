@@ -9,7 +9,7 @@ import { THEME_SUGGESTIONS, themeOf, saveTheme } from '../termThemeStore.js';
 import {
   TERM, SERVICES, EVALUATIONS, GRADES, REMARKS, competenciesFor, historyFor, levelOf, TEACHER_COMPETENCIES, COUNCIL_FLAGS, CLASS_SUBJECTS, OTHER_AVERAGES,
 } from '../data/grades.js';
-import { studentAverage, notesCount, termValidation, classStats, generalAverage, fmtAvg, parentPublishOn, competencyProposals } from '../rules/grading.js';
+import { studentAverage, notesCount, termValidation, classStats, generalAverage, fmtAvg, parentPublishOn, competencyProposals, adjustedAverage, adjustmentErrors } from '../rules/grading.js';
 import { checkAppreciation, autoFix, rephrase } from '../rules/appreciation.js';
 
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
@@ -93,7 +93,7 @@ function EvaluationForm({ draft, setDraft, settings, competencies, onCreate, onC
         )}
       </div>
       <div className="flex gap-2">
-        <Button disabled={!draft.title.trim() || !draft.date || !draft.publishOn || draft.publishOn < draft.date} onClick={onCreate}>Créer le devoir</Button>
+        <Button disabled={!draft.title.trim() || !draft.date || !draft.publishOn || draft.publishOn < draft.date} onClick={onCreate}>{draft.id ? 'Enregistrer les modifications' : 'Créer le devoir'}</Button>
         <Button variant="ghost" onClick={onCancel}>Annuler</Button>
         {draft.publishOn && draft.publishOn < draft.date && <span className="self-center text-xs text-red-700">La publication ne peut précéder le devoir.</span>}
       </div>
@@ -102,7 +102,7 @@ function EvaluationForm({ draft, setDraft, settings, competencies, onCreate, onC
 }
 
 /* ---------------- 2. Notes ---------------- */
-function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, remarks, setRemarks, validated, setValidated, settings, competencies = [], go }) {
+function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, remarks, setRemarks, adjust = {}, setAdjust, validated, setValidated, settings, competencies = [], go }) {
   const min = settings.grading.minEvaluations;
   const blank = {
     type: settings.grading.evaluationTypes[0], title: '', date: TODAY, publishOn: TODAY, remarksEnabled: false,
@@ -110,7 +110,12 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
   };
   const [draft, setDraft] = useState(null);
   const check = termValidation(evaluations, service.students, grades, min);
-  const avgs = service.students.map((s) => studentAverage(evaluations, grades[s]));
+  const maxAdj = settings.grading.maxAdjustment ?? 2;
+  const steps = Array.from({ length: maxAdj * 4 + 1 }, (_, i) => (i - maxAdj * 2) / 2); // -2 … +2 par demi-point
+  const rawAvgs = service.students.map((s) => studentAverage(evaluations, grades[s]));
+  const avgs = service.students.map((s, i) => adjustedAverage(rawAvgs[i], adjust[s]));
+  const adjErrors = service.students.flatMap((s) => adjustmentErrors(adjust[s], maxAdj).map((e) => `${s} : ${e}`));
+  const setAdj = (s, v) => { setAdjust({ ...adjust, [s]: { ...adjust[s], ...v } }); setValidated(false); };
   const stats = classStats(avgs);
   const setCell = (s, ev, v) => { setGrades({ ...grades, [s]: { ...grades[s], [ev]: v } }); setValidated(false); };
 
@@ -128,8 +133,10 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
           <EvaluationForm draft={draft} setDraft={setDraft} settings={settings} competencies={competencies} onCancel={() => setDraft(null)}
             onCreate={() => {
               const { themesText, ...ev } = draft;
-              setEvaluations([...evaluations, { ...ev, id: `n${Date.now()}`, title: ev.title.trim(), comment: ev.comment.trim() || null,
-                themes: themesText.split(',').map((t) => t.trim()).filter(Boolean), normalize: ev.scale === 20 ? true : ev.normalize }]);
+              const clean = { ...ev, title: ev.title.trim(), comment: (ev.comment ?? '').trim() || null,
+                themes: themesText.split(',').map((t) => t.trim()).filter(Boolean), normalize: ev.scale === 20 ? true : ev.normalize };
+              // modification d'un devoir existant (les notes déjà saisies sont gardées) ou nouveau devoir
+              setEvaluations(ev.id ? evaluations.map((x) => (x.id === ev.id ? clean : x)) : [...evaluations, { ...clean, id: `n${Date.now()}` }]);
               setDraft(null); setValidated(false);
             }} />
         )}
@@ -150,12 +157,25 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
                         </span>
                       )}
                       <p className="mt-1 max-w-[120px] truncate text-slate-700" title={ev.title}>{ev.title}</p>
+                      {!validated && !ev.fromMockExam && (
+                        <span className="mt-0.5 flex gap-2 text-[11px] font-normal">
+                          <button type="button" className="text-navy-600 underline" onClick={() => setDraft({ ...blank, ...ev, comment: ev.comment ?? '', themesText: (ev.themes ?? []).join(', '), competencies: ev.competencies ?? [] })}>Modifier</button>
+                          <button type="button" className="text-red-700 underline" onClick={() => {
+                            const filled = service.students.filter((s) => grades[s]?.[ev.id]).length;
+                            if (!window.confirm(`Supprimer « ${ev.title} »${filled ? ` et ses ${filled} note${filled > 1 ? 's' : ''}` : ''} ?`)) return;
+                            setEvaluations(evaluations.filter((x) => x.id !== ev.id));
+                            setGrades(Object.fromEntries(Object.entries(grades).map(([s, g]) => { const { [ev.id]: _, ...rest } = g ?? {}; return [s, rest]; })));
+                            setValidated(false);
+                          }}>Supprimer</button>
+                        </span>
+                      )}
                       <p className="font-normal">{fmtDate(ev.date)} · /{ev.scale}{ev.normalize === false ? ' (points)' : ''} · coef. {String(ev.coef).replace('.', ',')}</p>
                       <p className="font-normal text-[10px] text-slate-400" title={`Élèves le ${ddmm(ev.publishOn ?? ev.date)}, parents le ${ddmm(parentPublishOn(ev, settings))}`}>
                         {(ev.publishOn ?? ev.date) <= TODAY ? 'Publiée' : `Publiée le ${ddmm(ev.publishOn)}`}{ev.comment ? ' · 💬' : ''}{ev.remarksEnabled ? ' · remarques' : ''}
                       </p>
                     </th>
                   ))}
+                  <th className="px-2 py-2 font-medium" title={`Points ajoutés ou retirés à la moyenne de la matière, au plus ± ${maxAdj}, avec un motif`}>Bonus / malus</th>
                   <th className="px-3 py-2 text-right font-medium">Moyenne /20</th>
                 </tr>
               </thead>
@@ -179,7 +199,21 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
                           )}
                         </td>
                       ))}
-                      <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-navy-900">{fmtAvg(avgs[i])}</td>
+                      <td className="px-2 py-2">
+                        {validated ? <span className="text-xs">{adjust[s]?.points ? `${adjust[s].points > 0 ? '+' : ''}${String(adjust[s].points).replace('.', ',')} — ${adjust[s].reason}` : '—'}</span> : (
+                          <>
+                            <select value={adjust[s]?.points ?? 0} onChange={(e) => setAdj(s, { points: Number(e.target.value) })} aria-label={`Bonus ou malus — ${s}`}
+                              className={`w-20 rounded border px-1 py-1 text-xs tabular-nums ${adjust[s]?.points > 0 ? 'border-emerald-300 bg-emerald-50' : adjust[s]?.points < 0 ? 'border-red-300 bg-red-50' : 'border-slate-200'}`}>
+                              {steps.map((v) => <option key={v} value={v}>{v === 0 ? '—' : `${v > 0 ? '+' : ''}${String(v).replace('.', ',')}`}</option>)}
+                            </select>
+                            {Boolean(adjust[s]?.points) && (
+                              <input value={adjust[s]?.reason ?? ''} onChange={(e) => setAdj(s, { reason: e.target.value })} aria-label={`Motif du bonus ou malus — ${s}`}
+                                placeholder="Motif (obligatoire)" className={`mt-1 block w-32 rounded border px-1.5 py-0.5 text-[11px] ${adjust[s]?.reason?.trim() ? 'border-slate-200' : 'border-red-300 bg-red-50'}`} />
+                            )}
+                          </>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-navy-900" title={adjust[s]?.points ? `Moyenne des devoirs : ${fmtAvg(rawAvgs[i])}` : undefined}>{fmtAvg(avgs[i])}</td>
                     </tr>
                   );
                 })}
@@ -191,6 +225,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
                     const st = classStats(service.students.map((s) => studentAverage([ev], grades[s])));
                     return <td key={ev.id} className="px-2 py-2 tabular-nums">moy. {fmtAvg(st.avg)}<br />{fmtAvg(st.min)} – {fmtAvg(st.max)}</td>;
                   })}
+                  <td className="px-2 py-2" />
                   <td className="px-3 py-2 text-right font-semibold tabular-nums">{fmtAvg(stats.avg)}</td>
                 </tr>
               </tfoot>
@@ -214,6 +249,9 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
             <Icon name={check.empty.length ? 'x' : 'check'} className="mt-0.5 h-4 w-4 shrink-0" />
             {check.empty.length ? `${check.empty.length} case(s) vide(s) : saisir une note ou ABS / DISP / NN` : 'Toutes les cases sont remplies'}
           </li>
+          {adjErrors.length > 0 && (
+            <li className="flex gap-2 text-red-800"><Icon name="x" className="mt-0.5 h-4 w-4 shrink-0" /><span>Bonus / malus : {adjErrors.join(' ')}</span></li>
+          )}
           {check.below.length > 0 && (
             <li className="flex gap-2 text-amber-800">
               <Icon name="alert" className="mt-0.5 h-4 w-4 shrink-0" />
@@ -229,7 +267,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
           </div>
         ) : (
           <>
-            <Button className="mt-4 w-full" disabled={!check.ok} onClick={() => setValidated(true)}>Valider les notes du trimestre</Button>
+            <Button className="mt-4 w-full" disabled={!check.ok || adjErrors.length > 0} onClick={() => setValidated(true)}>Valider les notes du trimestre</Button>
             {!check.ok && <p className="mt-1.5 text-xs text-red-800">Pas encore possible : {[check.missing && `il manque ${check.missing} évaluation${check.missing > 1 ? 's' : ''}`, check.pending.length && `${check.pending.length} saisie(s) à corriger`, check.empty.length && `${check.empty.length} case(s) vide(s)`].filter(Boolean).join(', ')}.</p>}
           </>
         )}
@@ -455,14 +493,15 @@ export default function GradebookModule({ settings, go }) {
   const [myComps, setMyComps] = useState(saved?.myComps ?? TEACHER_COMPETENCIES);
   const [validated, setValidated] = useState(saved?.validated ?? {});
   const [comments, setComments] = useState(saved?.comments ?? {});
+  const [adjust, setAdjust] = useState(saved?.adjust ?? {}); // bonus / malus par service et par élève
   const [flags, setFlags] = useState(saved?.flags ?? demoOr({ 's1:RAJAONARIVELO Tsiry': { ids: ['BAVARD'], note: '' } }, {}));
   // chaque saisie est enregistrée tout de suite : on remplit les notes au fil du trimestre
   const [savedOk, setSavedOk] = useState(null);
   const first = useRef(true);
   useEffect(() => {
     if (first.current) { first.current = false; return; }
-    setSavedOk(saveCarnet({ evaluations, grades, remarks, myComps, validated, comments, flags }));
-  }, [evaluations, grades, remarks, myComps, validated, comments, flags]);
+    setSavedOk(saveCarnet({ evaluations, grades, remarks, myComps, validated, comments, flags, adjust }));
+  }, [evaluations, grades, remarks, myComps, validated, comments, flags, adjust]);
 
   const service = SERVICES.find((s) => s.id === serviceId);
   const appOnly = service.mode === 'APPRECIATION_SEULE';
@@ -473,6 +512,7 @@ export default function GradebookModule({ settings, go }) {
     grades: grades[serviceId] ?? {}, setGrades: (v) => setGrades({ ...grades, [serviceId]: v }),
     validated: Boolean(validated[serviceId]), setValidated: (v) => setValidated({ ...validated, [serviceId]: v }),
     remarks: remarks[serviceId] ?? {}, setRemarks: (v) => setRemarks({ ...remarks, [serviceId]: v }),
+    adjust: adjust[serviceId] ?? {}, setAdjust: (v) => setAdjust({ ...adjust, [serviceId]: v }),
   };
   const stepDone = {
     notes: Boolean(validated[serviceId]),

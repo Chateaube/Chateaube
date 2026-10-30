@@ -1,5 +1,5 @@
 // Données de démonstration — Comptabilité Tamatave (montants FICTIFS à remplacer).
-import { liveArray, liveObject, demoOr } from '../demoData.js';
+import { liveArray, liveObject, demoOr, storedArray } from '../demoData.js';
 import { loadImport } from '../importStore.js';
 
 // Journaux comptables étanches
@@ -10,7 +10,7 @@ export const JOURNALS = {
 };
 
 // Grille « Classes & tarifs » (Tamatave, 2026-2027)
-export const CLASS_FEES = [
+const DEFAULT_CLASS_FEES = [
   { cls: '6e', plan: 0, inscription: 250_000, reinscription: 150_000, ecolage: 330_000, fascicule: 60_000, location: 80_000 },
   { cls: '5e', plan: 0, inscription: 250_000, reinscription: 150_000, ecolage: 340_000, fascicule: 60_000, location: 80_000 },
   { cls: '4e', plan: 0, inscription: 250_000, reinscription: 150_000, ecolage: 350_000, fascicule: 65_000, location: 85_000 },
@@ -32,7 +32,7 @@ export const FEE_COLUMNS = [
 ];
 
 // Catalogue « Articles & services » (facturés à la demande)
-export const ARTICLES = [
+const DEFAULT_ARTICLES = [
   { id: 'a1', group: 'Manuel scolaire', label: 'Manuel perdu ou endommagé', unit: 'par manuel', price: 45_000, journal: 'FRAIS_ANNEXES', active: true },
   { id: 'a2', group: 'Manuel scolaire', label: 'Autre (manuel complémentaire)', unit: 'par manuel', price: 35_000, journal: 'FRAIS_ANNEXES', active: true },
   { id: 'a3', group: 'Passeport de Vie Scolaire', label: 'Passeport de Vie Scolaire', unit: 'par élève', price: 15_000, journal: 'FRAIS_ANNEXES', active: true },
@@ -124,7 +124,7 @@ const DEMO_CASH_CLOSINGS = [
 // Réductions accordées par la Direction : un taux sur les frais de scolarité mensuels et un sur
 // l'inscription / réinscription ; tous les autres frais (fascicule, manuels, articles, examens) à 100 %.
 // Pas de réduction pour la fratrie. null = taux à définir par la Direction.
-export const REDUCTION_TYPES = [
+const DEFAULT_REDUCTION_TYPES = [
   { id: 'REDOUBLANT_TLE', label: 'Redoublant en Terminale', rates: { ECOLAGE: 25, INSCRIPTION: 50 } },
   { id: 'PROCHE', label: 'Exonération famille et proches de l\'établissement', rates: { ECOLAGE: 100, INSCRIPTION: 0 } },
   { id: 'PERSONNEL', label: 'Enfant du personnel', rates: { ECOLAGE: null, INSCRIPTION: null } },
@@ -219,10 +219,13 @@ export const FAMILIES = liveArray(() => demoOr(DEMO_FAMILIES, [])); // vide dès
 
 export const CASH_MOVEMENTS = liveArray(() => demoOr(DEMO_CASH_MOVEMENTS, [])); // vide dès que les vraies données sont importées
 
-export const RECEIPTS_TODAY = liveArray(() => demoOr(DEMO_RECEIPTS_TODAY, [])); // vide dès que les vraies données sont importées
+export const RECEIPTS_TODAY = storedArray('ent-s-recus', () => demoOr(DEMO_RECEIPTS_TODAY, [])); // vide dès que les vraies données sont importées
 
-export const CASH_CLOSINGS = liveArray(() => demoOr(DEMO_CASH_CLOSINGS, [])); // vide dès que les vraies données sont importées
+export const CASH_CLOSINGS = storedArray('ent-s-clotures', () => demoOr(DEMO_CASH_CLOSINGS, [])); // vide dès que les vraies données sont importées
 
-export const CASH_AUDIT = liveArray(() => demoOr(DEMO_CASH_AUDIT, [])); // vide dès que les vraies données sont importées
+export const CASH_AUDIT = storedArray('ent-s-journal-caisse', () => demoOr(DEMO_CASH_AUDIT, [])); // vide dès que les vraies données sont importées
 export const CASH_SAFE = liveObject(() => demoOr(DEMO_CASH_SAFE, { ...DEMO_CASH_SAFE, morning: 0, lastDeposit: '2026-09-01' }));
 export const STUDENT_ACCOUNTS = liveArray(() => demoOr(DEMO_STUDENT_ACCOUNTS, []));
+export const CLASS_FEES = storedArray('ent-k-tarifs', () => DEFAULT_CLASS_FEES); // réglage de l'école, modifié dans Caisse
+export const ARTICLES = storedArray('ent-k-articles', () => DEFAULT_ARTICLES); // réglage de l'école, modifié dans Caisse
+export const REDUCTION_TYPES = storedArray('ent-k-reductions', () => DEFAULT_REDUCTION_TYPES); // réglage de l'école, modifié dans Caisse

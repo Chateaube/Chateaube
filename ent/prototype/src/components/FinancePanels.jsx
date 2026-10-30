@@ -5,6 +5,7 @@ import { realData } from '../demoData.js';
 import { CASH_ACCOUNTS, duesStatus } from './CollectPayment.jsx';
 import { dunningStages, splitExamFee, formatAr } from '../rules/finance.js';
 import { dunningSchedule, stageOn, formatDateFr, monthOf, monthName } from '../rules/calendar.js';
+import { usePersistent } from '../persist.js';
 
 // Finances (Caisse et comptabilité) : alertes de frais de scolarité (relances, avertissement, mise à pied)
 // et les deux journaux séparés (frais de scolarité / droits d'examen). Retirés de l'accueil de la Direction.
@@ -34,8 +35,8 @@ const fmtPct = (v) => `${v.toFixed(1).replace('.', ',')} %`;
 /** Alertes de frais de scolarité : étapes calculées à partir des paramètres et d'une date de référence. */
 export function DunningAlerts({ settings, site = 'TMV' }) {
   const [refDate, setRefDate] = useState(TODAY);
-  const [decisions, setDecisions] = useState({});
-  const [notified, setNotified] = useState({});
+  const [decisions, setDecisions] = usePersistent('ent-s-relances-decisions', {});
+  const [notified, setNotified] = usePersistent('ent-s-relances-envoyees', {});
   const [toast, setToast] = useState(null);
   // vraies données : les élèves dont des frais de scolarité sont en retard (comptes et paiements repris)
   const source = useMemo(() => (realData()

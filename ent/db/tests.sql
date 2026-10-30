@@ -1878,5 +1878,34 @@ DO $$ DECLARE e uuid := '30000000-0000-0000-0000-000000000001'; g uuid := 'e0000
   END;
 END $$;
 
+-- T67 — bonus / malus (± 2 par demi-point, motif) ; mesure annulée avec motif, gardée au dossier
+DO $$ DECLARE e uuid := '30000000-0000-0000-0000-000000000001'; a uuid := 'c0000000-0000-0000-0000-000000000001';
+  u uuid := '00000000-0000-0000-0000-000000000003'; p uuid; m uuid; BEGIN
+  SELECT id INTO p FROM period WHERE rank = 1 LIMIT 1;
+  INSERT INTO grade_adjustment (assignment_id, period_id, enrollment_id, points, reason, entered_by) VALUES (a, p, e, 1.5, 'Participation orale', u);
+  BEGIN
+    UPDATE grade_adjustment SET points = 2.5 WHERE assignment_id = a AND enrollment_id = e;
+    RAISE EXCEPTION 'T67: bonus au-delà de 2 points';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    UPDATE grade_adjustment SET points = 0.3 WHERE assignment_id = a AND enrollment_id = e;
+    RAISE EXCEPTION 'T67: bonus hors demi-point';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    UPDATE grade_adjustment SET reason = ' ' WHERE assignment_id = a AND enrollment_id = e;
+    RAISE EXCEPTION 'T67: bonus sans motif';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO discipline_measure (enrollment_id, type_code, reason, decided_by) VALUES (e, 'OBSERVATION', 'Bavardages', u) RETURNING id INTO m;
+  BEGIN
+    UPDATE discipline_measure SET cancelled_at = now(), cancelled_by = u WHERE id = m;
+    RAISE EXCEPTION 'T67: annulation sans motif';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE discipline_measure SET cancelled_at = now(), cancelled_by = u, cancel_reason = 'Erreur de saisie' WHERE id = m;
+END $$;
+
 ROLLBACK;
-\echo 'OK — tous les scénarios T1 à T66 passent'
+\echo 'OK — tous les scénarios T1 à T67 passent'

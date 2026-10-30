@@ -1,4 +1,4 @@
-import { termGrades } from '../termGrades.js';
+import { termGrades, subjectAverage } from '../termGrades.js';
 import { takeIntent } from '../navIntent.js';
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card } from './ui.jsx';
@@ -26,7 +26,7 @@ export function classAverages(cls, excluded = []) {
   if (cls === '1re STMG') {
     const subjects = CLASS_SUBJECTS.map((s) => ({ ...s, short: SHORT[s.id], inAverage: !excluded.includes(s.id) }));
     const rows = CLASS_LIST.map((name) => ({
-      name, avgs: Object.fromEntries(CLASS_SUBJECTS.map((s) => [s.id, s.service ? studentAverage(termGrades().EVALUATIONS[s.service], termGrades().GRADES[s.service][name]) : OTHER_AVERAGES[name]?.[s.id]])),
+      name, avgs: Object.fromEntries(CLASS_SUBJECTS.map((s) => [s.id, s.service ? subjectAverage(s.service, name) : OTHER_AVERAGES[name]?.[s.id]])),
     }));
     return { subjects, rows };
   }

@@ -58,6 +58,8 @@ import { GAMES, GAME_LOG } from '../data/games.js';
 import { loadVisits } from '../careStore.js';
 import { loadSeen, markSeen } from '../notify.js';
 import { loadPosts } from '../schoolLifeStore.js';
+import { usePersistent, readStored, writeStored } from '../persist.js';
+import { demoOr } from '../demoData.js';
 import SchoolLifeModule, { SocialLinks } from './SchoolLifeModule.jsx';
 import { loadPassport, isNewStudent } from './PassportTab.jsx';
 import { passport, COLLE_STATUS } from '../rules/discipline.js';
@@ -459,14 +461,14 @@ function SchoolLife({ child, isParent, acks, setAcks, settings }) {
 
 /* ---------- Documents ---------- */
 // réponses gardées le temps de la visite (l'accueil sait ce qui reste à donner)
-let authAnswers = AUTH_ANSWERS;
+let authAnswers = readStored('ent-s-autorisations') ?? demoOr(AUTH_ANSWERS, {});
 const authPending = (child) => AUTHORIZATIONS.filter((a) => !authAnswers[child.id]?.[a.id]);
 
 function Documents({ child, isParent }) {
   const [answers, setAnswersState] = useState(authAnswers);
-  const setAnswers = (v) => { authAnswers = v; setAnswersState(v); };
-  const [docs, setDocs] = useState(DOCUMENTS);
-  const [requested, setRequested] = useState(REQUESTED);
+  const setAnswers = (v) => { authAnswers = v; setAnswersState(v); writeStored('ent-s-autorisations', v); };
+  const [docs, setDocs] = usePersistent('ent-s-documents-recus', () => demoOr(DOCUMENTS, []));
+  const [requested, setRequested] = usePersistent('ent-s-pieces-demandees', () => demoOr(REQUESTED, []));
   const mine = answers[child.id] ?? {};
   return (
     <>
@@ -520,7 +522,7 @@ function Documents({ child, isParent }) {
 
 /* ---------- Stages ---------- */
 function Internships({ child, isParent }) {
-  const [list, setList] = useState(INTERNSHIPS[child.id]);
+  const [list, setList] = usePersistent(`ent-s-stages-${child.id}`, () => demoOr(INTERNSHIPS[child.id] ?? [], []));
   const info = <p className="text-xs text-slate-500">Stages obligatoires de 5 jours : en 3e (février), découverte de l'entreprise et des métiers ; en 2de (avril), observation d'un métier.</p>;
   if (!list.length) return <Section title="Stages"><p className="mb-1 text-sm text-slate-500">Aucun stage pour {child.name}.</p>{info}</Section>;
   return list.map((s, i) => (
@@ -717,7 +719,7 @@ export default function FamilyPortal({ settings, audience = 'PARENT', ambiance }
   const isParent = audience === 'PARENT';
   const [screen, setScreen] = useState('home');
   const [childId, setChildId] = useState(PARENT.children[0].id);
-  const [acks, setAcks] = useState({});
+  const [acks, setAcks] = usePersistent('ent-s-vus-familles', {});
   const [tick, setTick] = useState(0); void tick;
   // pastille par enfant : alertes urgentes non vues + mesures à confirmer
   const childCount = (c) => careAlerts(c).length + [...loadAttendance(), ...MEASURES_LOG].filter((x) => x.student === fullName(c) && !x.parentAck && !acks[x.id] && (x.notified ?? true)).length;

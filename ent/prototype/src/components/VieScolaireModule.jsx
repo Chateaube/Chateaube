@@ -15,6 +15,7 @@ import { logActivity, ACTOR } from '../activityStore.js';
 import { formatDateFr } from '../rules/calendar.js';
 import PassportTab, { loadPassport, savePassport, ColleSessionsCard } from './PassportTab.jsx';
 import { useDraft } from '../draftStore.js';
+import { usePersistent } from '../persist.js';
 
 // Vie scolaire : absences / retards, punitions et sanctions, objets confisqués.
 // Accessible à la Vie scolaire, au Bureau et à la Direction.
@@ -138,12 +139,24 @@ function MeasuresTab({ log, setLog, role, toast }) {
       <Card title="Punitions et sanctions" subtitle="Chaque mesure a un motif ; le parent confirme en avoir pris connaissance">
         <ul className="divide-y divide-slate-100">
           {[...log].sort((a, b) => b.date.localeCompare(a.date)).map((m) => (
-            <li key={m.id} className="flex flex-wrap items-start justify-between gap-3 py-3">
+            <li key={m.id} className={`flex flex-wrap items-start justify-between gap-3 py-3 ${m.cancelled ? 'opacity-60' : ''}`}>
               <div className="min-w-0">
-                <p className="text-sm font-medium text-slate-900">{m.student} <span className="font-normal text-slate-500">· {classOf(m.student)} · {formatDateFr(m.date).replace(/ \d{4}$/, '')}</span></p>
+                <p className={`text-sm font-medium text-slate-900 ${m.cancelled ? 'line-through' : ''}`}>{m.student} <span className="font-normal text-slate-500">· {classOf(m.student)} · {formatDateFr(m.date).replace(/ \d{4}$/, '')}</span></p>
                 <p className="text-sm text-slate-700"><span className="text-slate-500">Motif :</span> {m.reason}</p>
                 {m.when && <p className="text-xs text-slate-500">À effectuer : {/^\d{4}-\d{2}-\d{2}T/.test(m.when) ? fmtDT(m.when) : m.when}</p>}
-                <p className="text-xs text-slate-500">Décidée par {m.author} ({AUTHORS[m.authorRole]})</p>
+                <p className="text-xs text-slate-500">Décidée par {m.author} ({AUTHORS[m.authorRole]}){m.editedAt ? ` · corrigée le ${m.editedAt.split('-').reverse().join('/')}` : ''}</p>
+                {m.cancelled && <p className="text-xs font-medium text-red-700">Annulée le {m.cancelled.at.split('-').reverse().join('/')} par {m.cancelled.by} : {m.cancelled.reason}</p>}
+                {!m.cancelled && (authors.includes(m.author) || ['DIRECTION', 'VIE_SCOLAIRE'].includes(authorRole)) && (
+                  <p className="mt-1 flex gap-3 text-xs">
+                    <button type="button" className="text-navy-600 underline" onClick={() => setDraft({ ...blank, student: m.student, measureId: m.measure, reason: m.reason, when: m.when ?? '', author: authors.includes(m.author) ? m.author : authors[0], editId: m.id })}>Corriger</button>
+                    <button type="button" className="text-red-700 underline" onClick={() => {
+                      const reason = window.prompt('Motif de l\'annulation (gardé dans le dossier) :');
+                      if (!reason?.trim()) return;
+                      setLog(log.map((x) => (x.id === m.id ? { ...x, cancelled: { at: '2026-10-13', by: authors[0], reason: reason.trim() } } : x)));
+                      toast('Mesure annulée ; le parent en est informé.');
+                    }}>Annuler la mesure</button>
+                  </p>
+                )}
               </div>
               <div className="text-right">
                 <Badge tone={MEASURE[m.measure].kind === 'SANCTION' ? 'red' : 'amber'}>{MEASURE[m.measure].kind === 'SANCTION' ? 'Sanction' : 'Punition'} · {MEASURE[m.measure].label}</Badge>
@@ -190,13 +203,21 @@ function MeasuresTab({ log, setLog, role, toast }) {
           ) : <p className="text-xs text-slate-600">Décidée par <strong>{authors[0]}</strong></p>}
           {draft.reason && errors.map((e) => <p key={e} className="text-xs text-red-700">{e}</p>)}
           <Button className="w-full" disabled={errors.length > 0} onClick={() => {
+            if (draft.editId) {
+              // correction : le parent est prévenu à nouveau et doit reconfirmer
+              setLog(log.map((x) => (x.id === draft.editId ? { ...x, student: draft.student, measure: draft.measureId, reason: draft.reason.trim(), when: draft.when || null, author: draft.author, parentAck: null, editedAt: '2026-10-13' } : x)));
+              toast(`Mesure corrigée ; le parent de ${draft.student} est prévenu de la correction.`);
+              clearDraft();
+              return;
+            }
             setLog([{ id: `m${Date.now()}`, date: '2026-10-13', student: draft.student, measure: draft.measureId, reason: draft.reason.trim(), when: draft.when || null, author: draft.author, authorRole, parentAck: null }, ...log]);
             logActivity({ who: draft.author, role, kind: 'PUNITION', student: draft.student, text: `${MEASURE[draft.measureId].label} : ${draft.reason.trim()}` });
             // une retenue est une colle : elle entre au passeport, à la suite des autres colles de l'élève
             if (retenue) { const pp = loadPassport(); savePassport({ ...pp, colles: [...pp.colles, { id: `c${Date.now()}`, student: draft.student, kind: 'COLLE', cause: 'AUTRE', hours: draft.hours ?? 1, date: '2026-10-13', when: draft.when, reason: draft.reason.trim(), status: 'A_FAIRE', by: draft.author }] }); }
             toast(`Mesure enregistrée ; le parent de ${draft.student} est notifié (e-mail + application).`);
             clearDraft();
-          }}>Enregistrer et prévenir le parent</Button>
+          }}>{draft.editId ? 'Enregistrer la correction' : 'Enregistrer et prévenir le parent'}</Button>
+          {draft.editId && <Button variant="ghost" className="w-full" onClick={clearDraft}>Abandonner la correction</Button>}
         </div>
       </Card>
     </div>
@@ -423,7 +444,7 @@ export default function VieScolaireModule({ settings, role = 'VIE_SCOLAIRE', ini
   const open = (t, filter) => { setTab(t); if (filter) setPick({ n: pick.n + 1, filter }); };
   const [rows, setRowsState] = useState(loadAttendance);
   const setRows = (l) => { setRowsState(l); saveAttendance(l); };
-  const [log, setLog] = useState(MEASURES_LOG);
+  const [log, setLog] = usePersistent('ent-s-sanctions', () => [...MEASURES_LOG]);
   const [phones, setPhonesState] = useState(loadObjects);
   const setPhones = (l) => { setPhonesState(l); saveObjects(l); };
   const [message, setMessage] = useState(null);

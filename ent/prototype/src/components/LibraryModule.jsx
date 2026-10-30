@@ -8,6 +8,7 @@ import { GAMES, GAME_LOG } from '../data/games.js';
 import { CONDITIONS, conditionLabel } from '../rules/manuals.js';
 import { loadLibrary, saveLibrary } from '../libraryStore.js';
 import { printOnly } from '../print.js';
+import { usePersistent } from '../persist.js';
 
 // Bibliothèque de la salle d'étude / permanence (Tamatave n'a pas de CDI) : romans, annales, documentaires, ouvrages de référence.
 // Élèves : un mois, prolongeable d'un mois en repassant au secrétariat avec le livre.
@@ -165,7 +166,7 @@ function LateTab({ books, loans, setLoans }) {
   const [receipt, setReceipt] = useState({});
   const [err, setErr] = useState('');
   const soon = dueSoonLoans(loans, TODAY).sort((a, b) => a.due.localeCompare(b.due));
-  const [sent, setSent] = useState({});
+  const [sent, setSent] = usePersistent('ent-s-cdi-rappels', {});
   return (
     <div className="space-y-5">
     <Card title={`À rendre bientôt (${soon.length})`} subtitle={`Rappel automatique ${REMINDER_DAYS_BEFORE} jours avant la date de retour, à l'élève et à ses parents (application et e-mail)`}>

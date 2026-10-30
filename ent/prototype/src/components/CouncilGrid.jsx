@@ -1,4 +1,4 @@
-import { termGrades } from '../termGrades.js';
+import { termGrades, subjectAverage } from '../termGrades.js';
 import React, { useMemo, useState } from 'react';
 import { loadCouncilFeedback } from '../studentInitiativesStore.js';
 import { saveFile } from '../download.js';
@@ -16,6 +16,7 @@ import { TERM, EVALUATIONS, GRADES, CLASS_SUBJECTS, OTHER_AVERAGES, OTHER_FLAGS,
 import { CLASS_LIST } from '../data/people.js';
 import { studentAverage, generalAverage, classStats, councilProposal, COUNCIL_DECISIONS, fmtAvg, councilCsv } from '../rules/grading.js';
 import { decisionText, checkAppreciation, autoFix } from '../rules/appreciation.js';
+import { usePersistent } from '../persist.js';
 
 // Grille du conseil de classe — réservée à la Direction et au Bureau (jamais visible des enseignants).
 
@@ -45,7 +46,7 @@ export default function CouncilGrid({ settings, role, go }) {
   // conseil du 3e trimestre (passage) : décidé par le trimestre ; la case ne sert qu'à la démonstration
   const [finalTerm] = useState(isFinalTerm(TERM)); // 3e trimestre : passage et rang
   const showRank = finalTerm; // le rang n'apparaît qu'au 3e trimestre, sans rien cocher
-  const [passage, setPassage] = useState({});
+  const [passage, setPassage] = usePersistent('ent-s-conseil-passage', {});
   const [open, setOpen] = useState(null);
   const [ga, setGaState] = useState(loadGA);
   const setGa = (next) => { setGaState(next); saveGA(next); };
@@ -62,7 +63,7 @@ export default function CouncilGrid({ settings, role, go }) {
     const subjects = CLASS_SUBJECTS.map((s) => ({
       ...s,
       inAverage: !excluded.includes(s.id),
-      avg: s.service ? studentAverage(termGrades().EVALUATIONS[s.service], termGrades().GRADES[s.service][name]) : OTHER_AVERAGES[name]?.[s.id],
+      avg: s.service ? subjectAverage(s.service, name) : OTHER_AVERAGES[name]?.[s.id],
     }));
     const flags = [
       ...(OTHER_FLAGS[name] ?? []),

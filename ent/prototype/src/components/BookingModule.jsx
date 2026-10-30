@@ -4,6 +4,8 @@ import { RESOURCES, RESOURCE_TYPES, INITIAL_BOOKINGS, SITES, MY_SESSIONS } from 
 import {
   SCHOOL_HOURS, RECESS, toMin, weekdayOf, validateSlot, findConflicts, suggestAlternatives,
 } from '../rules/booking.js';
+import { usePersistent } from '../persist.js';
+import { demoOr } from '../demoData.js';
 
 const DAY_START = toMin('07:00');
 const DAY_END = toMin('17:00');
@@ -88,7 +90,7 @@ export default function BookingModule({ role }) {
   const [siteId, setSiteId] = useState('TMV');
   const [type, setType] = useState('ALL');
   const [date, setDate] = useState('2026-10-15');
-  const [bookings, setBookings] = useState(INITIAL_BOOKINGS);
+  const [bookings, setBookings] = usePersistent('ent-s-reservations', () => demoOr(INITIAL_BOOKINGS, []));
   const [form, setForm] = useState({ resourceId: 'tmv-vp1', start: '10:30', end: '11:30', cls: '1re STMG', purpose: 'Management — présentation orale' });
   const [confirmation, setConfirmation] = useState(null);
   const [link, setLink] = useState({ mode: 'SEANCE', sessionId: 'se4' }); // séance de cours ou date / heure particulière
@@ -124,7 +126,7 @@ export default function BookingModule({ role }) {
 
   const book = () => {
     const resource = RESOURCES.find((r) => r.id === form.resourceId);
-    setBookings((bs) => [...bs, { id: `n${bs.length + 1}`, ...req, who: 'Moi', mine: true, sessionId: link.mode === 'SEANCE' ? link.sessionId : null }]);
+    setBookings((bs) => [...bs, { id: `n${Date.now()}`, ...req, who: 'Moi', mine: true, sessionId: link.mode === 'SEANCE' ? link.sessionId : null }]);
     setConfirmation(`${resource.label} réservé le ${DAYS.find((d) => d.date === date)?.label ?? date.split('-').reverse().join('/')} de ${h(form.start)} à ${h(form.end)}${link.mode === 'SEANCE' ? ' (lié à votre séance)' : ''}.`);
   };
 
@@ -162,6 +164,19 @@ export default function BookingModule({ role }) {
             </div>
           </div>
           <Timeline resources={visible} bookings={bookings} date={date} onPick={pick} draft={req} />
+          {bookings.some((b) => b.mine) && (
+            <div className="mt-4 border-t border-slate-100 pt-3">
+              <p className="text-xs font-semibold text-slate-600">Mes réservations</p>
+              <ul className="mt-1 divide-y divide-slate-100 text-sm">
+                {bookings.filter((b) => b.mine).sort((x, y) => `${x.date}${x.start}`.localeCompare(`${y.date}${y.start}`)).map((b) => (
+                  <li key={b.id} className="flex items-center justify-between gap-2 py-1.5">
+                    <span>{RESOURCES.find((r) => r.id === b.resourceId)?.label ?? b.resourceId} · {b.date.split('-').reverse().join('/')} · {h(b.start)}–{h(b.end)}</span>
+                    <button type="button" className="text-xs text-red-700 underline" onClick={() => window.confirm('Annuler cette réservation ?') && setBookings((bs) => bs.filter((x) => x.id !== b.id))}>Annuler</button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </Card>
 
         {readOnly ? <Card title="Consultation"><p className="text-sm text-slate-500">Le planning du matériel et des salles est consultable ; les réservations se font par les professeurs, le secrétariat ou la Direction.</p></Card> : <Card title="Nouvelle réservation" subtitle="Vérification des conflits en temps réel">

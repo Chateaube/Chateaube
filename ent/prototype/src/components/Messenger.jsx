@@ -4,6 +4,9 @@ import { Avatar, Button, Icon } from './ui.jsx';
 import { THREADS, RECIPIENTS, RECIPIENT_GROUPS, broadcastSize } from '../data/messages.js';
 import { takeIntent } from '../navIntent.js';
 import { useDraft } from '../draftStore.js';
+import { usePersistent, readStored } from '../persist.js';
+import { demoOr } from '../demoData.js';
+import { imageToDataUrl } from '../image.js';
 import { atWork, nextOpening, openingLabel } from '../rules/workHours.js';
 import { DEFAULT_SETTINGS } from '../data/settings.js';
 
@@ -38,8 +41,8 @@ export default function Messenger({ audience, compact: forceCompact = false, me 
   const key = keyOf(audience);
   const narrow = useNarrow();
   const compact = forceCompact || narrow;
-  const [threads, setThreads] = useState(THREADS[key]);
-  const [openId, setOpenId] = useState(compact ? null : THREADS[key][0]?.id);
+  const [threads, setThreads] = usePersistent(`ent-s-messages-${key}`, () => demoOr(THREADS[key] ?? [], []));
+  const [openId, setOpenId] = useState(compact ? null : threads[0]?.id);
   const [text, setText, clearText, restored] = useDraft(`message-${key}`, '');
   const [photos, setPhotos] = useState([]);
   const [newTo, setNewTo] = useState(() => takeIntent('messages')?.to ?? null);
@@ -51,7 +54,8 @@ export default function Messenger({ audience, compact: forceCompact = false, me 
 
   const addPhotos = (files) => {
     const imgs = [...files].filter((f) => f.type.startsWith('image/')).slice(0, MAX_PHOTOS - photos.length);
-    setPhotos([...photos, ...imgs.map((f) => URL.createObjectURL(f))]);
+    // photos réduites et gardées dans le message (une adresse temporaire disparaîtrait au rechargement)
+    Promise.all(imgs.map((f) => imageToDataUrl(f, 1200, 0.7).catch(() => null))).then((urls) => setPhotos((prev) => [...prev, ...urls.filter(Boolean)]));
   };
   const send = () => {
     const now = '2026-10-13T' + new Date().toTimeString().slice(0, 5);
@@ -153,4 +157,4 @@ export default function Messenger({ audience, compact: forceCompact = false, me 
   return <div className="grid gap-4 lg:grid-cols-[320px_1fr]">{list}{thread || <div className="rounded-2xl bg-slate-50 p-6 text-sm text-slate-500">Choisissez une conversation.</div>}</div>;
 }
 
-export const unreadCount = (audience) => (THREADS[keyOf(audience)] ?? []).reduce((s, t) => s + t.unread, 0);
+export const unreadCount = (audience) => (readStored(`ent-s-messages-${keyOf(audience)}`) ?? demoOr(THREADS[keyOf(audience)] ?? [], [])).reduce((s, t) => s + t.unread, 0);

@@ -2010,3 +2010,17 @@ test('paiements repris : libellés, dates, montants, lignes à corriger', () => 
   assert.equal(r.errors.length, 2);
   assert.match(r.errors[1], /mois de scolarité.*montant.*date/);
 });
+
+// Bonus / malus du professeur sur la moyenne de sa matière
+import { adjustedAverage, adjustmentErrors } from '../src/rules/grading.js';
+test('bonus / malus : borné entre 0 et 20, demi-points, ± 2 au plus, motif obligatoire', () => {
+  assert.equal(adjustedAverage(12.25, { points: 1, reason: 'Participation' }), 13.25);
+  assert.equal(adjustedAverage(19.5, { points: 2, reason: 'x' }), 20);
+  assert.equal(adjustedAverage(0.5, { points: -1, reason: 'x' }), 0);
+  assert.equal(adjustedAverage(null, { points: 1 }), null);
+  assert.equal(adjustedAverage(11, undefined), 11);
+  assert.deepEqual(adjustmentErrors({ points: 0.5, reason: 'Oral' }), []);
+  assert.equal(adjustmentErrors({ points: 3, reason: 'x' }).length, 1);
+  assert.equal(adjustmentErrors({ points: 0.3, reason: 'x' }).length, 1);
+  assert.equal(adjustmentErrors({ points: -1, reason: ' ' }).length, 1);
+});

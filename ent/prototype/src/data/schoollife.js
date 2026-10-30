@@ -1,7 +1,7 @@
 // Données de démonstration — vie scolaire de Tamatave (noms FICTIFS).
 import { CLASS_LIST } from './people.js';
 import { loadImport } from '../importStore.js';
-import { liveArray, demoOr } from '../demoData.js';
+import { liveArray, demoOr, storedArray } from '../demoData.js';
 
 // Élèves par classe : le choix d'une classe filtre directement la liste des élèves.
 // Démonstration ci-dessous ; dès qu'un fichier est importé, ce sont les vraies classes (« NOM Prénom »).
@@ -75,6 +75,8 @@ const DEMO_PHONES = [
 
 export const ATTENDANCE = liveArray(() => demoOr(DEMO_ATTENDANCE, [])); // vide dès que les vraies données sont importées
 
-export const MEASURES_LOG = liveArray(() => demoOr(DEMO_MEASURES_LOG, [])); // vide dès que les vraies données sont importées
+// mesures en vigueur (une mesure annulée reste au journal de la vie scolaire, mais ne compte plus ailleurs)
+const ALL_MEASURES = storedArray('ent-s-sanctions', () => demoOr(DEMO_MEASURES_LOG, []));
+export const MEASURES_LOG = liveArray(() => ALL_MEASURES.filter((m) => !m.cancelled)); // vide dès que les vraies données sont importées
 
 export const PHONES = liveArray(() => demoOr(DEMO_PHONES, [])); // vide dès que les vraies données sont importées

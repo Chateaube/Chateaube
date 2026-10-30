@@ -1,5 +1,5 @@
 // Trésorerie : fournisseurs et dépenses (démonstration, montants FICTIFS).
-import { liveArray, demoOr } from '../demoData.js';
+import { liveArray, demoOr, storedArray } from '../demoData.js';
 export const EXPENSE_CATEGORIES = ['Loyer', 'Électricité et eau', 'Internet et téléphone', 'Fournitures', 'Entretien et réparations', 'Abonnements logiciels', 'Frais d\'examen', 'Transport', 'Autre'];
 
 export const SUPPLIERS = [
@@ -19,4 +19,4 @@ const DEMO_EXPENSES = [
   { id: 'x6', supplierId: 's5', category: 'Abonnements logiciels', label: 'Zoom — novembre', amount: 75_000, date: null, due: '2026-11-01', status: 'EN_ATTENTE', method: 'VIREMENT', ref: '' },
 ];
 
-export const EXPENSES = liveArray(() => demoOr(DEMO_EXPENSES, [])); // vide dès que les vraies données sont importées
+export const EXPENSES = storedArray('ent-s-depenses', () => demoOr(DEMO_EXPENSES, [])); // vide dès que les vraies données sont importées

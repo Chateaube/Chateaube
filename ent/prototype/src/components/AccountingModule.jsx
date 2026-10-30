@@ -12,7 +12,8 @@ import { accountStatement, annualCost, cashBalance, monthlyCashReport, cashMonth
 import { printOnly } from '../print.js';
 import { planMonths, monthName } from '../rules/calendar.js';
 import { formatAr } from '../rules/finance.js';
-import CollectPayment, { CASH_ACCOUNTS, feesFor, duesStatus } from './CollectPayment.jsx';
+import CollectPayment, { CASH_ACCOUNTS, feesFor, duesStatus, accountsKey } from './CollectPayment.jsx';
+import { usePersistent } from '../persist.js';
 import { loadManuals } from '../manualsStore.js';
 import { kitFor } from '../rules/manuals.js';
 import { EXPENSES, SUPPLIERS } from '../data/treasury.js';
@@ -357,26 +358,26 @@ export default function AccountingModule({ settings, role, account }) {
   const [lock, setLock] = useState(loadLock);
   const canEdit = role === 'DIRECTION' && !lock; // classes, tarifs, articles et services : Direction uniquement, tant que ce n'est pas verrouillé
   const [tab, setTab] = useState(() => takeIntent('accounting')?.tab ?? 'collect');
-  const [fees, setFees] = useState(CLASS_FEES);
-  const [articles, setArticles] = useState(ARTICLES);
+  const [fees, setFees] = usePersistent('ent-k-tarifs', () => [...CLASS_FEES]);
+  const [articles, setArticles] = usePersistent('ent-k-articles', () => [...ARTICLES]);
   const [movements, setMovementsState] = useState(loadMovements);
   const setMovements = (m) => setMovementsState((prev) => { const next = typeof m === 'function' ? m(prev) : m; saveMovements(next); return next; });
-  const [accounts, setAccounts] = useState(() => [...CASH_ACCOUNTS]);
-  const [receipts, setReceipts] = useState(RECEIPTS_TODAY);
-  const [audit, setAudit] = useState(CASH_AUDIT);
-  const [closings, setClosings] = useState(CASH_CLOSINGS);
-  const [reductionTypes, setReductionTypes] = useState(REDUCTION_TYPES);
+  const [accounts, setAccounts] = usePersistent(accountsKey(), () => [...CASH_ACCOUNTS]);
+  const [receipts, setReceipts] = usePersistent('ent-s-recus', () => [...RECEIPTS_TODAY]);
+  const [audit, setAudit] = usePersistent('ent-s-journal-caisse', () => [...CASH_AUDIT]);
+  const [closings, setClosings] = usePersistent('ent-s-clotures', () => [...CASH_CLOSINGS]);
+  const [reductionTypes, setReductionTypes] = usePersistent('ent-k-reductions', () => [...REDUCTION_TYPES]);
   // heures des vacataires proposées d'après l'emploi du temps du mois, moins les absences déclarées
-  const [payroll, setPayroll] = useState(() => PAYROLL.map((p) => {
+  const [payroll, setPayroll] = usePersistent('ent-s-paie', () => PAYROLL.map((p) => {
     if (!p.byHour || !TIMETABLE.some((s) => s.teacherId === p.staffId)) return p;
     const hrs = teacherHours(p.staffId, TIMETABLE, loadTeacherAbsences(), { from: '2026-10-01', to: '2026-10-31', today: '2026-10-31', settings });
     return { ...p, hours: hrs.done, plannedHours: hrs.planned };
   }));
-  const [rates, setRates] = useState(HOURLY_RATES);
-  const [salaryPayments, setSalaryPayments] = useState([]);
-  const [payrollValidated, setPayrollValidated] = useState(null);
-  const [expenses, setExpenses] = useState(EXPENSES);
-  const [suppliers, setSuppliers] = useState(SUPPLIERS);
+  const [rates, setRates] = usePersistent('ent-s-taux', () => HOURLY_RATES);
+  const [salaryPayments, setSalaryPayments] = usePersistent('ent-s-salaires-payes', []);
+  const [payrollValidated, setPayrollValidated] = usePersistent('ent-s-paie-validee', null);
+  const [expenses, setExpenses] = usePersistent('ent-s-depenses', () => [...EXPENSES]);
+  const [suppliers, setSuppliers] = usePersistent('ent-s-fournisseurs', () => SUPPLIERS);
   // dépense payée en espèces : sortie de caisse liée (comptée une seule fois en trésorerie)
   const cashOut = (x) => setMovements((prev) => [...prev, { id: `x-${x.id}`, expenseId: x.id, date: x.date, time: '12:00', dir: 'OUT', nature: 'Dépense de fonctionnement', journal: 'ECOLAGE', label: x.label, method: 'Espèces', amount: x.amount, agent: actor }]);
   // trésorerie : caisse, dépenses, salaires du mois, dus des familles

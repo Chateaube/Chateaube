@@ -7,6 +7,7 @@ import { takeIntent } from '../navIntent.js';
 import { useDraft } from '../draftStore.js';
 import { TIMETABLE } from '../data/timetable.js';
 import { DocumentInput, DocumentThumb } from './PhotoInput.jsx';
+import { usePersistent } from '../persist.js';
 
 // Cahier de textes de l'enseignant : une entrée par séance (fait en classe + travail à faire).
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
@@ -30,7 +31,7 @@ export function sessionDates(cls, subject, from, days) {
 export default function HomeworkModule() {
   const services = SERVICES.filter((s) => s.mode !== 'APPRECIATION_SEULE');
   const [serviceId, setServiceId] = useState(() => { const i = takeIntent('homework'); return services.find((x) => x.cls === i?.cls && x.subject === i?.subject)?.id ?? services.find((x) => x.cls === i?.cls)?.id ?? services[0].id; });
-  const [entries, setEntries] = useState(HOMEWORK);
+  const [entries, setEntries] = usePersistent('ent-s-devoirs', () => [...HOMEWORK]);
   const blank = { date: TODAY, done: '', todo: '', due: '', files: [] };
   const [draft, setDraft, clearDraft, restored] = useDraft('cahier-de-textes', blank);
   const service = services.find((s) => s.id === serviceId);
@@ -66,6 +67,10 @@ export default function HomeworkModule() {
                       <Badge tone="amber">Pour le {formatDateFr(e.due).replace(/ \d{4}$/, '')}</Badge> <span className="ml-1">{e.todo}</span>
                     </p>
                   )}
+                  <p className="mt-1.5 flex gap-3 text-xs">
+                    <button type="button" className="text-navy-600 underline" onClick={() => { setDraft({ ...blank, ...e, todo: e.todo ?? '', due: e.due ?? '', files: e.files ?? [] }); window.scrollTo?.({ top: 0, behavior: 'smooth' }); }}>Modifier</button>
+                    <button type="button" className="text-red-700 underline" onClick={() => window.confirm('Supprimer cette séance du cahier de textes ?') && setEntries(entries.filter((x) => x.id !== e.id))}>Supprimer</button>
+                  </p>
                 </li>
               ))}
             </ol>
@@ -97,9 +102,11 @@ export default function HomeworkModule() {
             </div>
             {draft.todo.trim() && draft.due && draft.due <= draft.date && <p className="text-xs text-red-700">La date de remise doit suivre la séance.</p>}
             <Button className="w-full" disabled={!ok} onClick={() => {
-              setEntries([{ id: `h${Date.now()}`, cls: service.cls, subject: service.subject, teacher: 'Mme Ranaivo', ...draft, todo: draft.todo.trim() || null, due: draft.todo.trim() ? draft.due : null }, ...entries]);
+              const entry = { cls: service.cls, subject: service.subject, teacher: 'Mme Ranaivo', ...draft, todo: draft.todo.trim() || null, due: draft.todo.trim() ? draft.due : null };
+              // séance modifiée (même id) ou nouvelle séance
+              setEntries(draft.id ? entries.map((x) => (x.id === draft.id ? entry : x)) : [{ ...entry, id: `h${Date.now()}` }, ...entries]);
               clearDraft();
-            }}>Publier</Button>
+            }}>{draft.id ? 'Enregistrer les modifications' : 'Publier'}</Button>
           </div>
         </Card>
       </div>

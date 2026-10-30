@@ -171,3 +171,20 @@ export function isPublished(ev, audience, today, settings) {
   const from = audience === 'PARENT' ? parentPublishOn(ev, settings) : ev.publishOn ?? ev.date;
   return from <= today;
 }
+
+/**
+ * Bonus / malus du professeur sur la moyenne de sa matière (participation, travail, comportement…) :
+ * en points, par demi-point, au plus ± max, motif obligatoire. Moyenne ajustée gardée entre 0 et 20.
+ */
+export function adjustedAverage(avg, adj) {
+  if (avg == null || !adj?.points) return avg;
+  return round2(Math.min(20, Math.max(0, avg + adj.points)));
+}
+export function adjustmentErrors(adj, max = 2) {
+  if (!adj || !adj.points) return [];
+  const e = [];
+  if (Math.abs(adj.points) > max) e.push(`Au plus ${String(max).replace('.', ',')} point${max > 1 ? 's' : ''} de bonus ou de malus.`);
+  if (Math.round(adj.points * 2) !== adj.points * 2) e.push('Par demi-point : 0,5 ; 1 ; 1,5…');
+  if (!String(adj.reason ?? '').trim()) e.push('Indiquer le motif (participation, travail personnel, comportement…).');
+  return e;
+}

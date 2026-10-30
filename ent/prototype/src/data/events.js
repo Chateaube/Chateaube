@@ -1,7 +1,7 @@
 // Calendrier des événements de l'école (démonstration, Tamatave). Les vacances et les jours fériés
 // viennent des Paramètres (calendrier scolaire). agenda : ECOLE (tous), EXAMENS (classes d'examen et
 // professeurs), EQUIPE (personnel seulement).
-import { liveArray, demoOr } from '../demoData.js';
+import { liveArray, demoOr, storedArray } from '../demoData.js';
 const EXAM = ['3e', '1re STMG', '1re Générale', 'Terminale STMG', 'Terminale Générale'];
 const DEMO_SCHOOL_EVENTS = [
   { id: 'e1', agenda: 'ECOLE', date: '2026-10-14', start: '16:00', end: '17:30', title: 'Réunion parents-professeurs — Terminales', place: 'Salle polyvalente', classes: ['Terminale STMG', 'Terminale Générale'] },
@@ -18,4 +18,4 @@ const DEMO_SCHOOL_EVENTS = [
   { id: 'e13', agenda: 'EXAMENS', date: '2027-06-01', allDay: true, title: 'Réunion d\'information examens (dates officielles à confirmer)', classes: EXAM },
 ];
 
-export const SCHOOL_EVENTS = liveArray(() => demoOr(DEMO_SCHOOL_EVENTS, [])); // vide dès que les vraies données sont importées
+export const SCHOOL_EVENTS = storedArray('ent-s-evenements', () => demoOr(DEMO_SCHOOL_EVENTS, [])); // vide dès que les vraies données sont importées

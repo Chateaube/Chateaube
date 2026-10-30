@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card } from './ui.jsx';
 import { AGENDAS, agendaItems, agendasFor, closuresAsEvents, isExamClass, toIcs, overview } from '../rules/agenda.js';
 import { SCHOOL_EVENTS } from '../data/events.js';
+import { usePersistent } from '../persist.js';
 import { loadTimetable } from '../timetableStore.js';
 import { plannedSessions } from '../rules/teachingHours.js';
 import { DEFAULT_SETTINGS } from '../data/settings.js';
@@ -109,7 +110,10 @@ export default function AgendaModule({ role, cls: fixedCls, settings, compact = 
   const [cls, setCls] = useState(fixedCls ?? '');
   const available = agendasFor({ staff, cls: cls || null });
   const [shown, setShown] = useState(Object.keys(AGENDAS));
-  const [events, setEvents] = useState(() => [...SCHOOL_EVENTS, ...publishedProposals()]);
+  // événements de l'école enregistrés ; les propositions des élèves publiées s'y ajoutent à l'affichage
+  const [own, setOwn] = usePersistent('ent-s-evenements', () => [...SCHOOL_EVENTS]);
+  const [, setTick] = useState(0);
+  const events = [...own, ...publishedProposals().filter((p) => !own.some((e) => e.id === p.id))];
   const [draft, setDraft] = useState(null);
   // cours des prochaines semaines, d'après l'emploi du temps (jours de classe), puis les changements
   const courses = useMemo(() => plannedSessions(role === 'ENSEIGNANT' ? loadTimetable().filter((x) => x.teacherId === 'p1') : loadTimetable(), '2026-10-12', '2026-11-06', settings ?? DEFAULT_SETTINGS)
@@ -160,14 +164,14 @@ export default function AgendaModule({ role, cls: fixedCls, settings, compact = 
             <select value={draft.agenda} onChange={(e) => setDraft({ ...draft, agenda: e.target.value, cls: '' })} aria-label="Agenda" className="rounded-md border border-slate-300 px-2 py-1.5 text-sm">{['ECOLE', 'EXAMENS', 'EQUIPE'].map((k) => <option key={k} value={k}>{AGENDAS[k].label} ({AGENDAS[k].hint})</option>)}</select>
             <select value={draft.cls} onChange={(e) => setDraft({ ...draft, cls: e.target.value })} aria-label="Classe concernée" className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"><option value="">{draft.agenda === 'EXAMENS' ? 'Toutes les classes d\'examen' : draft.agenda === 'EQUIPE' ? 'Tout le personnel' : 'Toute l\'école'}</option>{CLASSES.filter((c) => draft.agenda !== 'EXAMENS' || isExamClass(c)).map((c) => <option key={c}>{c}</option>)}</select>
             <span className="flex gap-2">
-              <Button disabled={!draft.title.trim()} onClick={() => { setEvents([...events, { id: `n${Date.now()}`, ...draft, title: draft.title.trim(), classes: draft.cls ? [draft.cls] : draft.agenda === 'EXAMENS' ? CLASSES.filter(isExamClass) : [] }]); setDraft(null); }}>Ajouter</Button>
+              <Button disabled={!draft.title.trim()} onClick={() => { setOwn([...own, { id: `n${Date.now()}`, ...draft, title: draft.title.trim(), classes: draft.cls ? [draft.cls] : draft.agenda === 'EXAMENS' ? CLASSES.filter(isExamClass) : [] }]); setDraft(null); }}>Ajouter</Button>
               <Button variant="secondary" onClick={() => setDraft(null)}>Annuler</Button>
             </span>
           </div>
         )}
       </Card>
 
-      {['DIRECTION', 'VIE_SCOLAIRE'].includes(role) && <ProposalReview role={role} onChange={() => setEvents([...SCHOOL_EVENTS, ...publishedProposals()])} />}
+      {['DIRECTION', 'VIE_SCOLAIRE'].includes(role) && <ProposalReview role={role} onChange={() => setTick((n) => n + 1)} />}
       <div className="grid gap-5 xl:grid-cols-[1fr_320px] xl:items-start">
         <Card title="Prochains jours" subtitle={summary ? 'Vue d\'ensemble : événements, devoirs et cours qui changent. Choisir une classe pour voir tous ses cours.' : undefined}>
           {days.length === 0 && <p className="text-sm text-slate-500">Rien à afficher.</p>}

@@ -849,6 +849,19 @@ CREATE TABLE evaluation_competency (
   PRIMARY KEY (evaluation_id, competency_id)
 );
 
+-- Bonus / malus du professeur sur la moyenne de sa matière pour un trimestre (participation, travail,
+-- comportement…) : par demi-point, au plus ± 2, motif obligatoire ; la moyenne ajustée reste entre 0 et 20.
+CREATE TABLE grade_adjustment (
+  assignment_id uuid NOT NULL REFERENCES teaching_assignment(id),
+  period_id     uuid NOT NULL REFERENCES period(id),
+  enrollment_id uuid NOT NULL REFERENCES enrollment(id),
+  points        numeric(3,1) NOT NULL CHECK (points <> 0 AND abs(points) <= 2 AND points * 2 = trunc(points * 2)),
+  reason        text NOT NULL CHECK (length(trim(reason)) > 0),
+  entered_by    uuid NOT NULL REFERENCES app_user(id),
+  entered_at    timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (assignment_id, period_id, enrollment_id)
+);
+
 CREATE TABLE grade (
   evaluation_id uuid REFERENCES evaluation(id) ON DELETE CASCADE,
   enrollment_id uuid REFERENCES enrollment(id),
@@ -976,7 +989,15 @@ CREATE TABLE discipline_measure (
   decided_by    uuid NOT NULL REFERENCES app_user(id),
   parent_ack_at timestamptz,
   parent_ack_by uuid REFERENCES guardian(id),
-  CHECK ((parent_ack_at IS NULL) = (parent_ack_by IS NULL))
+  CHECK ((parent_ack_at IS NULL) = (parent_ack_by IS NULL)),
+  -- corrigée : le parent est prévenu à nouveau (son accusé de lecture est remis à zéro par l'application)
+  edited_at     timestamptz,
+  -- annulée : la mesure reste au dossier avec le motif, mais ne compte plus (passeport, conseil, bulletin)
+  cancelled_at  timestamptz,
+  cancelled_by  uuid REFERENCES app_user(id),
+  cancel_reason text,
+  CHECK ((cancelled_at IS NULL) = (cancelled_by IS NULL) AND (cancelled_at IS NULL) = (cancel_reason IS NULL)),
+  CHECK (cancel_reason IS NULL OR length(trim(cancel_reason)) > 0)
 );
 
 -- Téléphones confisqués : 24 h ou 5 jours ouvrés ; qui a confisqué, qui l'a reçu et signé,

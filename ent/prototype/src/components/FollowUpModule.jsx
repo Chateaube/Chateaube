@@ -10,6 +10,7 @@ import { TLE_STUDENTS, STEPS, EXPORT_WINDOW } from '../data/terminale.js';
 import { realData, demoOr } from '../demoData.js';
 import { loadImport } from '../importStore.js';
 import { higherEdSteps, PROCEDURES, exportWindowOpen, campusFranceCsv, DESTINATIONS, trackSteps, addTrack, closeTrack, trackProgress } from '../rules/orientation.js';
+import { usePersistent } from '../persist.js';
 
 // Suivi côté établissement (Direction, Bureau, Vie scolaire) : autorisations, documents
 // envoyés et accusés de lecture, pièces manquantes, stages, orientation.
@@ -63,7 +64,7 @@ function Authorizations() {
 }
 
 function Documents() {
-  const [docs, setDocs] = useState(DOCUMENTS.map((d, i) => ({ ...d, audience: i === 1 ? '6e – 5e' : 'Toute l\'école', readCount: [118, 61, 179, 172][i], total: [186, 64, 186, 186][i] })));
+  const [docs, setDocs] = usePersistent('ent-s-documents-envoyes', () => demoOr(DOCUMENTS, []).map((d, i) => ({ ...d, audience: i === 1 ? '6e – 5e' : 'Toute l\'école', readCount: [118, 61, 179, 172][i], total: [186, 64, 186, 186][i] })));
   const [draft, setDraft] = useState({ title: '', audience: 'Toute l\'école', signature: false });
   return (
     <div className="grid gap-5 xl:grid-cols-[1fr_360px] xl:items-start">
@@ -102,7 +103,7 @@ function Documents() {
 }
 
 function Requested() {
-  const [items, setItems] = useState(() => demoOr([
+  const [items, setItems] = usePersistent('ent-s-pieces-a-recevoir', () => demoOr([
     ...REQUESTED.map((r) => ({ ...r, student: r.child === 'aina' ? 'RAKOTOARISOA Aina' : 'RAKOTOARISOA Toky' })),
     { id: 'r4', student: 'RANDRIA Mamy', title: 'Attestation de recensement — dossier Bac', due: '2026-10-30', received: false },
     { id: 'r5', student: 'RAZAFY Kanto', title: 'Photo d\'identité — dossier Pré-Bac', due: '2026-10-30', received: 'PENDING' },
@@ -213,7 +214,7 @@ const tleStudents = () => (realData()
 
 function Terminale() {
   // pistes de chaque élève (France en plan B pour tous, autres pays au besoin)
-  const [students, setStudents] = useState(() => tleStudents().map((st, i) => ({
+  const [students, setStudents] = usePersistent(`ent-s-terminales-${realData() ? 'reel' : 'demo'}`, () => tleStudents().map((st, i) => ({
     ...st,
     tracks: [
       { id: 'FRANCE', dest: 'FRANCE', done: { account: st.parcoursup.account, confirmed: st.parcoursup.confirmed, campus: st.campus.file, tls: st.tls.appointment }, closed: null },

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Badge, Button, Card, Stat } from './ui.jsx';
 import { STAFF, POSTES, CONTRATS, contractFor } from '../data/people.js';
+import { usePersistent } from '../persist.js';
 
 const TODAY = '2026-10-13';
 const fmtDate = (iso) => (iso ? iso.split('-').reverse().join('/') : '—');
@@ -18,7 +19,7 @@ export function staffStatus(a, today = TODAY) {
 const EMPTY = { name: '', poste: POSTES[0], detail: '', contrat: 'CDI', entry: TODAY, exit: '', email: '', access: '' };
 
 export default function StaffModule() {
-  const [staff, setStaff] = useState(STAFF);
+  const [staff, setStaff] = usePersistent('ent-s-personnel', STAFF);
   const [filter, setFilter] = useState('ACTIFS');
   const [draft, setDraft] = useState(EMPTY);
   const [exitFor, setExitFor] = useState(null); // { id, date, reason }

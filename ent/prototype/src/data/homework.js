@@ -1,6 +1,6 @@
 // Cahier de textes (démo) : contenu des séances et travail à faire.
 // Saisi par l'enseignant, visible par les élèves et leurs parents.
-import { liveArray, demoOr } from '../demoData.js';
+import { liveArray, demoOr, storedArray } from '../demoData.js';
 
 const DEMO_HOMEWORK = [
   { id: 'h1', cls: '1re STMG', subject: 'Management', teacher: 'Mme Ranaivo', date: '2026-10-13', done: 'Chapitre 3 : les finalités de l\'organisation. Étude du cas « Coopérative de vanille de Sambava ».', todo: 'Lire le document 4 et répondre aux questions 1 à 3.', due: '2026-10-15' },
@@ -12,4 +12,4 @@ const DEMO_HOMEWORK = [
   { id: 'h7', cls: 'Terminale STMG', subject: 'Management', teacher: 'Mme Ranaivo', date: '2026-10-12', done: 'La stratégie des organisations.', todo: null, due: null },
 ];
 
-export const HOMEWORK = liveArray(() => demoOr(DEMO_HOMEWORK, [])); // vide dès que les vraies données sont importées
+export const HOMEWORK = storedArray('ent-s-devoirs', () => demoOr(DEMO_HOMEWORK, [])); // vide dès que les vraies données sont importées
