@@ -1775,7 +1775,7 @@ DO $$ DECLARE e uuid := '30000000-0000-0000-0000-000000000001'; a uuid; r uuid; 
   IF (SELECT status FROM v_attendance_status WHERE id = a) <> 'EN_ATTENTE' THEN RAISE EXCEPTION 'T64: en attente de la vie scolaire'; END IF;
   -- deuxième demande tant que la première attend : refusée
   BEGIN
-    INSERT INTO attendance_request (attendance_id, guardian_id, reason, sent_at) VALUES (a, g, 'Transport', now() - interval '17 hours');
+    INSERT INTO attendance_request (attendance_id, guardian_id, reason, sent_at) VALUES (a, g, 'Accident de transport', now() - interval '17 hours');
     RAISE EXCEPTION 'T64: deux demandes en attente';
   EXCEPTION WHEN unique_violation THEN NULL;
   END;
@@ -1794,7 +1794,7 @@ DO $$ DECLARE e uuid := '30000000-0000-0000-0000-000000000001'; a uuid; r uuid; 
     RAISE EXCEPTION 'T64: Autre sans précision';
   EXCEPTION WHEN check_violation THEN NULL;
   END;
-  INSERT INTO attendance_request (attendance_id, guardian_id, reason) VALUES (a, g, 'Transport') RETURNING id INTO r;
+  INSERT INTO attendance_request (attendance_id, guardian_id, reason) VALUES (a, g, 'Accident de transport') RETURNING id INTO r;
   BEGIN
     UPDATE attendance_request SET accepted = false, decided_at = now(), decided_by = cpe WHERE id = r;
     RAISE EXCEPTION 'T64: refus sans raison';

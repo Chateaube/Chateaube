@@ -2024,3 +2024,17 @@ test('bonus / malus : borné entre 0 et 20, demi-points, ± 2 au plus, motif obl
   assert.equal(adjustmentErrors({ points: 0.3, reason: 'x' }).length, 1);
   assert.equal(adjustmentErrors({ points: -1, reason: ' ' }).length, 1);
 });
+
+// Motifs légitimes (service-public.fr) ; justificatif obligatoire à partir de 3 jours d'absence d'affilée
+import { absenceStreak, JUSTIFY_REASONS } from '../src/rules/attendance.js';
+test('absences : motifs légitimes, 3 jours d\'affilée → justificatif obligatoire', () => {
+  assert.deepEqual(JUSTIFY_REASONS, ['Maladie', 'Réunion de famille', 'Accident de transport', 'Déplacement avec la famille', 'Autre']);
+  const ab = (id, date) => ({ id, date, student: 'X', kind: 'ABSENCE', slot: 'Journée', justified: false });
+  const list = [ab('a', '2026-10-15'), ab('b', '2026-10-16'), ab('c', '2026-10-19'), ab('d', '2026-10-21'), { ...ab('e', '2026-10-20'), student: 'Y' }];
+  assert.equal(absenceStreak(list, list[1]), 3); // jeudi, vendredi, lundi : le week-end ne coupe pas la suite
+  assert.equal(absenceStreak(list, list[3]), 1); // mardi manquant : nouvelle suite
+  const a = list[0];
+  assert.match(familyRequestErrors(a, { reason: 'Maladie' }, '2026-10-15T18:00', { streak: 3 })[0], /justificatif/);
+  assert.deepEqual(familyRequestErrors(a, { reason: 'Maladie', photo: 'data:x' }, '2026-10-15T18:00', { streak: 3 }), []);
+  assert.deepEqual(familyRequestErrors(a, { reason: 'Maladie' }, '2026-10-15T18:00', { streak: 2 }), []);
+});

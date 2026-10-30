@@ -16,8 +16,11 @@ import { findStudents } from '../rules/search.js';
 // Tout part dans les écrans habituels (absences et retards, objets confisqués, soins) et dans le journal.
 
 const ACTIONS = [
+  ['APPEL', 'Appel', 'check'], ['RESA', 'Réservation', 'calendar'],
   ['RETARD', 'Retard', 'clock'], ['ABSENCE', 'Absence', 'users'], ['OBJET', 'Confiscation', 'box'], ['SOIN', 'Soins', 'care'],
 ];
+// raccourcis qui ouvrent un écran (au lieu d'une fiche de saisie)
+const LINKS = { APPEL: 'appel', RESA: 'booking' };
 const SLOTS = [['Matin', '07h00–12h00'], ['Après-midi', '13h00–17h00'], ['Journée', 'Journée']];
 const MOTIFS = ['Utilisé en classe', 'Sonnerie en cours', 'Photo ou vidéo', 'Pendant un contrôle', 'Écouteurs en classe'];
 const nowHm = () => new Date().toTimeString().slice(0, 5);
@@ -26,11 +29,14 @@ export const lateMinutes = (arrival) => { const [h, m] = arrival.split(':').map(
 
 function Chips({ options, value, onChange, label }) {
   return (
-    <div className="flex flex-wrap gap-1.5" role="group" aria-label={label}>
+    <div role="group" aria-label={label}>
+      <p className="mb-1 text-xs font-semibold text-slate-600">{label}</p>
+      <div className="flex flex-wrap gap-1.5">
       {options.map(([k, l]) => (
         <button key={k} type="button" aria-pressed={value === k} onClick={() => onChange(k)}
           className={`min-h-[40px] rounded-full px-3 text-sm font-medium ring-1 ${value === k ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-800 ring-slate-300'}`}>{l}</button>
       ))}
+      </div>
     </div>
   );
 }
@@ -100,8 +106,8 @@ function Sheet({ action, role, onClose, onSaved }) {
             </>}
             {action === 'ABSENCE' && <Chips label="Créneau" value={f.slot} onChange={(slot) => setF({ ...f, slot })} options={SLOTS.map(([k]) => [k, k])} />}
             {action === 'OBJET' && <>
-              <Chips label="Objet" value={f.object} onChange={(object) => setF({ ...f, object })} options={OBJECTS.filter((o) => o !== 'Autre').map((o) => [o, o.replace(/ \(Puff\)/, '')])} />
-              <Chips label="Motif" value={f.reason} onChange={(reason) => setF({ ...f, reason })} options={MOTIFS.map((m) => [m, m])} />
+              <Chips label="1. Quel objet est confisqué ?" value={f.object} onChange={(object) => setF({ ...f, object })} options={OBJECTS.filter((o) => o !== 'Autre').map((o) => [o, o.replace(/ \(Puff\)/, '')])} />
+              <Chips label="2. Pourquoi ? (motif)" value={f.reason} onChange={(reason) => setF({ ...f, reason })} options={MOTIFS.map((m) => [m, m])} />
               <input value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} placeholder="Ou un autre motif" aria-label="Motif" className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" />
             </>}
             {action === 'SOIN' && <>
@@ -122,16 +128,16 @@ function Sheet({ action, role, onClose, onSaved }) {
 }
 
 /** Quatre boutons (ordinateur) et barre fixée en bas (téléphone). */
-// Enseignant : confiscation en classe seulement (l'objet est remis à la vie scolaire).
-const ROLE_ACTIONS = { ENSEIGNANT: ['OBJET'], BUREAU: ['SOIN', 'ABSENCE'] }; // secrétariat : soins et absences
+// Enseignant : appel, réservation de matériel et confiscation en classe (l'objet est remis à la vie scolaire).
+const ROLE_ACTIONS = { ENSEIGNANT: ['APPEL', 'RESA', 'OBJET'], BUREAU: ['SOIN', 'ABSENCE'], VIE_SCOLAIRE: ['RETARD', 'ABSENCE', 'OBJET', 'SOIN'] }; // secrétariat : soins et absences
 
-export default function QuickEntry({ role = 'VIE_SCOLAIRE' }) {
+export default function QuickEntry({ role = 'VIE_SCOLAIRE', go }) {
   const allowed = ACTIONS.filter(([k]) => !ROLE_ACTIONS[role] || ROLE_ACTIONS[role].includes(k));
   const [action, setAction] = useState(null);
   const [done, setDone] = useState('');
   const inline = role === 'ENSEIGNANT'; // l'enseignant a déjà sa barre en bas (Ma journée, Appel, Notes…)
   const buttons = (cls) => allowed.map(([k, l, icon]) => (
-    <button key={k} type="button" data-quick={k} onClick={() => { setAction(k); setDone(''); }} className={cls}><Icon name={icon} className="h-5 w-5" />{l}</button>
+    <button key={k} type="button" data-quick={k} onClick={() => { if (LINKS[k]) { go?.(LINKS[k]); return; } setAction(k); setDone(''); }} className={cls}><Icon name={icon} className="h-5 w-5" />{l}</button>
   ));
   return (
     <>

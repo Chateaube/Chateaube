@@ -66,16 +66,38 @@ export function justification(a, now) {
  * Le parent justifie depuis son téléphone (motif, mot, photo du justificatif facultative) tant que le délai
  * de 24 h court. La demande déposée à temps « arrête le chronomètre » : elle attend la vie scolaire, qui
  * l'accepte (absence justifiée) ou la refuse avec une raison (non justifiée si le délai est passé). */
-export const JUSTIFY_REASONS = ['Certificat médical', 'Maladie', 'Motif familial', 'Transport', 'Rendez-vous administratif', 'Autre'];
+// Motifs légitimes retenus par l'institution (service-public.fr), plus « Autre » laissé à l'appréciation de la vie scolaire.
+export const JUSTIFY_REASONS = ['Maladie', 'Réunion de famille', 'Accident de transport', 'Déplacement avec la famille', 'Autre'];
+export const REASON_HINTS = {
+  Maladie: 'de l\'élève, ou d\'un proche s\'il est contagieux',
+  'Réunion de famille': 'réunion solennelle : mariage, enterrement…',
+  'Accident de transport': 'empêchement causé par un accident sur le trajet',
+  'Déplacement avec la famille': 'l\'élève suit ses représentants légaux, hors vacances scolaires',
+  Autre: 'à préciser ; la vie scolaire décide',
+};
+/** À partir de ce nombre de jours d'absence d'affilée, un justificatif écrit est obligatoire (certificat médical pour une maladie). */
+export const PROOF_FROM_DAYS = 3;
+
+/** Jours de classe d'absence d'affilée (week-ends sautés) autour de l'absence `a`, d'après la liste de l'élève. */
+export function absenceStreak(list, a) {
+  const days = new Set(list.filter((x) => x.student === a.student && x.kind === 'ABSENCE').map((x) => x.date));
+  if (!days.has(a.date)) return 0;
+  const step = (d, k) => { const x = new Date(`${d}T12:00:00Z`); do { x.setUTCDate(x.getUTCDate() + k); } while ([0, 6].includes(x.getUTCDay())); return x.toISOString().slice(0, 10); };
+  let n = 1;
+  for (let d = step(a.date, -1); days.has(d); d = step(d, -1)) n++;
+  for (let d = step(a.date, 1); days.has(d); d = step(d, 1)) n++;
+  return n;
+}
 
 /** Erreurs d'une demande de la famille ; [] si elle peut partir. */
-export function familyRequestErrors(a, req, now) {
+export function familyRequestErrors(a, req, now, { streak = 1 } = {}) {
   const e = [];
   if (a.justified) e.push('Déjà justifiée.');
   if (a.request && !a.request.refused) e.push('Une justification est déjà envoyée : la vie scolaire la regarde.');
   if (now >= justifyDeadline(a)) e.push('Le délai de 24 h est dépassé : l\'absence reste non justifiée. Vous pouvez écrire à la vie scolaire.');
   if (!JUSTIFY_REASONS.includes(req.reason)) e.push('Choisissez un motif.');
   if (req.reason === 'Autre' && !(req.note ?? '').trim()) e.push('Précisez le motif.');
+  if (streak >= PROOF_FROM_DAYS && !req.photo) e.push(`Absence de ${streak} jours d'affilée : joignez la photo du justificatif (certificat médical pour une maladie).`);
   return e;
 }
 

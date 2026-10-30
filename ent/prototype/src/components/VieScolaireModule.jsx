@@ -6,7 +6,7 @@ import { isMinor, leaveErrors } from '../rules/earlyLeave.js';
 import { loadProfiles } from '../profilesStore.js';
 import { MEASURES, AUTHORS, validateMeasure, phoneReturnAt, PHONE_DURATIONS, PHONE_ACTIONS, phoneDurationFor, validateReturn, ackReminderDue, OBJECTS, objectOf, HANDED_TO, canDecideDuration, objectState, colleErrors, nextColleSlot } from '../rules/discipline.js';
 import { colleSlotsLabel } from '../rules/discipline.js';
-import { justificationState as justification, LATE_LIMIT } from '../rules/attendance.js';
+import { justificationState as justification, LATE_LIMIT, JUSTIFY_REASONS, absenceStreak, PROOF_FROM_DAYS } from '../rules/attendance.js';
 import { loadAttendance, saveAttendance } from '../attendanceStore.js';
 import { takeIntent } from '../navIntent.js';
 // minutes de retard lues dans le créneau (« 07h00 (+15 min) ») : au-delà de 10, l'heure compte comme absence
@@ -21,7 +21,8 @@ import { usePersistent } from '../persist.js';
 // Accessible à la Vie scolaire, au Bureau et à la Direction.
 
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
-const REASONS = ['Certificat médical', 'Motif familial', 'Transport', 'Rendez-vous administratif', 'Autre'];
+const FOCUS_TITLE = { passport: 'Colles et passeport', phones: 'Objets en garde' };
+const REASONS = JUSTIFY_REASONS; // motifs légitimes (service-public.fr) + Autre
 const MEASURE = Object.fromEntries(MEASURES.map((m) => [m.id, m]));
 const fmtDT = (dt) => { const [d, t] = dt.split('T'); return `${formatDateFr(d).replace(/ \d{4}$/, '')} à ${t.replace(':', 'h')}`; };
 const NOW = '2026-10-13T11:00';
@@ -108,7 +109,7 @@ function AttendanceTab({ rows, setRows, toast, role, initialFilter }) {
                   ) : st(r).status === 'NON_JUSTIFIEE' ? (
                     <span><Badge tone="red">Non justifiée</Badge><span className="block text-[11px] text-slate-600">délai dépassé le {fmtDT(st(r).deadline)}</span></span>
                   ) : justifying === r.id ? (
-                    <span className="flex flex-wrap gap-1">{REASONS.map((x) => <button key={x} type="button" onClick={() => { update([r.id], { justified: true, reason: x }, `${r.kind === 'ABSENCE' ? 'Absence' : 'Retard'} de ${r.student} justifié.`, { kind: 'JUSTIF', text: () => `${r.kind === 'ABSENCE' ? 'Absence' : 'Retard'} justifié : ${x.toLowerCase()}` }); setJustifying(null); }} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs hover:bg-navy-50">{x}</button>)}</span>
+                    <span className="flex flex-wrap gap-1">{absenceStreak(rows, r) >= PROOF_FROM_DAYS && <span className="w-full text-[11px] font-medium text-amber-800">{absenceStreak(rows, r)} jours d'affilée : justificatif écrit obligatoire (certificat médical pour une maladie).</span>}{REASONS.map((x) => <button key={x} type="button" onClick={() => { update([r.id], { justified: true, reason: x }, `${r.kind === 'ABSENCE' ? 'Absence' : 'Retard'} de ${r.student} justifié.`, { kind: 'JUSTIF', text: () => `${r.kind === 'ABSENCE' ? 'Absence' : 'Retard'} justifié : ${x.toLowerCase()}` }); setJustifying(null); }} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs hover:bg-navy-50">{x}</button>)}</span>
                   ) : <span><button type="button" onClick={() => setJustifying(r.id)} className="text-xs font-medium text-navy-700 underline decoration-dotted">Justifier</button><span className="block text-[11px] text-amber-800">encore {st(r).hoursLeft} h (jusqu'au {fmtDT(st(r).deadline)})</span></span>}
                 </td>
                 <td className="px-2">{r.notified ? <Ack at={r.parentAck} /> : <span className="text-xs font-medium text-amber-800">Pas encore prévenus</span>}</td>
@@ -449,14 +450,16 @@ export default function VieScolaireModule({ settings, role = 'VIE_SCOLAIRE', ini
   const setPhones = (l) => { setPhonesState(l); saveObjects(l); };
   const [message, setMessage] = useState(null);
   const today = rows.filter((r) => r.date === '2026-10-13');
+  // ouvert depuis son propre menu (CPE : « Colles », « Objets en garde ») : cet écran seul, sans les chiffres ni les onglets
+  const focus = ['passport', 'phones'].includes(initialTab) && tab === initialTab;
 
   return (
     <div className="space-y-5">
       <div>
         <p className="text-sm font-semibold text-navy-500">Tamatave</p>
-        <h1 className="text-2xl font-semibold text-navy-900">{role === 'ENSEIGNANT' ? 'Vie de classe' : 'Absences, retards et punitions'}</h1>
+        <h1 className="text-2xl font-semibold text-navy-900">{focus ? FOCUS_TITLE[initialTab] : role === 'ENSEIGNANT' ? 'Vie de classe' : 'Absences, retards et punitions'}</h1>
       </div>
-      {role !== 'ENSEIGNANT' && <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {role !== 'ENSEIGNANT' && !focus && <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {/* chaque chiffre ouvre la liste qui l'explique (mêmes calculs que les filtres) */}
         <Stat onClick={() => open('attendance', 'ALL')} label="Absences aujourd'hui" value={today.filter((r) => r.kind === 'ABSENCE').length} />
         <Stat onClick={() => open('attendance', 'ALL')} label="Retards aujourd'hui" value={today.filter((r) => r.kind === 'RETARD').length} />
@@ -464,12 +467,12 @@ export default function VieScolaireModule({ settings, role = 'VIE_SCOLAIRE', ini
         <Stat onClick={() => open('phones')} label="Objets en garde" value={phones.filter((p) => p.action !== 'AVERTISSEMENT' && !p.returned).length} hint={phones.some((p) => objectState(p, NOW, settings) === 'A_DECIDER') ? `${phones.filter((p) => objectState(p, NOW, settings) === 'A_DECIDER').length} durée à décider` : undefined} />
       </div>}
       {message && <p role="status" className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800"><Icon name="check" />{message}</p>}
-      <div className="flex gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1" role="tablist">
+      {!focus && <div className="flex gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1" role="tablist">
         {tabs.map(([id, label]) => (
           <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
             className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ${tab === id ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>{label}</button>
         ))}
-      </div>
+      </div>}
       {tab === 'attendance' && <AttendanceTab key={`att-${pick.n}`} initialFilter={pick.filter ?? intent?.filter} rows={rows} setRows={setRows} toast={setMessage} role={role} />}
       {tab === 'measures' && <MeasuresTab log={log} setLog={setLog} role={role} toast={setMessage} />}
       {tab === 'leave' && <EarlyLeaveTab toast={setMessage} />}

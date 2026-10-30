@@ -1,5 +1,14 @@
 # Notes de version — ce qui change pour l'équipe
 
+## 30 octobre 2026 (suite 2) — motifs d'absence, saisie express, écrans de la CPE
+
+- **Motifs d'absence légitimes** (service-public.fr) pour les familles et la vie scolaire : maladie (de l'élève, ou d'un proche s'il est contagieux), réunion de famille (mariage, enterrement…), accident de transport, déplacement avec la famille hors vacances, et « Autre » à préciser (la vie scolaire décide). Chaque motif s'explique sous les boutons.
+- **Absence de 3 jours ou plus d'affilée** (les week-ends ne coupent pas la suite) : la photo du justificatif devient obligatoire (certificat médical pour une maladie) ; la vie scolaire voit l'avertissement au moment de justifier.
+- **Saisie express des professeurs** : Appel, Réservation et Confiscation. Appel et Réservation ouvrent directement l'écran.
+- **Confiscation** : les deux rangées de boutons ont un titre : « 1. Quel objet est confisqué ? » puis « 2. Pourquoi ? (motif) ». Même chose pour les autres saisies (créneau, motif de soins, suite).
+- **CPE** : « Colles » et « Objets en garde » s'ouvrent seuls, avec leur titre, sans répéter les chiffres et les onglets d'« Absences, retards et punitions ».
+- Base de données : motifs des justifications mis à jour.
+
 ## 30 octobre 2026 (suite) — tout est enregistré, corrections possibles, bonus / malus
 
 - **Chaque saisie est enregistrée, pour tous les profils** : caisse (encaissements, reçus, clôtures, journal, dépenses, fournisseurs, salaires, taux), tarifs, articles et réductions, personnel, cahier de textes, punitions et sanctions, agenda, réservations, messages (photos comprises), documents et pièces demandées, autorisations des familles, stages, poursuite d'études des Terminales, relances d'impayés, passage au conseil, rappels du CDI. On retrouve tout en revenant sur l'écran ou après un rechargement.

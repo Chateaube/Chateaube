@@ -53,7 +53,7 @@ export default function TeacherPortal({ go }) {
         </ul>
       </Card>
 
-      <QuickEntry role="ENSEIGNANT" />
+      <QuickEntry role="ENSEIGNANT" go={go} />
 
       <div className="grid gap-5 xl:grid-cols-[1fr_380px] xl:items-start">
         <Card title="Mes cours aujourd'hui">

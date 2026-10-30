@@ -2371,7 +2371,9 @@ CREATE TABLE attendance_request (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   attendance_id uuid NOT NULL REFERENCES attendance_event(id) ON DELETE CASCADE,
   guardian_id   uuid NOT NULL REFERENCES guardian(id),
-  reason        text NOT NULL CHECK (reason IN ('Certificat médical', 'Maladie', 'Motif familial', 'Transport', 'Rendez-vous administratif', 'Autre')),
+  -- motifs légitimes retenus par l'institution (service-public.fr) + Autre ; à partir de 3 jours d'absence
+  -- d'affilée, la photo du justificatif est obligatoire (contrôlée par l'application avant l'envoi)
+  reason        text NOT NULL CHECK (reason IN ('Maladie', 'Réunion de famille', 'Accident de transport', 'Déplacement avec la famille', 'Autre')),
   note          text,
   photo_key     text,                                   -- photo du justificatif (stockage de fichiers)
   sent_at       timestamptz NOT NULL DEFAULT now(),

@@ -2,7 +2,7 @@ import { couponsUsed, ABSENCE_COUPONS } from '../rules/attendance.js';
 import React, { useState } from 'react';
 import { Button } from './ui.jsx';
 import { DocumentInput } from './PhotoInput.jsx';
-import { JUSTIFY_REASONS, familyRequestErrors, justificationState, timeLeftLabel } from '../rules/attendance.js';
+import { JUSTIFY_REASONS, REASON_HINTS, PROOF_FROM_DAYS, absenceStreak, familyRequestErrors, justificationState, timeLeftLabel } from '../rules/attendance.js';
 import { loadAttendance, saveAttendance } from '../attendanceStore.js';
 import { formatDateFr } from '../rules/calendar.js';
 
@@ -18,12 +18,14 @@ export function JustifyAbsence({ absence, now, by, onDone, open: startOpen = fal
   const [draft, setDraft] = useState({ reason: '', note: '', photo: null });
   const [errors, setErrors] = useState([]);
   const st = justificationState(absence, now);
+  const streak = absenceStreak(loadAttendance(), absence);
+  const proofNeeded = streak >= PROOF_FROM_DAYS;
   if (st.status === 'JUSTIFIEE') return <p className="mt-1 text-xs font-medium text-emerald-700">✓ Justifiée{absence.request?.acceptedAt ? ' (acceptée par la vie scolaire)' : ''}</p>;
   if (st.status === 'EN_ATTENTE') return <p className="mt-1 text-xs text-navy-800">Justification envoyée le {fmt(absence.request.at)} ({absence.request.reason.toLowerCase()}) — la vie scolaire la regarde.</p>;
   if (st.status === 'NON_JUSTIFIEE') return <p className="mt-1 text-xs text-red-800">{absence.request?.refused ? `Justification refusée : ${absence.request.refused.why}. ` : ''}Non justifiée (délai de 24 h dépassé le {fmt(st.deadline)}).</p>;
   const send = () => {
     const req = { reason: draft.reason, note: draft.note.trim(), photo: draft.photo?.dataUrl ?? null, at: now, by };
-    const e = familyRequestErrors(absence, req, now);
+    const e = familyRequestErrors(absence, req, now, { streak });
     setErrors(e); if (e.length) return;
     const list = loadAttendance().map((a) => (a.id === absence.id ? { ...a, request: req } : a));
     saveAttendance(list); setOpen(false); onDone?.();
@@ -45,11 +47,13 @@ export function JustifyAbsence({ absence, now, by, onDone, open: startOpen = fal
                 className={`min-h-[36px] rounded-full px-3 text-xs font-medium ring-1 ${draft.reason === r ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-700 ring-slate-300'}`}>{r}</button>
             ))}
           </div>
+          {draft.reason && <p className="text-[11px] text-slate-600">{draft.reason} : {REASON_HINTS[draft.reason]}</p>}
+          {proofNeeded && <p className="rounded-md bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-900">Absence de {streak} jours d'affilée : justificatif obligatoire (certificat médical pour une maladie).</p>}
           <label className="block text-xs text-slate-600">Un mot pour la vie scolaire {draft.reason === 'Autre' ? '' : '(facultatif)'}
             <textarea rows={2} value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm" />
           </label>
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            <DocumentInput label={draft.photo ? 'Changer la photo' : 'Photo du justificatif (facultatif)'} onAdd={(d) => setDraft({ ...draft, photo: d })} />
+            <DocumentInput label={draft.photo ? 'Changer la photo' : proofNeeded ? 'Photo du justificatif (obligatoire)' : 'Photo du justificatif (facultatif)'} onAdd={(d) => setDraft({ ...draft, photo: d })} />
             {draft.photo && <span className="text-emerald-700">✓ {draft.photo.name}</span>}
           </div>
           {errors.length > 0 && <p role="alert" className="text-xs text-red-700">{errors.join(' ')}</p>}
