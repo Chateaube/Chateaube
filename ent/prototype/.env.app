@@ -3,3 +3,5 @@
 # de la base protègent les données. La clé secrète (service_role) n'est JAMAIS ici.
 VITE_SUPABASE_URL=https://kznhazemmybzjlwbqfrc.supabase.co
 VITE_SUPABASE_KEY=sb_publishable_5-4bj2AoymeGyxNJLSaY0Q_5N1RN2dJ
+# nom donné à la fonction des comptes lors de son installation dans Supabase
+VITE_FN_COMPTES=dynamic-processor

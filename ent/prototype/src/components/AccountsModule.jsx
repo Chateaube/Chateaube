@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Badge, Button, Card } from './ui.jsx';
-import { supabase } from '../online/client.js';
+import { supabase, FN_COMPTES } from '../online/client.js';
 import { printOnly } from '../print.js';
 import { askConfirm } from './Dialogs.jsx';
 
@@ -11,8 +11,8 @@ const ROLES = [['PROFESSEUR', 'Professeur'], ['VIE_SCOLAIRE', 'CPE / vie scolair
 const LABEL = Object.fromEntries(ROLES);
 const field = 'mt-1 w-full rounded-lg border border-slate-300 px-2.5 py-2 text-sm';
 const call = async (body) => {
-  const { data, error } = await supabase.functions.invoke('comptes', { body });
-  if (error) { let msg = 'Le serveur ne répond pas. Vérifiez que la fonction « comptes » est installée.'; try { msg = (await error.context.json()).error ?? msg; } catch { /* réponse illisible */ } throw new Error(msg); }
+  const { data, error } = await supabase.functions.invoke(FN_COMPTES, { body });
+  if (error) { let msg = 'Le serveur ne répond pas. Vérifiez que la fonction des comptes est installée dans Supabase.'; try { msg = (await error.context.json()).error ?? msg; } catch { /* réponse illisible */ } throw new Error(msg); }
   return data;
 };
 

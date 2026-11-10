@@ -6,6 +6,8 @@ const ENV = import.meta.env ?? {}; // absent hors de Vite (tests sous Node)
 const URL = ENV.VITE_SUPABASE_URL;
 const KEY = ENV.VITE_SUPABASE_KEY;
 export const ONLINE = Boolean(URL && KEY);
+// nom de la fonction serveur des comptes dans Supabase (« comptes » par défaut)
+export const FN_COMPTES = ENV.VITE_FN_COMPTES || 'comptes';
 export const supabase = ONLINE ? createClient(URL, KEY, { auth: { persistSession: true, storageKey: 'ent-auth', detectSessionInUrl: true } }) : null;
 
 // rôle de la base → profil de l'application

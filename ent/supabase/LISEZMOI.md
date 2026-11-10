@@ -34,7 +34,9 @@ Tests locaux : `fake_supabase.sql` puis `installation.sql` puis `test_supabase.s
 
 ## 4. Mise à jour 1 — comptes du personnel (une seule fois)
 1. SQL Editor › New query → coller le contenu de `20_comptes.sql` → Run.
-2. **Edge Functions** › *Deploy a new function* › *Via Editor* : nom `comptes`, coller `functions/comptes/index.ts`,
+2. **Edge Functions** › *Deploy a new function* › *Via Editor* : nom `comptes`, coller `functions/comptes/index.ts`
+   (l'adresse technique de la fonction est réglée dans `VITE_FN_COMPTES` de `ent/prototype/.env.app` ; installée ici sous
+   `dynamic-processor` : renommer la fonction dans Supabase ne change pas cette adresse),
    **Deploy**. (La fonction utilise la clé secrète du projet, qui reste sur le serveur de Supabase.)
 3. **Authentication › Sign In / Providers** : désactiver « Allow new users to sign up » (seule la Direction crée les comptes).
 4. **Authentication › URL Configuration** : *Site URL* = adresse de l'application
