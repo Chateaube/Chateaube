@@ -1,3 +1,4 @@
+import { liveArray, demoOr } from '../demoData.js';
 // Données de démonstration — personnel et portails (noms FICTIFS).
 
 export const POSTES = [
@@ -9,7 +10,7 @@ export const CONTRATS = ['CDI', 'CDD', 'Vacataire', 'Stagiaire'];
 export const contractFor = (poste, contrat) => (poste === 'Enseignant.e' ? 'Vacataire' : contrat);
 
 // Registre du personnel de Tamatave : entrées et sorties
-export const STAFF = [
+const DEMO_STAFF = [
   { id: 'p1', name: 'RANAIVO Fara', poste: 'Enseignant.e', detail: 'Management, SGN', contrat: 'Vacataire', entry: '2021-09-01', exit: null, email: 'f.ranaivo@exemple.mg', access: 'PROFESSEUR' },
   { id: 'p2', name: 'RASOLO Jean', poste: 'Enseignant.e', detail: 'Histoire-Géographie', contrat: 'Vacataire', entry: '2021-09-01', exit: null, email: 'j.rasolo@exemple.mg', access: 'PROFESSEUR' },
   { id: 'p3', name: 'VOAHANGY Lalao', poste: 'Enseignant.e', detail: 'Physique-Chimie, SVT', contrat: 'Vacataire', entry: '2024-09-02', exit: null, email: 'l.voahangy@exemple.mg', access: 'PROFESSEUR' },
@@ -84,3 +85,5 @@ export const PARENT = {
     { date: '06/10', title: 'Natation', body: 'Reprise des séances de natation pour les 6e et 5e le vendredi.' },
   ],
 };
+
+export const STAFF = liveArray(() => demoOr(DEMO_STAFF, [])); // exemples ; vide en ligne ou avec les vraies données

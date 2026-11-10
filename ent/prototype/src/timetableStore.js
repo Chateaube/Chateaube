@@ -2,6 +2,7 @@
 // élèves), sinon celui de la démonstration.
 import { TIMETABLE } from './data/timetable.js';
 import { loadImport } from './importStore.js';
+import { demoOr } from './demoData.js';
 
 export const importedTimetable = () => loadImport()?.timetable ?? null;
-export const loadTimetable = () => importedTimetable() ?? TIMETABLE;
+export const loadTimetable = () => importedTimetable() ?? demoOr(TIMETABLE, []); // en ligne sans import : aucun cours fictif

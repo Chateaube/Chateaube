@@ -188,7 +188,7 @@ const DEMO_STUDENT_ACCOUNTS = [
 
 // Taux horaires des professeurs avec leur date d'effet (historique des augmentations ; montants FICTIFS,
 // remplacés par l'import du fichier de l'établissement). Le taux appliqué est celui en vigueur au mois payé.
-export const HOURLY_RATES = [
+const DEMO_HOURLY_RATES = [
   { staffId: 'p1', rate: 18_000, from: '2024-09-01' }, { staffId: 'p1', rate: 20_000, from: '2025-09-01' }, { staffId: 'p1', rate: 22_000, from: '2026-09-01' },
   { staffId: 'p2', rate: 18_000, from: '2024-09-01' }, { staffId: 'p2', rate: 20_000, from: '2026-01-01' },
   { staffId: 'p3', rate: 17_000, from: '2024-09-02' }, { staffId: 'p3', rate: 18_500, from: '2025-09-01' }, { staffId: 'p3', rate: 20_000, from: '2026-09-01' },
@@ -202,7 +202,7 @@ export const HOURLY_RATES = [
 // Professeurs vacataires : heures de cours effectuées face aux élèves × taux en vigueur ; heures
 // proposées d'après les appels, corrigées par la Direction ; rien pendant les vacances scolaires.
 // Autres salariés : au mois. Espèces (le plus courant) : émargement du salarié au secrétariat.
-export const PAYROLL = [
+const DEMO_PAYROLL = [
   { staffId: 'p1', byHour: true, hours: 74, plannedHours: 76, method: 'ESPECES' },
   { staffId: 'p2', byHour: true, hours: 80, plannedHours: 80, method: 'VIREMENT' },
   { staffId: 'p3', byHour: true, hours: 66, plannedHours: 68, method: 'ESPECES' },
@@ -229,3 +229,5 @@ export const STUDENT_ACCOUNTS = liveArray(() => demoOr(DEMO_STUDENT_ACCOUNTS, []
 export const CLASS_FEES = storedArray('ent-k-tarifs', () => DEFAULT_CLASS_FEES); // réglage de l'école, modifié dans Caisse
 export const ARTICLES = storedArray('ent-k-articles', () => DEFAULT_ARTICLES); // réglage de l'école, modifié dans Caisse
 export const REDUCTION_TYPES = storedArray('ent-k-reductions', () => DEFAULT_REDUCTION_TYPES); // réglage de l'école, modifié dans Caisse
+export const HOURLY_RATES = liveArray(() => demoOr(DEMO_HOURLY_RATES, [])); // exemples ; vide en ligne ou avec les vraies données
+export const PAYROLL = liveArray(() => demoOr(DEMO_PAYROLL, [])); // exemples ; vide en ligne ou avec les vraies données

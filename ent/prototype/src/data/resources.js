@@ -1,3 +1,4 @@
+import { liveArray, demoOr } from '../demoData.js';
 // Documents et ressources de l'école (démonstration) : chacun voit ceux de son public.
 // for : ELEVES, PARENTS, PROFS, PERSONNEL.
 export const RESOURCES = [
@@ -17,7 +18,9 @@ export const RESOURCES = [
 ];
 
 // Boîte à idées de l'équipe (démonstration)
-export const SUGGESTIONS = [
+const DEMO_SUGGESTIONS = [
   { id: 's1', category: 'METHODOLOGIE', text: 'Proposer une fiche méthode commune pour la dissertation, de la 2de à la Terminale, pour que tous les professeurs utilisent les mêmes repères.', by: 'RASOLO Jean', anonymous: false, at: '2026-10-02', status: 'ETUDE', answer: 'À présenter au conseil pédagogique du 16 octobre.' },
   { id: 's2', category: 'RESSOURCES', text: 'Acheter deux rallonges et un deuxième vidéoprojecteur pour la salle 12, souvent réservée.', by: null, anonymous: true, at: '2026-10-08', status: 'NOUVELLE', answer: '' },
 ];
+
+export const SUGGESTIONS = liveArray(() => demoOr(DEMO_SUGGESTIONS, [])); // exemples ; vide en ligne ou avec les vraies données

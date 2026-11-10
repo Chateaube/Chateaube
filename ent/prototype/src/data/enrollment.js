@@ -1,6 +1,7 @@
+import { liveArray, demoOr } from '../demoData.js';
 // Données de démonstration — pré-inscriptions et fiches élèves de Tamatave (noms FICTIFS).
 
-export const PREREGISTRATIONS = [
+const DEMO_PREREGISTRATIONS = [
   { id: 'p1', child: 'RANDRIANARISOA Mahery', birthDate: '2014-03-11', cls: '6e', receivedOn: '2026-09-28', previousSchool: 'École primaire Les Hibiscus', previousSystem: 'EXPRESSION_FRANCAISE', contact: 'Mme Randrianarisoa Lalao', phone: '+261 34 22 145 80', email: 'lalao.randria@gmail.com', status: 'DEMANDE', source: 'Bouche-à-oreille' },
   { id: 'p2', child: 'RAZANAMPARANY Kanto', birthDate: '2011-07-02', cls: '3e', receivedOn: '2026-09-22', previousSchool: 'Collège Saint-Joseph', previousSystem: 'EXPRESSION_FRANCAISE', contact: 'M. Razanamparany Haja', phone: '+261 32 40 118 07', email: '', status: 'DOSSIER', source: 'Site internet' },
   { id: 'p3', child: 'ANDRIAMANALINA Sarobidy', birthDate: '2010-01-19', cls: '2de', receivedOn: '2026-09-15', previousSchool: 'Lycée Jules Ferry (Tana)', previousSystem: 'FRANCAIS', contact: 'Mme Andriamanalina Tiana', phone: '+261 34 05 771 20', email: 'tiana.andria@gmail.com', status: 'ENTRETIEN', source: 'Fratrie déjà scolarisée', interview: 'Jeudi 15 octobre, 10h — Direction' },
@@ -50,3 +51,5 @@ export const ENROLL_CLASSES = ['6e', '5e', '4e', '3e', '2de', '1re Générale', 
 export const LANGUAGES = { lv1: ['Anglais'], lv2: ['Espagnol'] };
 export const RELATIONS = ['Mère', 'Père', 'Tuteur / tutrice', 'Grand-parent', 'Autre'];
 export { NATIONALITY_CHOICES as NATIONALITIES } from '../rules/enrollment.js';
+
+export const PREREGISTRATIONS = liveArray(() => demoOr(DEMO_PREREGISTRATIONS, [])); // exemples ; vide en ligne ou avec les vraies données

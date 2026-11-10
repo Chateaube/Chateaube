@@ -8,7 +8,7 @@ export const DIRECTION_TREE = [
   { group: 'Élèves et vie scolaire', ids: ['eleves', 'mandates', 'vs', 'followup', 'care', 'hours'] },
   { group: 'Pédagogie', ids: ['council', 'bulletins', 'mock-exams', 'timetable', 'oversight-grades'] }, // grilles : onglet des conseils
   { group: 'Communication', ids: ['news', 'school-life', 'agenda', 'resources'] },
-  { group: 'Administration', ids: ['accounting', 'manuals', 'staff', 'inventory', 'library', 'booking', 'settings', 'access', 'import'] },
+  { group: 'Administration', ids: ['accounting', 'manuals', 'staff', 'inventory', 'library', 'booking', 'accounts?', 'settings', 'access', 'import'] }, // « ? » : écran présent seulement dans certaines versions (comptes : en ligne)
 ];
 
 /** Donne l'ordre de l'arborescence aux entrées existantes. Un identifiant inconnu est une erreur de développement. */
@@ -16,9 +16,10 @@ export function arrangeNav(tree, groups) {
   const byId = Object.fromEntries(groups.flatMap((g) => g.items).map((item) => [item.id, item]));
   return tree.map(({ group, ids }) => ({
     group,
-    items: ids.map((id) => {
-      if (!byId[id]) throw new Error(`Écran inconnu dans la navigation : ${id}`);
-      return byId[id];
+    items: ids.flatMap((raw) => {
+      const optional = raw.endsWith('?'); const id = optional ? raw.slice(0, -1) : raw;
+      if (!byId[id]) { if (optional) return []; throw new Error(`Écran inconnu dans la navigation : ${id}`); }
+      return [byId[id]];
     }),
   }));
 }

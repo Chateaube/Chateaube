@@ -343,7 +343,7 @@ function groupProposals(proposals, history) {
   const groups = history.map((set, i) => {
     const items = set.items.filter((c) => left.has(c));
     items.forEach((c) => left.delete(c));
-    return { label: `Trimestre précédent ${history.length > 1 ? `n° ${i + 1} ` : ''}· ${set.teacher}`, items };
+    return { label: `Trimestre précédent ${history.length > 1 ? `n° ${i + 1} ` : ''}${demoOr(`· ${set.teacher}`, '')}`, items };
   }).filter((g) => g.items.length);
   if (left.size) groups.push({ label: 'Autres propositions', items: [...left] });
   return groups;

@@ -1,3 +1,4 @@
+import { realData } from '../demoData.js';
 // Tâches de l'équipe : la Direction se note ce qu'elle a à faire et peut confier une tâche à un membre du
 // personnel administratif (secrétariat, CPE), avec une priorité et, si besoin, une échéance. Pas de tâches confiées aux
 // enseignants : leur accueil reste centré sur leurs cours.
@@ -8,8 +9,8 @@ const RANK = { HAUTE: 0, NORMALE: 1, BASSE: 2 };
 /** Personnes à qui confier une tâche (démonstration ; en production : les comptes du personnel). */
 export const ASSIGNEES = [
   { id: 'DIRECTION', role: 'DIRECTION', label: 'Moi (Direction)' },
-  { id: 'BUREAU', role: 'BUREAU', label: 'Mme Hanta — secrétariat' },
-  { id: 'VIE_SCOLAIRE', role: 'VIE_SCOLAIRE', label: 'M. Be — CPE' },
+  { id: 'BUREAU', role: 'BUREAU', get label() { return realData() ? 'Secrétariat' : 'Mme Hanta — secrétariat'; } },
+  { id: 'VIE_SCOLAIRE', role: 'VIE_SCOLAIRE', get label() { return realData() ? 'Vie scolaire (CPE)' : 'M. Be — CPE'; } },
 ];
 export const assigneeLabel = (id) => ASSIGNEES.find((a) => a.id === id)?.label ?? id;
 

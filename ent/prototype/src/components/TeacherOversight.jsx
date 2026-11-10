@@ -8,15 +8,16 @@ import { ASSIGNMENTS, teacherSummary } from '../data/staffAssignments.js';
 import { loadImport } from '../importStore.js';
 import { TEACHER } from '../data/people.js';
 import { askConfirm } from './Dialogs.jsx';
+import { demoOr } from '../demoData.js';
 
 // Direction et Bureau : consultation des notes, appréciations et du cahier de textes de chaque
 // enseignant.e. Lecture seule ; la Direction peut passer en modification (administratrice).
 // Enseignements de l'année : liste importée par l'établissement, sinon la liste de référence
 const assignments = () => {
   const imp = loadImport();
-  return imp?.assignments?.length ? imp.assignments : ASSIGNMENTS;
+  return imp?.assignments?.length ? imp.assignments : demoOr(ASSIGNMENTS, []);
 };
-export const TEACHERS = [...new Set([TEACHER.name, ...assignments().map((a) => a.name)])];
+export const TEACHERS = [...new Set([...demoOr([TEACHER.name], []), ...assignments().map((a) => a.name)])];
 // un professeur peut avoir plusieurs lignes (une par matière) : on les réunit
 const subjectsOf = (t) => teacherSummary(t, assignments());
 
@@ -24,7 +25,7 @@ export default function TeacherOversight({ view = 'grades', role, ...props }) {
   const [teacher, setTeacher] = useState(TEACHERS[0]);
   const [tab, setTab] = useState(view);
   const [edit, setEdit] = useState(false);
-  const hasData = teacher === TEACHER.name;
+  const hasData = !!teacher && teacher === demoOr(TEACHER.name, null);
   // modification : geste sensible, confirmé et noté dans le journal
   const toggleEdit = async () => {
     if (edit) { setEdit(false); return; }
@@ -56,9 +57,8 @@ export default function TeacherOversight({ view = 'grades', role, ...props }) {
       {hasData ? (
         <Embedded className={edit ? '' : 'consultation'}><Screen key={`${teacher}-${tab}`} {...props} role={role} /></Embedded>
       ) : (
-        <Card title={`${teacher} — ${tab === 'homework' ? 'cahier de textes' : 'notes et appréciations'}`}>
-          <p className="text-sm text-slate-600">Le prototype ne contient des notes que pour {TEACHER.name}. Dans l'ENT, les classes, devoirs, notes, appréciations
-            et séances de {teacher} ({subjectsOf(teacher) || 'matières à renseigner'}) s'affichent ici, en lecture seule.</p>
+        <Card title={`${teacher ?? 'Professeurs'} — ${tab === 'homework' ? 'cahier de textes' : 'notes et appréciations'}`}>
+          <p className="text-sm text-slate-600">{teacher ? <>Les classes, devoirs, notes, appréciations et séances de {teacher} ({subjectsOf(teacher) || 'matières à renseigner'}) s'affichent ici, en lecture seule, dès qu'ils sont saisis.</> : 'Aucun professeur pour le moment : importez la liste des professeurs (Réglages › Import) ou créez leurs comptes.'}</p>
         </Card>
       )}
     </div>

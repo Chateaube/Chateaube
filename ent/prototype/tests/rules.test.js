@@ -1504,9 +1504,10 @@ test('données réelles : effacées après 30 jours sans utilisation (réglages 
 import { DIRECTION_TREE, FAMILY_SECTIONS, arrangeNav } from '../src/rules/navigation.js';
 test('navigation : Direction en 5 rubriques, un seul emplacement par écran, rien « bientôt » dans le menu', () => {
   assert.equal(DIRECTION_TREE.length, 5);
-  const ids = DIRECTION_TREE.flatMap((g) => g.ids);
+  const ids = DIRECTION_TREE.flatMap((g) => g.ids).map((i) => i.replace(/\?$/, ''));
   assert.equal(new Set(ids).size, ids.length, 'écran présent deux fois');
-  DIRECTION_TREE.forEach((g) => assert.ok(g.ids.length <= 9, `${g.group} : plus de 9 entrées`));
+  // « ? » : écran présent dans une seule version (comptes du personnel : en ligne) — 10 entrées au plus dans ce cas
+  DIRECTION_TREE.forEach((g) => assert.ok(g.ids.filter((i) => !i.endsWith('?')).length <= 9 && g.ids.length <= 10, `${g.group} : trop d'entrées`));
   ['students', 'exams'].forEach((id) => assert.ok(!ids.includes(id), `${id} ne doit pas être dans le menu`));
   assert.ok(ids.includes('timetable'), 'les emplois du temps sont maintenant un vrai écran');
   assert.ok(ids.includes('mandates') && ids.includes('feedback'), 'Délégués et BDE et Avis du pilote sont dans le menu');

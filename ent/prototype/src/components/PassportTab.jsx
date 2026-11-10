@@ -11,6 +11,7 @@ import { seniority } from '../rules/documents.js';
 import { logActivity } from '../activityStore.js';
 import { nextWeekday, today } from '../clock.js';
 import { me, meLabel } from '../identity.js';
+import { demoOr } from '../demoData.js';
 
 // Passeport de vie scolaire : oublis, retards, colles et TIG d'un élève.
 // Carnet de liaison oublié = 1 h de colle (nouvel élève : au 2e oubli) ; autres oublis : colle si le
@@ -39,7 +40,7 @@ const DEMO = {
     { id: 'c2', student: 'RASOA Lova', kind: 'TIG', cause: 'AUTRE', hours: 1, date: '2026-10-09', when: '2026-10-16T12:00', reason: 'Dégradation d\'une table : ponçage et nettoyage', status: 'A_FAIRE', by: 'M. Be (CPE)' },
   ],
 };
-export const loadPassport = () => { try { return JSON.parse(localStorage.getItem(KEY)) ?? DEMO; } catch { return DEMO; } };
+export const loadPassport = () => { try { return JSON.parse(localStorage.getItem(KEY)) ?? demoOr(DEMO, { forgets: [], colles: [] }); } catch { return demoOr(DEMO, { forgets: [], colles: [] }); } };
 export const savePassport = (d) => { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch { /* stockage indisponible */ } };
 const save = savePassport;
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';

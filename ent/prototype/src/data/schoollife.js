@@ -38,7 +38,7 @@ export const CLASSES = new Proxy({}, {
 export const NEW_STUDENTS = ['RAJAONARIVELO Tsiry', 'RAZAKA Feno', 'RAZANAMPARANY Sarobidy', 'RANDRIA Tiavina'];
 export const classOf = (student) => Object.keys(CLASSES).find((c) => CLASSES[c].includes(student));
 
-export const STAFF_NAMES = ['M. Be (CPE)', 'Mme Hanta (secrétariat)', 'Mme Ranaivo', 'M. Rasolo', 'Mme Hery', 'M. Tojo', 'Direction — Cheffe d\'établissement', 'Direction — Directrice adjointe'];
+const DEMO_STAFF_NAMES = ['M. Be (CPE)', 'Mme Hanta (secrétariat)', 'Mme Ranaivo', 'M. Rasolo', 'Mme Hery', 'M. Tojo', 'Direction — Cheffe d\'établissement', 'Direction — Directrice adjointe'];
 
 // Absences et retards (issus de l'appel) ; parentAck = « Je suis informé.e »
 const DEMO_ATTENDANCE = [
@@ -81,3 +81,5 @@ const ALL_MEASURES = storedArray('ent-s-sanctions', () => demoOr(DEMO_MEASURES_L
 export const MEASURES_LOG = liveArray(() => ALL_MEASURES.filter((m) => !m.cancelled)); // vide dès que les vraies données sont importées
 
 export const PHONES = liveArray(() => demoOr(DEMO_PHONES, [])); // vide dès que les vraies données sont importées
+
+export const STAFF_NAMES = liveArray(() => demoOr(DEMO_STAFF_NAMES, ['Vie scolaire', 'Secrétariat', 'Direction'])); // exemples ; vide en ligne ou avec les vraies données
