@@ -13,6 +13,7 @@ export function inventoryAlerts(items, today) {
   const out = [];
   items.forEach((it) => {
     if (it.min != null && usable(it) <= it.min) out.push({ id: it.id, kind: 'STOCK', text: `${it.name} : ${usable(it)} en état (seuil ${it.min}) — à recommander` });
+    if (it.lost > 0) out.push({ id: it.id, kind: 'PERDU', text: `${it.name} : ${it.lost} perdu${it.lost > 1 ? 's' : ''} — rechercher ou racheter` });
     if (it.broken > 0) out.push({ id: it.id, kind: 'CASSE', text: `${it.name} : ${it.broken} cassé${it.broken > 1 ? 's' : ''} — réparer ou remplacer` });
     if (it.expires) {
       const d = days(today, it.expires);
@@ -29,6 +30,20 @@ export function reportBroken(it, n, note, by, at) {
   if (n > usable(it)) throw new Error(`Seulement ${usable(it)} en état.`);
   if (!note?.trim()) throw new Error('Décrire la casse.');
   return { ...it, broken: (it.broken ?? 0) + n, log: [...(it.log ?? []), { at, by, kind: 'CASSE', n, note }] };
+}
+
+/** Perte (mobilier, équipement…) : sort du stock en état, comptée à part pour pouvoir la retrouver. */
+export function reportLost(it, n, note, by, at) {
+  if (!(n >= 1)) throw new Error('Indiquer combien sont perdus.');
+  if (n > usable(it)) throw new Error(`Seulement ${usable(it)} en état.`);
+  if (!note?.trim()) throw new Error('Indiquer où et quand (ex. salle 12, constaté le 10/11).');
+  return { ...it, qty: it.qty - n, lost: (it.lost ?? 0) + n, log: [...(it.log ?? []), { at, by, kind: 'PERDU', n, note }] };
+}
+
+/** Retrouvé : revient dans le stock. */
+export function foundLost(it, n, by, at) {
+  if (!(n >= 1) || n > (it.lost ?? 0)) throw new Error('Quantité incorrecte.');
+  return { ...it, qty: it.qty + n, lost: it.lost - n, log: [...(it.log ?? []), { at, by, kind: 'RETROUVE', n }] };
 }
 
 /** Réparé (revient en état) ou jeté (sort de l'inventaire). */

@@ -2079,3 +2079,16 @@ test('reprise d\'un reçu papier : hors espèces du jour, classée selon son mod
   assert.equal(methodOf(m), 'Espèces');
   assert.equal(methodOf({ method: 'Reprise reçu papier n° 7 — Chèque n° 3318820' }), 'Chèque');
 });
+
+test('inventaire : matériel perdu sorti du stock, retrouvé, signalé à faire', async () => {
+  const { reportLost, foundLost, usable, inventoryAlerts } = await import('../src/rules/inventory.js');
+  const chair = { id: 'c', name: 'Chaise élève', qty: 10, broken: 2 };
+  assert.throws(() => reportLost(chair, 9, 'salle 12', 'Direction', '2026-11-10'), /Seulement 8/);
+  assert.throws(() => reportLost(chair, 1, ' ', 'Direction', '2026-11-10'), /Indiquer où/);
+  const lost = reportLost(chair, 2, 'salle 12', 'Direction', '2026-11-10');
+  assert.equal(lost.qty, 8); assert.equal(lost.lost, 2); assert.equal(usable(lost), 6);
+  assert.ok(inventoryAlerts([lost], '2026-11-10').some((a) => a.kind === 'PERDU'));
+  const back = foundLost(lost, 1, 'Direction', '2026-11-11');
+  assert.equal(back.qty, 9); assert.equal(back.lost, 1);
+  assert.throws(() => foundLost(back, 2, 'Direction', '2026-11-11'), /incorrecte/);
+});

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Badge, Button, Card, Icon, Stat } from './ui.jsx';
 import { DocumentInput, DocumentThumb } from './PhotoInput.jsx';
 import { loadInventory, saveInventory } from '../careStore.js';
-import { CATEGORIES, inventoryAlerts, reportBroken, resolveBroken, addPurchase, usable, consume, editItem, usages } from '../rules/inventory.js';
+import { CATEGORIES, inventoryAlerts, reportBroken, reportLost, foundLost, resolveBroken, addPurchase, usable, consume, editItem, usages } from '../rules/inventory.js';
 import { buildXlsx } from '../xlsx.js';
 import { saveFile } from '../download.js';
 import { printOnly } from '../print.js';
@@ -95,6 +95,8 @@ export default function InventoryModule({ role = 'BUREAU' }) {
     try {
       let n;
       if (open.mode === 'CASSE') n = reportBroken(it, Number(f.n), f.note, BY[role], at);
+      if (open.mode === 'PERDU') n = reportLost(it, Number(f.n), f.note, BY[role], at);
+      if (open.mode === 'RETROUVE') n = foundLost(it, Number(f.n), BY[role], at);
       if (open.mode === 'REGLER') n = resolveBroken(it, Number(f.n), f.how ?? 'REPARE', BY[role], at);
       if (open.mode === 'ACHAT') n = addPurchase(it, { n: Number(f.n), supplier: f.supplier, price: Number(f.price) || null, invoice: f.invoice, expires: f.expires }, BY[role], at);
       if (open.mode === 'UTILISE') n = consume(it, Number(f.n), BY[role], at, f.note);
@@ -108,9 +110,9 @@ export default function InventoryModule({ role = 'BUREAU' }) {
     setNewItem(null); setErr('');
   };
   const exportXlsx = () => {
-    const rows = [[{ v: 'Inventaire — Tamatave', s: 'title' }], [], ['Catégorie', 'Article', 'Lieu', 'Quantité', 'Cassés', 'En état', 'Seuil', 'Péremption'].map((v) => ({ v, s: 'head' }))];
-    items.forEach((i) => rows.push([i.cat, i.name, i.place, i.qty, i.broken ?? 0, { v: usable(i), s: i.min != null && usable(i) <= i.min ? 'red' : 'cell' }, i.min ?? '', i.expires ? i.expires.split('-').reverse().join('/') : ''].map((v) => (typeof v === 'object' && v ? v : { v, s: 'cell' }))));
-    saveFile('inventaire.xlsx', buildXlsx([{ name: 'Inventaire', rows, widths: [18, 34, 20, 10, 10, 10, 8, 12], freeze: { row: 3, col: 0 } }]));
+    const rows = [[{ v: 'Inventaire — Tamatave', s: 'title' }], [], ['Catégorie', 'Article', 'Lieu', 'Quantité', 'Cassés', 'En état', 'Perdus', 'Seuil', 'Péremption'].map((v) => ({ v, s: 'head' }))];
+    items.forEach((i) => rows.push([i.cat, i.name, i.place, i.qty, i.broken ?? 0, { v: usable(i), s: i.min != null && usable(i) <= i.min ? 'red' : 'cell' }, i.lost ?? 0, i.min ?? '', i.expires ? i.expires.split('-').reverse().join('/') : ''].map((v) => (typeof v === 'object' && v ? v : { v, s: 'cell' }))));
+    saveFile('inventaire.xlsx', buildXlsx([{ name: 'Inventaire', rows, widths: [18, 34, 20, 10, 10, 10, 10, 8, 12], freeze: { row: 3, col: 0 } }]));
   };
   const list = items.filter((i) => i.cat === cat);
   const removeItem = async (it) => { if ((await askConfirm(`Supprimer « ${it.name} » de l'inventaire ? (son historique et ses factures disparaissent aussi)`))) update(items.filter((x) => x.id !== it.id)); };
@@ -129,6 +131,7 @@ export default function InventoryModule({ role = 'BUREAU' }) {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {CATEGORIES.filter((c) => c !== 'Trousse de secours').map((c) => <Stat key={c} label={c} value={items.filter((i) => i.cat === c).reduce((s, i) => s + i.qty, 0)} hint={`${items.filter((i) => i.cat === c).length} articles`} />)}
         <Stat label="Cassés" value={items.reduce((s, i) => s + (i.broken ?? 0), 0)} tone="amber" />
+        <Stat label="Perdus" value={items.reduce((s, i) => s + (i.lost ?? 0), 0)} tone="amber" />
       </div>
       {alerts.length > 0 && (
         <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
@@ -154,7 +157,7 @@ export default function InventoryModule({ role = 'BUREAU' }) {
         {err && <p className="mb-2 rounded-md bg-red-50 p-2 text-xs text-red-800">{err}</p>}
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">
-            <thead><tr className="border-b border-slate-200 text-left text-xs text-slate-500"><th className="py-2 pr-2">Article</th><th className="px-2">Lieu</th><th className="px-2 text-right">Quantité</th><th className="px-2 text-right">Cassés</th><th className="px-2 text-right">En état</th><th className="px-2">Factures</th><th className="relative"><span className="sr-only">Actions</span></th></tr></thead>
+            <thead><tr className="border-b border-slate-200 text-left text-xs text-slate-500"><th className="py-2 pr-2">Article</th><th className="px-2">Lieu</th><th className="px-2 text-right">Quantité</th><th className="px-2 text-right">Cassés</th><th className="px-2 text-right">Perdus</th><th className="px-2 text-right">En état</th><th className="px-2">Factures</th><th className="relative"><span className="sr-only">Actions</span></th></tr></thead>
             <tbody>
               {list.map((it) => (
                 <React.Fragment key={it.id}>
@@ -163,16 +166,19 @@ export default function InventoryModule({ role = 'BUREAU' }) {
                     <td className="px-2 text-slate-600">{it.place}</td>
                     <td className="px-2 text-right tabular-nums">{it.qty}</td>
                     <td className={`px-2 text-right tabular-nums ${it.broken ? 'text-red-700' : 'text-slate-400'}`}>{it.broken ?? 0}</td>
+                    <td className={`px-2 text-right tabular-nums ${it.lost ? 'text-red-700' : 'text-slate-400'}`}>{it.lost ?? 0}</td>
                     <td className={`px-2 text-right font-semibold tabular-nums ${it.min != null && usable(it) <= it.min ? 'text-amber-700' : ''}`}>{usable(it)}</td>
                     <td className="px-2"><div className="flex flex-wrap gap-1">{(it.invoices ?? []).filter((v) => v.invoice).map((v, i) => <DocumentThumb key={i} doc={v.invoice} title={`Facture ${v.supplier ?? ''}`} />)}{!(it.invoices ?? []).length && <span className="text-xs text-slate-400">—</span>}</div></td>
                     <td className="py-2 pl-2 text-right">
                       <div className="flex flex-wrap justify-end gap-1">
                         {it.cat === 'Trousse de secours' && <button type="button" onClick={() => { setOpen({ id: it.id, mode: 'UTILISE' }); setF({ n: 1, note: '' }); setErr(''); }} className={`${btn} text-navy-700`}>Utilisé</button>}
                         <button type="button" onClick={() => { setOpen({ id: it.id, mode: 'CASSE' }); setF({ n: 1 }); setErr(''); }} className={`${btn} text-red-700`}>Cassé</button>
+                        {it.cat !== 'Trousse de secours' && it.cat !== 'Fournitures' && <button type="button" onClick={() => { setOpen({ id: it.id, mode: 'PERDU' }); setF({ n: 1 }); setErr(''); }} className={`${btn} text-red-700`}>Perdu</button>}
                         {manage && (
                           <details className="relative">
                             <summary aria-label={`Autres actions : ${it.name}`} className={`${btn} cursor-pointer list-none text-slate-700`}>…</summary>
                             <div onClick={(e) => { e.currentTarget.parentElement.open = false; }} className="absolute right-0 z-20 mt-1 flex w-40 flex-col gap-1 rounded-lg bg-white p-1.5 text-left shadow-lg ring-1 ring-slate-200">
+                              {manage && it.lost > 0 && <button type="button" onClick={() => { setOpen({ id: it.id, mode: 'RETROUVE' }); setF({ n: 1 }); setErr(''); }} className={`${btn} text-navy-700`}>Retrouvé</button>}
                               {manage && it.broken > 0 && <button type="button" onClick={() => { setOpen({ id: it.id, mode: 'REGLER' }); setF({ n: 1, how: 'REPARE' }); setErr(''); }} className={`${btn} text-navy-700`}>Réparé / jeté</button>}
                               {manage && <button type="button" onClick={() => { setOpen({ id: it.id, mode: 'ACHAT' }); setF({ n: 1 }); setErr(''); }} className={`${btn} text-navy-700`}>Racheté</button>}
                               {manage && <button type="button" onClick={() => { setOpen({ id: it.id, mode: 'MODIF' }); setF({ name: it.name, place: it.place ?? '', qty: it.qty, min: it.min ?? '', expires: it.expires ?? '' }); setErr(''); }} className={`${btn} text-slate-700`}>Modifier</button>}
@@ -184,7 +190,7 @@ export default function InventoryModule({ role = 'BUREAU' }) {
                     </td>
                   </tr>
                   {open?.id === it.id && (
-                    <tr className="bg-slate-50"><td colSpan={7} className="p-3">
+                    <tr className="bg-slate-50"><td colSpan={8} className="p-3">
                       <div className="flex flex-wrap items-end gap-2 text-xs text-slate-600">
                         {open.mode === 'MODIF' ? <>
                           <label>Article<input value={f.name ?? ''} onChange={(e) => setF({ ...f, name: e.target.value })} className={`ml-1 ${inputCls}`} /></label>
@@ -194,6 +200,7 @@ export default function InventoryModule({ role = 'BUREAU' }) {
                           {it.cat === 'Trousse de secours' && <label>Péremption<input type="date" value={f.expires ?? ''} onChange={(e) => setF({ ...f, expires: e.target.value })} className={`ml-1 ${inputCls}`} /></label>}
                         </> : <label>Quantité<input inputMode="numeric" value={f.n ?? ''} onChange={(e) => setF({ ...f, n: e.target.value })} className={`ml-1 w-16 ${inputCls}`} /></label>}
                         {open.mode === 'UTILISE' && <label className="flex-1">Pour qui, pourquoi<input value={f.note ?? ''} onChange={(e) => setF({ ...f, note: e.target.value })} placeholder="ex. RAZAKA Feno (4e), genou écorché" className={`ml-1 w-full ${inputCls}`} /></label>}
+                        {open.mode === 'PERDU' && <label className="flex-1">Où, quand, circonstances<input value={f.note ?? ''} onChange={(e) => setF({ ...f, note: e.target.value })} placeholder="ex. chaise disparue salle 12, constaté le 10/11" className={`ml-1 w-full min-w-0 ${inputCls}`} /></label>}
                         {open.mode === 'CASSE' && <label className="flex-1">Ce qui est cassé<input value={f.note ?? ''} onChange={(e) => setF({ ...f, note: e.target.value })} placeholder="ex. pied de table cassé, salle 1re" className={`ml-1 w-full min-w-[200px] ${inputCls}`} /></label>}
                         {open.mode === 'REGLER' && <select value={f.how} onChange={(e) => setF({ ...f, how: e.target.value })} className={inputCls}><option value="REPARE">Réparé</option><option value="JETE">Jeté (sort de l'inventaire)</option></select>}
                         {open.mode === 'ACHAT' && <>
@@ -207,13 +214,13 @@ export default function InventoryModule({ role = 'BUREAU' }) {
                       {open.mode === 'ACHAT' && <p className="mt-1 text-[11px] text-slate-500">La dépense elle-même s'enregistre dans Comptabilité → Dépenses & fournisseurs.</p>}
                     </td></tr>
                   )}
-                  {(it.log ?? []).filter((l) => l.kind === 'CASSE').slice(-2).map((l, i) => <tr key={`l${i}`}><td colSpan={7} className="pb-1 pl-4 text-[11px] text-slate-500">Casse signalée par {l.by} : {l.n} · {l.note}</td></tr>)}
+                  {(it.log ?? []).filter((l) => l.kind === 'CASSE' || l.kind === 'PERDU').slice(-2).map((l, i) => <tr key={`l${i}`}><td colSpan={8} className="pb-1 pl-4 text-[11px] text-slate-500">{l.kind === 'PERDU' ? 'Perte' : 'Casse'} signalée par {l.by} : {l.n} · {l.note}</td></tr>)}
                 </React.Fragment>
               ))}
             </tbody>
           </table>
         </div>
-        <p className="mt-3 text-xs text-slate-600"><strong>Cassé</strong> : n'importe qui le signale · <strong>Réparé / jeté</strong> : quand c'est réglé · <strong>Racheté</strong> : ajoute au stock et garde la facture · <strong>Modifier</strong> : corriger le nom, le lieu ou la quantité après un comptage{cat === 'Trousse de secours' ? ' · Utilisé : un produit sorti de la trousse (les Doliprane donnés lors d\'un passage aux soins sont déduits tout seuls)' : ''}.</p>
+        <p className="mt-3 text-xs text-slate-600"><strong>Cassé</strong> / <strong>Perdu</strong> : n'importe qui le signale · <strong>Retrouvé</strong> : revient dans le stock · <strong>Réparé / jeté</strong> : quand c'est réglé · <strong>Racheté</strong> : ajoute au stock et garde la facture · <strong>Modifier</strong> : corriger le nom, le lieu ou la quantité après un comptage{cat === 'Trousse de secours' ? ' · Utilisé : un produit sorti de la trousse (les Doliprane donnés lors d\'un passage aux soins sont déduits tout seuls)' : ''}.</p>
         {cat === 'Trousse de secours' && (
           <div className="mt-4">
             <p className="mb-1 text-sm font-semibold text-slate-800">Ce qui a été utilisé</p>
@@ -227,8 +234,8 @@ export default function InventoryModule({ role = 'BUREAU' }) {
       </Card>}
       <div className="inventory-print hidden print:block">
         <h1 className="mb-2 text-lg font-semibold">Inventaire du matériel — Tamatave</h1>
-        <table className="w-full text-xs"><thead><tr className="border-b text-left"><th>Catégorie</th><th>Article</th><th>Lieu</th><th className="text-right">Qté</th><th className="text-right">Cassés</th><th className="text-right">En état</th></tr></thead>
-          <tbody>{items.map((i) => <tr key={i.id} className="border-b"><td>{i.cat}</td><td>{i.name}</td><td>{i.place}</td><td className="text-right">{i.qty}</td><td className="text-right">{i.broken ?? 0}</td><td className="text-right">{usable(i)}</td></tr>)}</tbody></table>
+        <table className="w-full text-xs"><thead><tr className="border-b text-left"><th>Catégorie</th><th>Article</th><th>Lieu</th><th className="text-right">Qté</th><th className="text-right">Cassés</th><th className="text-right">Perdus</th><th className="text-right">En état</th></tr></thead>
+          <tbody>{items.map((i) => <tr key={i.id} className="border-b"><td>{i.cat}</td><td>{i.name}</td><td>{i.place}</td><td className="text-right">{i.qty}</td><td className="text-right">{i.broken ?? 0}</td><td className="text-right">{i.lost ?? 0}</td><td className="text-right">{usable(i)}</td></tr>)}</tbody></table>
       </div>
     </div>
   );
