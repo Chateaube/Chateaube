@@ -4338,6 +4338,11 @@ REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon;
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated;
+-- fonctions serveur (création des comptes) : la clé secrète agit sous le rôle service_role, qui doit lire et écrire
+GRANT USAGE ON SCHEMA public TO service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO service_role;
 REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM anon;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated;
 GRANT EXECUTE ON FUNCTION ent_login_email(text) TO anon;
