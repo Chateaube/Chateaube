@@ -8,7 +8,7 @@ export const LEVELS = { AUCUN: 'Aucun accès', LECTURE: 'Consulter', ECRITURE: '
 export const LEVEL_ORDER = ['AUCUN', 'LECTURE', 'ECRITURE'];
 export const STAFF_PROFILES = { BUREAU: 'Secrétariat', VIE_SCOLAIRE: 'CPE', ENSEIGNANT: 'Enseignant' };
 /** Écrans réservés à la Direction : jamais délégués. */
-export const DIRECTION_ONLY = ['dashboard', 'settings', 'staff', 'access', 'mandates', 'feedback'];
+export const DIRECTION_ONLY = ['dashboard', 'settings', 'staff', 'access', 'mandates', 'feedback', 'bulletins']; // bulletins : Direction seule
 
 /** Niveau d'un écran dans le menu d'origine d'un profil. */
 export function baseLevel(baseNav, id) {
