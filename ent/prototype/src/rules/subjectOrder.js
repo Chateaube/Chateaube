@@ -1,28 +1,29 @@
 // Ordre des matières de l'école (bulletins, grille du conseil, réglages), donné par la Direction :
-// 1. tronc commun et enseignements généraux ; 2. sciences ; 3. SES et STMG ; 4. arts, sport, options.
+// A. humanités ; B. sciences ; C. SES et STMG ; D. arts et EPS, puis parcours d'ouverture, vie de classe en dernier.
 // L'ETLV est comptée dans l'anglais. Une matière absente de la liste passe après, avant la vie de classe.
 const fold = (t) => String(t ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]/g, '');
 const ORDER = [
+  // A. Enseignements communs / humanités
   ['francais', 'philosophie'],
   ['histoiregeographie', 'hg'],
   ['emc', 'enseignementmoraletcivique', 'educationmoraleetcivique'],
-  ['anglais', 'lva', 'languevivante', 'etlv'],
-  ['espagnol', 'lvb', 'languevivante'],
-  ['mandarin', 'lvc'],
-  ['snt', 'sciencesnumeriquesettechnologie', 'technologie'],
-  ['enseignementscientifique'],
-  ['mathematiques', 'maths', 'specialitemathematiques', 'spemathematiques'],
-  ['physiquechimie', 'specialitephysiquechimie'],
-  ['svt', 'specialitesvt', 'sciencesdelavieetdelaterre'],
+  ['anglais', 'lva', 'etlv'],
+  ['espagnol', 'mandarin', 'lvb', 'lvc'],
+  // B. Sciences et technologies
+  ['enseignementscientifique', 'snt', 'sciencesnumeriquesettechnologie', 'technologie'],
+  ['mathematiques', 'maths'],
+  ['physiquechimie'],
+  ['svt', 'sciencesdelavieetdelaterre'],
+  // C. Sciences économiques, sociales et tertiaires (STMG : droit et économie, management, SGN / MSGN)
   ['ses', 'scienceseconomiquesetsociales'],
-  ['economie', 'eco'],
   ['droit'],
+  ['economie', 'eco'],
   ['management', 'mgt'],
-  ['sgn', 'sciencesdegestionetnumerique', 'scdegestionetnumerique'],
-  ['msgn', 'managementsciencesdegestionetnumerique'],
-  ['artsplastiques', 'ap'],
-  ['musique', 'educationmusicale', 'mus'],
+  ['sgn', 'sciencesdegestionetnumerique', 'scdegestionetnumerique', 'msgn', 'managementsciencesdegestionetnumerique'],
+  // D. Arts et éducation physique
+  ['artsplastiques', 'ap', 'musique', 'educationmusicale', 'mus'],
   ['eps', 'educationphysiqueetsportive'],
+  ['parcoursdouverture'],
 ];
 /** Rang d'une matière (libellé ou code) ; les matières inconnues après la liste, la vie de classe en dernier. */
 export function subjectRank(labelOrId) {

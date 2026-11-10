@@ -2130,5 +2130,5 @@ test('EduFinance : le trajet pour un versement est une dépense, le versement un
 test('ordre des matières de l\'école (bulletins, conseil)', async () => {
   const { sortSubjects } = await import('../src/rules/subjectOrder.js');
   const l = ['EPS', 'Vie de classe', 'Droit', 'Spécialité SVT', 'Philosophie', 'Français', 'Mandarin', 'Anglais', 'MSGN', 'Économie', 'Physique-Chimie'].map((label) => ({ label, id: label }));
-  assert.deepEqual(sortSubjects(l).map((s) => s.label), ['Français', 'Philosophie', 'Anglais', 'Mandarin', 'Physique-Chimie', 'Spécialité SVT', 'Économie', 'Droit', 'MSGN', 'EPS', 'Vie de classe']);
+  assert.deepEqual(sortSubjects(l).map((s) => s.label), ['Français', 'Philosophie', 'Anglais', 'Mandarin', 'Physique-Chimie', 'Spécialité SVT', 'Droit', 'Économie', 'MSGN', 'EPS', 'Vie de classe']);
 });
