@@ -25,7 +25,7 @@ import { FicheView, SignatureCompare, FICHE_YEAR } from './FicheSignaletique.jsx
 import { ficheOf, saveFiche } from '../ficheStore.js';
 import { today } from '../clock.js';
 import { askConfirm, tell } from './Dialogs.jsx';
-import { AUTHORIZATIONS } from '../data/family.js';
+import { AUTHORIZATIONS, exitCode } from '../data/family.js';
 const EXIT_OPTIONS = AUTHORIZATIONS.find((a) => a.id === 'SORTIE').options;
 
 // Inscriptions (Bureau et Direction) : pré-inscriptions, inscription ou réinscription avec
@@ -367,7 +367,7 @@ function ProfileCard({ p, onReenrol, onComplete, created }) {
           {firstNames(p.firstName).length > 1 && <p><span className="text-slate-500">Prénom d'usage :</span> {usualFirstName(p)}</p>}
           <p><span className="text-slate-500">Santé :</span> {p.health.allergies || '—'}</p>
           <p><span className="text-slate-500">Urgence :</span> {p.health.emergency || '—'}</p>
-          <p><span className="text-slate-500">Autorisations :</span> image {p.authorizations.image ? 'oui' : 'non'} · {p.authorizations.exit}</p>
+          <p><span className="text-slate-500">Autorisations :</span> image {p.authorizations.image ? 'oui' : 'non'} · {exitCode(p.authorizations.exit) ? <span className="rounded-full px-2 py-0.5 text-xs font-semibold" style={{ color: exitCode(p.authorizations.exit).color, background: exitCode(p.authorizations.exit).bg }}>{exitCode(p.authorizations.exit).label}</span> : p.authorizations.exit}</p>
           {missing.length > 0 ? <p className="text-amber-700">Pièces manquantes : {missing.map((d) => d.label).join(', ')}</p> : <p className="text-emerald-700">Dossier complet</p>}
         </div>
         <div>
