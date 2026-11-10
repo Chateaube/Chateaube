@@ -4329,6 +4329,20 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION ent_first_direction(text, text, text, text, text) FROM PUBLIC, anon, authenticated;
 
+-- ---------------------------------------------------------------- droits d'accès aux tables
+-- Projet créé avec « Automatically expose new tables » désactivé : aucune table n'est ouverte d'office.
+-- Seules les personnes connectées (authenticated) reçoivent les droits ; les règles ci-dessous (RLS)
+-- décident ensuite, ligne par ligne, de ce que chacune voit. Les visiteurs non connectés (anon) n'ont
+-- accès à aucune table, seulement à la fonction de connexion par identifiant.
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon;
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated;
+REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM anon;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated;
+GRANT EXECUTE ON FUNCTION ent_login_email(text) TO anon;
+REVOKE ALL ON FUNCTION ent_first_direction(text, text, text, text, text) FROM PUBLIC, anon, authenticated;
+
 -- ---------------------------------------------------------------- toutes les tables fermées par défaut
 DO $$ DECLARE t text; BEGIN
   FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP

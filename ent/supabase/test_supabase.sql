@@ -28,7 +28,7 @@ INSERT INTO evaluation (id, assignment_id, period_id, title, held_on) SELECT v.i
 -- connexion par identifiant (rôle anonyme)
 SET LOCAL ROLE anon;
 DO $$ BEGIN ASSERT ent_login_email('prof.un') = 'prof1@ecole.mg', 'identifiant → e-mail'; ASSERT ent_login_email('inconnu') IS NULL; END $$;
-DO $$ BEGIN ASSERT (SELECT count(*) FROM student) = 0, 'anonyme : aucun élève visible'; END $$;
+DO $$ BEGIN PERFORM count(*) FROM student; RAISE EXCEPTION 'anonyme : la table des élèves est accessible'; EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
 RESET ROLE;
 
 -- professeur 1 : ne voit que ses devoirs, peut noter dans sa classe, pas dans celle du collègue
