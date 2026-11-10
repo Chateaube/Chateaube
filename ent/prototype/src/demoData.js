@@ -4,8 +4,10 @@
 // saisit ensuite) apparaissent. Sans import, le prototype garde ses exemples fictifs.
 import { loadImport } from './importStore.js';
 import { readStored, clearStored } from './persist.js';
+import { ONLINE } from './online/client.js';
 
-export const realData = () => Boolean(loadImport()?.students?.length);
+// version en ligne : jamais d'exemples fictifs, même avant le premier import
+export const realData = () => ONLINE || Boolean(loadImport()?.students?.length);
 export const demoOr = (demo, empty) => (realData() ? empty : demo);
 
 /** Tableau « vivant » : relu à chaque usage (exemples sans import, vide avec les vraies données). */

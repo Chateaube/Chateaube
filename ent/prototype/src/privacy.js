@@ -5,6 +5,7 @@
 //  - « Effacer les données de cet ordinateur » les supprime à tout moment ;
 //  - tant qu'elles sont là, on ne change plus de profil (sinon « Direction » serait à un clic).
 import { loadImport } from './importStore.js';
+import { ONLINE } from './online/client.js';
 
 export const REAL_DATA_IDLE_DAYS = 30;
 const LAST_USE = 'ent-derniere-utilisation';
@@ -12,7 +13,7 @@ const LAST_USE = 'ent-derniere-utilisation';
 const KEEP = ['ent-chateaubriand-settings-v3', 'ent-ambiance-prefs-v1'];
 const kept = (k) => KEEP.includes(k) || (k.startsWith('ent-k-') && k !== 'ent-k-moi');
 
-export const hasRealData = () => { try { return localStorage.getItem('ent-import-v1') !== null; } catch { return false; } };
+export const hasRealData = () => { if (ONLINE) return true; try { return localStorage.getItem('ent-import-v1') !== null; } catch { return false; } };
 /** Vrai si la dernière utilisation date de plus de REAL_DATA_IDLE_DAYS jours. */
 export const isExpired = (lastUse, now = Date.now()) => !!lastUse && now - Date.parse(lastUse) > REAL_DATA_IDLE_DAYS * 86_400e3;
 

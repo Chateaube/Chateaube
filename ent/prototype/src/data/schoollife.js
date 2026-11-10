@@ -15,7 +15,7 @@ export const DEMO_CLASSES = {
   'Terminale Générale': ['RANDRIA Mamy', 'RAKOTOVAO Andry', 'RAZAFINDRATSIMA Volana'],
 };
 const ORDER = ['6e', '5e', '4e', '3e', '2de', '1re STMG', '1re Générale', 'Terminale STMG', 'Terminale Générale'];
-let cache = { key: null, value: DEMO_CLASSES };
+let cache = { key: undefined, value: null }; // calculé au premier accès (exemples, classes importées, ou rien en ligne)
 function current() {
   const imp = loadImport();
   const key = imp?.students?.length ? `${imp.importedAt}|${imp.students.length}` : null;
@@ -23,7 +23,8 @@ function current() {
   const byClass = {};
   (imp?.students ?? []).filter((s) => s.cls && s.lastName).forEach((s) => (byClass[s.cls] ??= []).push(`${s.lastName} ${s.firstName}`.trim()));
   const sorted = Object.fromEntries(Object.keys(byClass).sort((a, b) => ((ORDER.indexOf(a) + 1) || 99) - ((ORDER.indexOf(b) + 1) || 99)).map((c) => [c, byClass[c].sort((a, b) => a.localeCompare(b, 'fr'))]));
-  cache = { key, value: key ? sorted : DEMO_CLASSES };
+  // version en ligne sans élèves chargés : aucune classe (jamais les classes fictives)
+  cache = { key, value: key ? sorted : demoOr(DEMO_CLASSES, {}) };
   return cache.value;
 }
 // lu à chaque utilisation : un import (même gardé seulement en mémoire) est pris en compte sans recharger

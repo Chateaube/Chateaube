@@ -64,6 +64,8 @@ import { DIRECTION_ACCOUNTS } from './data/demo.js';
 import TimetableHub from './components/TimetableHub.jsx';
 import { me, loadMe, forgetMe, ROLES } from './identity.js';
 import WhoAmI from './components/WhoAmI.jsx';
+import AccountsModule from './components/AccountsModule.jsx';
+import { ONLINE, signOut } from './online/client.js';
 import { askConfirm } from './components/Dialogs.jsx';
 
 // Un portail par profil (cf. docs/02-architecture-ux.md, matrice des droits).
@@ -89,6 +91,7 @@ const MESSAGES = { id: 'messages', label: 'Messages', icon: 'bell', screen: ({ r
 const MANUALS = { id: 'manuals', label: 'Manuels scolaires', icon: 'cap', screen: ManualsModule };
 const FEEDBACK = { id: 'feedback', label: 'Avis et idées', icon: 'bell', screen: FeedbackModule };
 const LIBRARY = { id: 'library', label: 'Bibliothèque', icon: 'pen', screen: LibraryModule, feature: 'bibliotheque' };
+const ACCOUNTS = { id: 'accounts', label: 'Comptes du personnel', icon: 'users', screen: AccountsModule };
 const IMPORT = { id: 'import', label: 'Importer et sauvegarder', icon: 'swap', screen: ImportModule };
 const GRADE_SHEETS = { id: 'grade-sheets', label: 'Grilles de notes', icon: 'pen', screen: GradeSheets };
 const BOOKS_FOR_TEACHER = { id: 'books', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who={me('ENSEIGNANT')} kind="PROF" /> };
@@ -130,7 +133,7 @@ const PROFILES = {
       { group: 'Finances', items: [ACCOUNTING] },
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, AGENDA] },
       { group: 'Équipe et matériel', items: [{ id: 'staff', label: 'Gestion des agents', icon: 'users', screen: StaffModule }, RESOURCES, INVENTORY, MANUALS, LIBRARY, BOOKING] },
-      { group: 'Réglages', items: [IMPORT, { id: 'settings', label: 'Paramètres', icon: 'settings', screen: SettingsModule }, ACCESS] },
+      { group: 'Réglages', items: [...(ONLINE ? [ACCOUNTS] : []), IMPORT, { id: 'settings', label: 'Paramètres', icon: 'settings', screen: SettingsModule }, ACCESS] },
     ]),
   },
   BUREAU: {
@@ -232,7 +235,7 @@ export default function App() {
   };
 
   // vraies données : le profil est celui de la personne de cet appareil
-  const [profile, setProfile] = useState(() => (hasRealData() && loadMe()?.role) || 'DIRECTION');
+  const [profile, setProfile] = useState(() => (hasRealData() && loadMe()?.role) || 'DIRECTION'); // en ligne : hasRealData() est vrai
   // après un import, l'application rouvre l'écran d'import (message laissé avant le rechargement)
   const [screen, setScreen] = useState(() => { try { return JSON.parse(sessionStorage.getItem('ent-flash'))?.screen ?? 'dashboard'; } catch { return 'dashboard'; } });
   const [accountId, setAccountId] = useState('u1');
@@ -452,7 +455,8 @@ export default function App() {
                     </label>
                   )}
                   <label className="mt-3 flex items-center gap-2 text-sm text-slate-800"><input type="checkbox" checked={largeText} onChange={(e) => setLargeText(e.target.checked)} className="h-5 w-5" />Texte agrandi (sur cet appareil)</label>
-                  {realData && <button type="button" onClick={async () => { if ((await askConfirm('Changer la personne qui utilise cet appareil ? Les saisies déjà faites restent signées de leur auteur.'))) { forgetMe(); window.location.reload(); } }} className="mt-3 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-left text-sm text-slate-800 hover:bg-slate-50">Changer d'utilisateur de cet appareil</button>}
+                  {ONLINE ? <button type="button" onClick={() => { forgetMe(); signOut().finally(() => window.location.reload()); }} className="mt-3 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-left text-sm text-slate-800 hover:bg-slate-50">Se déconnecter</button>
+                    : realData && <button type="button" onClick={async () => { if ((await askConfirm('Changer la personne qui utilise cet appareil ? Les saisies déjà faites restent signées de leur auteur.'))) { forgetMe(); window.location.reload(); } }} className="mt-3 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-left text-sm text-slate-800 hover:bg-slate-50">Changer d'utilisateur de cet appareil</button>}
                   <button type="button" onClick={wipe} className="mt-3 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-left text-sm text-red-700 hover:bg-red-50">Effacer les données de cet ordinateur</button>
                   {profile !== 'VISITEUR' && <div className="mt-3 border-t border-slate-100 pt-2"><FeedbackButton variant="menu" profile={profile} who={persona.detail ?? persona.name} screen={screenLabel} /></div>}
                   <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-600"><span className="flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-navy-900 ring-1 ring-slate-200">G</span>Connexion Google · même compte sur ordinateur et téléphone</p>

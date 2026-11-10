@@ -2,6 +2,7 @@
 // à la première ouverture (en attendant les vrais comptes en ligne). Avec les exemples : les personnes fictives.
 import { realData } from './demoData.js';
 import { readStored, writeStored } from './persist.js';
+import { ONLINE } from './online/client.js';
 
 const KEY = 'ent-k-moi';
 const DEMO = { DIRECTION: 'Mme Sheena Lo', BUREAU: 'Mme Hanta', VIE_SCOLAIRE: 'M. Be', ENSEIGNANT: 'Mme Ranaivo' };
@@ -15,9 +16,9 @@ export const forgetMe = () => { try { localStorage.removeItem(KEY); } catch { /*
 
 /** Nom de la personne qui agit, pour le profil donné. */
 export function me(role) {
-  const m = realData() ? loadMe() : null;
+  const m = realData() || ONLINE ? loadMe() : null;
   if (m?.name) return m.name;
-  if (realData()) return { DIRECTION: 'Direction', BUREAU: 'Secrétariat', VIE_SCOLAIRE: 'Vie scolaire', ENSEIGNANT: 'Professeur' }[role] ?? '';
+  if (realData() || ONLINE) return { DIRECTION: 'Direction', BUREAU: 'Secrétariat', VIE_SCOLAIRE: 'Vie scolaire', ENSEIGNANT: 'Professeur' }[role] ?? '';
   return DEMO[role] ?? '';
 }
 /** « Mme Hanta (secrétariat) » */

@@ -1,5 +1,13 @@
 # Notes de version — ce qui change pour l'équipe
 
+## 10 novembre 2026 — version en ligne : connexion et comptes
+
+- **La base de l'ENT est installée en ligne** (Supabase, Europe) : structure complète, règles d'accès (un professeur ne voit que ses classes, la vie scolaire les absences sans les notes, la Direction tout ; personne sans connexion ne voit rien).
+- **L'application installable demande maintenant la connexion** : identifiant + code. « Code oublié ? » envoie un lien à l'adresse du compte (sans e-mail : la Direction remet un nouveau code). À la première connexion, chacun remplace le code provisoire par le sien (8 caractères, lettres et chiffres).
+- **Comptes du personnel** (Direction, Réglages) : création avec identifiant proposé (prenom.nom) et code provisoire, fiche à imprimer et remettre en main propre, « Nouveau code », désactivation au départ d'une personne.
+- **En ligne, jamais d'exemples fictifs** : les écrans sont vides tant que les données ne sont pas chargées. La démonstration sur claude.ai garde ses exemples.
+- Prochaine étape : élèves, classes et services chargés sur le serveur, puis appel/absences et carnet de notes partagés.
+
 ## 30 octobre 2026 (suite 4) — reprise de la caisse EduFinance
 
 - **L'export du logiciel de caisse EduFinance** se dépose dans « Importer et sauvegarder », comme le classeur. Un compte rendu s'affiche avant toute modification : tarifs, élèves rapprochés, encaissements, dépenses et versements en banque.

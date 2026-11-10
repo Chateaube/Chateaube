@@ -31,3 +31,16 @@ règles d'accès et les données de référence (niveaux, matières, motifs…).
 - Personne non connectée : rien (sauf retrouver l'adresse de connexion à partir d'un identifiant).
 
 Tests locaux : `fake_supabase.sql` puis `installation.sql` puis `test_supabase.sql` (voir l'en-tête de chaque fichier).
+
+## 4. Mise à jour 1 — comptes du personnel (une seule fois)
+1. SQL Editor › New query → coller le contenu de `20_comptes.sql` → Run.
+2. **Edge Functions** › *Deploy a new function* › *Via Editor* : nom `comptes`, coller `functions/comptes/index.ts`,
+   **Deploy**. (La fonction utilise la clé secrète du projet, qui reste sur le serveur de Supabase.)
+3. **Authentication › Sign In / Providers** : désactiver « Allow new users to sign up » (seule la Direction crée les comptes).
+4. **Authentication › URL Configuration** : *Site URL* = adresse de l'application
+   (`https://chateaube.github.io/Chateaube/ent/app/`), pour les liens « code oublié ».
+
+## Application
+La version installable (`npm run build:app`, mode `app`, réglages dans `ent/prototype/.env.app`) demande la
+connexion (identifiant + code) et n'affiche jamais d'exemples fictifs. La démonstration (claude.ai) reste
+hors ligne, avec ses exemples. La Direction crée les comptes dans Réglages › Comptes du personnel.

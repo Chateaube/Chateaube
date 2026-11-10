@@ -15,6 +15,7 @@ import { formatDateFr } from '../rules/calendar.js';
 import { printOnly } from '../print.js';
 import { loadTasks, saveTasks } from '../tasksStore.js';
 import BulletinHandover from './BulletinHandover.jsx';
+import { demoOr } from '../demoData.js';
 import { loadGA } from '../appreciationStore.js';
 import { loadEngagements, loadCatalogue, loadValidation } from '../engagementsStore.js';
 import { engagementLabels, attestationLabels } from '../rules/engagements.js';
@@ -134,7 +135,8 @@ function SpecialtiesPanel({ onChange }) {
 }
 
 const DEMO_CLASSES = [['1re STMG', buildPremiereSTMG], ['Terminale Générale', buildTerminaleG]];
-const classesNow = () => (importedTleG().length ? [[IMPORTED, buildImported], ...DEMO_CLASSES] : DEMO_CLASSES);
+// avec les vraies données : seulement les classes réelles prêtes (jamais les classes d'exemple)
+const classesNow = () => (importedTleG().length ? [[IMPORTED, buildImported], ...demoOr(DEMO_CLASSES, [])] : demoOr(DEMO_CLASSES, []));
 
 /** Mise en page (Direction) : marges et ordre des matières, communs à tous les bulletins. */
 function LayoutPanel({ settings, onChange, labels }) {
@@ -165,7 +167,7 @@ function LayoutPanel({ settings, onChange, labels }) {
   );
 }
 
-export default function BulletinsModule({ settings, role, go, onChange }) {
+function BulletinsModuleInner({ settings, role, go, onChange }) {
   const [mode, setMode] = useState('print'); // impression ou remise en main propre
   const [readyAsked, setReadyAsked] = useState(false);
   const [CLASSES] = useState(classesNow);
@@ -287,4 +289,14 @@ export default function BulletinsModule({ settings, role, go, onChange }) {
       </div>
     </div>
   );
+}
+
+export default function BulletinsModule(props) {
+  const [ready] = useState(() => classesNow().length > 0);
+  if (!ready) return (
+    <Card title="Bulletins">
+      <p className="text-sm text-slate-700">Aucun bulletin à préparer pour l'instant. Ils se construisent à partir des notes validées par les professeurs et des matières de chaque classe (ordre, coefficients, professeurs), à paramétrer avant les conseils.</p>
+    </Card>
+  );
+  return <BulletinsModuleInner {...props} />;
 }

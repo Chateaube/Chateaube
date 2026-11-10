@@ -4415,3 +4415,21 @@ CREATE POLICY attendance_delete ON attendance_event FOR DELETE TO authenticated 
 CREATE POLICY measure_read ON discipline_measure FOR SELECT TO authenticated USING (ent_has_role('DIRECTION', 'BUREAU', 'VIE_SCOLAIRE') OR decided_by = ent_me() OR ent_teaches_enrollment(enrollment_id));
 CREATE POLICY measure_insert ON discipline_measure FOR INSERT TO authenticated WITH CHECK (decided_by = ent_me() AND ent_is_staff());
 CREATE POLICY measure_update ON discipline_measure FOR UPDATE TO authenticated USING (ent_has_role('DIRECTION', 'VIE_SCOLAIRE') OR decided_by = ent_me());
+-- =============================================================================
+--  Mise à jour 1 — comptes : changement de code à la première connexion, liste des comptes (Direction)
+-- =============================================================================
+-- La personne connectée a choisi son propre code : on ne lui demande plus d'en changer.
+CREATE OR REPLACE FUNCTION ent_code_changed() RETURNS void
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  UPDATE app_user SET must_change_code = false, last_login_at = now() WHERE id = ent_me()
+$$;
+REVOKE ALL ON FUNCTION ent_code_changed() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION ent_code_changed() TO authenticated;
+
+-- Dernière connexion (affichée dans la liste des comptes)
+CREATE OR REPLACE FUNCTION ent_seen() RETURNS void
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  UPDATE app_user SET last_login_at = now() WHERE id = ent_me()
+$$;
+REVOKE ALL ON FUNCTION ent_seen() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION ent_seen() TO authenticated;

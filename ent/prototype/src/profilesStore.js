@@ -18,6 +18,7 @@ export const DEMO_PROFILES = [...STUDENT_PROFILES, ...Object.entries(DEMO_CLASSE
   };
 }))];
 import { loadImport, saveImport } from './importStore.js';
+import { demoOr } from './demoData.js';
 
 const KEY = 'ent-profiles-v2'; // v2 : une fiche pour chaque élève des classes
 
@@ -31,7 +32,7 @@ export function loadProfiles() {
   const imp = loadImport();
   if (imp?.profiles?.length) return imp.profiles;
   if (imp?.students?.length) return imp.students.map(fromImport);
-  try { return JSON.parse(localStorage.getItem(KEY)) ?? DEMO_PROFILES; } catch { return DEMO_PROFILES; }
+  try { return JSON.parse(localStorage.getItem(KEY)) ?? demoOr(DEMO_PROFILES, []); } catch { return demoOr(DEMO_PROFILES, []); }
 }
 
 /** Enregistre les fiches ; renvoie false si le navigateur manque de place (photos trop nombreuses). */
