@@ -82,7 +82,7 @@ const INSCRIPTIONS = { id: 'enrol', label: 'Inscriptions et fiches élèves', ic
 const OVERSIGHT = [
   { id: 'oversight-grades', label: 'Suivi des professeurs', icon: 'pen', screen: (p) => <TeacherOversight {...p} view="grades" /> },
 ];
-const OVERSIGHT_HOMEWORK = { id: 'oversight-homework', label: 'Cahiers de textes', icon: 'calendar', screen: (p) => <TeacherOversight {...p} view="homework" /> };
+const OVERSIGHT_HOMEWORK = { id: 'oversight-homework', label: 'Cahiers de textes', icon: 'calendar', feature: 'cahier-textes', screen: (p) => <TeacherOversight {...p} view="homework" /> };
 const MESSAGES = { id: 'messages', label: 'Messages', icon: 'bell', screen: ({ role }) => (
   <div className="space-y-4">
     <div><p className="text-sm font-semibold text-navy-500">Professeurs, élèves, parents et personnel · texte et photos</p><h1 className="text-2xl font-semibold text-navy-900">Messages</h1></div>
@@ -183,7 +183,7 @@ const PROFILES = {
       { group: 'Ma journée', items: [
         { id: 'teacher', label: 'Ma journée', icon: 'home', screen: TeacherPortal },
         { id: 'appel', label: 'Appel', icon: 'check', screen: AttendanceModule },
-        { id: 'homework', label: 'Cahier de textes', icon: 'calendar', screen: HomeworkModule },
+        { id: 'homework', label: 'Cahier de textes', icon: 'calendar', feature: 'cahier-textes', screen: HomeworkModule },
         AGENDA, BOOKING, { ...HOURS, label: 'Mes heures et absences' },
       ] },
       { group: 'Évaluations', items: [{ id: 'grades', label: 'Notes et appréciations', icon: 'pen', screen: GradebookModule }, MOCK_EXAMS, GRADE_SHEETS] },
@@ -522,8 +522,8 @@ export default function App() {
       </div>
       {profile === 'ENSEIGNANT' && (
         // téléphone : les cinq écrans du quotidien en bas, à portée de pouce
-        <nav aria-label="Raccourcis enseignant" className="print:hidden fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] sm:hidden">
-          {[['teacher', 'Journée', 'home'], ['appel', 'Appel', 'check'], ['grades', 'Notes', 'pen'], ['homework', 'Cahier', 'calendar'], ['messages', 'Messages', 'bell']].map(([id, label, icon]) => (
+        <nav aria-label="Raccourcis enseignant" className={`print:hidden fixed inset-x-0 bottom-0 z-40 grid ${featureVisible(settings, 'cahier-textes', profile) ? 'grid-cols-5' : 'grid-cols-4'} border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] sm:hidden`}>
+          {[['teacher', 'Journée', 'home'], ['appel', 'Appel', 'check'], ['grades', 'Notes', 'pen'], ['homework', 'Cahier', 'calendar'], ['messages', 'Messages', 'bell']].filter(([id]) => id !== 'homework' || featureVisible(settings, 'cahier-textes', profile)).map(([id, label, icon]) => (
             <button key={id} type="button" onClick={() => goTo(id)} aria-current={screen === id ? 'page' : undefined}
               className={`flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-[11px] font-semibold ${screen === id ? 'text-navy-700' : 'text-slate-600'}`}><Icon name={icon} className="h-5 w-5" />{label}</button>
           ))}

@@ -23,15 +23,16 @@ const fmt = (iso) => iso.split('-').reverse().join('/');
 const WHO = { DIRECTION: 'Direction', BUREAU: 'Secrétariat', VIE_SCOLAIRE: 'CPE', ENSEIGNANT: me('ENSEIGNANT') };
 
 /** Texte d'un document : « ## » = titre de partie, « - » = point de liste, sinon paragraphe. */
+const rich = (s) => String(s).split(/(\*\*[^*]+\*\*)/).map((part, i) => (part.startsWith('**') && part.endsWith('**') ? <strong key={i} className="font-semibold text-slate-900">{part.slice(2, -2)}</strong> : part));
 export function DocText({ text, className = '' }) {
   const blocks = []; let list = null;
   String(text ?? '').split('\n').forEach((line, i) => {
     const l = line.trim();
-    if (l.startsWith('- ')) { if (!list) { list = []; blocks.push(<ul key={`u${i}`} className="mb-3 space-y-1.5 pl-1">{list}</ul>); } list.push(<li key={i} className="flex gap-2"><span aria-hidden="true" className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: '#0a4a8c' }} /><span>{l.slice(2)}</span></li>); return; }
+    if (l.startsWith('- ')) { if (!list) { list = []; blocks.push(<ul key={`u${i}`} className="mb-3 space-y-1.5 pl-1">{list}</ul>); } list.push(<li key={i} className="flex gap-2"><span aria-hidden="true" className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: '#0a4a8c' }} /><span>{rich(l.slice(2))}</span></li>); return; }
     list = null;
     if (!l) return;
     if (l.startsWith('## ')) blocks.push(<h3 key={i} className="mb-2 mt-5 font-display text-base font-semibold text-navy-800 first:mt-0">{l.slice(3)}</h3>);
-    else blocks.push(<p key={i} className="mb-3">{l}</p>);
+    else blocks.push(<p key={i} className="mb-3">{rich(l)}</p>);
   });
   return <div className={`text-sm leading-relaxed text-slate-700 ${className}`}>{blocks}</div>;
 }

@@ -15,6 +15,8 @@ export const FEATURES = [
   { id: 'inventaire', label: 'Inventaire du matériel', where: 'Matériel', default: 'TOUS' },
   { id: 'bibliotheque', label: 'Bibliothèque (salle d\'étude)', where: 'Matériel', default: 'TOUS' },
   { id: 'reservations', label: 'Réservations de matériel', where: 'Matériel', default: 'TOUS' },
+  { id: 'cahier-textes', label: 'Cahier de textes en ligne', where: 'Enseignants, familles', default: 'AUCUN',
+    note: 'Tenu sur papier jusqu\'à la rentrée 2027 : à afficher ce jour-là pour passer au cahier en ligne.' },
 ];
 export const MODES = { TOUS: 'Visible', DIRECTION: 'Direction seulement', AUCUN: 'Masquée' };
 
