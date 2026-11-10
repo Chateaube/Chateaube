@@ -157,7 +157,7 @@ const PROFILES = {
       { group: 'Aujourd\'hui', items: [{ id: 'bureau', label: 'À traiter aujourd\'hui', icon: 'home', screen: BureauHome }] },
       { group: 'Accueil et caisse', items: [ACCOUNTING, { ...ELEVES, label: 'Élèves et certificats' }, SIGNATURES, CARE, MANUALS] }, // le guichet
       { group: 'Vie scolaire', items: [VIE_SCOLAIRE, HOURS, TIMETABLE, FOLLOW_UP] },
-      { group: 'Notes et bulletins', items: [COUNCIL, BULLETINS, MOCK_EXAMS, ...OVERSIGHT] }, // grilles : onglet des conseils
+      { group: 'Notes et conseils', items: [COUNCIL, MOCK_EXAMS, ...OVERSIGHT] }, // grilles : onglet des conseils ; bulletins : Direction seule
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, AGENDA, RESOURCES] },
       { group: 'Matériel et bibliothèque', items: [LIBRARY, BOOKING, INVENTORY] },
       { group: 'Sauvegarde', items: [IMPORT] },

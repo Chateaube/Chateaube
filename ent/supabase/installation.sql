@@ -4401,7 +4401,8 @@ CREATE POLICY validation_write ON term_validation FOR ALL TO authenticated USING
 
 -- ---------------------------------------------------------------- conseil et bulletins
 CREATE POLICY report_read ON report_card FOR SELECT TO authenticated USING (ent_has_role('DIRECTION', 'BUREAU') OR ent_teaches_enrollment(enrollment_id));
-CREATE POLICY report_write ON report_card FOR ALL TO authenticated USING (ent_has_role('DIRECTION', 'BUREAU')) WITH CHECK (ent_has_role('DIRECTION', 'BUREAU'));
+-- bulletins : établis par la Direction seule ; le secrétariat les consulte (conseils, grilles)
+CREATE POLICY report_write ON report_card FOR ALL TO authenticated USING (ent_has_role('DIRECTION')) WITH CHECK (ent_has_role('DIRECTION'));
 CREATE POLICY comment_read ON report_comment FOR SELECT TO authenticated USING (ent_has_role('DIRECTION', 'BUREAU') OR ent_teaches_enrollment(ent_enrollment_of_report(report_card_id)));
 CREATE POLICY comment_write ON report_comment FOR ALL TO authenticated
   USING (author_id = ent_me() OR ent_has_role('DIRECTION'))
