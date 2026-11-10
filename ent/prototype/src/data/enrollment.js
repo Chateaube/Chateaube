@@ -19,7 +19,7 @@ export const STUDENT_PROFILES = [
       { name: 'M. Rakotoarisoa Jean', relation: 'Père', phone: '+261 32 07 456 78', email: '', whatsapp: true, payer: false, pickup: true },
     ],
     health: { allergies: 'Aucune', emergency: 'Mme Rakotoarisoa Hanta — +261 34 11 223 12' },
-    authorizations: { image: true, exit: 'Fin de journée uniquement' },
+    authorizations: { image: true, exit: 'Sortie en fin de journée uniquement' },
     documents: ['ACTE', 'PHOTOS', 'BULLETINS', 'VACCINS'],
   },
   {
@@ -39,7 +39,7 @@ export const STUDENT_PROFILES = [
       { name: 'M. Randria Feno', relation: 'Père', phone: '+261 32 44 900 48', email: 'feno.randria@gmail.com', whatsapp: false, payer: true, pickup: true },
     ],
     health: { allergies: 'Aucune', emergency: 'M. Randria Feno — +261 32 44 900 48' },
-    authorizations: { image: false, exit: 'Sortie après la dernière heure de cours de la demi-journée' },
+    authorizations: { image: false, exit: 'Code bleu — sortie après la dernière heure de cours de la demi-journée, y compris en cas d\'absence d\'un professeur' },
     documents: ['ACTE', 'PHOTOS', 'BULLETINS', 'VACCINS'],
   },
 ];

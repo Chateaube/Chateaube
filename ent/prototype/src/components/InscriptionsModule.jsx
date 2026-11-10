@@ -25,6 +25,8 @@ import { FicheView, SignatureCompare, FICHE_YEAR } from './FicheSignaletique.jsx
 import { ficheOf, saveFiche } from '../ficheStore.js';
 import { today } from '../clock.js';
 import { askConfirm, tell } from './Dialogs.jsx';
+import { AUTHORIZATIONS } from '../data/family.js';
+const EXIT_OPTIONS = AUTHORIZATIONS.find((a) => a.id === 'SORTIE').options;
 
 // Inscriptions (Bureau et Direction) : pré-inscriptions, inscription ou réinscription avec
 // création de la fiche élève, puis création des comptes de l'ENT.
@@ -39,7 +41,7 @@ const emptyGuardian = () => ({ name: '', relation: 'Mère', phone: '', email: ''
 const emptyProfile = () => ({
   lastName: '', firstName: '', sex: 'F', birthDate: '', birthPlace: '', nationalities: ['MG'], cls: '6e', lv1: 'Anglais', lv2: 'Espagnol',
   enteredOn: today(), previousSchool: '', guardians: [{ ...emptyGuardian(), payer: true }], health: { allergies: '', emergency: '' },
-  authorizations: { image: true, exit: 'Fin de journée uniquement' }, documents: [],
+  authorizations: { image: true, exit: EXIT_OPTIONS[2] }, documents: [],
 });
 
 /* ---------- Pré-inscriptions ---------- */
@@ -279,7 +281,7 @@ function ProfileForm({ initial, kind, onSave, onCancel, role }) {
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={p.authorizations.image} onChange={(e) => set({ authorizations: { ...p.authorizations, image: e.target.checked } })} />Droit à l'image</label>
             <Field label="Sortie de l'établissement" className="mt-2">
               <select value={p.authorizations.exit} onChange={(e) => set({ authorizations: { ...p.authorizations, exit: e.target.value } })} className={`w-full ${inputCls}`}>
-                {['Sortie après la dernière heure de cours de la demi-journée', 'Fin de journée uniquement', 'Aucune sortie sans un responsable'].map((o) => <option key={o}>{o}</option>)}
+                {EXIT_OPTIONS.map((o) => <option key={o}>{o}</option>)}
               </select>
             </Field>
           </div>
