@@ -1274,7 +1274,7 @@ import { bookToImport, withExtras } from '../src/rules/templateImport.js';
 
 test('modèle Excel : lecture du classeur, ligne « Exemple » ignorée', async () => {
   const book = await readXlsx(readFileSync(new URL('../../modeles/modele-import-chateaubriand.xlsx', import.meta.url)));
-  assert.equal(Object.keys(book).length, 11);
+  assert.equal(Object.keys(book).length, 12); // Lisez-moi + 11 onglets
   assert.equal(book['1 Élèves'][0][1], 'Nom');
   assert.equal(sheetRows(book['1 Élèves']).length, 0);
   assert.equal(excelDate(46300), '05/10/2026');
@@ -2091,4 +2091,15 @@ test('inventaire : matériel perdu sorti du stock, retrouvé, signalé à faire'
   const back = foundLost(lost, 1, 'Direction', '2026-11-11');
   assert.equal(back.qty, 9); assert.equal(back.lost, 1);
   assert.throws(() => foundLost(back, 2, 'Direction', '2026-11-11'), /incorrecte/);
+});
+
+test('modèle Excel : onglet 11 Dépenses (catégorie, mode, ligne illisible signalée)', async () => {
+  const { bookToImport } = await import('../src/rules/templateImport.js');
+  const r = bookToImport({ '11 Dépenses': [['Date', 'Libellé', 'Montant (Ar)', 'Catégorie', 'Mode', 'N° de pièce'],
+    ['02/11/2026', 'Achat des chaises', '940 000', 'Entretien et réparations', 'Espèces', 'SOR-0154'],
+    ['02/11/2026', 'Déplacement versement', 4000, '', 'Chèque', 'SOR-0157'],
+    ['xx', 'Sans date', 100, '', '', '']] });
+  assert.equal(r.expenses.length, 2);
+  assert.deepEqual(r.expenses.map((x) => [x.id, x.category, x.method, x.amount, x.date]), [['tpl-SOR-0154', 'Entretien et réparations', 'ESPECES', 940000, '2026-11-02'], ['tpl-SOR-0157', 'Autre', 'CHEQUE', 4000, '2026-11-02']]);
+  assert.equal(r.expenseErrors.length, 1);
 });

@@ -20,7 +20,7 @@ import { accountsKey } from './CollectPayment.jsx';
 
 // Onglets du modèle pris en compte dès maintenant ; les autres seront repris par la version serveur
 const fold = (t) => String(t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
-const USED = { '4 Emploi du temps': 'emploi du temps', '1 Élèves': 'fiches élèves', '2 Responsables': 'responsables des élèves', '3 Personnel': 'professeurs et enseignements', '6 Notes officielles 1re': 'projection au bac', '10 Inventaire': 'inventaire', '7 Paiements': 'comptes des élèves et caisse' };
+const USED = { '4 Emploi du temps': 'emploi du temps', '1 Élèves': 'fiches élèves', '2 Responsables': 'responsables des élèves', '3 Personnel': 'professeurs et enseignements', '6 Notes officielles 1re': 'projection au bac', '10 Inventaire': 'inventaire', '7 Paiements': 'comptes des élèves et caisse', '11 Dépenses': 'dépenses (trésorerie)' };
 
 /** Compte rendu de l'emploi du temps lu : cours, lignes à corriger, chevauchements, heures par classe. */
 function TimetableReport({ t }) {
@@ -74,7 +74,7 @@ function TemplateZone({ onBook, onEdu, extras }) {
   const file = useRef(null);
   const [err, setErr] = useState('');
   return (
-    <Card title="Importer le modèle Excel" subtitle="Le classeur « modele-import-chateaubriand.xlsx » rempli (onglets 1 à 10), l'export de la caisse EduFinance, ou seulement le fichier de l'emploi du temps (onglet « EDT à importer »). Les lignes « Exemple » sont ignorées.">
+    <Card title="Importer le modèle Excel" subtitle="Le classeur « modele-import-chateaubriand.xlsx » rempli (onglets 1 à 11), l'export de la caisse EduFinance, ou seulement le fichier de l'emploi du temps (onglet « EDT à importer »). Les lignes « Exemple » sont ignorées.">
       <input ref={file} type="file" accept=".xlsx" className="hidden" onChange={async (e) => {
         const f = e.target.files[0]; e.target.value = ''; if (!f) return;
         try { setErr(''); const book = await readXlsx(await f.arrayBuffer()); if (isEduFinance(book)) onEdu(book); else onBook(bookToImport(book)); } catch (x) { setErr(x.message); }
@@ -185,13 +185,21 @@ export default function ImportModule({ role = 'DIRECTION' }) {
       const inList = new Set(data.students.map((x) => fold(`${x.lastName} ${x.firstName}`)));
       const kept = extras.payments.movements.filter((m) => inList.has(m.student));
       const paid = Object.fromEntries(Object.entries(extras.payments.paid).filter(([k]) => inList.has(k)));
-      data.payments = { paid, movements: kept };
+      // reprise EduFinance déjà faite : gardée ; une reprise précédente de l'onglet 7 est remplacée
+      const prev = current?.payments;
+      const merged = { ...(prev?.paid ?? {}) };
+      Object.entries(paid).forEach(([k, v]) => { merged[k] = [...new Set([...(merged[k] ?? []), ...v])]; });
+      data.payments = { paid: merged, movements: [...(prev?.movements ?? []).filter((m) => !String(m.id).startsWith('rep')), ...kept].sort((a, b) => a.date.localeCompare(b.date)) };
       const total = kept.reduce((s, m) => s + m.amount, 0);
       payNote = ` Paiements repris : ${kept.length} (${new Intl.NumberFormat('fr-FR').format(total)} Ar), marqués réglés sur les comptes des élèves.${extras.payments.errors.length ? ` ${extras.payments.errors.length} ligne(s) à corriger, non reprises.` : ''}${kept.length < extras.payments.movements.length ? ` ${extras.payments.movements.length - kept.length} paiement(s) d'élèves absents de la liste, non repris.` : ''}`;
     }
     // Premier vrai import : ce qui a été saisi pendant la démonstration (absences, punitions, caisse, tâches…) est effacé
     if (!current?.students?.length && data.students.length) resetDemoState();
     const where = saveImport(data);
+    if (extras?.expenses?.length) {
+      writeStored('ent-s-depenses', [...(readStored('ent-s-depenses') ?? []).filter((x) => !String(x.id).startsWith('tpl-')), ...extras.expenses]);
+      payNote += ` Dépenses reprises : ${extras.expenses.length} (${new Intl.NumberFormat('fr-FR').format(extras.expenses.reduce((s, x) => s + x.amount, 0))} Ar).${extras.expenseErrors.length ? ` ${extras.expenseErrors.length} ligne(s) de dépenses à corriger, non reprises.` : ''}`;
+    }
     setCurrent(loadImport());
     let more = '';
     if (extras && Object.keys(extras.official).length) {
