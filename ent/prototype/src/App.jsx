@@ -92,19 +92,16 @@ const MESSAGES = { id: 'messages', label: 'Messages', icon: 'bell', screen: ({ r
 const MANUALS = { id: 'manuals', label: 'Manuels scolaires', icon: 'cap', screen: ManualsModule };
 const FEEDBACK = { id: 'feedback', label: 'Avis et idées', icon: 'bell', screen: FeedbackModule };
 const LIBRARY = { id: 'library', label: 'Bibliothèque', icon: 'pen', screen: LibraryModule, feature: 'bibliotheque' };
-// Gestion des agents : en ligne, les comptes de connexion (identifiant + code) et le registre (entrées, sorties) au même endroit
+// Gestion des agents (en ligne) : une seule liste, l'accès à l'ENT et la fiche de chaque personne
 function StaffHub() {
-  const [tab, setTab] = useState('accounts');
   return (
     <div className="space-y-4">
       <div>
         <p className="text-sm font-semibold text-navy-500">Administration</p>
         <h1 className="text-2xl font-semibold text-navy-900">Gestion des agents</h1>
+        <p className="text-sm text-slate-600">Une ligne par personne : son accès à l'ENT (identifiant, code) et sa fiche (contrat, entrée, sortie).</p>
       </div>
-      <div className="inline-flex rounded-lg bg-slate-100 p-1" role="group" aria-label="Rubrique">{[['accounts', 'Comptes de connexion'], ['register', 'Registre : entrées et sorties']].map(([k, l]) => (
-        <button key={k} type="button" aria-pressed={tab === k} onClick={() => setTab(k)} className={`nav-control rounded-md px-3 py-1 text-sm font-medium ${tab === k ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>{l}</button>
-      ))}</div>
-      {tab === 'accounts' ? <AccountsModule embedded /> : <StaffModule embedded />}
+      <AccountsModule embedded />
     </div>
   );
 }

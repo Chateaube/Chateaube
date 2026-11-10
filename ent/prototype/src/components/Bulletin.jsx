@@ -57,7 +57,7 @@ export function BulletinSheet({ b }) {
       </table>
       <div className="mt-3 flex items-start justify-between">
         <div>
-          <p>Absences (demi-journées) : justifiées {b.justified ?? 0} · non justifiées {b.unjustified ?? 0} &nbsp;|&nbsp; Retards : {b.late}</p>
+          <p>Absences (1/2 j) : justifiées {b.justified ?? 0} · non justifiées {b.unjustified ?? 0} &nbsp;|&nbsp; Retards : {b.late}</p>
           {b.engagements?.length > 0 && <p className="mt-0.5"><span className="font-bold">Engagement{b.engagements.length > 1 ? 's' : ''} :</span> {b.engagements.join(' · ')}</p>}
           {b.attestations?.length > 0 && <p className="mt-0.5"><span className="font-bold">Attestation{b.attestations.length > 1 ? 's' : ''} de l'établissement :</span> {b.attestations.join(' · ')}</p>}
         </div>

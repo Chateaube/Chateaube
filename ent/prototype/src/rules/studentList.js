@@ -1,6 +1,6 @@
 // Liste des élèves : filtres et export Excel complet (une ligne par élève).
 import { csv } from './gradeSheet.js';
-import { nationalityLabels, missingDocuments, accountsFor, guardianKey } from './enrollment.js';
+import { nationalityLabels, missingDocuments, accountsFor, guardianKey, schoolLogins } from './enrollment.js';
 import { usualFirstName } from './names.js';
 import { seniority } from './documents.js';
 import { SPECIALTIES } from './bulletin.js';
@@ -40,9 +40,9 @@ export function studentsCsv(list, title) {
 
 /** Codes d'accès à remettre : un par responsable, même s'il a plusieurs enfants. */
 export function accessSlips(list) {
-  const slips = new Map();
+  const slips = new Map(); const logins = schoolLogins(list);
   sortStudents(list).forEach((p) => {
-    accountsFor(p).filter((a) => a.role === 'PARENT').forEach((a) => {
+    accountsFor(p, logins).filter((a) => a.role === 'PARENT').forEach((a) => {
       const g = p.guardians.find((x) => x.name === a.name);
       const k = guardianKey(g);
       const prev = slips.get(k);

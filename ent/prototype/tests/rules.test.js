@@ -527,9 +527,9 @@ test('inscriptions : pré-inscription, fiche élève, comptes', () => {
   assert.ok(validateProfile({ ...p, previousSchool: '' }).length === 1);
   assert.deepEqual(validateProfile({ ...p, previousSchool: '' }, { kind: 'REINSCRIPTION' }), []);
   const acc = accountsFor(p);
-  assert.equal(acc[0].login, 'elea.rakoto@chateaubriand-tamatave.mg');
-  assert.equal(acc[1].login, 'voahangy@gmail.com');
-  assert.equal(acc[2].login, null); // pas d'e-mail : code d'activation
+  assert.equal(acc[0].login, 'ra.elea'); // identifiant court : 2 lettres du nom + prénom, sans e-mail
+  assert.equal(acc[1].email, 'voahangy@gmail.com'); // l'e-mail ne sert qu'en cas de code oublié
+  assert.ok(acc.every((a) => a.login && !a.login.includes('@')));
   assert.equal(missingDocuments({ cls: '5e', documents: ['PHOTOS'] }, 'REINSCRIPTION').length, 1); // vaccins
   assert.deepEqual(missingDocuments({ cls: 'Terminale STMG', documents: ['PHOTOS'] }, 'REINSCRIPTION').map((d) => d.id), ['ACTE', 'VACCINS']);
   assert.deepEqual(missingDocuments({ cls: '6e', documents: [] }, 'INSCRIPTION').map((d) => d.id), ['ACTE', 'PHOTOS', 'BULLETINS', 'VACCINS']);
@@ -801,7 +801,7 @@ test('un code personnel par responsable, nationalités proposées', () => {
   const [, mere, pere] = accountsFor(p);
   assert.match(mere.code, /^\d{4} \d{4}$/);
   assert.notEqual(mere.code, pere.code); // deux parents, deux accès
-  assert.equal(pere.login, null);
+  assert.notEqual(pere.login, mere.login);
   assert.equal(accessCode(guardianKey(p.guardians[0])), mere.code); // même parent, même code pour ses autres enfants
   assert.deepEqual(nationalityLabels(['MG', 'FR', 'KM']), ['Malgache', 'Française', 'Autre (KM)']);
   assert.deepEqual(nationalityLabels(['MG', 'XX'], 'Comorienne'), ['Malgache', 'Comorienne']);
@@ -2102,4 +2102,21 @@ test('modèle Excel : onglet 11 Dépenses (catégorie, mode, ligne illisible sig
   assert.equal(r.expenses.length, 2);
   assert.deepEqual(r.expenses.map((x) => [x.id, x.category, x.method, x.amount, x.date]), [['tpl-SOR-0154', 'Entretien et réparations', 'ESPECES', 940000, '2026-11-02'], ['tpl-SOR-0157', 'Autre', 'CHEQUE', 4000, '2026-11-02']]);
   assert.equal(r.expenseErrors.length, 1);
+});
+
+test('identifiants : 2 lettres du nom + prénom, homonymes départagés, même responsable = même identifiant', async () => {
+  const { loginFor, splitGuardianName } = await import('../src/rules/logins.js');
+  const { schoolLogins, accountsFor } = await import('../src/rules/enrollment.js');
+  assert.equal(loginFor('Fatema', 'AMBININTSOA'), 'am.fatema');
+  assert.equal(loginFor('Tsiambanihasy Alicia', 'MANASE'), 'ma.tsiambanihasy');
+  assert.equal(loginFor('Fatema', 'AMBININTSOA', new Set(['am.fatema'])), 'amb.fatema');
+  assert.equal(loginFor('Lyane', 'RA', new Set(['ra.lyane'])), 'ra.lyane2');
+  assert.deepEqual(splitGuardianName({ name: 'Mme RAKOTO Voahangy' }), { last: 'RAKOTO', first: 'Voahangy' });
+  const mum = { name: 'Mme AMBININTSOA Hanta', relation: 'Mère', phone: '034 11 111 11' };
+  const kids = [{ id: 'a', firstName: 'Fatema', lastName: 'AMBININTSOA', guardians: [mum] }, { id: 'b', firstName: 'Soraya Félicité', lastName: 'AMBININTSOA', guardians: [mum] },
+    { id: 'c', firstName: 'Fatema', lastName: 'AMBOARA', guardians: [] }];
+  const logins = schoolLogins(kids);
+  const ids = kids.map((k) => accountsFor(k, logins)[0].login);
+  assert.equal(new Set(ids).size, 3); // homonymes « am.fatema » départagés
+  assert.equal(accountsFor(kids[0], logins)[1].login, accountsFor(kids[1], logins)[1].login); // même mère, même identifiant
 });

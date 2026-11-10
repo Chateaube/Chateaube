@@ -1,3 +1,4 @@
+import { loginFor, splitGuardianName } from './logins.js';
 // Pré-inscriptions, inscriptions et réinscriptions.
 // Chaque inscription ou réinscription crée (ou met à jour) la FICHE ÉLÈVE ; c'est elle qui
 // permet ensuite de créer les comptes de l'ENT (élève et responsables) et de tout retrouver.
@@ -140,27 +141,45 @@ export const guardianKey = (g) => (g.email?.trim() || g.phone?.replace(/\s/g, ''
 
 /**
  * Comptes de l'ENT créés à partir de la fiche : un compte élève et UN COMPTE PAR RESPONSABLE
- * (deux parents = deux accès, chacun sa signature et ses accusés de lecture). Chaque responsable
- * reçoit son code personnel pour la première connexion ; il se connecte ensuite avec son compte
- * Google s'il a un e-mail, sinon avec son téléphone et le mot de passe qu'il a choisi.
+ * (deux parents = deux accès, chacun sa signature et ses accusés de lecture). Tout le monde se connecte avec
+ * un identifiant (rules/logins.js) et un code ; le responsable reçoit un code personnel pour la première
+ * connexion. L'e-mail ne sert qu'en cas de code oublié. `logins` : identifiants de toute l'école (schoolLogins),
+ * pour qu'un homonyme n'ait jamais le même identifiant.
  */
-export function accountsFor(profile, domain = 'chateaubriand-tamatave.mg') {
+export function accountsFor(profile, logins = null) {
+  const own = new Set();
+  const pick = (key, first, last) => logins?.get(key) ?? (() => { const l = loginFor(first, last, own); own.add(l); return l; })();
   const student = {
     role: 'ELEVE',
     name: `${profile.firstName} ${profile.lastName}`,
-    login: `${slug(profile.firstName)}.${slug(profile.lastName)}@${domain}`,
-    method: 'Compte Google de l\'établissement',
+    login: pick(studentKeyOf(profile), profile.firstName, profile.lastName),
+    method: 'Identifiant et code',
   };
-  const guardians = (profile.guardians ?? []).filter((g) => g.name?.trim()).map((g) => ({
-    role: 'PARENT',
-    name: g.name,
-    relation: g.relation,
-    phone: g.phone ?? '',
-    login: g.email?.trim() || null,
-    code: accessCode(guardianKey(g)),
-    method: g.email?.trim() ? 'Code personnel, puis compte Google' : 'Code personnel, puis téléphone et mot de passe',
-  }));
+  const guardians = (profile.guardians ?? []).filter((g) => g.name?.trim()).map((g) => {
+    const { first, last } = splitGuardianName(g);
+    return {
+      role: 'PARENT',
+      name: g.name,
+      relation: g.relation,
+      phone: g.phone ?? '',
+      email: g.email?.trim() || '',
+      login: pick(`g:${guardianKey(g)}`, first, last),
+      code: accessCode(guardianKey(g)),
+      method: 'Identifiant et code personnel',
+    };
+  });
   return [student, ...guardians];
+}
+
+const studentKeyOf = (p) => `e:${p.id ?? `${p.lastName} ${p.firstName} ${p.birthDate ?? ''}`}`;
+/** Identifiants de toute l'école, attribués dans un ordre stable (élèves par classe et nom, puis leurs responsables). */
+export function schoolLogins(profiles = []) {
+  const taken = new Set(); const map = new Map();
+  const give = (key, first, last) => { if (map.has(key)) return; const l = loginFor(first, last, taken); taken.add(l); map.set(key, l); };
+  const sorted = [...profiles].sort((a, b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'fr'));
+  sorted.forEach((p) => give(studentKeyOf(p), p.firstName, p.lastName));
+  sorted.forEach((p) => (p.guardians ?? []).filter((g) => g.name?.trim()).forEach((g) => { const { first, last } = splitGuardianName(g); give(`g:${guardianKey(g)}`, first, last); }));
+  return map;
 }
 
 // Nationalités proposées dans la fiche : les autres sont regroupées dans « Autre »

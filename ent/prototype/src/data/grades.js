@@ -149,3 +149,16 @@ export const ABSENCES = {
 SERVICES.push(svc({ id: 's5', cls: '1re STMG', subject: 'Parcours d\'ouverture — Orientation', mode: 'APPRECIATION_SEULE', strand: 'ORIENTATION' }, CLASS_LIST));
 EVALUATIONS.s5 = [];
 GRADES.s5 = {};
+
+// Toutes les matières de l'école (réglage « matières comptées dans la moyenne générale ») : celles de la grille
+// d'exemple, celles des enseignements de l'année (importés, sinon la liste de référence), plus Musique et Vie de classe.
+const foldLabel = (t) => String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]/g, '');
+const FIXED_IDS = { artsplastiques: 'AP', musique: 'MUS', viedeclasse: 'VDC', scdegestionetnumerique: 'SGN', sciencesdegestionetnumerique: 'SGN' };
+export function allSubjects(assignments = []) {
+  const out = new Map();
+  const add = (id, label) => { const k = foldLabel(label); if (!out.has(k)) out.set(k, { id, label }); };
+  CLASS_SUBJECTS.forEach((s) => add(s.id, s.label));
+  assignments.flatMap((a) => a.subjects ?? []).forEach((label) => add(FIXED_IDS[foldLabel(label)] ?? label, label));
+  add('MUS', 'Musique'); add('AP', 'Arts plastiques');
+  return [...new Map([...out.values()].map((s) => [s.id, s])).values()].sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+}

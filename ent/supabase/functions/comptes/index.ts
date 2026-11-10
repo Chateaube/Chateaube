@@ -31,11 +31,14 @@ Deno.serve(async (req) => {
       const role = String(body.role ?? ''); const email = String(body.email ?? '').trim().toLowerCase();
       if (!first || !last || !ROLES.includes(role)) return reply({ error: 'Prénom, nom et fonction obligatoires.' }, 400);
       if (email && !/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(email)) return reply({ error: 'Adresse e-mail invalide.' }, 400);
-      // identifiant : prenom.nom, puis prenom.nom2, prenom.nom3… s'il existe déjà
-      const base = `${fold(first.split(/\s+/)[0])}.${fold(last)}`;
-      const { data: taken } = await admin.from('app_user').select('login').like('login', `${base}%`);
+      // identifiant (le même pour tous, voir rules/logins.js) : 2 premières lettres du nom, un point, le premier
+      // prénom — « am.fatema » ; homonyme : une lettre du nom de plus (« amb.fatema »…), puis un chiffre
+      const f = fold(first.split(/\s+/)[0]) || 'x'; const l = fold(last) || 'x';
+      const { data: taken } = await admin.from('app_user').select('login').like('login', `%.${f}%`);
       const used = new Set((taken ?? []).map((t: { login: string }) => t.login));
-      let login = base; for (let i = 2; used.has(login); i++) login = `${base}${i}`;
+      let login = '';
+      for (let n = Math.min(2, l.length); n <= l.length && !login; n++) if (!used.has(`${l.slice(0, n)}.${f}`)) login = `${l.slice(0, n)}.${f}`;
+      for (let i = 2; !login; i++) if (!used.has(`${l}.${f}${i}`)) login = `${l}.${f}${i}`;
       const code = newCode();
       const authEmail = email || `${login}@sans-email.ent-chateaubriand.invalid`;
       const created = await admin.auth.admin.createUser({ email: authEmail, password: code, email_confirm: true });

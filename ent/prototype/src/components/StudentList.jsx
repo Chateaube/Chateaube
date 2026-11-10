@@ -146,8 +146,9 @@ export default function StudentList({ role, onOpen, embedded = false, rowAction 
                   <p style={{ fontWeight: 700 }}>ENT Chateaubriand — accès personnel</p>
                   <p>{s.name} ({s.relation})</p>
                   <p>Enfant(s) : {s.children.join(', ')}</p>
-                  <p style={{ fontSize: '15px', fontWeight: 700, letterSpacing: '2px', margin: '4px 0', fontFamily: 'monospace' }}>{s.code}</p>
-                  <p>1. Ouvrez l'application de l'école sur votre téléphone. 2. « Première connexion » : saisissez ce code. 3. {s.login ? `Connectez ensuite votre compte Google (${s.login}).` : 'Choisissez votre mot de passe ; vous vous connecterez avec votre téléphone.'}</p>
+                  <p style={{ margin: '4px 0' }}>Identifiant : <span style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'monospace' }}>{s.login}</span></p>
+                  <p style={{ margin: '0 0 4px' }}>Code de première connexion : <span style={{ fontSize: '14px', fontWeight: 700, letterSpacing: '2px', fontFamily: 'monospace' }}>{s.code}</span></p>
+                  <p>1. Ouvrez l'application de l'école. 2. Saisissez votre identifiant et ce code. 3. Choisissez votre propre code : c'est lui que vous utiliserez ensuite.{s.email ? ` En cas d'oubli, un lien vous sera envoyé à ${s.email}.` : ''}</p>
                   <p style={{ fontStyle: 'italic' }}>Code personnel : ne le donnez à personne, chaque parent a le sien.</p>
                 </div>
               ))}

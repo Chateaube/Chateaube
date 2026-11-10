@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
+import { logActivity } from '../activityStore.js';
 import { Avatar, Badge, Button, Card, Icon, Stat, Tel } from './ui.jsx';
 import { PREREGISTRATIONS, PREREG_SOURCES, ENROLL_CLASSES, LANGUAGES, RELATIONS } from '../data/enrollment.js';
 import {
-  PREREG_STEPS, PREREG_OTHER, nextPreregStep, nextClass, validateProfile, accountsFor, missingDocuments, documentsFor, nextMatricule,
+  PREREG_STEPS, PREREG_OTHER, nextPreregStep, nextClass, validateProfile, accountsFor, schoolLogins, missingDocuments, documentsFor, nextMatricule,
   SCHOOL_SYSTEMS, DNB_STATUS, schoolDirectory, knownSchool,
 } from '../rules/enrollment.js';
 import { loadProfiles, saveProfiles, profileKey } from '../profilesStore.js';
@@ -23,7 +24,7 @@ import { takeIntent } from '../navIntent.js';
 import { FicheView, SignatureCompare, FICHE_YEAR } from './FicheSignaletique.jsx';
 import { ficheOf, saveFiche } from '../ficheStore.js';
 import { today } from '../clock.js';
-import { tell } from './Dialogs.jsx';
+import { askConfirm, tell } from './Dialogs.jsx';
 
 // Inscriptions (Bureau et Direction) : pré-inscriptions, inscription ou réinscription avec
 // création de la fiche élève, puis création des comptes de l'ENT.
@@ -148,8 +149,9 @@ function Field({ label, children, className = '' }) {
   return <label className={`block text-xs text-slate-600 ${className}`}>{label}<div className="mt-1">{children}</div></label>;
 }
 
-function ProfileForm({ initial, kind, onSave, onCancel }) {
+function ProfileForm({ initial, kind, onSave, onCancel, role }) {
   const [p, setP] = useState(initial);
+  const [speUnlocked, setSpeUnlocked] = useState(false);
   const [tried, setTried] = useState(false);
   const errors = validateProfile(p, { kind: kind === 'INSCRIPTION' ? 'INSCRIPTION' : 'REINSCRIPTION' });
   const set = (patch) => setP({ ...p, ...patch });
@@ -224,17 +226,28 @@ function ProfileForm({ initial, kind, onSave, onCancel }) {
             <label className="flex items-center gap-2 self-end pb-2 text-sm text-slate-700"><input type="checkbox" checked={!!p.repeating} onChange={(e) => set({ repeating: e.target.checked })} />Redouble cette classe</label>
           )}
         </div>
-        {SPECIALTY_COUNT[p.cls] && (
-          <Field label={`Spécialités (${SPECIALTY_COUNT[p.cls]} à choisir)`} className="mt-3">
-            <div className="flex flex-wrap gap-1.5">
-              {Object.entries(SPECIALTIES).map(([code, label]) => {
-                const on = (p.specialties ?? []).includes(code);
-                return <button key={code} type="button" aria-pressed={on} onClick={() => set({ specialties: on ? p.specialties.filter((x) => x !== code) : [...(p.specialties ?? []), code] })}
-                  className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${on ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-600 ring-slate-300'}`}>{label}</button>;
-              })}
-            </div>
-          </Field>
-        )}
+        {SPECIALTY_COUNT[p.cls] && (() => {
+          // une fois choisies et complètes, les spécialités ne changent plus (seule la Direction peut rouvrir) ;
+          // en Terminale, on garde 2 des 3 spécialités de 1re
+          const was = initial.specialties ?? [];
+          const need = SPECIALTY_COUNT[p.cls];
+          const locked = !speUnlocked && p.cls === initial.cls && was.length >= need;
+          const fromFirst = !speUnlocked && p.cls !== initial.cls && /^Terminale/.test(p.cls) && was.length > need;
+          const options = Object.entries(SPECIALTIES).filter(([code]) => !fromFirst || was.includes(code));
+          return (
+            <Field label={`Spécialités (${need} à choisir)${fromFirst ? ' — parmi celles de 1re' : ''}`} className="mt-3">
+              <div className="flex flex-wrap gap-1.5">
+                {options.map(([code, label]) => {
+                  const on = (p.specialties ?? []).includes(code);
+                  const full = !on && (p.specialties ?? []).length >= need;
+                  return <button key={code} type="button" aria-pressed={on} disabled={locked || full} onClick={() => set({ specialties: on ? p.specialties.filter((x) => x !== code) : [...(p.specialties ?? []), code] })}
+                    className={`rounded-full px-3 py-1 text-xs font-medium ring-1 disabled:cursor-not-allowed ${on ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-600 ring-slate-300 disabled:opacity-40'}`}>{label}</button>;
+                })}
+              </div>
+              {locked && <p className="mt-1 text-xs text-slate-500">Spécialités validées : elles ne se modifient plus.{role === 'DIRECTION' && <> <button type="button" className="font-medium text-navy-600 underline" onClick={async () => { if (await askConfirm('Rouvrir le choix des spécialités de cet élève ? Le changement sera noté au journal.')) { setSpeUnlocked(true); logActivity({ who: 'Direction', role: 'DIRECTION', kind: 'ELEVE', student: `${p.lastName} ${p.firstName}`, text: 'Choix des spécialités rouvert par la Direction' }); } }}>Modifier (Direction)</button></>}</p>}
+            </Field>
+          );
+        })()}
 
         <div className="mb-2 mt-5 flex items-center justify-between">
           <h4 className="text-sm font-semibold text-slate-800">Responsables légaux</h4>
@@ -328,7 +341,7 @@ function FicheSection({ p }) {
 /* ---------- Fiches élèves ---------- */
 function ProfileCard({ p, onReenrol, onComplete, created }) {
   const missing = missingDocuments(p, 'REINSCRIPTION');
-  const accounts = accountsFor(p);
+  const accounts = accountsFor(p, schoolLogins([...loadProfiles().filter((x) => x.id !== p.id), p]));
   return (
     <Card title={`${p.lastName} ${p.firstName}`} subtitle={`${p.cls} · né.e le ${fmt(p.birthDate)} à ${p.birthPlace || '—'} · ${nationalityLabels(p.nationalities, p.otherNationality).join(', ') || 'nationalité à renseigner'}`}
       action={(
@@ -377,7 +390,7 @@ function ProfileCard({ p, onReenrol, onComplete, created }) {
         {accounts.map((a) => (
           <li key={a.name + a.role} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
             <span>{a.name} <Badge tone={a.role === 'ELEVE' ? 'violet' : 'navy'}>{a.role === 'ELEVE' ? 'Élève' : 'Parent'}</Badge></span>
-            <span className="text-xs text-slate-500">{a.code && <span className="mr-1 rounded bg-slate-100 px-1.5 py-0.5 font-mono font-semibold text-slate-800">{a.code}</span>}{a.login ?? a.phone ?? ''} · {a.method}</span>
+            <span className="text-xs text-slate-500">{a.code && <span className="mr-1 rounded bg-slate-100 px-1.5 py-0.5 font-mono font-semibold text-slate-800">{a.code}</span>}<span className="font-mono text-slate-700">{a.login}</span> · {a.method}</span>
           </li>
         ))}
       </ul>
@@ -438,7 +451,7 @@ export default function InscriptionsModule({ role }) {
     return (
       <div className="space-y-5">
         <button type="button" onClick={() => setForm(null)} className="text-sm font-medium text-navy-700">‹ Retour aux élèves</button>
-        <ProfileForm key={form.initial.id ?? form.preregId ?? 'new'} initial={form.initial} kind={form.kind} onSave={save} onCancel={() => setForm(null)} />
+        <ProfileForm key={form.initial.id ?? form.preregId ?? 'new'} initial={form.initial} kind={form.kind} onSave={save} onCancel={() => setForm(null)} role={role} />
       </div>
     );
   }

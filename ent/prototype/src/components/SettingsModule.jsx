@@ -3,7 +3,9 @@ import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, Icon } from './ui.jsx';
 import { DEFAULT_SETTINGS } from '../data/settings.js';
 const DEFAULT_SCHOOL = DEFAULT_SETTINGS.school;
-import { CLASS_SUBJECTS } from '../data/grades.js';
+import { allSubjects } from '../data/grades.js';
+import { ASSIGNMENTS } from '../data/staffAssignments.js';
+import { loadImport } from '../importStore.js';
 import {
   dunningSchedule, pausesBetween, planMonths, dueDateOf, formatDateFr, monthName, madagascarHolidays,
 } from '../rules/calendar.js';
@@ -422,7 +424,7 @@ export default function SettingsModule({ settings, onChange, onReset }) {
             <div className="mt-4">
               <p className="text-xs font-medium text-slate-600">Matières comptées dans la moyenne générale (grille du conseil)</p>
               <div className="mt-1.5 grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
-                {CLASS_SUBJECTS.map((s) => {
+                {allSubjects(loadImport()?.assignments?.length ? loadImport().assignments : ASSIGNMENTS).map((s) => {
                   const included = !settings.grading.excludedSubjects.includes(s.id);
                   return (
                     <label key={s.id} className="flex items-center gap-2 text-sm">
