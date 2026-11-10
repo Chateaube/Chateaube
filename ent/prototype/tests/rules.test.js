@@ -1992,6 +1992,7 @@ test('paiements repris : libellés, dates, montants, lignes à corriger', () => 
   assert.deepEqual(articleKeys('Réinscription + fascicule'), ['REINSCRIPTION', 'FASCICULE']);
   assert.deepEqual(articleKeys('Inscription'), ['INSCRIPTION']);
   assert.deepEqual(articleKeys('Frais de scolarité'), ['ECO-?']);
+  assert.deepEqual(articleKeys('Tee-shirt scolaire'), ['ART:tee-shirt scolaire']);
   assert.equal(readDate('5/9/2026'), '2026-09-05');
   assert.equal(readDate('46270'), '2026-09-05');
   assert.equal(readAmount('450 000'), 450000);

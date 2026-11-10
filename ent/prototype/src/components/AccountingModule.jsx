@@ -431,7 +431,7 @@ export default function AccountingModule({ settings, role, account }) {
           );
         })}
       </div>
-      {tab === 'collect' && <CollectPayment settings={settings} articles={articles} accounts={accounts} setAccounts={setAccounts} reductionTypes={reductionTypes} onCollected={onCollected} cashier={actor} closed={closed} />}
+      {tab === 'collect' && <CollectPayment settings={settings} articles={articles} accounts={accounts} setAccounts={setAccounts} reductionTypes={reductionTypes} onCollected={onCollected} cashier={actor} closed={closed} canCatchUp={role === 'DIRECTION'} />}
       {tab === 'receipts' && <CashControl role={role} actor={actor} receipts={receipts} setReceipts={setReceipts} audit={audit} setAudit={setAudit} movements={movements} setMovements={setMovements} accounts={accounts} setAccounts={setAccounts} closings={closings} setClosings={setClosings} safe={CASH_SAFE} settings={settings} salariesPaid={cashSalariesPaid(payroll, salaryPayments)} />}
       {tab === 'salaries' && <Salaries role={role} actor={actor} settings={settings} payroll={payroll} setPayroll={setPayroll} rates={rates} setRates={setRates} payments={salaryPayments} setPayments={setSalaryPayments} validated={payrollValidated} setValidated={setPayrollValidated} movements={movements} setMovements={setMovements} setAudit={setAudit} safe={CASH_SAFE} />}
       {SETUP_TABS.includes(tab) && (
@@ -447,7 +447,7 @@ export default function AccountingModule({ settings, role, account }) {
       {tab === 'fees' && <FeesTab fees={fees} setFees={setFees} settings={settings} canEdit={canEdit} />}
       {tab === 'articles' && <ArticlesTab articles={articles} setArticles={setArticles} canEdit={canEdit} />}
       {tab === 'cash' && <CashTab movements={movements} setMovements={setMovements} role={role} account={account} />}
-      {tab === 'expenses' && <ExpensesTab expenses={expenses} setExpenses={setExpenses} suppliers={suppliers} setSuppliers={setSuppliers} onCashOut={cashOut} today={TODAY} />}
+      {tab === 'expenses' && <ExpensesTab expenses={expenses} setExpenses={setExpenses} suppliers={suppliers} setSuppliers={setSuppliers} onCashOut={cashOut} today={TODAY} canBackdate={role === 'DIRECTION'} />}
       {tab === 'dunning' && <DunningAlerts settings={settings} />}
       {tab === 'treasury' && role === 'DIRECTION' && <div className="space-y-5"><TreasuryDashboard tx={tx} opening={realData() ? 0 : Object.values(CASH_YEAR_OPENING).reduce((a, b) => a + b, 0)} months={['2026-09', '2026-10']} /><SeparateJournals settings={settings} /></div>}
     </div>

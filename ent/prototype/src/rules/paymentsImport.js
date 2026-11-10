@@ -20,6 +20,8 @@ export function articleKeys(label) {
     const months = Object.entries(MONTHS).filter(([m]) => new RegExp(`\\b${m}\\b`).test(t)).map(([, n]) => `ECO-${String(n).padStart(2, '0')}`);
     keys.push(...(months.length ? months : ['ECO-?']));
   }
+  // autre article vendu (tee-shirt, natation…) : repris tel quel dans les frais annexes
+  if (!keys.length && t.trim()) keys.push(`ART:${t.trim().replace(/\s+/g, ' ')}`);
   return keys;
 }
 const journalOf = (keys) => (keys[0]?.startsWith('ECO') ? 'ECOLAGE' : keys[0] === 'EXAMEN' ? 'DROITS_EXAMEN' : 'FRAIS_ANNEXES');

@@ -16,7 +16,7 @@ const MONTH_LABEL = { '09': 'sept.', 10: 'oct.', 11: 'nov.', 12: 'déc.' };
 const IN_COLOR = '#2a78d6';
 const OUT_COLOR = '#eb6834';
 
-export function ExpensesTab({ expenses, setExpenses, suppliers, setSuppliers, onCashOut, today }) {
+export function ExpensesTab({ expenses, setExpenses, suppliers, setSuppliers, onCashOut, today, canBackdate = true }) {
   const blank = { label: '', supplierId: '', category: EXPENSE_CATEGORIES[0], amount: '', status: 'PAYE', date: today, due: '', method: 'ESPECES', ref: '', photo: null };
   const [d, setD] = useState(null);
   const [tried, setTried] = useState(false);
@@ -31,8 +31,8 @@ export function ExpensesTab({ expenses, setExpenses, suppliers, setSuppliers, on
     setTried(true);
     if (errors.length) return;
     const id = `x${Date.now()}`;
-    setExpenses([{ ...x, id, date: x.status === 'PAYE' ? x.date : null, due: x.due || x.date }, ...expenses]);
-    if (x.status === 'PAYE' && x.method === 'ESPECES') onCashOut({ ...x, id });
+    setExpenses([{ ...x, id, date: x.status === 'PAYE' ? (canBackdate ? x.date : today) : null, due: x.due || x.date }, ...expenses]);
+    if (x.status === 'PAYE' && x.method === 'ESPECES') onCashOut({ ...x, id, date: canBackdate ? x.date : today });
     setD(null); setTried(false);
   };
   const pay = (e) => {
@@ -52,7 +52,7 @@ export function ExpensesTab({ expenses, setExpenses, suppliers, setSuppliers, on
               <label className="text-xs text-slate-600">Fournisseur<select value={d.supplierId} onChange={(e) => setD({ ...d, supplierId: e.target.value })} className={`mt-1 w-full ${inputCls}`}><option value="">—</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
               <label className="text-xs text-slate-600">État<select value={d.status} onChange={(e) => setD({ ...d, status: e.target.value })} className={`mt-1 w-full ${inputCls}`}><option value="PAYE">Payée</option><option value="EN_ATTENTE">À payer</option></select></label>
               {d.status === 'PAYE'
-                ? <label className="text-xs text-slate-600">Payée le<input type="date" value={d.date} onChange={(e) => setD({ ...d, date: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>
+                ? <label className="text-xs text-slate-600">Payée le<input type="date" value={canBackdate ? d.date : today} disabled={!canBackdate} max={today} onChange={(e) => setD({ ...d, date: e.target.value })} className={`mt-1 w-full ${inputCls}`} />{!canBackdate && <span className="mt-0.5 block text-[11px] text-slate-500">Aujourd'hui. Une dépense d'un autre jour : à faire saisir par la Direction.</span>}</label>
                 : <label className="text-xs text-slate-600">Échéance<input type="date" value={d.due} onChange={(e) => setD({ ...d, due: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>}
               <label className="text-xs text-slate-600">Mode<select value={d.method} onChange={(e) => setD({ ...d, method: e.target.value })} className={`mt-1 w-full ${inputCls}`}><option value="ESPECES">Espèces (sort de la caisse)</option><option value="VIREMENT">Virement</option><option value="CHEQUE">Chèque</option></select></label>
             </div>

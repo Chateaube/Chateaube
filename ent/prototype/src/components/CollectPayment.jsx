@@ -1,3 +1,4 @@
+import { logActivity } from '../activityStore.js';
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, Icon } from './ui.jsx';
 import { JOURNALS, CLASS_FEES, STUDENT_ACCOUNTS, BANKS, FAMILIES } from '../data/accounting.js';
@@ -128,7 +129,7 @@ function DueTile({ item, checked, onToggle }) {
   );
 }
 
-function CollectPaymentInner({ settings, articles = [], accounts: sharedAccounts, setAccounts: setSharedAccounts, reductionTypes = [], onCollected, cashier = 'Mme Hanta (bureau)', closed = false }) {
+function CollectPaymentInner({ settings, articles = [], accounts: sharedAccounts, setAccounts: setSharedAccounts, reductionTypes = [], onCollected, cashier = 'Mme Hanta (bureau)', closed = false, canCatchUp = false }) {
   const [localAccounts, setLocalAccounts] = usePersistent(accountsKey(), () => [...CASH_ACCOUNTS]);
   const accounts = sharedAccounts ?? localAccounts;
   const online = useOnline();
@@ -193,6 +194,7 @@ function CollectPaymentInner({ settings, articles = [], accounts: sharedAccounts
     setReceiptsBearer(bearerLabel);
     setReceiptsAt(at);
     onCollected?.(r.map((x) => ({ ...x, date: day, time, at, studentId, student: student.name, cls: student.cls, bearer: bearerLabel, cashier, status: 'VALIDE', ...(catchUp.on ? { catchUp: true, paperRef: catchUp.paper.trim() } : {}) })));
+    if (catchUp.on) logActivity({ who: cashier, role: 'DIRECTION', kind: 'CAISSE', student: student.name, text: `Paiement enregistré après coup : reçu papier n° ${catchUp.paper.trim()} du ${day.split('-').reverse().join('/')} (${formatAr(total)})` });
     setCatchUp({ on: false, date: '', paper: '' });
     setSelected([]);
   };
@@ -321,7 +323,7 @@ function CollectPaymentInner({ settings, articles = [], accounts: sharedAccounts
             )}
             {!bearerName && <p className="text-xs text-red-700">Indiquer le nom de la personne qui remet le paiement.</p>}
           </fieldset>
-          <fieldset className="mt-4 rounded-lg border border-slate-200 p-2">
+          {canCatchUp && <fieldset className="mt-4 rounded-lg border border-slate-200 p-2">
             <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
               <input type="checkbox" checked={catchUp.on} onChange={(e) => setCatchUp({ ...catchUp, on: e.target.checked })} />
               Paiement déjà reçu (reçu papier) : à enregistrer après coup
@@ -334,7 +336,7 @@ function CollectPaymentInner({ settings, articles = [], accounts: sharedAccounts
                 {(!catchUp.date || catchUp.date > TODAY || !catchUp.paper.trim()) && <p className="col-span-2 text-xs text-red-700">Indiquer la date (passée) et le numéro du reçu papier.</p>}
               </div>
             )}
-          </fieldset>
+          </fieldset>}
           {closed && !catchUp.on && <p className="mt-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">La caisse du jour est clôturée : les encaissements reprennent demain.</p>}
           {!online && <p className="mt-3 rounded-lg bg-red-50 p-2 text-xs text-red-800">Hors connexion : l'encaissement est désactivé pour éviter les doublons de reçus. Reconnectez-vous (clé 4G ou partage de connexion).</p>}
           {/* sur téléphone, le bouton reste visible en bas de l'écran */}
