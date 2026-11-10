@@ -1,3 +1,4 @@
+import { featureVisible } from '../features.js';
 import React from 'react';
 import { Badge, Button, Card, Icon } from './ui.jsx';
 import { TEACHER } from '../data/people.js';
@@ -13,7 +14,7 @@ import { me } from '../identity.js';
 const h = (t) => t.replace(':', 'h');
 const STATE_UI = { FAIT: ['green', 'Appel fait'], EN_COURS: ['red', 'Appel à faire'], OUBLIE: ['red', 'Appel oublié'], A_VENIR: ['slate', 'À venir'] };
 
-export default function TeacherPortal({ go }) {
+export default function TeacherPortal({ go, settings }) {
   const records = loadRecords();
   const stateOf = (s) => sessionState(s, NOW, records[s.id]);
   const today = WEEK_SESSIONS.filter((s) => s.date === NOW.date);
@@ -72,7 +73,7 @@ export default function TeacherPortal({ go }) {
                   {/* tout part du cours : appel, cahier de textes, notes de la classe */}
                   <span className="flex w-full flex-wrap gap-1.5 sm:w-auto">
                     {st !== 'A_VENIR' && <Button variant={st === 'FAIT' ? 'secondary' : 'primary'} className="!py-1 text-xs" onClick={() => call(s)}><Icon name="check" />{st === 'FAIT' ? 'Corriger l\'appel' : 'Appel'}</Button>}
-                    <Button variant="secondary" className="!py-1 text-xs" onClick={() => { setIntent('homework', { cls: s.cls, subject: s.subject }); go('homework'); }}><Icon name="calendar" />Cahier de textes</Button>
+                    {featureVisible(settings, 'cahier-textes', 'ENSEIGNANT') && <Button variant="secondary" className="!py-1 text-xs" onClick={() => { setIntent('homework', { cls: s.cls, subject: s.subject }); go('homework'); }}><Icon name="calendar" />Cahier de textes</Button>}
                     <Button variant="secondary" className="!py-1 text-xs" onClick={() => { setIntent('grades', { cls: s.cls, subject: s.subject }); go('grades'); }}><Icon name="pen" />Notes</Button>
                   </span>
                 </li>
