@@ -64,6 +64,7 @@ import { DIRECTION_ACCOUNTS } from './data/demo.js';
 import TimetableHub from './components/TimetableHub.jsx';
 import { me, loadMe, forgetMe, ROLES } from './identity.js';
 import WhoAmI from './components/WhoAmI.jsx';
+import ScreenBoundary from './components/ScreenBoundary.jsx';
 import AccountsModule from './components/AccountsModule.jsx';
 import { ONLINE, signOut } from './online/client.js';
 import { askConfirm } from './components/Dialogs.jsx';
@@ -502,8 +503,8 @@ export default function App() {
           {currentItem?.readOnly && <p className="mb-3 inline-block rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">Consultation seulement</p>}
           <ReadOnlyGuard key={`${profile}-${screen}-guard`} active={!!currentItem?.readOnly}>
           {profile === 'ENSEIGNANT'
-            ? <TermsGate viewer="ENSEIGNANT" account="mme-ranaivo"><Current key={`${profile}-${screen}-${navSeq}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={goTo} role={profile} site={site} /></TermsGate>
-            : <Current key={`${profile}-${screen}-${navSeq}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={goTo} role={profile} site={site} ambiance={ambiance} readOnly={!!currentItem?.readOnly} />}
+            ? <TermsGate viewer="ENSEIGNANT" account="mme-ranaivo"><ScreenBoundary key={`b-${profile}-${screen}-${navSeq}`} onHome={() => goTo(PROFILES[profile].home)}><Current key={`${profile}-${screen}-${navSeq}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={goTo} role={profile} site={site} /></ScreenBoundary></TermsGate>
+            : <ScreenBoundary key={`b-${profile}-${screen}-${navSeq}`} onHome={() => goTo(PROFILES[profile].home)}><Current key={`${profile}-${screen}-${navSeq}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={goTo} role={profile} site={site} ambiance={ambiance} readOnly={!!currentItem?.readOnly} /></ScreenBoundary>}
           </ReadOnlyGuard>
         </main>
       </div>

@@ -128,7 +128,7 @@ function DueTile({ item, checked, onToggle }) {
   );
 }
 
-export default function CollectPayment({ settings, articles = [], accounts: sharedAccounts, setAccounts: setSharedAccounts, reductionTypes = [], onCollected, cashier = 'Mme Hanta (bureau)', closed = false }) {
+function CollectPaymentInner({ settings, articles = [], accounts: sharedAccounts, setAccounts: setSharedAccounts, reductionTypes = [], onCollected, cashier = 'Mme Hanta (bureau)', closed = false }) {
   const [localAccounts, setLocalAccounts] = usePersistent(accountsKey(), () => [...CASH_ACCOUNTS]);
   const accounts = sharedAccounts ?? localAccounts;
   const online = useOnline();
@@ -340,4 +340,14 @@ export default function CollectPayment({ settings, articles = [], accounts: shar
       </div>
     </div>
   );
+}
+
+// Aucun élève chargé (version en ligne avant l'envoi de la liste des élèves) : rien à encaisser, pas d'écran cassé.
+export default function CollectPayment(props) {
+  if (!(props.accounts ?? CASH_ACCOUNTS).length) return (
+    <Card title="Encaisser">
+      <p className="text-sm text-slate-700">Aucun élève pour l'instant : la liste des élèves n'est pas encore chargée. Dès qu'elle l'est (Importer et sauvegarder), les comptes des familles apparaissent ici.</p>
+    </Card>
+  );
+  return <CollectPaymentInner {...props} />;
 }
