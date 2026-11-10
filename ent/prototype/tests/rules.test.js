@@ -2100,7 +2100,7 @@ test('modèle Excel : onglet 11 Dépenses (catégorie, mode, ligne illisible sig
     ['02/11/2026', 'Déplacement versement', 4000, '', 'Chèque', 'SOR-0157'],
     ['xx', 'Sans date', 100, '', '', '']] });
   assert.equal(r.expenses.length, 2);
-  assert.deepEqual(r.expenses.map((x) => [x.id, x.category, x.method, x.amount, x.date]), [['tpl-SOR-0154', 'Entretien et réparations', 'ESPECES', 940000, '2026-11-02'], ['tpl-SOR-0157', 'Autre', 'CHEQUE', 4000, '2026-11-02']]);
+  assert.deepEqual(r.expenses.map((x) => [x.id, x.category, x.method, x.amount, x.date]), [['tpl-SOR-0154', 'Entretien et réparations', 'ESPECES', 940000, '2026-11-02'], ['tpl-SOR-0157', 'Transport', 'CHEQUE', 4000, '2026-11-02']]);
   assert.equal(r.expenseErrors.length, 1);
 });
 
@@ -2119,4 +2119,10 @@ test('identifiants : 2 lettres du nom + prénom, homonymes départagés, même r
   const ids = kids.map((k) => accountsFor(k, logins)[0].login);
   assert.equal(new Set(ids).size, 3); // homonymes « am.fatema » départagés
   assert.equal(accountsFor(kids[0], logins)[1].login, accountsFor(kids[1], logins)[1].login); // même mère, même identifiant
+});
+
+test('EduFinance : le trajet pour un versement est une dépense, le versement un transfert', async () => {
+  const { expenseCategory } = await import('../src/rules/eduFinanceImport.js');
+  assert.equal(expenseCategory('Déplacement versement vers à banque'), 'Transport');
+  assert.equal(expenseCategory('Versement espèces n°887399'), 'TRANSFERT');
 });

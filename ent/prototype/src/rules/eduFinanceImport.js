@@ -19,6 +19,7 @@ export function mapClass(name) {
 export function expenseCategory(motif) {
   const t = fold(motif).toLowerCase();
   if (/salaire|avance|gardien|\bprof|main d.?oeuvre/.test(t)) return 'Salaires et avances';
+  if (/deplacement|transport|taxi/.test(t)) return 'Transport'; // « Déplacement versement » : le trajet est une dépense
   if (/versement|depot|banque|remise en banque/.test(t)) return 'TRANSFERT';
   if (/jirama|electricite|\beau\b/.test(t)) return 'Électricité et eau';
   if (/credit|internet|telephone|airtel|telma|orange|wifi/.test(t)) return 'Internet et téléphone';
