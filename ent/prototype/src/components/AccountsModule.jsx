@@ -7,7 +7,7 @@ import { askConfirm } from './Dialogs.jsx';
 // Comptes du personnel (Direction, version en ligne) : création avec un identifiant et un code provisoire à
 // remettre en main propre (la personne choisit son propre code à la première connexion), nouveau code en cas
 // d'oubli sans e-mail, désactivation d'un compte (départ). Les familles viendront avec le portail en ligne.
-const ROLES = [['PROFESSEUR', 'Professeur'], ['VIE_SCOLAIRE', 'CPE / vie scolaire'], ['BUREAU', 'Secrétariat'], ['DIRECTION', 'Direction']];
+const ROLES = [['PROFESSEUR', 'Professeur'], ['VIE_SCOLAIRE', 'CPE / vie scolaire'], ['BUREAU', 'Secrétariat / économat'], ['DIRECTION', 'Direction']];
 const LABEL = Object.fromEntries(ROLES);
 const field = 'mt-1 w-full rounded-lg border border-slate-300 px-2.5 py-2 text-sm';
 const call = async (body) => {
@@ -38,7 +38,7 @@ function Slip({ slip, onClose }) {
 
 export default function AccountsModule({ embedded = false }) {
   const [list, setList] = useState(null); const [err, setErr] = useState('');
-  const [d, setD] = useState({ first: '', last: '', role: 'PROFESSEUR', email: '' });
+  const [d, setD] = useState({ first: '', last: '', role: 'PROFESSEUR', title: '', email: '' });
   const [busy, setBusy] = useState(false); const [slip, setSlip] = useState(null);
   const load = async () => {
     const { data, error } = await supabase.from('app_user').select('id, first_name, last_name, login, email, is_active, last_login_at, must_change_code, user_role(role, title)').order('last_name');
@@ -57,11 +57,12 @@ export default function AccountsModule({ embedded = false }) {
       {err && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p>}
       {slip && <Slip slip={slip} onClose={() => setSlip(null)} />}
       <Card title="Nouveau compte">
-        <form className="grid gap-3 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); if (!ok) return; run(async () => { const r = await call({ action: 'create', ...d }); setSlip({ ...r, name: `${d.first.trim()} ${d.last.trim().toUpperCase()}` }); setD({ first: '', last: '', role: d.role, email: '' }); }); }}>
+        <form className="grid gap-3 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); if (!ok) return; run(async () => { const r = await call({ action: 'create', ...d }); setSlip({ ...r, name: `${d.first.trim()} ${d.last.trim().toUpperCase()}` }); setD({ first: '', last: '', role: d.role, title: '', email: '' }); }); }}>
           <label className="text-xs font-medium text-slate-600">Prénom<input value={d.first} onChange={(e) => setD({ ...d, first: e.target.value })} className={field} /></label>
           <label className="text-xs font-medium text-slate-600">Nom<input value={d.last} onChange={(e) => setD({ ...d, last: e.target.value })} className={field} /></label>
           <label className="text-xs font-medium text-slate-600">Fonction<select value={d.role} onChange={(e) => setD({ ...d, role: e.target.value })} className={field}>{ROLES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
-          <label className="text-xs font-medium text-slate-600">E-mail (facultatif, pour le code oublié)<input type="email" value={d.email} onChange={(e) => setD({ ...d, email: e.target.value })} className={field} /></label>
+          <label className="text-xs font-medium text-slate-600">Intitulé du poste (facultatif : Directrice, Économe…)<input value={d.title} onChange={(e) => setD({ ...d, title: e.target.value })} className={field} /></label>
+          <label className="text-xs font-medium text-slate-600 sm:col-span-2">E-mail (facultatif, pour le code oublié)<input type="email" value={d.email} onChange={(e) => setD({ ...d, email: e.target.value })} className={field} /></label>
           <div className="sm:col-span-2"><Button type="submit" disabled={!ok || busy}>{busy ? 'Création…' : 'Créer le compte'}</Button></div>
         </form>
       </Card>
