@@ -22,6 +22,20 @@ const saveS = (l) => { try { localStorage.setItem(SKEY, JSON.stringify(l)); } ca
 const fmt = (iso) => iso.split('-').reverse().join('/');
 const WHO = { DIRECTION: 'Direction', BUREAU: 'Secrétariat', VIE_SCOLAIRE: 'CPE', ENSEIGNANT: me('ENSEIGNANT') };
 
+/** Texte d'un document : « ## » = titre de partie, « - » = point de liste, sinon paragraphe. */
+export function DocText({ text, className = '' }) {
+  const blocks = []; let list = null;
+  String(text ?? '').split('\n').forEach((line, i) => {
+    const l = line.trim();
+    if (l.startsWith('- ')) { if (!list) { list = []; blocks.push(<ul key={`u${i}`} className="mb-3 space-y-1.5 pl-1">{list}</ul>); } list.push(<li key={i} className="flex gap-2"><span aria-hidden="true" className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: '#0a4a8c' }} /><span>{l.slice(2)}</span></li>); return; }
+    list = null;
+    if (!l) return;
+    if (l.startsWith('## ')) blocks.push(<h3 key={i} className="mb-2 mt-5 font-display text-base font-semibold text-navy-800 first:mt-0">{l.slice(3)}</h3>);
+    else blocks.push(<p key={i} className="mb-3">{l}</p>);
+  });
+  return <div className={`text-sm leading-relaxed text-slate-700 ${className}`}>{blocks}</div>;
+}
+
 export function Viewer({ r, onClose }) {
   const hidden = useScreenGuard(isProtected(r)); // documents de l'équipe : écran noir en cas de capture
   return (
@@ -34,7 +48,7 @@ export function Viewer({ r, onClose }) {
       <div className="relative mx-auto w-full max-w-3xl flex-1 overflow-auto rounded-xl bg-white">
         {hidden ? <div className="flex h-full items-center justify-center bg-black text-sm text-slate-400">Document masqué</div> : (
           <>
-            {r.kind === 'TEXT' && <div className="whitespace-pre-line p-6 text-sm leading-relaxed text-slate-800">{r.text}</div>}
+            {r.kind === 'TEXT' && <DocText text={r.text} className="p-6" />}
             {r.kind === 'image' && <img src={r.dataUrl} alt={r.title} draggable={false} className="pointer-events-none mx-auto max-w-full" />}
             {r.kind === 'pdf' && <iframe title={r.title} src={`${r.dataUrl}#toolbar=0&navpanes=0`} className="h-full min-h-[70vh] w-full" />}
             {r.kind === 'LINK' && (
@@ -203,8 +217,9 @@ export const toAccept = (viewer, account) => {
 
 export function TermsGate({ viewer, account, children, phone = false }) {
   const [pending, setPending] = useState(() => toAccept(viewer, account));
-  const [read, setRead] = useState({});
-  const [open, setOpen] = useState(null);
+  const [openId, setOpenId] = useState(() => (toAccept(viewer, account).length === 1 ? toAccept(viewer, account)[0].id : null));
+  const [read, setRead] = useState(() => (toAccept(viewer, account).length === 1 ? { [toAccept(viewer, account)[0].id]: true } : {}));
+  const [agreed, setAgreed] = useState(false);
   if (!pending.length) return children;
   const all = pending.every((r) => read[r.id]);
   const accept = () => {
@@ -213,25 +228,43 @@ export function TermsGate({ viewer, account, children, phone = false }) {
     try { localStorage.setItem(ACCEPT_KEY, JSON.stringify(acc)); } catch { /* stockage indisponible */ }
     setPending([]);
   };
+  const one = pending.length === 1;
   return (
-    <div className={phone ? 'space-y-3' : 'mx-auto max-w-xl space-y-4 py-6'}>
-      <div className={phone ? 'px-1' : ''}>
-        <h1 className="font-display text-lg font-semibold text-navy-900">Bienvenue sur l'ENT de Chateaubriand</h1>
-        <p className="text-sm text-slate-600">Avant de commencer, lisez {pending.length > 1 ? 'ces documents' : 'ce document'} de l'école et acceptez-{pending.length > 1 ? 'les' : 'le'}.</p>
+    <div className={phone ? 'space-y-3' : 'mx-auto max-w-2xl py-6'}>
+      <div className="overflow-hidden rounded-2xl bg-white shadow-soft">
+        <div className="px-5 py-4 text-white" style={{ background: 'linear-gradient(135deg, #002147 0%, #0a4a8c 100%)' }}>
+          <p className="text-xs font-medium uppercase tracking-wider text-white/70">ENT Chateaubriand · première connexion</p>
+          <h1 className="on-dark mt-1 font-display text-xl font-semibold text-white">{one ? pending[0].title : 'Bienvenue'}</h1>
+          <p className="mt-1 text-sm text-white/80">{one ? 'Merci de lire ce document avant de commencer.' : 'Merci de lire ces documents de l\'école avant de commencer.'}</p>
+        </div>
+        <div className="divide-y divide-slate-100">
+          {pending.map((r) => {
+            const open = openId === r.id;
+            return (
+              <section key={r.id}>
+                {!one && (
+                  <button type="button" aria-expanded={open} onClick={() => { setOpenId(open ? null : r.id); setRead({ ...read, [r.id]: true }); }}
+                    className="flex w-full items-center justify-between gap-3 px-5 py-3 text-left hover:bg-slate-50">
+                    <span className="text-sm font-medium text-slate-800">{r.title}</span>
+                    <span className={`shrink-0 text-xs ${read[r.id] ? 'text-emerald-700' : 'text-slate-500'}`}>{read[r.id] ? '✓ lu' : 'à lire ›'}</span>
+                  </button>
+                )}
+                {open && (r.kind === 'TEXT'
+                  ? <DocText text={r.text} className="max-h-[55vh] overflow-y-auto px-5 py-4" />
+                  : <div className="px-5 py-4"><Button variant="secondary" onClick={() => setOpenId(`v:${r.id}`)}>Ouvrir le document</Button></div>)}
+                {openId === `v:${r.id}` && <Viewer r={r} onClose={() => setOpenId(r.id)} />}
+              </section>
+            );
+          })}
+        </div>
+        <div className="border-t border-slate-100 bg-slate-50 px-5 py-4">
+          <label className={`flex items-start gap-2.5 text-sm ${all ? 'text-slate-800' : 'text-slate-400'}`}>
+            <input type="checkbox" className="mt-0.5 h-4 w-4" disabled={!all} checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
+            <span>{one ? 'J\'ai lu ce document et je m\'engage à le respecter.' : 'J\'ai lu ces documents et je m\'engage à les respecter.'}</span>
+          </label>
+          <Button className="mt-3 w-full" disabled={!all || !agreed} onClick={accept}>{all ? 'Continuer' : 'Ouvrez chaque document pour continuer'}</Button>
+        </div>
       </div>
-      <ul className="space-y-2">
-        {pending.map((r) => (
-          <li key={r.id} className="rounded-xl bg-white p-3 shadow-soft">
-            <p className="text-sm font-medium text-slate-800">{r.title}</p>
-            <div className="mt-2 flex items-center justify-between gap-2">
-              <Button variant="secondary" className="!px-2.5 !py-1 text-xs" onClick={() => { setOpen(r); setRead({ ...read, [r.id]: true }); }}>Lire</Button>
-              <span className={`text-xs ${read[r.id] ? 'text-emerald-700' : 'text-slate-400'}`}>{read[r.id] ? '✓ lu' : 'à lire'}</span>
-            </div>
-          </li>
-        ))}
-      </ul>
-      <Button className="w-full" disabled={!all} onClick={accept}>{all ? 'J\'ai lu et j\'accepte' : 'Lisez chaque document pour continuer'}</Button>
-      {open && <Viewer r={open} onClose={() => setOpen(null)} />}
     </div>
   );
 }
