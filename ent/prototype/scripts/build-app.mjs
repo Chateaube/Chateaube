@@ -16,7 +16,13 @@ const head = `
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <link rel="icon" type="image/png" href="icon-192.png" />
     <script>if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));</script>`;
-html = html.replace('</head>', `${head}\n  </head>`);
+// le vrai </head> de la page : le premier après la fin du script intégré de l'application (le code de l'application
+// contient d'autres « </head> » et « <body> » dans ses chaînes, par exemple pour les impressions)
+const end = html.indexOf('</head>', html.indexOf('</script>'));
+if (end < 0) throw new Error('</head> introuvable');
+html = `${html.slice(0, end)}${head}\n  ${html.slice(end)}`;
+// garde-fou : l'ajout ne doit jamais tomber dans le code de l'application (page blanche)
+if (html.indexOf('rel="manifest"') < html.indexOf('</script>')) throw new Error('ajout mal placé dans index.html');
 writeFileSync(new URL('index.html', out), html);
 
 writeFileSync(new URL('manifest.webmanifest', out), JSON.stringify({
