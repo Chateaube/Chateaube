@@ -142,6 +142,8 @@ function CollectPaymentInner({ settings, articles = [], accounts: sharedAccounts
   const [receipts, setReceipts] = useState(null);
   const [receiptsAt, setReceiptsAt] = useState('');
   const [receiptsBearer, setReceiptsBearer] = useState('');
+  // Reprise : paiement déjà reçu sur un reçu papier (jours sans logiciel) — daté du jour réel, hors caisse du jour
+  const [catchUp, setCatchUp] = useState({ on: false, date: '', paper: '' });
   const [counter, setCounter] = useState({ ECOLAGE: 412, FRAIS_ANNEXES: 208, DROITS_EXAMEN: 57 });
 
   const student = accounts.find((a) => a.id === studentId);
@@ -184,12 +186,14 @@ function CollectPaymentInner({ settings, articles = [], accounts: sharedAccounts
     const r = buildReceipts(items, keys, instrument, (j) => ++next[j]);
     setCounter(next);
     setAccounts(accounts.map((a) => (a.id === studentId ? { ...a, paid: [...a.paid, ...chosen.map((c) => c.key)] } : a)));
-    const time = new Date().toTimeString().slice(0, 5);
-    const at = `${TODAY.split('-').reverse().join('/')} ${time}`;
+    const day = catchUp.on ? catchUp.date : TODAY;
+    const time = catchUp.on ? '' : new Date().toTimeString().slice(0, 5);
+    const at = catchUp.on ? `${day.split('-').reverse().join('/')} (reçu papier n° ${catchUp.paper.trim()})` : `${day.split('-').reverse().join('/')} ${time}`;
     setReceipts(r);
     setReceiptsBearer(bearerLabel);
     setReceiptsAt(at);
-    onCollected?.(r.map((x) => ({ ...x, date: TODAY, time, at, studentId, student: student.name, cls: student.cls, bearer: bearerLabel, cashier, status: 'VALIDE' })));
+    onCollected?.(r.map((x) => ({ ...x, date: day, time, at, studentId, student: student.name, cls: student.cls, bearer: bearerLabel, cashier, status: 'VALIDE', ...(catchUp.on ? { catchUp: true, paperRef: catchUp.paper.trim() } : {}) })));
+    setCatchUp({ on: false, date: '', paper: '' });
     setSelected([]);
   };
 
@@ -317,12 +321,26 @@ function CollectPaymentInner({ settings, articles = [], accounts: sharedAccounts
             )}
             {!bearerName && <p className="text-xs text-red-700">Indiquer le nom de la personne qui remet le paiement.</p>}
           </fieldset>
-          {closed && <p className="mt-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">La caisse du jour est clôturée : les encaissements reprennent demain.</p>}
+          <fieldset className="mt-4 rounded-lg border border-slate-200 p-2">
+            <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
+              <input type="checkbox" checked={catchUp.on} onChange={(e) => setCatchUp({ ...catchUp, on: e.target.checked })} />
+              Paiement déjà reçu (reçu papier) : à enregistrer après coup
+            </label>
+            {catchUp.on && (
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <label className="text-xs text-slate-600">Reçu le<input type="date" max={TODAY} value={catchUp.date} onChange={(e) => setCatchUp({ ...catchUp, date: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>
+                <label className="text-xs text-slate-600">N° du reçu papier<input value={catchUp.paper} onChange={(e) => setCatchUp({ ...catchUp, paper: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>
+                <p className="col-span-2 text-[11px] text-slate-500">L'argent est déjà rentré : ce paiement ne compte pas dans les espèces de la caisse du jour, mais il apparaît dans le journal et l'export du mois de sa date.</p>
+                {(!catchUp.date || catchUp.date > TODAY || !catchUp.paper.trim()) && <p className="col-span-2 text-xs text-red-700">Indiquer la date (passée) et le numéro du reçu papier.</p>}
+              </div>
+            )}
+          </fieldset>
+          {closed && !catchUp.on && <p className="mt-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">La caisse du jour est clôturée : les encaissements reprennent demain.</p>}
           {!online && <p className="mt-3 rounded-lg bg-red-50 p-2 text-xs text-red-800">Hors connexion : l'encaissement est désactivé pour éviter les doublons de reçus. Reconnectez-vous (clé 4G ou partage de connexion).</p>}
           {/* sur téléphone, le bouton reste visible en bas de l'écran */}
           <div className="sticky bottom-0 z-10 -mx-5 mt-4 border-t border-slate-200 bg-white px-5 py-2 sm:static sm:mx-0 sm:border-0 sm:p-0">
-            <Button className="w-full !py-3 sm:!py-2" disabled={!online || closed || !chosen.length || errors.length > 0 || !bearerName} onClick={collect}>
-              Encaisser {total > 0 && formatAr(total)}
+            <Button className="w-full !py-3 sm:!py-2" disabled={!online || (closed && !catchUp.on) || !chosen.length || errors.length > 0 || !bearerName || (catchUp.on && (!catchUp.date || catchUp.date > TODAY || !catchUp.paper.trim()))} onClick={collect}>
+              {catchUp.on ? 'Enregistrer le paiement' : 'Encaisser'} {total > 0 && formatAr(total)}
             </Button>
           </div>
           <p className="mt-2 text-[11px] text-slate-500">Un reçu est édité par journal (frais de scolarité, frais annexes, droits d'examen).</p>

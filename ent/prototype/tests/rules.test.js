@@ -2069,3 +2069,12 @@ test('EduFinance : tarifs, rapprochement des élèves, mois de scolarité, dépe
   assert.equal(mapClass('2nde'), '2de');
   assert.equal(expenseCategory('Achat d\'un paquet de plastique'), 'Fournitures');
 });
+
+test('reprise d\'un reçu papier : hors espèces du jour, classée selon son mode dans l\'export du mois', async () => {
+  const { expectedCash } = await import('../src/rules/cashControl.js');
+  const { methodOf } = await import('../src/rules/accounting.js');
+  const m = { dir: 'IN', amount: 50000, method: 'Reprise reçu papier n° 0412 — Espèces' };
+  assert.equal(expectedCash(10000, [m, { dir: 'IN', amount: 2000, method: 'Espèces' }]), 12000);
+  assert.equal(methodOf(m), 'Espèces');
+  assert.equal(methodOf({ method: 'Reprise reçu papier n° 7 — Chèque n° 3318820' }), 'Chèque');
+});

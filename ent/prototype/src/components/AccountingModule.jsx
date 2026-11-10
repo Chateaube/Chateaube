@@ -401,7 +401,7 @@ export default function AccountingModule({ settings, role, account }) {
     setReceipts((prev) => [...prev, ...rs]);
     setMovements((prev) => [...prev, ...rs.map((r) => ({
       id: `r-${r.number}`, date: r.date, time: r.time, dir: 'IN', nature: 'Encaissement famille', journal: r.journal,
-      label: `${r.lines.map((l) => l.label).join(', ')} — ${r.student}`, method: methodText(r), amount: r.total, agent: r.cashier, receipt: r.number,
+      label: `${r.lines.map((l) => l.label).join(', ')} — ${r.student}`, method: r.catchUp ? `Reprise reçu papier n° ${r.paperRef} — ${methodText(r)}` : methodText(r), amount: r.total, agent: r.cashier, receipt: r.number,
     }))]);
   };
   return (

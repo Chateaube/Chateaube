@@ -42,7 +42,7 @@ export function cashBalance(opening, movements) {
 // Chaque mois, le secrétariat exporte la caisse (Excel / impression) pour le suivi et l'archivage.
 
 /** Mode de paiement d'un mouvement (« Chèque n° 3318820 » → Chèque). */
-export const methodOf = (m) => (/^ch[eè]que/i.test(m.method) ? 'Chèque' : /^virement/i.test(m.method) ? 'Virement' : 'Espèces');
+export const methodOf = (m) => (/ch[eè]que/i.test(m.method) ? 'Chèque' : /virement/i.test(m.method) ? 'Virement' : 'Espèces');
 
 /**
  * Synthèse d'un mois de caisse : solde d'ouverture et de clôture par journal, entrées et sorties
