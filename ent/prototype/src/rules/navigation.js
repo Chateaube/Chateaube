@@ -8,7 +8,7 @@ export const DIRECTION_TREE = [
   { group: 'Élèves et vie scolaire', ids: ['eleves', 'mandates', 'vs', 'followup', 'care', 'hours'] },
   { group: 'Pédagogie', ids: ['council', 'bulletins', 'mock-exams', 'timetable', 'oversight-grades'] }, // grilles : onglet des conseils
   { group: 'Communication', ids: ['news', 'school-life', 'agenda', 'resources'] },
-  { group: 'Administration', ids: ['accounting', 'manuals', 'staff', 'inventory', 'library', 'booking', 'accounts?', 'settings', 'access', 'import'] }, // « ? » : écran présent seulement dans certaines versions (comptes : en ligne)
+  { group: 'Administration', ids: ['accounting', 'manuals', 'staff', 'inventory', 'library', 'booking', 'settings', 'access', 'import'] }, // « ? » : écran présent seulement dans certaines versions (comptes : en ligne)
 ];
 
 /** Donne l'ordre de l'arborescence aux entrées existantes. Un identifiant inconnu est une erreur de développement. */

@@ -92,7 +92,22 @@ const MESSAGES = { id: 'messages', label: 'Messages', icon: 'bell', screen: ({ r
 const MANUALS = { id: 'manuals', label: 'Manuels scolaires', icon: 'cap', screen: ManualsModule };
 const FEEDBACK = { id: 'feedback', label: 'Avis et idées', icon: 'bell', screen: FeedbackModule };
 const LIBRARY = { id: 'library', label: 'Bibliothèque', icon: 'pen', screen: LibraryModule, feature: 'bibliotheque' };
-const ACCOUNTS = { id: 'accounts', label: 'Comptes du personnel', icon: 'users', screen: AccountsModule };
+// Gestion des agents : en ligne, les comptes de connexion (identifiant + code) et le registre (entrées, sorties) au même endroit
+function StaffHub() {
+  const [tab, setTab] = useState('accounts');
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="text-sm font-semibold text-navy-500">Administration</p>
+        <h1 className="text-2xl font-semibold text-navy-900">Gestion des agents</h1>
+      </div>
+      <div className="inline-flex rounded-lg bg-slate-100 p-1" role="group" aria-label="Rubrique">{[['accounts', 'Comptes de connexion'], ['register', 'Registre : entrées et sorties']].map(([k, l]) => (
+        <button key={k} type="button" aria-pressed={tab === k} onClick={() => setTab(k)} className={`nav-control rounded-md px-3 py-1 text-sm font-medium ${tab === k ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>{l}</button>
+      ))}</div>
+      {tab === 'accounts' ? <AccountsModule embedded /> : <StaffModule embedded />}
+    </div>
+  );
+}
 const IMPORT = { id: 'import', label: 'Importer et sauvegarder', icon: 'swap', screen: ImportModule };
 const GRADE_SHEETS = { id: 'grade-sheets', label: 'Grilles de notes', icon: 'pen', screen: GradeSheets };
 const BOOKS_FOR_TEACHER = { id: 'books', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who={me('ENSEIGNANT')} kind="PROF" /> };
@@ -133,8 +148,8 @@ const PROFILES = {
       { group: 'Vie scolaire', items: [VIE_SCOLAIRE, CARE, HOURS, FOLLOW_UP, MANDATES] },
       { group: 'Finances', items: [ACCOUNTING] },
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, AGENDA] },
-      { group: 'Équipe et matériel', items: [{ id: 'staff', label: 'Gestion des agents', icon: 'users', screen: StaffModule }, RESOURCES, INVENTORY, MANUALS, LIBRARY, BOOKING] },
-      { group: 'Réglages', items: [...(ONLINE ? [ACCOUNTS] : []), IMPORT, { id: 'settings', label: 'Paramètres', icon: 'settings', screen: SettingsModule }, ACCESS] },
+      { group: 'Équipe et matériel', items: [{ id: 'staff', label: 'Gestion des agents', icon: 'users', screen: ONLINE ? StaffHub : StaffModule }, RESOURCES, INVENTORY, MANUALS, LIBRARY, BOOKING] },
+      { group: 'Réglages', items: [IMPORT, { id: 'settings', label: 'Paramètres', icon: 'settings', screen: SettingsModule }, ACCESS] },
     ]),
   },
   BUREAU: {

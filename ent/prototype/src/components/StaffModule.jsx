@@ -19,7 +19,7 @@ export function staffStatus(a, today = TODAY) {
 
 const EMPTY = { name: '', poste: POSTES[0], detail: '', contrat: 'CDI', entry: TODAY, exit: '', email: '', access: '' };
 
-export default function StaffModule() {
+export default function StaffModule({ embedded = false }) {
   const [staff, setStaff] = usePersistent('ent-s-personnel', STAFF);
   const [filter, setFilter] = useState('ACTIFS');
   const [draft, setDraft] = useState(EMPTY);
@@ -34,11 +34,11 @@ export default function StaffModule() {
 
   return (
     <div className="space-y-5">
-      <div>
+      {!embedded && <div>
         <p className="text-sm font-semibold text-navy-500">Administration · Tamatave</p>
         <h1 className="text-2xl font-semibold text-navy-900">Gestion des agents</h1>
         <p className="text-sm text-slate-500">Registre du personnel : entrées, sorties et accès à l'ENT.</p>
-      </div>
+      </div>}
       <Button onClick={() => setAdding(true)}>＋ Nouvel agent</Button>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

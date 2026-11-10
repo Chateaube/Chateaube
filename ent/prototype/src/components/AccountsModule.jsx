@@ -36,7 +36,7 @@ function Slip({ slip, onClose }) {
   );
 }
 
-export default function AccountsModule() {
+export default function AccountsModule({ embedded = false }) {
   const [list, setList] = useState(null); const [err, setErr] = useState('');
   const [d, setD] = useState({ first: '', last: '', role: 'PROFESSEUR', email: '' });
   const [busy, setBusy] = useState(false); const [slip, setSlip] = useState(null);
@@ -49,11 +49,11 @@ export default function AccountsModule() {
   const ok = d.first.trim() && d.last.trim();
   return (
     <div className="space-y-5">
-      <div>
+      {embedded ? <p className="text-sm text-slate-600">Chaque personne reçoit un identifiant et un code provisoire. L'e-mail sert seulement en cas de code oublié.</p> : <div>
         <p className="text-sm font-semibold text-navy-500">Version en ligne</p>
         <h1 className="text-2xl font-semibold text-navy-900">Comptes du personnel</h1>
         <p className="text-sm text-slate-600">Chaque personne reçoit un identifiant et un code provisoire. L'e-mail sert seulement en cas de code oublié.</p>
-      </div>
+      </div>}
       {err && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p>}
       {slip && <Slip slip={slip} onClose={() => setSlip(null)} />}
       <Card title="Nouveau compte">
