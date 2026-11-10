@@ -745,7 +745,7 @@ export default function FamilyPortal({ settings, audience = 'PARENT', ambiance }
       <div className="flex h-[780px] max-h-[calc(100vh-6rem)] flex-col overflow-hidden rounded-[36px] border-[10px] border-slate-800 bg-paper shadow-2xl">
         <header className="rounded-b-[28px] px-5 pb-4 pt-5 text-white" style={{ background: 'linear-gradient(135deg, #003366, #00427f 55%, var(--amb-topbar-end))' }}>
           <p className="text-xs text-white">Chateaubriand · Tamatave{ambiance ? <> · <span aria-hidden="true">{ambiance.symbol} </span>{ambiance.label}</> : ''}</p>
-          <h1 className="mt-0.5 font-display text-xl font-semibold text-white">{isParent ? `Bonjour ${PARENT.name}` : `Bonjour ${child.name} · ${child.cls}`}</h1>
+          <h1 className="on-dark mt-0.5 font-display text-xl font-semibold text-white">{isParent ? `Bonjour ${PARENT.name}` : `Bonjour ${child.name} · ${child.cls}`}</h1>
           {isParent && !['payments', 'messages'].includes(view) && (
             <div className="mt-3 flex gap-2">
               {PARENT.children.map((c) => (
