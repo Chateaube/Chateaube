@@ -19,7 +19,7 @@ export const STUDENT_PROFILES = [
       { name: 'M. Rakotoarisoa Jean', relation: 'Père', phone: '+261 32 07 456 78', email: '', whatsapp: true, payer: false, pickup: true },
     ],
     health: { allergies: 'Aucune', emergency: 'Mme Rakotoarisoa Hanta — +261 34 11 223 12' },
-    authorizations: { image: true, exit: 'Sortie en fin de journée uniquement' },
+    authorizations: { image: true, exit: 'Code rouge — Mon enfant ne sort qu\'en fin de journée, après son dernier cours de l\'après-midi.' },
     documents: ['ACTE', 'PHOTOS', 'BULLETINS', 'VACCINS'],
   },
   {
@@ -29,7 +29,7 @@ export const STUDENT_PROFILES = [
       { name: 'Mme Rakotoarisoa Hanta', relation: 'Mère', phone: '+261 34 11 223 12', email: 'hanta.rakotoarisoa@gmail.com', whatsapp: true, payer: true, pickup: true },
     ],
     health: { allergies: 'Arachides', emergency: 'Mme Rakotoarisoa Hanta — +261 34 11 223 12' },
-    authorizations: { image: true, exit: 'Aucune sortie sans un responsable' },
+    authorizations: { image: true, exit: 'Code orange — Mon enfant peut partir après son dernier cours de la demi-journée. Si un professeur est absent, il reste à l\'école jusqu\'à l\'heure de fin prévue.' },
     documents: ['ACTE', 'PHOTOS', 'BULLETINS'],
   },
   {
@@ -39,7 +39,7 @@ export const STUDENT_PROFILES = [
       { name: 'M. Randria Feno', relation: 'Père', phone: '+261 32 44 900 48', email: 'feno.randria@gmail.com', whatsapp: false, payer: true, pickup: true },
     ],
     health: { allergies: 'Aucune', emergency: 'M. Randria Feno — +261 32 44 900 48' },
-    authorizations: { image: false, exit: 'Code bleu — sortie après la dernière heure de cours de la demi-journée, y compris en cas d\'absence d\'un professeur' },
+    authorizations: { image: false, exit: 'Code bleu — Mon enfant peut partir après son dernier cours de la demi-journée. En cas d\'absence imprévue d\'un professeur, je l\'autorise à quitter l\'établissement.' },
     documents: ['ACTE', 'PHOTOS', 'BULLETINS', 'VACCINS'],
   },
 ];

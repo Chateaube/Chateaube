@@ -18,7 +18,7 @@ import { MEASURES_LOG } from '../data/schoollife.js';
 import { loadObjects } from '../objectsStore.js';
 import { HOMEWORK } from '../data/homework.js';
 import {
-  OTHER_NOTES, GRADEBOOK_SUBJECTS, SERVICES, EVALUATIONS, GRADES, REMARKS, AUTHORIZATIONS, AUTH_ANSWERS, DOCUMENTS, REQUESTED, INTERNSHIPS, ORIENTATION,
+  OTHER_NOTES, GRADEBOOK_SUBJECTS, SERVICES, EVALUATIONS, GRADES, REMARKS, AUTHORIZATIONS, AUTH_ANSWERS, exitCode, DOCUMENTS, REQUESTED, INTERNSHIPS, ORIENTATION,
 } from '../data/family.js';
 import { accountStatement } from '../rules/accounting.js';
 import { formatAr } from '../rules/finance.js';
@@ -41,7 +41,7 @@ import { FamilyRequestForm, sendDocument } from './FamilyRequests.jsx';
 import { DocumentInput } from './PhotoInput.jsx';
 import { AnnouncementCard } from './AnnouncementsModule.jsx';
 import AgendaModule from './AgendaModule.jsx';
-import { FamilyDocuments, TermsGate } from './InternalResources.jsx';
+import { DocText, FamilyDocuments, TermsGate } from './InternalResources.jsx';
 import BookCatalog from './BookCatalog.jsx';
 import { loadAnnouncements } from '../announcementsStore.js';
 import { receives } from '../rules/announcements.js';
@@ -480,13 +480,26 @@ function Documents({ child, isParent }) {
           {[...AUTHORIZATIONS].sort((x, y) => Number(Boolean(mine[x.id])) - Number(Boolean(mine[y.id]))).map((a) => (
             <li key={a.id} className={mine[a.id] ? '' : 'rounded-xl bg-amber-50 p-2.5'}>
               <p className="text-sm font-medium text-slate-800">{a.label}{!mine[a.id] && <> <Badge tone="amber">réponse attendue</Badge></>}</p>
-              <p className="text-xs text-slate-600">{a.detail}</p>
+              {a.detail.includes('\n') ? <DocText text={a.detail} className="mt-1 !text-xs" /> : <p className="text-xs text-slate-600">{a.detail}</p>}
               {isParent ? (
-                <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label={a.label}>
-                  {a.options.map((o) => (
-                    <button key={o} type="button" aria-pressed={mine[a.id]?.answer === o} onClick={() => setAnswers({ ...answers, [child.id]: { ...mine, [a.id]: { answer: o, at: TODAY } } })}
-                      className={`min-h-[44px] rounded-xl px-4 text-sm font-medium ring-1 ${mine[a.id]?.answer === o ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-800 ring-slate-300'}`}>{o}</button>
-                  ))}
+                <div className={`mt-1.5 ${a.options.some(exitCode) ? 'grid gap-2' : 'flex flex-wrap gap-1.5'}`} role="group" aria-label={a.label}>
+                  {a.options.map((o) => {
+                    const code = exitCode(o); const on = mine[a.id]?.answer === o;
+                    if (code) {
+                      const [title, text] = o.split(' — ');
+                      return (
+                        <button key={o} type="button" aria-pressed={on} onClick={() => setAnswers({ ...answers, [child.id]: { ...mine, [a.id]: { answer: o, at: TODAY } } })}
+                          className="flex min-h-[44px] items-start gap-3 rounded-xl p-3 text-left text-sm ring-2" style={{ background: on ? code.bg : '#fff', '--tw-ring-color': on ? code.color : '#e2e8f0' }}>
+                          <span aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 rounded-full" style={{ background: code.color }} />
+                          <span><span className="font-semibold" style={{ color: code.color }}>{title}</span>{on && ' ✓'}<span className="mt-0.5 block text-slate-700">{text}</span></span>
+                        </button>
+                      );
+                    }
+                    return (
+                      <button key={o} type="button" aria-pressed={on} onClick={() => setAnswers({ ...answers, [child.id]: { ...mine, [a.id]: { answer: o, at: TODAY } } })}
+                        className={`min-h-[44px] rounded-xl px-4 text-sm font-medium ring-1 ${on ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-800 ring-slate-300'}`}>{o}</button>
+                    );
+                  })}
                 </div>
               ) : <p className="mt-1 text-sm text-slate-700">{mine[a.id]?.answer ?? 'En attente de la réponse de tes parents'}</p>}
               {mine[a.id] && <p className="mt-0.5 text-[11px] text-slate-500">Signé électroniquement le {longDate(mine[a.id].at)}</p>}

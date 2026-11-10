@@ -25,11 +25,23 @@ export { SERVICES, EVALUATIONS, GRADES, REMARKS };
 // Autorisations à signer par la famille (une réponse par enfant)
 export const AUTHORIZATIONS = [
   { id: 'IMAGE', label: 'Droit à l\'image', detail: 'Photos et vidéos des activités scolaires (site, réseaux de l\'établissement, journal).', options: ['J\'autorise', 'Je n\'autorise pas'] },
-  { id: 'SORTIE', label: 'Autorisation de sortie', detail: 'Régime de sortie (règlement intérieur) : aucune sortie entre deux heures de cours. Pendant les pauses, sortie seulement sur présentation du passeport, sans achat à l\'extérieur. Un élève qui tombe malade ne quitte l\'établissement que si un responsable vient le chercher et se présente au bureau : aucun élève mineur ne part seul. Les élèves majeurs sortent librement en dehors de leurs heures de cours.', options: ['Code bleu — sortie après la dernière heure de cours de la demi-journée, y compris en cas d\'absence d\'un professeur', 'Code orange — sortie après la dernière heure de cours de la demi-journée ; en cas d\'absence d\'un professeur, reste dans l\'enceinte de l\'école', 'Sortie en fin de journée uniquement', 'Aucune sortie sans un responsable'] },
+  { id: 'SORTIE', label: 'Autorisation de sortie', detail: [
+    'Pour tous les élèves :',
+    '- Aucune sortie entre deux heures de cours.',
+    '- Le passeport est obligatoire pour toute sortie : les heures de fin de cours ne sont pas les mêmes pour tous, il permet de vérifier l\'autorisation de l\'élève.',
+    '- La pause de midi et la fin de journée (après 17h) ne sont pas surveillées : l\'élève qui sort est sous la responsabilité de sa famille.',
+    '- Élève souffrant : il ne quitte l\'établissement que si un responsable vient le chercher et se présente au bureau.',
+    '- Les élèves majeurs sortent librement en dehors de leurs heures de cours.',
+    'Votre choix (un seul) :',
+  ].join('\n'), options: [
+    'Code bleu — Mon enfant peut partir après son dernier cours de la demi-journée. En cas d\'absence imprévue d\'un professeur, je l\'autorise à quitter l\'établissement.',
+    'Code orange — Mon enfant peut partir après son dernier cours de la demi-journée. Si un professeur est absent, il reste à l\'école jusqu\'à l\'heure de fin prévue.',
+    'Code rouge — Mon enfant ne sort qu\'en fin de journée, après son dernier cours de l\'après-midi.',
+  ] },
   { id: 'SORTIES_PEDA', label: 'Sorties pédagogiques', detail: 'Déplacements accompagnés par l\'équipe dans Tamatave. Les parents sont toujours prévenus à l\'avance de chaque sortie.', options: ['J\'autorise', 'Je n\'autorise pas'] },
 ];
 export const AUTH_ANSWERS = {
-  aina: { IMAGE: { answer: 'J\'autorise', at: '2026-09-02' }, SORTIE: { answer: 'Sortie en fin de journée uniquement', at: '2026-09-02' } },
+  aina: { IMAGE: { answer: 'J\'autorise', at: '2026-09-02' }, SORTIE: { answer: 'Code rouge — Mon enfant ne sort qu\'en fin de journée, après son dernier cours de l\'après-midi.', at: '2026-09-02' } },
   toky: { IMAGE: { answer: 'J\'autorise', at: '2026-09-02' } },
 };
 
@@ -83,3 +95,7 @@ export const ORIENTATION = {
     meeting: null,
   },
 };
+
+/** Couleur du code de sortie choisi (« Code bleu — … ») : pastille pour la vie scolaire et le bureau. */
+export const EXIT_CODES = { bleu: { label: 'Code bleu', color: '#1d6fd6', bg: '#e8f1fd' }, orange: { label: 'Code orange', color: '#e07a00', bg: '#fff3e2' }, rouge: { label: 'Code rouge', color: '#d23b3b', bg: '#fdecec' } };
+export const exitCode = (answer) => EXIT_CODES[/^code (bleu|orange|rouge)/i.exec(String(answer ?? ''))?.[1]?.toLowerCase()] ?? null;
