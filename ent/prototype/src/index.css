@@ -1,0 +1,232 @@
+@import "tailwindcss";
+@import "./styles/ambiances.css";
+
+/*
+ * Thèmes : couleurs de l'établissement (#003366 / #005baa), quatre ambiances au choix
+ * (Classique, Océan, Aurore, Élégant), menu dans la barre du haut.
+ * Polices (uniquement) : Poppins (titres, comme le logo), Quicksand (texte), Alice (titres élégants).
+ * « Now » sera ajoutée dès que le fichier de police sera fourni.
+ * Les polices sont incluses dans le fichier (latin uniquement) : le prototype reste hors ligne.
+ */
+
+@font-face { font-family: 'Poppins'; font-style: normal; font-weight: 400; font-display: swap; src: url(../node_modules/@fontsource/poppins/files/poppins-latin-400-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Poppins'; font-style: normal; font-weight: 500; font-display: swap; src: url(../node_modules/@fontsource/poppins/files/poppins-latin-500-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Poppins'; font-style: normal; font-weight: 600; font-display: swap; src: url(../node_modules/@fontsource/poppins/files/poppins-latin-600-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Poppins'; font-style: normal; font-weight: 700; font-display: swap; src: url(../node_modules/@fontsource/poppins/files/poppins-latin-700-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Quicksand'; font-style: normal; font-weight: 300 700; font-display: swap; src: url(../node_modules/@fontsource-variable/quicksand/files/quicksand-latin-wght-normal.woff2) format('woff2-variations'); }
+@font-face { font-family: 'Alice'; font-style: normal; font-weight: 400; font-display: swap; src: url(../node_modules/@fontsource/alice/files/alice-latin-400-normal.woff2) format('woff2'); }
+
+@theme {
+  /* Couleurs institutionnelles reprises du site vitrine (#003366 / #005baa) */
+  --color-navy-50: #eef4fb;
+  --color-navy-100: #d6e4f4;
+  --color-navy-200: #a9c6e8;
+  --color-navy-500: #005baa;
+  --color-navy-700: #00427f;
+  --color-navy-900: #003366;
+
+  /* Accents */
+  --color-coral-50: #fdf2ed;
+  --color-coral-100: #fadfd3;
+  --color-coral-500: #e0714f;
+  --color-coral-700: #a94a2b;
+  --color-sage-50: #eff5ef;
+  --color-sage-100: #dceadb;
+  --color-sage-500: #5b8f62;
+  --color-sage-700: #3e6b45;
+
+  --color-paper: #f4f7fb;
+
+  /* Lisibilité : gris de texte assombris (contraste AA sur fond blanc) */
+  --color-slate-400: #64748b;
+  --color-slate-500: #475569;
+
+  --font-sans: var(--theme-sans, "Quicksand", "Segoe UI", system-ui, sans-serif);
+  --font-display: var(--theme-display, "Poppins", "Segoe UI", system-ui, sans-serif);
+
+  --shadow-soft: 0 1px 2px rgb(0 51 102 / 0.05), 0 10px 30px -14px rgb(0 51 102 / 0.18);
+}
+
+/* ---- Ambiances ---- */
+:root {
+  --theme-sans: "Quicksand", "Segoe UI", system-ui, sans-serif;
+  --theme-display: "Now", "Poppins", "Segoe UI", system-ui, sans-serif;
+  --topbar: #003366;
+  --topbar-fg: #ffffff;
+  --topbar-muted: #a9c6e8;
+  --page: #f4f7fb;
+  --h1: #003366;
+  --hero: linear-gradient(135deg, #003366, #005baa);
+}
+:root[data-theme="ocean"] {
+  --topbar: linear-gradient(100deg, #002a55 0%, #005baa 55%, #1aa3c8 100%);
+  --page: radial-gradient(1100px 520px at 0% -10%, #dbeafe 0%, transparent 60%),
+          radial-gradient(900px 420px at 100% 0%, #cffafe 0%, transparent 55%), #f5f9fc;
+  --h1: linear-gradient(90deg, #003366, #0b84c6 60%, #12a5b8);
+  --hero: linear-gradient(120deg, #003366, #005baa 55%, #1aa3c8);
+}
+:root[data-theme="aurore"] {
+  --theme-display: "Alice", Georgia, serif;
+  --topbar: linear-gradient(100deg, #1e1b4b 0%, #3730a3 40%, #a21caf 78%, #fb7185 100%);
+  --topbar-muted: #e9d5ff;
+  --page: radial-gradient(1000px 500px at 0% -10%, #ede9fe 0%, transparent 60%),
+          radial-gradient(900px 460px at 100% 0%, #ffe4e6 0%, transparent 55%), #fbf9fd;
+  --h1: linear-gradient(90deg, #312e81, #a21caf 65%, #e11d48);
+  --hero: linear-gradient(120deg, #312e81, #a21caf 60%, #fb7185);
+}
+:root[data-theme="elegant"] {
+  --theme-sans: "Poppins", "Segoe UI", system-ui, sans-serif;
+  --theme-display: "Alice", Georgia, serif;
+  --topbar: #ffffff;
+  --topbar-fg: #003366;
+  --topbar-muted: #64748b;
+  --page: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  --h1: #003366;
+  --hero: linear-gradient(120deg, #003366, #00427f 60%, #b08d2e);
+}
+
+body {
+  @apply text-slate-800 antialiased;
+  background: var(--page);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+/* Titres de page : police de titre du thème, dégradé dans les ambiances colorées */
+h1 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+main h1 { color: #003366; }
+:root[data-theme="ocean"] main h1, :root[data-theme="aurore"] main h1 {
+  background-image: var(--h1);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+:root[data-theme="elegant"] main h1 { font-weight: 400; letter-spacing: 0; }
+/* titre posé sur un bandeau foncé (portail familles) : blanc, sans dégradé */
+main h1.on-dark, :root[data-theme] main h1.on-dark { background-image: none; color: #fff; }
+
+/*
+ * Champs de formulaire : coins arrondis, bordure chaude, focus visible et doux.
+ * Hors @layer : prend le pas sur les utilitaires des écrans sans les réécrire un par un.
+ */
+main input:not([type=checkbox]):not([type=radio]):not([type=range]),
+main select,
+main textarea {
+  border-radius: 0.75rem;
+  border-color: var(--color-slate-200);
+  background-color: white;
+  transition: border-color .15s, box-shadow .15s;
+}
+main input:not([type=checkbox]):not([type=radio]):focus,
+main select:focus,
+main textarea:focus {
+  outline: none;
+  border-color: var(--color-navy-200);
+  box-shadow: 0 0 0 4px rgb(0 91 170 / 0.15);
+}
+main input[type=checkbox], main input[type=radio] { accent-color: var(--color-navy-700); }
+
+/* Tableaux : en-têtes discrets, lignes aérées */
+main thead th { font-weight: 600; color: var(--color-slate-500); }
+main .bulletin thead th { color: #000; }
+
+/* Consultation (Direction, Bureau) : lecture seule, seules la navigation et les onglets restent actifs */
+.consultation input:not(.nav-control), .consultation textarea { pointer-events: none; background-color: var(--color-slate-50); }
+.consultation button:not(.nav-control):not([role=tab]) { display: none; }
+.consultation .consult-hide { display: none; } /* formulaires de saisie cachés en consultation */
+
+/* Protection d'écran : impression noircie (hors Direction et secrétariat) */
+.screen-watermark {
+  position: fixed; inset: -50%; z-index: 90; pointer-events: none; user-select: none;
+  transform: rotate(-24deg); font-size: 13px; line-height: 64px; word-spacing: 6px;
+  color: rgb(0 51 102 / 0.045); overflow: hidden; white-space: normal;
+}
+@media print {
+  .screen-guard > * { visibility: hidden !important; }
+  .screen-guard { background: #000 !important; min-height: 100vh; }
+}
+
+::selection { background: var(--color-navy-100); }
+
+@media print {
+  @page { size: A4 landscape; margin: 10mm; }
+  body { background: white; }
+  /* Reçus : seuls les tickets sont imprimés (voir printTickets) */
+  #print-root .ticket { box-shadow: none; width: 74mm; padding: 0; break-after: page; }
+  #print-root .bulletin { box-shadow: none; max-width: none; padding: 0; }
+  #print-root .certificate { box-shadow: none; max-width: none; height: 147mm; }
+  #print-root .bulletin { break-after: page; }
+  #print-root .blank-page { display: block; height: 1px; break-after: page; }
+}
+
+#print-root { display: none; }
+.blank-page { display: none; }
+/* Mesure des bulletins : mêmes réglages qu'à l'impression */
+.bulletin-measure .bulletin { padding: 0; max-width: none; box-shadow: none; font-size: 9px; line-height: 1.25; }
+@media print { #print-root { display: block; } #print-root .print-only { display: block; } }
+
+.hatched {
+  background-image: repeating-linear-gradient(135deg, var(--color-slate-200) 0 6px, var(--color-slate-100) 6px 12px);
+}
+
+/* Ressources internes : jamais imprimées */
+@media print { .protected-view { display: none !important; } }
+
+/* Focus clavier visible partout (RGAA 10.7 / WCAG 2.4.7) : contour épais, contrasté ; blanc sur les fonds
+   sombres (barre du haut, bandeau du prototype). Le focus à la souris n'est pas affiché (:focus-visible). */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--color-navy-700);
+  outline-offset: 2px;
+}
+.amb-topbar :focus-visible, [aria-label="Bandeau du prototype"] :focus-visible { outline-color: #ffffff; }
+
+/* Petits écrans : un champ ou une liste ne dépasse jamais sa colonne (une option longue élargissait la page). */
+main select, main input, main textarea { max-width: 100%; }
+main label { min-width: 0; max-width: 100%; }
+
+/* ---- Téléphone : tableaux en cartes (voir tableCards.js) ---- */
+@media (max-width: 639px) {
+  table.auto-cards { min-width: 0 !important; width: 100%; }
+  table.auto-cards thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  table.auto-cards, table.auto-cards tbody, table.auto-cards tr, table.auto-cards td, table.auto-cards th[scope="row"] { display: block; }
+  table.auto-cards tr { margin: 0 0 .6rem; padding: .5rem .75rem; border: 1px solid rgb(226 232 240); border-radius: .9rem; background: #fff; }
+  table.auto-cards td, table.auto-cards tbody th { padding: .2rem 0 !important; text-align: left !important; border: 0 !important; }
+  table.auto-cards td[data-label]:not([data-label=""]) { display: flex; gap: .75rem; align-items: baseline; }
+  table.auto-cards td[data-label]:not([data-label=""])::before { content: attr(data-label); flex: 0 0 38%; font-size: .72rem; font-weight: 600; color: rgb(71 85 105); }
+  table.auto-cards td > * { min-width: 0; }
+  /* la première cellule (l'élève, l'agent…) sert de titre de la carte */
+  table.auto-cards tr > td:first-child { display: block !important; font-weight: 600; padding-bottom: .35rem !important; margin-bottom: .2rem; border-bottom: 1px solid rgb(241 245 249) !important; }
+  table.auto-cards tr > td:first-child::before { display: none; }
+  table.auto-cards td:empty { display: none; }
+  /* les blocs « -mx-5 overflow-x-auto » ne débordent plus */
+  div:has(> table.auto-cards) { overflow-x: visible !important; margin-left: 0 !important; margin-right: 0 !important; padding-left: 0 !important; padding-right: 0 !important; }
+  /* onglets : sur plusieurs lignes, tous visibles */
+  [role="tablist"] { flex-wrap: wrap !important; overflow-x: visible !important; }
+  [role="tablist"] > * { white-space: normal; }
+}
+/* Grilles qui défilent : ombre sur le bord quand il y a une suite */
+.overflow-x-auto:has(> table), [role="region"].overflow-x-auto {
+  background:
+    linear-gradient(to right, #fff 30%, rgba(255,255,255,0)) left center / 24px 100% no-repeat local,
+    linear-gradient(to left, #fff 30%, rgba(255,255,255,0)) right center / 24px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgba(15,23,42,.18), transparent) left center / 10px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgba(15,23,42,.18), transparent) right center / 10px 100% no-repeat scroll;
+}
+
+/* Portail des familles : boutons d'au moins 44 px de haut (pouce sur téléphone) */
+[aria-label="Contenu du portail"] button:not([role="radio"]):not([role="tab"]),
+[aria-label="Navigation du portail"] button { min-height: 44px; }
+[aria-label="Contenu du portail"] summary { min-height: 40px; display: flex; align-items: center; }
+
+/* Téléphone et tablette : boutons et onglets d'au moins 40 px de haut, partout (pouce). Les petits liens
+   « Modifier / Supprimer » des tableaux restent compacts à l'œil mais la zone de clic grandit. */
+@media (max-width: 1023px), (pointer: coarse) {
+  main button:not(.compact-tap), main [role="tab"], main summary, main select, main input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) { min-height: 40px; }
+  main input[type="checkbox"], main input[type="radio"] { width: 1.25rem; height: 1.25rem; }
+}
+/* Petites mentions à l'écran : jamais sous 12 px (l'impression garde ses tailles) */
+@media screen { main .text-\[10px\], main .text-\[11px\] { font-size: 12px; } }

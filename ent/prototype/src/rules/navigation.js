@@ -1,0 +1,34 @@
+// Arborescence des menus : l'ordre et le regroupement des écrans, séparés du code d'affichage.
+// Chaque écran a un identifiant unique (data-nav dans l'interface). Un écran n'apparaît qu'à un seul
+// endroit. Les entrées « bientôt » (mobilité Tana, emploi du temps, Campus France) ne sont pas dans le menu.
+
+// Direction : 5 rubriques (au lieu de 8). Les écrans à onglets internes restent des entrées de menu.
+export const DIRECTION_TREE = [
+  { group: 'Aujourd\'hui', ids: ['dashboard', 'messages', 'signatures', 'feedback'] },
+  { group: 'Élèves et vie scolaire', ids: ['eleves', 'mandates', 'vs', 'followup', 'care', 'hours'] },
+  { group: 'Pédagogie', ids: ['council', 'bulletins', 'mock-exams', 'timetable', 'oversight-grades'] }, // grilles : onglet des conseils
+  { group: 'Communication', ids: ['news', 'school-life', 'agenda', 'resources'] },
+  { group: 'Administration', ids: ['accounting', 'manuals', 'staff', 'inventory', 'library', 'booking', 'settings', 'access', 'import'] }, // « ? » : écran présent seulement dans certaines versions (comptes : en ligne)
+];
+
+/** Donne l'ordre de l'arborescence aux entrées existantes. Un identifiant inconnu est une erreur de développement. */
+export function arrangeNav(tree, groups) {
+  const byId = Object.fromEntries(groups.flatMap((g) => g.items).map((item) => [item.id, item]));
+  return tree.map(({ group, ids }) => ({
+    group,
+    items: ids.flatMap((raw) => {
+      const optional = raw.endsWith('?'); const id = optional ? raw.slice(0, -1) : raw;
+      if (!byId[id]) { if (optional) return []; throw new Error(`Écran inconnu dans la navigation : ${id}`); }
+      return [byId[id]];
+    }),
+  }));
+}
+
+// Portail famille (parents et élèves) : « Autres » en 4 sections de 3 au plus.
+// Format : [titre, [[identifiant, libellé, icône, audience?]]]. Audience PARENT : entrée réservée aux parents.
+export const FAMILY_SECTIONS = [
+  ['Paiements et inscription', [['payments', 'Paiements', 'wallet', 'PARENT'], ['reenrol', 'Réinscription', 'refresh', 'PARENT']]],
+  ['Papiers', [['documents', 'Documents et autorisations', 'doc'], ['fiche', 'Fiche et coordonnées', 'pen', 'PARENT'], ['signature', 'Ma signature', 'sign', 'PARENT']]],
+  ['Échanges', [['messages', 'Messages', 'bell'], ['contact', 'Rendez-vous et dispenses', 'calendar'], ['schooldocs', 'Règlement et chartes', 'check']]], // vie de l'école : onglet École
+  ['Scolarité', [['library', 'Bibliothèque', 'book'], ['stages', 'Stages', 'cap'], ['orientation', 'Orientation', 'compass']]],
+];

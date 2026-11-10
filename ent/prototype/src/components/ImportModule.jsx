@@ -1,0 +1,345 @@
+import React, { useMemo, useRef, useState } from 'react';
+import { csvCell } from '../rules/csv.js';
+import { Badge, Button, Card, Stat } from './ui.jsx';
+import { parseTable, analyzeStudents, parseAssignments } from '../rules/importer.js';
+import { loadImport, saveImport, clearImport } from '../importStore.js';
+import { resetDemoState } from '../demoData.js';
+import { hoursByClass, checkAgainstAssignments } from '../rules/timetableImport.js';
+import { ASSIGNMENTS } from '../data/staffAssignments.js';
+import { saveFile } from '../download.js';
+import { readXlsx } from '../xlsxRead.js';
+import { bookToImport, withExtras, SHEET_NAMES } from '../rules/templateImport.js';
+import { loadMockExams, saveMockExams } from '../mockExamStore.js';
+import { saveInventory } from '../careStore.js';
+import BackupCard from './BackupCard.jsx';
+import { askConfirm } from './Dialogs.jsx';
+import { isEduFinance, readEduFinance } from '../rules/eduFinanceImport.js';
+import { readStored, writeStored } from '../persist.js';
+import { CLASS_FEES } from '../data/accounting.js';
+import { accountsKey } from './CollectPayment.jsx';
+
+// Onglets du modèle pris en compte dès maintenant ; les autres seront repris par la version serveur
+const fold = (t) => String(t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
+const USED = { '4 Emploi du temps': 'emploi du temps', '1 Élèves': 'fiches élèves', '2 Responsables': 'responsables des élèves', '3 Personnel': 'professeurs et enseignements', '6 Notes officielles 1re': 'projection au bac', '10 Inventaire': 'inventaire', '7 Paiements': 'comptes des élèves et caisse', '11 Dépenses': 'dépenses (trésorerie)' };
+
+/** Compte rendu de l'emploi du temps lu : cours, lignes à corriger, chevauchements, heures par classe. */
+function TimetableReport({ t }) {
+  const hours = hoursByClass(t.slots);
+  const fmt = (h) => String(Math.round(h * 100) / 100).replace('.', ',');
+  return (
+    <div className="mt-3 rounded-xl border border-slate-200 p-3 text-sm">
+      <p className="font-semibold text-navy-900">Emploi du temps : {t.slots.length} cours lus{t.slots.some((x) => x.week) ? ` (dont ${t.slots.filter((x) => x.week).length} en semaine A ou B)` : ''}</p>
+      {t.errors.length > 0 && <div className="mt-1 rounded-md bg-red-50 p-2 text-xs text-red-800"><p className="font-semibold">{t.errors.length} ligne{t.errors.length > 1 ? 's' : ''} à corriger (non importée{t.errors.length > 1 ? 's' : ''})</p>{t.errors.slice(0, 12).map((e) => <p key={e}>· {e}</p>)}</div>}
+      {t.warnings.length > 0 && <div className="mt-1 rounded-md bg-amber-50 p-2 text-xs text-amber-900"><p className="font-semibold">À vérifier : {t.warnings.length} chevauchement{t.warnings.length > 1 ? 's' : ''}</p>{t.warnings.slice(0, 12).map((w) => <p key={w}>· {w}</p>)}</div>}
+      {(() => {
+        const gaps = checkAgainstAssignments(t.slots, loadImport()?.assignments?.length ? loadImport().assignments : ASSIGNMENTS);
+        return gaps.length > 0 && <div className="mt-1 rounded-md bg-amber-50 p-2 text-xs text-amber-900"><p className="font-semibold">Écarts avec la liste des enseignements : {gaps.length}</p>{gaps.slice(0, 15).map((g) => <p key={g}>· {g}</p>)}</div>;
+      })()}
+      <p className="mt-2 text-xs text-slate-600">Heures par semaine : {Object.entries(hours).map(([c, h]) => `${c} ${fmt(h.A)} h${h.A !== h.B ? ` (B : ${fmt(h.B)} h)` : ''}`).join(' · ')}</p>
+    </div>
+  );
+}
+
+/** Compte rendu de l'export EduFinance avant de reprendre la caisse. */
+function EduFinanceCard({ edu, hasStudents, onApply, onCancel }) {
+  const fmt = (n) => new Intl.NumberFormat('fr-FR').format(n);
+  const sum = (l) => fmt(l.reduce((s, x) => s + x.amount, 0));
+  const byCat = edu.expenses.reduce((m, x) => ({ ...m, [x.category]: (m[x.category] ?? 0) + x.amount }), {});
+  return (
+    <Card title={`Caisse EduFinance — année ${edu.year ?? '?'}`} subtitle="Rien n'est enregistré avant « Reprendre la caisse »">
+      <ul className="space-y-1 text-sm text-slate-800">
+        <li>Tarifs : {edu.fees.length} classes{edu.unmappedClasses.length > 0 && <span className="text-amber-800"> · classe(s) non reconnue(s), à préciser : {edu.unmappedClasses.join(', ')}</span>}</li>
+        <li>Élèves : {edu.matched.exact + edu.matched.proche} rapprochés sur {edu.students} ({edu.matched.exact} identiques, {edu.matched.proche} au nom très proche)</li>
+        <li>Encaissements : {edu.movements.length} ({sum(edu.movements)} Ar), frais cochés « réglé » sur les comptes</li>
+        <li>Dépenses : {edu.expenses.length} ({sum(edu.expenses)} Ar) · versements en banque mis à part : {edu.transfers.length} ({sum(edu.transfers)} Ar)</li>
+        <li className="text-xs text-slate-600">{Object.entries(byCat).sort((a, b) => b[1] - a[1]).map(([c, v]) => `${c} ${fmt(v)} Ar`).join(' · ')}</li>
+      </ul>
+      {edu.unmatched.length > 0 && (
+        <details className="mt-2 rounded-md bg-amber-50 p-2 text-xs text-amber-950">
+          <summary className="font-semibold">{edu.unmatched.length} élève(s) d'EduFinance absents de la liste des élèves : leurs paiements restent dans l'historique, sans compte coché</summary>
+          <ul className="mt-1 columns-1 sm:columns-2">{edu.unmatched.map((u) => <li key={u.name}>{u.name}{u.cls ? ` (${u.cls})` : ''}</li>)}</ul>
+          <p className="mt-1">Corrigez l'orthographe dans le classeur des élèves (ou ajoutez l'élève), réimportez-le, puis reprenez la caisse à nouveau : rien n'est compté deux fois.</p>
+        </details>
+      )}
+      {!hasStudents && <p className="mt-2 text-sm font-medium text-red-700">Importez d'abord le classeur des élèves : les paiements se rattachent à leurs comptes.</p>}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button disabled={!hasStudents} onClick={onApply}>Reprendre la caisse</Button>
+        <Button variant="secondary" onClick={onCancel}>Annuler</Button>
+      </div>
+    </Card>
+  );
+}
+
+function TemplateZone({ onBook, onEdu, extras }) {
+  const file = useRef(null);
+  const [err, setErr] = useState('');
+  return (
+    <Card title="Importer le modèle Excel" subtitle="Le classeur « modele-import-chateaubriand.xlsx » rempli (onglets 1 à 11), l'export de la caisse EduFinance, ou seulement le fichier de l'emploi du temps (onglet « EDT à importer »). Les lignes « Exemple » sont ignorées.">
+      <input ref={file} type="file" accept=".xlsx" className="hidden" onChange={async (e) => {
+        const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+        try { setErr(''); const book = await readXlsx(await f.arrayBuffer()); if (isEduFinance(book)) onEdu(book); else onBook(bookToImport(book)); } catch (x) { setErr(x.message); }
+      }} />
+      <div className="flex flex-wrap items-center gap-3">
+        <Button onClick={() => file.current.click()}>Choisir le fichier Excel (.xlsx)</Button>
+        <a href="https://chateaube.github.io/Chateaube/ent/modeles/modele-import-chateaubriand.xlsx" target="_blank" rel="noreferrer" className="text-sm font-medium text-navy-500 underline">Télécharger le modèle vide</a>
+      </div>
+      {err && <p className="mt-2 text-sm text-red-700">{err}</p>}
+      {extras && (
+        <ul className="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-200 text-sm">
+          {SHEET_NAMES.map((n) => (
+            <li key={n} className="flex items-center justify-between gap-2 px-3 py-1.5">
+              <span>{n} <span className="text-slate-500">· {extras.counts[n] ?? 0} ligne{(extras.counts[n] ?? 0) > 1 ? 's' : ''}</span></span>
+              {!extras.counts[n] ? <Badge>vide — ignoré</Badge> : USED[n] ? <Badge tone="green">{USED[n]}</Badge> : <Badge tone="slate">gardé pour la version en ligne</Badge>}
+            </li>
+          ))}
+        </ul>
+      )}
+      {extras?.payments?.errors.length > 0 && (
+        <div className="mt-2 rounded-md bg-red-50 p-2 text-xs text-red-800">
+          <p className="font-semibold">Paiements : {extras.payments.errors.length} ligne{extras.payments.errors.length > 1 ? 's' : ''} à corriger (non reprise{extras.payments.errors.length > 1 ? 's' : ''})</p>
+          {extras.payments.errors.slice(0, 12).map((e) => <p key={e}>· {e}</p>)}
+        </div>
+      )}
+      {extras?.officialErrors?.length > 0 && <p className="mt-2 text-xs text-red-700">{extras.officialErrors.slice(0, 5).join(' ')}</p>}
+      {extras?.timetable && <TimetableReport t={extras.timetable} />}
+      {extras && <p className="mt-2 text-xs text-slate-500">Vérifiez ci-dessous les élèves et les professeurs, puis cliquez sur « Importer ».</p>}
+    </Card>
+  );
+}
+
+// Import des données existantes (Direction, Bureau) : UN seul fichier, le modèle Excel de l'école.
+// Un onglet vide est ignoré (on peut n'importer que les élèves). Vérifier, puis importer.
+// Les données restent dans CE navigateur : elles ne sont ni publiées ni partagées. Sauvegarde en bas de page.
+
+const fmt = (iso) => (iso ? iso.split('-').reverse().join('/') : '—');
+const ORDER = ['6e', '5e', '4e', '3e', '2de', '1re Générale', '1re STMG', 'Terminale Générale', 'Terminale STMG'];
+
+const studentId = (x) => `${x.lastName} ${x.firstName} ${x.birthDate ?? ''}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
+/** Fusion d'un réimport : les fiches du fichier remplacent les mêmes élèves, les autres sont gardées. */
+export function mergeStudents(previous, incoming) {
+  const byId = new Map(previous.map((x) => [studentId(x), x]));
+  incoming.forEach((x) => byId.set(studentId(x), { ...byId.get(studentId(x)), ...x }));
+  return [...byId.values()];
+}
+
+export default function ImportModule({ role = 'DIRECTION' }) {
+  const [storage, setStorage] = useState(null); // 'LOCAL' ou 'MEMORY' après un import
+  const [current, setCurrent] = useState(loadImport);
+  const [studentsText, setStudentsText] = useState('');
+  const [staffText, setStaffText] = useState('');
+  const [filter, setFilter] = useState('issues');
+  // message laissé avant le rechargement qui suit un import
+  const [done, setDone] = useState(() => { try { const f = JSON.parse(sessionStorage.getItem('ent-flash')); if (f?.screen === 'import') { sessionStorage.removeItem('ent-flash'); return f.text; } } catch { /* rien */ } return null; });
+  const [renumber, setRenumber] = useState(true);
+  const [extras, setExtras] = useState(null);
+  const [edu, setEdu] = useState(null); // export EduFinance lu, en attente de « Reprendre la caisse »
+  const applyEdu = () => {
+    const imp = loadImport();
+    // tarifs réels par classe (le plan de paiement de chaque classe est gardé)
+    writeStored('ent-k-tarifs', [...CLASS_FEES].map((f) => ({ ...f, ...(edu.fees.find((x) => x.cls === f.cls) ?? {}) })));
+    // paiements : frais réglés par élève + historique de caisse (versements en banque compris)
+    const transfers = edu.transfers.map((x) => ({ id: x.id, date: x.date, time: '16:00', agent: 'Reprise EduFinance', dir: 'OUT', nature: 'Dépôt en banque', journal: 'ECOLAGE', label: x.label, method: 'Espèces', amount: x.amount }));
+    const paid = { ...(imp.payments?.paid ?? {}) };
+    Object.entries(edu.paid).forEach(([k, v]) => { paid[k] = [...new Set([...(paid[k] ?? []), ...v])]; });
+    const others = (imp.payments?.movements ?? []).filter((m) => !String(m.id).startsWith('edu-'));
+    saveImport({ ...imp, payments: { paid, movements: [...others, ...edu.movements, ...transfers].sort((a, b) => a.date.localeCompare(b.date)) } });
+    // comptes déjà enregistrés sur cet appareil : on y ajoute les frais réglés
+    const accKey = accountsKey(); const accs = readStored(accKey);
+    if (accs) writeStored(accKey, accs.map((a) => { const k = `${a.name}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim(); return edu.paid[k] ? { ...a, paid: [...new Set([...(a.paid ?? []), ...edu.paid[k]])] } : a; }));
+    // dépenses de l'année (une reprise précédente est remplacée, les dépenses saisies dans l'ENT sont gardées)
+    writeStored('ent-s-depenses', [...(readStored('ent-s-depenses') ?? []).filter((x) => !String(x.id).startsWith('edu-')), ...edu.expenses]);
+    const sum = (l) => new Intl.NumberFormat('fr-FR').format(l.reduce((s, x) => s + x.amount, 0));
+    try { sessionStorage.setItem('ent-flash', JSON.stringify({ screen: 'import', text: `Caisse EduFinance reprise : tarifs de ${edu.fees.length} classes, ${edu.movements.length} encaissements (${sum(edu.movements)} Ar), ${edu.expenses.length} dépenses (${sum(edu.expenses)} Ar) et ${edu.transfers.length} versements en banque. Les frais réglés sont cochés sur les comptes des élèves.` })); } catch { /* indisponible */ }
+    window.location.reload();
+  };
+  const onBook = (res) => { setExtras(res); if (res.studentsTsv) setStudentsText(res.studentsTsv); if (res.staffTsv) setStaffText(res.staffTsv); setDone(null); };
+
+  const analysis = useMemo(() => (studentsText.trim() ? analyzeStudents(parseTable(studentsText).rows) : null), [studentsText]);
+  const assignments = useMemo(() => (staffText.trim() ? parseAssignments(parseTable(staffText).rows) : null), [staffText]);
+  const count = (lvl) => analysis?.students.filter((s) => s.issues.some((i) => i.level === lvl)).length ?? 0;
+  const issueTypes = useMemo(() => {
+    const m = {};
+    analysis?.students.forEach((s) => s.issues.forEach((i) => { const k = i.text.replace(/« .* »/, '«…»').replace(/\(ligne \d+\)/, ''); m[k] = (m[k] ?? 0) + 1; }));
+    return Object.entries(m).sort((a, b) => b[1] - a[1]);
+  }, [analysis]);
+  const shown = analysis?.students.filter((s) => (filter === 'all' ? true : filter === 'errors' ? s.issues.some((i) => i.level === 'error')
+    : s.issues.some((i) => !i.text.startsWith('Aucun responsable')))) ?? [];
+
+  const doImport = async () => {
+    // l'emploi du temps de l'année ne se remplace que par la Direction, et après confirmation
+    let newTimetable = Boolean(extras?.timetable?.slots.length);
+    if (newTimetable && role !== 'DIRECTION') newTimetable = false;
+    else if (newTimetable && current?.timetable?.length && !(await askConfirm(`Remplacer l'emploi du temps actuel (${current.timetable.length} cours) par celui du fichier (${extras.timetable.slots.length} cours) ?`))) newTimetable = false;
+    const data = {
+      // Réimport : fusion, jamais d'effacement — un élève déjà importé (même nom, même date de naissance) est
+      // mis à jour, un nouveau est ajouté, ceux qui ne figurent pas dans ce fichier sont gardés.
+      students: analysis ? mergeStudents(current?.students ?? [], withExtras(analysis.students.map((s) => (renumber && s.student.suggestedNumber ? { ...s.student, number: s.student.suggestedNumber } : s.student)), extras ?? {})) : current?.students ?? [],
+      assignments: assignments ?? current?.assignments ?? [],
+      // emploi du temps : le nouveau remplace l'ancien en entier (c'est la semaine type de l'année)
+      timetable: newTimetable ? extras.timetable.slots : current?.timetable ?? null,
+      // paiements déjà reçus : l'onglet 7 rempli remplace la reprise précédente (c'est la liste de l'année)
+      payments: current?.payments ?? null,
+    };
+    let payNote = '';
+    if (extras?.payments?.movements.length) {
+      const inList = new Set(data.students.map((x) => fold(`${x.lastName} ${x.firstName}`)));
+      const kept = extras.payments.movements.filter((m) => inList.has(m.student));
+      const paid = Object.fromEntries(Object.entries(extras.payments.paid).filter(([k]) => inList.has(k)));
+      // reprise EduFinance déjà faite : gardée ; une reprise précédente de l'onglet 7 est remplacée
+      const prev = current?.payments;
+      const merged = { ...(prev?.paid ?? {}) };
+      Object.entries(paid).forEach(([k, v]) => { merged[k] = [...new Set([...(merged[k] ?? []), ...v])]; });
+      data.payments = { paid: merged, movements: [...(prev?.movements ?? []).filter((m) => !String(m.id).startsWith('rep')), ...kept].sort((a, b) => a.date.localeCompare(b.date)) };
+      const total = kept.reduce((s, m) => s + m.amount, 0);
+      payNote = ` Paiements repris : ${kept.length} (${new Intl.NumberFormat('fr-FR').format(total)} Ar), marqués réglés sur les comptes des élèves.${extras.payments.errors.length ? ` ${extras.payments.errors.length} ligne(s) à corriger, non reprises.` : ''}${kept.length < extras.payments.movements.length ? ` ${extras.payments.movements.length - kept.length} paiement(s) d'élèves absents de la liste, non repris.` : ''}`;
+    }
+    // Premier vrai import : ce qui a été saisi pendant la démonstration (absences, punitions, caisse, tâches…) est effacé
+    if (!current?.students?.length && data.students.length) resetDemoState();
+    const where = saveImport(data);
+    if (extras?.expenses?.length) {
+      writeStored('ent-s-depenses', [...(readStored('ent-s-depenses') ?? []).filter((x) => !String(x.id).startsWith('tpl-')), ...extras.expenses]);
+      payNote += ` Dépenses reprises : ${extras.expenses.length} (${new Intl.NumberFormat('fr-FR').format(extras.expenses.reduce((s, x) => s + x.amount, 0))} Ar).${extras.expenseErrors.length ? ` ${extras.expenseErrors.length} ligne(s) de dépenses à corriger, non reprises.` : ''}`;
+    }
+    setCurrent(loadImport());
+    let more = '';
+    if (extras && Object.keys(extras.official).length) {
+      // notes rangées sous le nom de l'élève tel qu'il apparaît dans l'ENT (« NOM Prénom »)
+      const nameOf = Object.fromEntries(data.students.map((x) => [`${x.lastName} ${x.firstName}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase(), `${x.lastName} ${x.firstName}`]));
+      const m = loadMockExams();
+      saveMockExams({ ...m, official: { ...m.official, ...Object.fromEntries(Object.entries(extras.official).map(([k, v]) => [nameOf[k] ?? k, v])) } });
+      more += ` Notes officielles de 1re : ${Object.keys(extras.official).length} élèves.`;
+    }
+    if (extras?.inventory.length) { saveInventory(extras.inventory); more += ` Inventaire : ${extras.inventory.length} articles.`; }
+    more += payNote;
+    if (newTimetable) more += ` Emploi du temps : ${extras.timetable.slots.length} cours.`;
+    else if (extras?.timetable?.slots.length) more += role === 'DIRECTION' ? ' Emploi du temps gardé tel quel.' : ' Emploi du temps non remplacé : seule la Direction peut le faire.';
+    setDone(`${data.students.length} élèves et ${data.assignments.length} professeurs importés.${more} Les données fictives ont disparu de tous les écrans : seuls vos élèves et vos professeurs apparaissent, et le reste (absences, punitions, caisse, annonces, tâches…) part de zéro.`);
+    // enregistré dans le navigateur : on recharge pour que tous les écrans (dates, listes) repartent des vraies données
+    if (where === 'LOCAL') {
+      try { sessionStorage.setItem('ent-flash', JSON.stringify({ screen: 'import', text: `${data.students.length} élèves et ${data.assignments.length} professeurs importés.${more} Les exemples fictifs ont disparu ; la date du jour est maintenant la vraie date.` })); } catch { /* indisponible */ }
+      window.location.reload();
+      return;
+    }
+    setStorage(where);
+  };
+  const exportToComplete = () => {
+    const cell = csvCell;
+    const lines = [['N°', 'Classe', 'Nom', 'Prénom', 'À compléter ou corriger'],
+      ...analysis.students.filter((s) => s.issues.length).map((s) => [s.student.number, s.student.cls, s.student.lastName, s.student.firstName, s.issues.map((i) => i.text).join(' · ')])];
+    saveFile('eleves-a-completer.csv', `﻿${lines.map((l) => l.map((v) => cell(String(v ?? ''))).join(';')).join('\r\n')}\r\n`);
+  };
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <p className="text-sm font-semibold text-navy-500">Reprise des données existantes · année 2026-2027</p>
+        <h1 className="text-2xl font-semibold text-navy-900">Importer et sauvegarder</h1>
+        <p className="text-sm text-slate-600">Un seul fichier : le modèle Excel de l'école. Remplissez les onglets que vous avez ; un onglet vide est simplement ignoré. Réimporter plus tard un fichier complété ne double rien : les élèves déjà présents sont mis à jour, les nouveaux sont ajoutés, aucun n'est effacé.</p>
+      </div>
+      <p className="rounded-2xl bg-amber-50 p-3 text-sm text-amber-900">
+        Confidentialité : les données importées restent <strong>dans ce navigateur</strong> (cet ordinateur ou ce téléphone).
+        Elles ne sont pas publiées et les personnes avec qui vous partagez le lien ne les voient pas.
+      </p>
+
+      {current && (
+        <Card title="Données actuellement importées" subtitle={`Le ${new Date(current.importedAt).toLocaleString('fr-FR')}`}
+          action={<Button variant="secondary" className="!py-1 text-xs" onClick={async () => { if (!(await askConfirm('Effacer les données importées et ce qui a été saisi depuis, puis revenir aux exemples fictifs ?'))) return; clearImport(); resetDemoState(); window.location.reload(); }}>Effacer et revenir aux données fictives</Button>}>
+          <p className="text-sm text-slate-700">{current.students.length} élèves · {current.assignments.length} professeurs</p>
+        </Card>
+      )}
+      {!current && (
+        <p className="rounded-2xl bg-sky-50 p-3 text-sm text-sky-900">
+          Pour l'instant, l'application montre des <strong>exemples fictifs</strong>. Dès que vous importez votre fichier, ils disparaissent tous :
+          vos élèves et vos professeurs les remplacent, et absences, punitions, caisse, annonces ou tâches partent de zéro. Rien d'autre à faire.
+        </p>
+      )}
+      {done && <p className="rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-800">{done}</p>}
+      {storage === 'MEMORY' && (
+        <p role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+          <strong>Ce navigateur n'enregistre pas les données</strong> (aperçu intégré, navigation privée ou mémoire pleine) : l'essai fonctionne maintenant, mais tout disparaîtra si la page est rechargée. Pour garder les données, ouvrez l'application installable dans une fenêtre normale de Chrome ou d'Edge.
+        </p>
+      )}
+      <TemplateZone onBook={onBook} onEdu={(book) => { setEdu(readEduFinance(book, current?.students ?? [])); setDone(null); }} extras={extras} />
+      {edu && <EduFinanceCard edu={edu} hasStudents={Boolean(current?.students?.length)} onApply={applyEdu} onCancel={() => setEdu(null)} />}
+
+      {assignments && (
+        <Card title={`Professeurs et enseignements (${assignments.length})`} subtitle="Lus dans l'onglet « 3 Personnel » du modèle">
+          <ul className="max-h-56 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200 text-sm">
+            {assignments.map((a) => <li key={a.name} className="px-3 py-1.5"><span className="font-medium">{a.name}</span> · {a.subjects.join(', ')}<span className="block text-xs text-slate-500">{a.classes.join(' · ')}</span></li>)}
+          </ul>
+        </Card>
+      )}
+
+      {analysis && (
+        <>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <Stat label="Élèves reconnus" value={analysis.students.length} hint={`${Object.keys(analysis.byClass).length} classes`} tone="green" />
+            <Stat label="Lignes avec erreur" value={count('error')} hint="à corriger avant import" tone="red" />
+            <Stat label="Lignes ignorées" value={analysis.ignored.length} hint={analysis.ignored.map((i) => i.number).join(', ') || 'aucune'} />
+            <Stat label="Numéros sautés" value={analysis.gaps.length} hint={analysis.gaps.length ? `${analysis.gaps.join(', ')} — départs ou inscrits jamais venus` : 'aucun'} />
+          </div>
+          <Card title="Contrôle avant import" subtitle="Rien n'est bloquant sauf les erreurs ; les manques se complètent ensuite dans les fiches élèves"
+            action={<Button variant="secondary" className="!py-1 text-xs" onClick={exportToComplete}>Exporter la liste à compléter (Excel)</Button>}>
+            {analysis.students.some((s) => /^(1re|Terminale) Générale$/.test(s.student.cls) && !s.student.specialties?.length) && <p className="mb-3 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-900">Spécialités : ajoutez une colonne « Spécialités » (ex. Maths, PC) pour les élèves de 1re et Terminale générales, ou choisissez-les après l'import dans Pédagogie → Bulletins.</p>}
+            {!analysis.students.some((s) => s.student.enteredOn) && <p className="mb-3 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-900">Ancienneté : ajoutez une colonne « Entrée » (année d'entrée, ex. 2024) ou « Ancienneté » (ex. 2 ans, nouveau) pour distinguer nouveaux et anciens élèves (inscription ou réinscription). Elle peut aussi se saisir ensuite dans chaque fiche.</p>}
+            {analysis.nationalityIsExtra && <p className="mb-3 rounded-lg bg-navy-50 p-2.5 text-xs text-navy-900">Colonne « Nationalité (en +) » : chaque élève est malgache, la colonne indique une nationalité en plus (ex. malgache et française). Une case vide = malgache seulement.</p>}
+            <div className="flex flex-wrap gap-2">
+              {ORDER.filter((c) => analysis.byClass[c]).map((c) => <Badge key={c} tone="navy">{c} : {analysis.byClass[c]}</Badge>)}
+              {Object.keys(analysis.byClass).filter((c) => !ORDER.includes(c)).map((c) => <Badge key={c} tone="red">Classe inconnue « {c} » : {analysis.byClass[c]}</Badge>)}
+            </div>
+            <ul className="mt-3 space-y-1 text-sm">
+              {issueTypes.map(([t, n]) => <li key={t} className="flex justify-between gap-3 rounded-lg bg-slate-50 px-3 py-1.5"><span>{t}</span><span className="tabular-nums text-slate-500">{n}</span></li>)}
+            </ul>
+            <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+              <span className="text-slate-500">Afficher :</span>
+              {[['issues', 'à vérifier'], ['errors', 'erreurs seulement'], ['all', 'tous']].map(([k, l]) => (
+                <button key={k} onClick={() => setFilter(k)} className={`rounded-full px-3 py-1 ${filter === k ? 'bg-navy-500 text-white' : 'bg-slate-100 text-slate-600'}`}>{l}</button>
+              ))}
+            </div>
+            <div className="-mx-5 mt-3 max-h-[480px] overflow-auto">
+              <table className="w-full min-w-[820px] text-sm">
+                <thead className="sticky top-0 bg-white"><tr className="border-b border-slate-200 text-left text-xs text-slate-500">
+                  <th className="px-5 py-2">N°</th><th className="px-2">Élève</th><th className="px-2">Classe</th><th className="px-2">Né.e le</th>
+                  <th className="px-2">Nationalité</th><th className="px-2">Contact</th><th className="px-5">À vérifier</th>
+                </tr></thead>
+                <tbody>
+                  {shown.map(({ student: s, issues, line }) => (
+                    <tr key={line} className="border-b border-slate-100 align-top">
+                      <td className="px-5 py-2 text-xs tabular-nums text-slate-500">{s.number}</td>
+                      <td className="px-2 py-2 font-medium">{s.lastName} {s.firstName}</td>
+                      <td className="px-2 py-2">{s.cls}</td>
+                      <td className="px-2 py-2 tabular-nums">{fmt(s.birthDate)}</td>
+                      <td className="px-2 py-2">{s.nationalities.join(', ') || '—'}</td>
+                      <td className="px-2 py-2 text-xs text-slate-600">{s.email}{s.phones.length ? <span className="block">{s.phones.join(' / ')}</span> : null}</td>
+                      <td className="px-5 py-2 text-xs">
+                        {issues.filter((i) => filter === 'all' || !i.text.startsWith('Aucun responsable')).map((i) => (
+                          <span key={i.text} className={`block ${i.level === 'error' ? 'text-red-700' : 'text-amber-700'}`}>· {i.text}</span>
+                        ))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </>
+      )}
+
+      {!analysis && !assignments && !extras && <p className="text-sm text-slate-600">Choisissez le fichier Excel rempli : les élèves et les professeurs s'affichent ici pour vérification avant l'import.</p>}
+      {(analysis || assignments || extras?.timetable?.slots.length > 0) && (
+        <div className="flex flex-wrap items-center gap-3">
+          <Button onClick={doImport}>
+            Importer {[analysis && `${analysis.students.length} élèves`, assignments && `${assignments.length} professeurs`, extras?.timetable?.slots.length && `l'emploi du temps (${extras.timetable.slots.length} cours)`].filter(Boolean).join(', ')}
+          </Button>
+          {analysis?.students.some((x) => x.student.suggestedNumber) && (
+            <label className="flex items-center gap-1.5 text-xs text-slate-700"><input type="checkbox" checked={renumber} onChange={(e) => setRenumber(e.target.checked)} />
+              Attribuer les n° proposés aux doublons ({analysis.students.filter((x) => x.student.suggestedNumber).map((x) => `${x.student.lastName} → ${x.student.suggestedNumber}`).join(', ')})</label>
+          )}
+          {count('error') > 0 && <p className="basis-full text-xs text-red-700">{count('error')} ligne(s) avec erreur seront importées telles quelles : corrigez-les ensuite dans les fiches élèves.</p>}
+        </div>
+      )}
+
+      <BackupCard />
+    </div>
+  );
+}

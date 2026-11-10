@@ -1,0 +1,1911 @@
+-- =============================================================================
+--  Scénarios de vérification des règles métier (à lancer sur une base vierge
+--  après schema.sql, functions.sql et seed.sql). Toute erreur interrompt le script.
+--    psql -v ON_ERROR_STOP=1 -f schema.sql -f functions.sql -f seed.sql -f tests.sql
+-- =============================================================================
+\set QUIET on
+BEGIN;
+
+-- Jeu de données minimal ------------------------------------------------------
+INSERT INTO app_user (id, email, first_name, last_name) VALUES
+  ('00000000-0000-0000-0000-000000000001', 'cheffe@exemple.mg',   'Cheffe',   'Établissement'),
+  ('00000000-0000-0000-0000-000000000002', 'adjointe@exemple.mg', 'Directrice', 'Adjointe'),
+  ('00000000-0000-0000-0000-000000000003', 'prof@exemple.mg',     'Prof',     'Maths');
+
+INSERT INTO user_role (user_id, role, site_id, title) VALUES
+  ('00000000-0000-0000-0000-000000000001', 'DIRECTION', NULL, 'Cheffe d''établissement'),
+  ('00000000-0000-0000-0000-000000000002', 'DIRECTION', NULL, 'Directrice adjointe'),
+  ('00000000-0000-0000-0000-000000000003', 'PROFESSEUR', (SELECT id FROM site WHERE code = 'TMV'), NULL);
+
+INSERT INTO school_class (id, year_id, site_id, level_code, track, name)
+SELECT '10000000-0000-0000-0000-000000000001', y.id, s.id, 'TLE', 'STMG', 'Tle STMG'
+FROM academic_year y, site s WHERE s.code = 'TMV';
+
+INSERT INTO student (id, first_name, last_name, birth_date) VALUES
+  ('20000000-0000-0000-0000-000000000001', 'Hery', 'RAKOTO', '2009-03-14');
+
+INSERT INTO enrollment (id, student_id, year_id, class_id, enrolled_on)
+SELECT '30000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', y.id,
+       '10000000-0000-0000-0000-000000000001', '2026-09-01'
+FROM academic_year y;
+
+INSERT INTO site_assignment (enrollment_id, site_id, valid_during, reason)
+SELECT '30000000-0000-0000-0000-000000000001', id, daterange('2026-09-01', '2027-07-05'), 'INSCRIPTION'
+FROM site WHERE code = 'TMV';
+
+-- T1. Les deux comptes Direction ont exactement les mêmes permissions ---------
+DO $$ BEGIN
+  ASSERT (SELECT count(DISTINCT p) FROM (
+            SELECT string_agg(rp.permission, ',' ORDER BY rp.permission) p
+            FROM user_role ur JOIN role_permission rp ON rp.role = ur.role
+            WHERE ur.role = 'DIRECTION' GROUP BY ur.user_id) x) = 1,
+    'T1: droits Direction divergents';
+END $$;
+
+-- T2. Octobre est exclu du cycle de relance, les autres mois sont actifs ------
+DO $$ DECLARE y uuid := (SELECT id FROM academic_year WHERE is_current); BEGIN
+  ASSERT NOT is_dunning_month(y, '2026-10-15'), 'T2: octobre devrait être sauté';
+  ASSERT is_dunning_month(y, '2026-11-15'),     'T2: novembre devrait être actif';
+  ASSERT is_dunning_month(y, '2027-01-15'),     'T2: janvier actif (relance tous les mois sauf octobre)';
+END $$;
+
+-- T3. Frais de scolarité de juin non facturable pour une Tle de Tamatave (9 mois : sept.→mai)
+INSERT INTO invoice (number, enrollment_id, category, period_month, due_on, amount_mga)
+VALUES ('ECO-T3-MAI', '30000000-0000-0000-0000-000000000001', 'ECOLAGE', '2027-05-01', '2027-05-05', 450000);
+DO $$ BEGIN
+  BEGIN
+    INSERT INTO invoice (number, enrollment_id, category, period_month, due_on, amount_mga)
+    VALUES ('ECO-T3-JUIN', '30000000-0000-0000-0000-000000000001', 'ECOLAGE', '2027-06-01', '2027-06-05', 450000);
+    RAISE EXCEPTION 'T3: la facture de juin aurait dû être refusée';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM LIKE 'T3:%' THEN RAISE; END IF;
+  END;
+END $$;
+
+-- T4. Droits d'examen : 40 000 Ar conservés, le reste à reverser --------------
+INSERT INTO fee_schedule (id, year_id, site_id, level_code, category, exam, label, amount_mga, retained_fee_mga)
+SELECT '40000000-0000-0000-0000-000000000001', y.id, s.id, 'TLE', 'DROITS_EXAMEN', 'BAC',
+       'Droits Bac candidat libre', 600000, 40000
+FROM academic_year y, site s WHERE s.code = 'TMV';
+
+INSERT INTO invoice (id, number, enrollment_id, category, fee_schedule_id, due_on, amount_mga)
+VALUES ('50000000-0000-0000-0000-000000000001', 'EXA-T4', '30000000-0000-0000-0000-000000000001',
+        'DROITS_EXAMEN', '40000000-0000-0000-0000-000000000001', '2026-10-31', 600000);
+
+INSERT INTO payment (id, receipt_no, category, site_id, amount_mga, method, instrument_ref, bank_name, cheque_status, received_by)
+SELECT '60000000-0000-0000-0000-000000000001', 'R-T4', 'DROITS_EXAMEN', id, 600000, 'CHEQUE', '4410275', 'BNI Madagascar', 'A_DEPOSER',
+       '00000000-0000-0000-0000-000000000001'
+FROM site WHERE code = 'TMV';
+
+SELECT record_exam_fee_payment('60000000-0000-0000-0000-000000000001',
+                               '50000000-0000-0000-0000-000000000001',
+                               '00000000-0000-0000-0000-000000000001') \gset
+SET CONSTRAINTS ALL IMMEDIATE;   -- force le contrôle d'équilibre maintenant
+DO $$ BEGIN
+  ASSERT (SELECT -solde_mga FROM v_balance_by_account WHERE code = 'EXA-FRAIS-DOS') = 40000,  'T4: frais de dossier';
+  ASSERT (SELECT -solde_mga FROM v_balance_by_account WHERE code = 'EXA-A-REVERSER') = 560000, 'T4: à reverser';
+  ASSERT NOT EXISTS (SELECT 1 FROM v_balance_by_account WHERE category = 'ECOLAGE'),            'T4: fuite vers frais de scolarité';
+  ASSERT (SELECT status FROM invoice WHERE number = 'EXA-T4') = 'PAYEE',                        'T4: statut facture';
+END $$;
+SET CONSTRAINTS ALL DEFERRED;
+
+-- T5. Étanchéité : impossible d'imputer un compte ECOLAGE dans une écriture d'examen
+DO $$ DECLARE e uuid; BEGIN
+  INSERT INTO ledger_entry (category, label, site_id, created_by)
+  SELECT 'DROITS_EXAMEN', 'test', id, '00000000-0000-0000-0000-000000000001' FROM site WHERE code = 'TMV'
+  RETURNING id INTO e;
+  BEGIN
+    INSERT INTO ledger_line (entry_id, account_code, debit_mga) VALUES (e, 'ECO-CAISSE', 1000);
+    RAISE EXCEPTION 'T5: imputation croisée acceptée';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM LIKE 'T5:%' THEN RAISE; END IF;
+  END;
+  DELETE FROM ledger_entry WHERE id = e;
+END $$;
+
+-- T6. Transfert TMV → Tana : historique conservé, données intactes -----------
+INSERT INTO transfer_campaign (id, year_id, from_site_id, to_site_id, level_codes, effective_on)
+SELECT '70000000-0000-0000-0000-000000000001', y.id,
+       (SELECT id FROM site WHERE code = 'TMV'), (SELECT id FROM site WHERE code = 'TANA'),
+       '{1RE,TLE}', '2027-04-12'
+FROM academic_year y;
+
+CREATE TEMP TABLE t6 AS
+SELECT * FROM execute_transfer_campaign('70000000-0000-0000-0000-000000000001',
+                                        '00000000-0000-0000-0000-000000000002');
+DO $$ BEGIN
+  ASSERT (SELECT count(*) FROM t6) = 1, 'T6: un élève transféré';
+  ASSERT (SELECT outstanding_ecolage_mga FROM t6) = 450000, 'T6: solde frais de scolarité remonté';
+  ASSERT (SELECT count(*) FROM site_assignment WHERE enrollment_id = '30000000-0000-0000-0000-000000000001') = 2,
+    'T6: deux affectations historisées';
+  ASSERT (SELECT s.code FROM site_assignment sa JOIN site s ON s.id = sa.site_id
+          WHERE sa.valid_during @> date '2027-03-01') = 'TMV',  'T6: mars à Tamatave';
+  ASSERT (SELECT s.code FROM site_assignment sa JOIN site s ON s.id = sa.site_id
+          WHERE sa.valid_during @> date '2027-05-01') = 'TANA', 'T6: mai à Tana';
+  ASSERT (SELECT count(*) FROM invoice WHERE enrollment_id = '30000000-0000-0000-0000-000000000001') = 2,
+    'T6: factures toujours rattachées';
+END $$;
+
+-- T7. Réservations : chevauchement refusé, créneaux contigus acceptés ---------
+INSERT INTO resource (id, site_id, type, label)
+SELECT '80000000-0000-0000-0000-000000000001', id, 'VIDEOPROJECTEUR', 'Vidéoprojecteur #1' FROM site WHERE code = 'TMV';
+
+INSERT INTO booking (resource_id, booked_by, period) VALUES
+  ('80000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000003',
+   tstzrange('2026-10-14 10:00+03', '2026-10-14 11:00+03')),
+  ('80000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000003',
+   tstzrange('2026-10-14 11:00+03', '2026-10-14 12:00+03'));
+DO $$ BEGIN
+  BEGIN
+    INSERT INTO booking (resource_id, booked_by, period) VALUES
+      ('80000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001',
+       tstzrange('2026-10-14 10:30+03', '2026-10-14 11:30+03'));
+    RAISE EXCEPTION 'T7: conflit non détecté';
+  EXCEPTION WHEN exclusion_violation THEN NULL;
+  END;
+END $$;
+
+-- T8. Une appréciation ne peut être VALIDÉE si le contrôleur a relevé des erreurs
+INSERT INTO report_card (id, enrollment_id, period_id)
+SELECT '90000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', id
+FROM period WHERE rank = 1;
+DO $$ BEGIN
+  BEGIN
+    INSERT INTO report_comment (report_card_id, subject_id, author_id, body, status, rule_check)
+    SELECT '90000000-0000-0000-0000-000000000001', id, '00000000-0000-0000-0000-000000000003',
+           'Tu es bavard.', 'VALIDE', '{"errors": 2}' FROM subject WHERE code = 'MATHS';
+    RAISE EXCEPTION 'T8: appréciation non conforme validée';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    UPDATE report_card SET decision_text = 'Admis en classe de 1re'
+    WHERE id = '90000000-0000-0000-0000-000000000001';
+    RAISE EXCEPTION 'T8: formulation non inclusive acceptée';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
+-- T9. Délais de relance en jours comptés (lun→ven, hors fériés et vacances) ----
+-- (politique précédente épinglée : J+5 / J+10 / J+25 depuis l'échéance ; la politique
+--  actuelle de Tamatave est vérifiée en T29)
+UPDATE dunning_policy SET relance_after = 5, warning_after = 10, suspension_after = 25,
+       count_from = 'ECHEANCE', last_month_relance_after = NULL, last_month_warning_after = NULL,
+       last_month_suspension_after = NULL;
+DO $$ DECLARE
+  y uuid := (SELECT id FROM academic_year WHERE is_current);
+  s uuid := (SELECT id FROM site WHERE code = 'TMV');
+  r record;
+BEGIN
+  -- Échéance du 5 décembre : les vacances de Noël suspendent le décompte
+  SELECT * INTO r FROM dunning_schedule(y, s, '2026-12-05');
+  ASSERT r.relance_on    = '2026-12-11', 'T9: relance J+5 = ' || r.relance_on;
+  ASSERT r.warning_on    = '2026-12-18', 'T9: avertissement J+10 = ' || r.warning_on;
+  ASSERT r.suspension_on = '2027-01-22', 'T9: mise à pied J+25 = ' || r.suspension_on;
+  -- Échéance du 5 septembre : octobre est gelé, le décompte reprend en novembre
+  SELECT * INTO r FROM dunning_schedule(y, s, '2026-09-05');
+  ASSERT r.relance_on    = '2026-09-11', 'T9: sept. relance = ' || r.relance_on;
+  ASSERT r.suspension_on = '2026-11-10', 'T9: sept. mise à pied = ' || r.suspension_on;
+  -- Échéance d'octobre : première relance en novembre
+  SELECT * INTO r FROM dunning_schedule(y, s, '2026-10-05');
+  ASSERT r.relance_on    = '2026-11-06', 'T9: oct. relance = ' || r.relance_on;
+  ASSERT r.suspension_on = '2026-12-04', 'T9: oct. mise à pied = ' || r.suspension_on;
+END $$;
+
+-- T10. Paramètres modifiables sans recoder : délais comptés depuis l'étape précédente
+UPDATE dunning_policy SET count_from = 'ETAPE_PRECEDENTE';
+DO $$ DECLARE r record; BEGIN
+  SELECT * INTO r FROM dunning_schedule((SELECT id FROM academic_year WHERE is_current),
+                                        (SELECT id FROM site WHERE code = 'TMV'), '2026-12-05');
+  ASSERT r.relance_on    = '2026-12-11', 'T10: relance = ' || r.relance_on;
+  ASSERT r.warning_on    = '2027-01-08', 'T10: avertissement = ' || r.warning_on;
+  ASSERT r.suspension_on = '2027-02-12', 'T10: mise à pied = ' || r.suspension_on;
+END $$;
+UPDATE dunning_policy SET count_from = 'ECHEANCE';
+
+-- T11. Avancement d'un dossier : la mise à pied attend la validation Direction --
+INSERT INTO dunning_case (id, enrollment_id, opened_month, due_on, overdue_mga)
+VALUES ('a0000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001',
+        '2026-12-01', '2026-12-05', 450000);
+DO $$ DECLARE c uuid := 'a0000000-0000-0000-0000-000000000001'; BEGIN
+  ASSERT advance_dunning_case(c, NULL, '2026-12-15') = 'RELANCE',       'T11: relance';
+  ASSERT advance_dunning_case(c, NULL, '2026-12-21') = 'AVERTISSEMENT', 'T11: avertissement';
+  ASSERT advance_dunning_case(c, NULL, '2027-01-22') = 'AVERTISSEMENT', 'T11: attend la Direction';
+  ASSERT advance_dunning_case(c, '00000000-0000-0000-0000-000000000003', '2027-01-22') = 'AVERTISSEMENT',
+    'T11: un professeur ne peut pas valider';
+  ASSERT advance_dunning_case(c, '00000000-0000-0000-0000-000000000002', '2027-01-22') = 'MISE_A_PIED',
+    'T11: validée par la Directrice adjointe';
+  ASSERT (SELECT count(*) FROM dunning_event WHERE case_id = c) = 2, 'T11: transitions historisées';
+END $$;
+
+-- T12. Tarifs : prix de la classe prioritaire, sinon prix unique -------------
+DO $$ BEGIN
+  ASSERT fee_price_for('ECOLAGE', '30000000-0000-0000-0000-000000000001') = 450000, 'T12: frais de scolarité Tle';
+  ASSERT fee_price_for('TEE_SHIRT', '30000000-0000-0000-0000-000000000001') = 35000, 'T12: tee-shirt prix unique';
+END $$;
+INSERT INTO invoice (id, number, enrollment_id, category, due_on, amount_mga)
+VALUES ('b0000000-0000-0000-0000-000000000001', 'ANX-T12', '30000000-0000-0000-0000-000000000001',
+        'FRAIS_ANNEXES', '2026-10-13', 70000);
+INSERT INTO invoice_line (invoice_id, label, quantity, unit_price_mga)
+VALUES ('b0000000-0000-0000-0000-000000000001', 'Tee-shirt scolaire', 2, 35000);
+DO $$ BEGIN
+  ASSERT (SELECT amount_mga FROM invoice_line WHERE invoice_id = 'b0000000-0000-0000-0000-000000000001') = 70000, 'T12: ligne 2 × 35 000';
+  ASSERT (SELECT sum(debit_mga - credit_mga) FROM v_account_statement
+          WHERE enrollment_id = '30000000-0000-0000-0000-000000000001' AND category = 'FRAIS_ANNEXES') = 70000,
+    'T12: état de compte frais annexes';
+  ASSERT (SELECT sum(debit_mga - credit_mga) FROM v_account_statement
+          WHERE enrollment_id = '30000000-0000-0000-0000-000000000001' AND category = 'DROITS_EXAMEN') = 0,
+    'T12: droits d''examen soldés, sans mélange avec les frais annexes';
+END $$;
+
+-- T13. Caisse : une sortie ne peut pas dépasser le solde de son journal ------
+INSERT INTO cash_movement (site_id, direction, category, nature, label, amount_mga, method, agent_id)
+SELECT id, 'ENTREE', 'ECOLAGE', 'Encaissement famille', 'Frais de scolarité octobre', 420000, 'ESPECES',
+       '00000000-0000-0000-0000-000000000001' FROM site WHERE code = 'TMV';
+INSERT INTO cash_movement (site_id, direction, category, nature, label, amount_mga, method, agent_id)
+SELECT id, 'SORTIE', 'ECOLAGE', 'Dépense de fonctionnement', 'Papeterie', 85000, 'ESPECES',
+       '00000000-0000-0000-0000-000000000001' FROM site WHERE code = 'TMV';
+DO $$ BEGIN
+  ASSERT (SELECT balance_mga FROM v_cash_balance WHERE category = 'ECOLAGE') = 335000, 'T13: solde caisse';
+  BEGIN
+    INSERT INTO cash_movement (site_id, direction, category, nature, label, amount_mga, method, agent_id)
+    SELECT id, 'SORTIE', 'DROITS_EXAMEN', 'Reversement centre d''examen', 'Test', 1000, 'VIREMENT',
+           '00000000-0000-0000-0000-000000000001' FROM site WHERE code = 'TMV';
+    RAISE EXCEPTION 'T13: sortie sans solde acceptée';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM LIKE 'T13:%' THEN RAISE; END IF;
+  END;
+END $$;
+
+-- T14. Agents : l'accès ENT suit les dates d'entrée et de sortie --------------
+INSERT INTO staff_member (user_id, site_id, first_name, last_name, job_title, contract, entry_on, exit_on, exit_reason)
+SELECT '00000000-0000-0000-0000-000000000003', id, 'Prof', 'Maths', 'Enseignant.e', 'CDD', '2024-09-02', '2027-07-04', 'Fin de contrat'
+FROM site WHERE code = 'TMV';
+DO $$ DECLARE u uuid := '00000000-0000-0000-0000-000000000003'; BEGIN
+  ASSERT staff_access_active(u, '2026-10-13'),     'T14: en poste';
+  ASSERT NOT staff_access_active(u, '2027-07-05'), 'T14: accès coupé après la sortie';
+  ASSERT NOT staff_access_active(u, '2024-09-01'), 'T14: pas d''accès avant l''entrée';
+  BEGIN
+    UPDATE staff_member SET exit_on = '2024-01-01' WHERE user_id = u;
+    RAISE EXCEPTION 'T14: sortie avant entrée acceptée';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
+-- T15. Paiements : espèces, chèque ou virement ; n° et banque obligatoires hors espèces
+DO $$ DECLARE s uuid := (SELECT id FROM site WHERE code = 'TMV'); a uuid := '00000000-0000-0000-0000-000000000001'; BEGIN
+  INSERT INTO payment (receipt_no, category, site_id, amount_mga, method, received_by) VALUES ('R-T15a', 'ECOLAGE', s, 1000, 'ESPECES', a);
+  INSERT INTO payment (receipt_no, category, site_id, amount_mga, method, instrument_ref, bank_name, received_by)
+  VALUES ('R-T15b', 'ECOLAGE', s, 1000, 'VIREMENT', 'BRD-55120', 'BOA Madagascar', a);
+  BEGIN
+    INSERT INTO payment (receipt_no, category, site_id, amount_mga, method, cheque_status, received_by) VALUES ('R-T15c', 'ECOLAGE', s, 1000, 'CHEQUE', 'A_DEPOSER', a);
+    RAISE EXCEPTION 'T15: chèque sans numéro accepté';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO payment (receipt_no, category, site_id, amount_mga, method, received_by) VALUES ('R-T15d', 'ECOLAGE', s, 1000, 'MVOLA', a);
+    RAISE EXCEPTION 'T15: mobile money accepté';
+  EXCEPTION WHEN invalid_text_representation THEN NULL;
+  END;
+END $$;
+
+-- T16. Nouvel élève arrivé le 12 octobre : son compte commence en octobre ----
+INSERT INTO student (id, first_name, last_name, birth_date) VALUES ('20000000-0000-0000-0000-000000000002', 'Fy', 'RASOAMANANA', '2012-05-02');
+INSERT INTO enrollment (id, student_id, year_id, class_id, enrolled_on)
+SELECT '30000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000002', y.id, '10000000-0000-0000-0000-000000000001', '2026-10-12'
+FROM academic_year y;
+DO $$ BEGIN
+  INSERT INTO invoice (number, enrollment_id, category, period_month, due_on, amount_mga)
+  VALUES ('ECO-T16-OCT', '30000000-0000-0000-0000-000000000002', 'ECOLAGE', '2026-10-01', '2026-10-12', 450000);
+  BEGIN
+    INSERT INTO invoice (number, enrollment_id, category, period_month, due_on, amount_mga)
+    VALUES ('ECO-T16-SEP', '30000000-0000-0000-0000-000000000002', 'ECOLAGE', '2026-09-01', '2026-09-05', 450000);
+    RAISE EXCEPTION 'T16: septembre facturé à un élève arrivé en octobre';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM LIKE 'T16:%' THEN RAISE; END IF;
+  END;
+END $$;
+UPDATE enrollment SET left_on = '2026-10-13' WHERE id = '30000000-0000-0000-0000-000000000002'; -- hors classe pour T17
+
+-- T17. Notes : 4 évaluations minimum, cases remplies, moyenne pondérée, verrouillage
+INSERT INTO teaching_assignment (id, class_id, subject_id, teacher_id)
+SELECT 'c0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', id, '00000000-0000-0000-0000-000000000003'
+FROM subject WHERE code = 'MANAGEMENT';
+INSERT INTO evaluation (id, assignment_id, period_id, eval_type, title, held_on, scale_max, coefficient)
+SELECT v.id::uuid, 'c0000000-0000-0000-0000-000000000001', p.id, v.t, v.title, '2026-10-01', v.scale, v.coef
+FROM period p, (VALUES
+  ('d0000000-0000-0000-0000-000000000001', 'DS', 'DS n°1', 20, 2),
+  ('d0000000-0000-0000-0000-000000000002', 'INTERRO', 'Interro', 10, 1),
+  ('d0000000-0000-0000-0000-000000000003', 'ORAL', 'Oral', 20, 1)) v(id, t, title, scale, coef)
+WHERE p.rank = 1;
+INSERT INTO grade (evaluation_id, enrollment_id, status, value, entered_by) VALUES
+  ('d0000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 'NOTE', 16, '00000000-0000-0000-0000-000000000003'),
+  ('d0000000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-000000000001', 'NOTE', 9,  '00000000-0000-0000-0000-000000000003'),
+  ('d0000000-0000-0000-0000-000000000003', '30000000-0000-0000-0000-000000000001', 'NOTE', 17, '00000000-0000-0000-0000-000000000003');
+DO $$ DECLARE a uuid := 'c0000000-0000-0000-0000-000000000001'; p uuid := (SELECT id FROM period WHERE rank = 1); BEGIN
+  BEGIN
+    PERFORM validate_term(a, p, '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T17: validé avec 3 évaluations';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM LIKE 'T17:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO evaluation (id, assignment_id, period_id, eval_type, title, held_on)
+  VALUES ('d0000000-0000-0000-0000-000000000004', a, p, 'EXPOSE', 'Exposé', '2026-10-08');
+  BEGIN
+    PERFORM validate_term(a, p, '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T17: validé avec une case vide';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM LIKE 'T17:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO grade (evaluation_id, enrollment_id, status, entered_by)
+  VALUES ('d0000000-0000-0000-0000-000000000004', '30000000-0000-0000-0000-000000000001', 'ABSENT', '00000000-0000-0000-0000-000000000003');
+  PERFORM validate_term(a, p, '00000000-0000-0000-0000-000000000003');
+  -- (16 × 2 + 9/10 × 20 + 17) / 4 = 16,75 ; l'absence ne compte pas
+  ASSERT subject_average('30000000-0000-0000-0000-000000000001', a, p) = 16.75, 'T17: moyenne pondérée';
+  BEGIN
+    UPDATE grade SET value = 20 WHERE evaluation_id = 'd0000000-0000-0000-0000-000000000001';
+    RAISE EXCEPTION 'T17: note modifiée après validation';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM LIKE 'T17:%' THEN RAISE; END IF;
+  END;
+END $$;
+
+-- T18. Moyenne générale : Musique (hors moyenne) n'est pas comptée ------------
+INSERT INTO teaching_assignment (id, class_id, subject_id, teacher_id)
+SELECT 'c0000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', id, '00000000-0000-0000-0000-000000000003'
+FROM subject WHERE code = 'MUSIQUE';
+INSERT INTO evaluation (id, assignment_id, period_id, title, held_on)
+SELECT 'd0000000-0000-0000-0000-000000000005', 'c0000000-0000-0000-0000-000000000002', id, 'Chant', '2026-10-02' FROM period WHERE rank = 1;
+INSERT INTO grade (evaluation_id, enrollment_id, status, value, entered_by)
+VALUES ('d0000000-0000-0000-0000-000000000005', '30000000-0000-0000-0000-000000000001', 'NOTE', 20, '00000000-0000-0000-0000-000000000003');
+DO $$ BEGIN
+  ASSERT general_average('30000000-0000-0000-0000-000000000001', (SELECT id FROM period WHERE rank = 1)) = 16.75,
+    'T18: musique exclue de la moyenne générale';
+  ASSERT (SELECT count(*) FROM v_council_grid WHERE enrollment_id = '30000000-0000-0000-0000-000000000001') = 2, 'T18: deux matières dans la grille';
+END $$;
+
+-- T19. Portails : le Bureau voit la vie scolaire, pas l'inverse ; les profs ne voient pas la grille du conseil
+DO $$ BEGIN
+  ASSERT NOT EXISTS (SELECT permission FROM role_permission WHERE role = 'VIE_SCOLAIRE'
+                     EXCEPT SELECT permission FROM role_permission WHERE role = 'BUREAU'), 'T19: Bureau ⊇ Vie scolaire';
+  ASSERT NOT EXISTS (SELECT 1 FROM role_permission WHERE role = 'VIE_SCOLAIRE' AND permission IN ('finance.read', 'council.view')),
+    'T19: la vie scolaire n''a pas accès au Bureau';
+  ASSERT NOT EXISTS (SELECT 1 FROM role_permission WHERE role = 'PROFESSEUR' AND permission = 'council.view'), 'T19: prof sans grille';
+  ASSERT EXISTS (SELECT 1 FROM role_permission WHERE role = 'BUREAU' AND permission = 'council.view'), 'T19: Bureau avec grille';
+END $$;
+
+-- T20. Compétences : base proposée par niveau, reprise ou complétée par l'enseignant
+INSERT INTO school_class (id, year_id, site_id, level_code, track, name)
+SELECT v.id::uuid, y.id, s.id, v.lvl, v.track::track_code, v.name
+FROM academic_year y, site s, (VALUES
+  ('10000000-0000-0000-0000-000000000002', '1RE', 'STMG', '1re STMG'),
+  ('10000000-0000-0000-0000-000000000003', '1RE', 'GENERALE', '1re Générale')) v(id, lvl, track, name)
+WHERE s.code = 'TMV';
+INSERT INTO competency (subject_id, level_code, position, label)
+SELECT id, 'TLE', v.pos, v.label FROM subject, (VALUES (1, 'Analyser une situation de gestion'), (2, 'Argumenter')) v(pos, label)
+WHERE code = 'MANAGEMENT';
+DO $$ DECLARE a uuid := 'c0000000-0000-0000-0000-000000000001'; BEGIN
+  ASSERT adopt_base_competencies(a) = 2, 'T20: base reprise';
+  ASSERT adopt_base_competencies(a) = 0, 'T20: pas de doublon';
+  INSERT INTO competency (subject_id, class_id, author_id, position, label)
+  SELECT subject_id, class_id, teacher_id, 3, 'Construire un raisonnement chiffré' FROM teaching_assignment WHERE id = a;
+  INSERT INTO evaluation_competency (evaluation_id, competency_id, position)
+  SELECT 'd0000000-0000-0000-0000-000000000001', id, 1 FROM competency WHERE label = 'Construire un raisonnement chiffré';
+  BEGIN
+    INSERT INTO evaluation_competency (evaluation_id, competency_id, position)
+    SELECT 'd0000000-0000-0000-0000-000000000001', id, 2 FROM competency WHERE class_id IS NULL AND label = 'Argumenter';
+    RAISE EXCEPTION 'T20: compétence de la base utilisée sans reprise';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM LIKE 'T20:%' THEN RAISE; END IF;
+  END;
+END $$;
+
+-- T21. Téléphone confisqué : restitution sur les jours de classe -------------
+DO $$ DECLARE r timestamptz; BEGIN
+  INSERT INTO phone_confiscation (enrollment_id, reason, confiscated_at, confiscated_by, received_by, duration_code)
+  VALUES ('30000000-0000-0000-0000-000000000001', 'Téléphone en cours', '2026-12-17 10:00+03',
+          '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000002', '5J')
+  RETURNING return_due_at INTO r;
+  ASSERT r = '2027-01-07 10:00+03', 'T21: 5 jours ouvrés après les vacances de Noël = ' || r;
+  INSERT INTO phone_confiscation (enrollment_id, reason, confiscated_at, confiscated_by, received_by, duration_code)
+  VALUES ('30000000-0000-0000-0000-000000000002', 'Téléphone dans la cour', '2026-10-13 15:00+03',
+          '00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000002', '24H')
+  RETURNING return_due_at INTO r;
+  ASSERT r = '2026-10-14 15:00+03', 'T21: 24 h = ' || r;
+  BEGIN
+    UPDATE phone_confiscation SET returned_at = now() WHERE duration_code = '24H';
+    RAISE EXCEPTION 'T21: restitution sans signature acceptée';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
+-- T22. Mesures : motif obligatoire, sanction réservée à la Direction ----------
+DO $$ BEGIN
+  INSERT INTO discipline_measure (enrollment_id, type_code, reason, decided_by)
+  VALUES ('30000000-0000-0000-0000-000000000001', 'RETENUE', 'Travaux non rendus', '00000000-0000-0000-0000-000000000003');
+  BEGIN
+    INSERT INTO discipline_measure (enrollment_id, type_code, reason, decided_by)
+    VALUES ('30000000-0000-0000-0000-000000000001', 'BLAME', 'Insolence', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T22: blâme décidé par un professeur';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM LIKE 'T22:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO discipline_measure (enrollment_id, type_code, reason, decided_by)
+  VALUES ('30000000-0000-0000-0000-000000000001', 'BLAME', 'Insolence', '00000000-0000-0000-0000-000000000001');
+  BEGIN
+    INSERT INTO discipline_measure (enrollment_id, type_code, reason, decided_by)
+    VALUES ('30000000-0000-0000-0000-000000000001', 'RETENUE', '  ', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T22: mesure sans motif acceptée';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  ASSERT (SELECT count(*) FROM v_pending_parent_ack WHERE kind = 'MESURE') = 2, 'T22: deux mesures à confirmer par le parent';
+END $$;
+
+-- T23. Autorisations : réponse parmi les options ; cahier de textes cohérent --
+INSERT INTO guardian (id, first_name, last_name) VALUES ('e0000000-0000-0000-0000-000000000001', 'Hanta', 'RAKOTO');
+DO $$ BEGIN
+  INSERT INTO authorization_answer (enrollment_id, type_code, answer, guardian_id)
+  VALUES ('30000000-0000-0000-0000-000000000001', 'IMAGE', 'Je n''autorise pas', 'e0000000-0000-0000-0000-000000000001');
+  BEGIN
+    INSERT INTO authorization_answer (enrollment_id, type_code, answer, guardian_id)
+    VALUES ('30000000-0000-0000-0000-000000000001', 'SORTIE', 'Peut-être', 'e0000000-0000-0000-0000-000000000001');
+    RAISE EXCEPTION 'T23: réponse hors options acceptée';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM LIKE 'T23:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO homework (assignment_id, session_on, done_in_class, todo, due_on)
+  VALUES ('c0000000-0000-0000-0000-000000000001', '2026-10-13', 'Chapitre 3', 'Questions 1 à 3', '2026-10-15');
+  BEGIN
+    INSERT INTO homework (assignment_id, session_on, done_in_class, todo, due_on)
+    VALUES ('c0000000-0000-0000-0000-000000000001', '2026-10-13', 'Chapitre 3', 'Exercice', '2026-10-12');
+    RAISE EXCEPTION 'T23: devoir à rendre avant la séance accepté';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
+-- T24. Téléphone : récidive → 48 h puis 5 jours ; restitution à un parent uniquement pour 5 jours -
+DO $$ DECLARE d text; BEGIN
+  -- l'élève a déjà une confiscation (T21) : la 2e passe d'office à 48 h…
+  INSERT INTO phone_confiscation (enrollment_id, reason, confiscated_at, confiscated_by, received_by, duration_code)
+  VALUES ('30000000-0000-0000-0000-000000000001', 'Deuxième fois', '2027-01-08 09:00+03',
+          '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000002', '24H')
+  RETURNING duration_code INTO d;
+  ASSERT d = '48H', 'T24: 2e fait non passé à 48 h';
+  -- …et la 3e à 5 jours ouvrés
+  INSERT INTO phone_confiscation (enrollment_id, reason, confiscated_at, confiscated_by, received_by, duration_code)
+  VALUES ('30000000-0000-0000-0000-000000000001', 'Récidive', '2027-01-11 09:00+03',
+          '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000002', '24H')
+  RETURNING duration_code INTO d;
+  ASSERT d = '5J', 'T24: récidive non passée à 5 jours';
+  BEGIN
+    UPDATE phone_confiscation SET returned_at = now(), returned_by = '00000000-0000-0000-0000-000000000002',
+           returned_to = 'Hery', returned_to_role = 'ELEVE'
+    WHERE reason = 'Récidive';
+    RAISE EXCEPTION 'T24: téléphone de 5 jours rendu à l''élève';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE phone_confiscation SET returned_at = now(), returned_by = '00000000-0000-0000-0000-000000000002',
+         returned_to = 'Mme Rakoto (mère)', returned_to_role = 'PARENT'
+  WHERE reason = 'Récidive';
+END $$;
+
+-- T25. Appréciation générale : rédigée par la Direction uniquement -----------
+DO $$ BEGIN
+  BEGIN
+    UPDATE report_card SET general_comment = 'Bon trimestre.', general_comment_by = '00000000-0000-0000-0000-000000000003'
+    WHERE id = '90000000-0000-0000-0000-000000000001';
+    RAISE EXCEPTION 'T25: appréciation générale écrite par un professeur';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM LIKE 'T25:%' THEN RAISE; END IF;
+  END;
+  UPDATE report_card SET general_comment = 'Trimestre sérieux. Les efforts sont à poursuivre.', general_comment_by = '00000000-0000-0000-0000-000000000002'
+  WHERE id = '90000000-0000-0000-0000-000000000001';
+END $$;
+
+-- T26. Pas de SMS ; relance des accusés après 48 h ; stages 3e et 2de --------
+DO $$ BEGIN
+  ASSERT NOT EXISTS (SELECT 1 FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid
+                     WHERE t.typname = 'notif_channel' AND e.enumlabel = 'SMS'), 'T26: canal SMS présent';
+  ASSERT (SELECT bool_and(reminder_due) FROM v_pending_parent_ack WHERE kind = 'MESURE') IS NOT NULL, 'T26: vue des relances';
+  ASSERT (SELECT school_days FROM internship_type WHERE code = 'STAGE_3E') = 5, 'T26: stage de 3e = 5 jours';
+  ASSERT (SELECT school_days FROM internship_type WHERE code = 'STAGE_2DE') = 5, 'T26: stage de 2de = 5 jours (convention de l''école)';
+END $$;
+
+-- T27. Devoir : publication aux élèves puis aux parents (+1 jour), « ramener sur 20 », remarques
+INSERT INTO teaching_assignment (id, class_id, subject_id, teacher_id)
+SELECT 'c0000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000001', id, '00000000-0000-0000-0000-000000000003'
+FROM subject WHERE code = 'MATHS';
+INSERT INTO evaluation (id, assignment_id, period_id, title, held_on, publish_on, scale_max, normalize_to_20, remarks_enabled)
+SELECT v.id::uuid, 'c0000000-0000-0000-0000-000000000003', p.id, v.title, '2026-10-13', v.pub::date, v.scale, v.norm, v.rem
+FROM period p, (VALUES
+  ('d0000000-0000-0000-0000-000000000006', 'Interro /10 en points', '2026-10-14', 10, false, true),
+  ('d0000000-0000-0000-0000-000000000007', 'DS /20', NULL, 20, true, false)) v(id, title, pub, scale, norm, rem)
+WHERE p.rank = 1;
+INSERT INTO grade (evaluation_id, enrollment_id, status, value, remark, entered_by) VALUES
+  ('d0000000-0000-0000-0000-000000000006', '30000000-0000-0000-0000-000000000001', 'NOTE', 8, 'Bonne méthode', '00000000-0000-0000-0000-000000000003'),
+  ('d0000000-0000-0000-0000-000000000007', '30000000-0000-0000-0000-000000000001', 'NOTE', 14, NULL, '00000000-0000-0000-0000-000000000003');
+DO $$ DECLARE r record; BEGIN
+  -- 8 points /10 + 14 /20 → 22/30 → 14,67/20
+  ASSERT subject_average('30000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000003',
+                         (SELECT id FROM period WHERE rank = 1)) = 14.67, 'T27: points non ramenés sur 20';
+  SELECT * INTO r FROM v_published_grades WHERE evaluation_id = 'd0000000-0000-0000-0000-000000000006';
+  ASSERT r.students_from = '2026-10-14' AND r.parents_from = '2026-10-15', 'T27: parents un jour après les élèves';
+  ASSERT r.remark = 'Bonne méthode', 'T27: remarque publiée';
+  ASSERT (SELECT publish_on FROM evaluation WHERE id = 'd0000000-0000-0000-0000-000000000007') = '2026-10-13', 'T27: publication par défaut le jour du devoir';
+  BEGIN
+    UPDATE grade SET remark = 'Non' WHERE evaluation_id = 'd0000000-0000-0000-0000-000000000007';
+    RAISE EXCEPTION 'T27: remarque acceptée sur un devoir sans remarques';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM LIKE 'T27:%' THEN RAISE; END IF;
+  END;
+END $$;
+
+-- T28. Terminale : Parcoursup pour tous, puis Campus France et TLS si visa -----
+UPDATE student SET nationalities = '{MG}' WHERE id = '20000000-0000-0000-0000-000000000001';
+UPDATE student SET nationalities = '{MG,FR}' WHERE id = '20000000-0000-0000-0000-000000000002';
+DO $$ BEGIN
+  ASSERT higher_ed_steps('20000000-0000-0000-0000-000000000001') = '{PARCOURSUP,CAMPUS_FRANCE,TLS}', 'T28: malgache → Parcoursup + Campus France + TLS';
+  ASSERT higher_ed_steps('20000000-0000-0000-0000-000000000002') = '{PARCOURSUP}', 'T28: double nationalité → Parcoursup seul';
+END $$;
+
+-- T29. Politique de Tamatave : 10 j, puis 15 j, puis 10 j après l'étape précédente ;
+--      dernier mois du plan (mai pour la Terminale) : 5 / 5 / 5 --------------------
+UPDATE dunning_policy SET relance_after = 10, warning_after = 15, suspension_after = 10,
+       count_from = 'ETAPE_PRECEDENTE', last_month_relance_after = 5, last_month_warning_after = 5,
+       last_month_suspension_after = 5;
+DO $$ DECLARE
+  y uuid := (SELECT id FROM academic_year WHERE is_current);
+  s uuid := (SELECT id FROM site WHERE code = 'TMV');
+  r record;
+BEGIN
+  SELECT * INTO r FROM dunning_schedule(y, s, '2026-11-05');
+  ASSERT (r.relance_on, r.warning_on, r.suspension_on) = ('2026-11-19'::date, '2026-12-10'::date, '2027-01-07'::date),
+    'T29: novembre = ' || r::text;
+  ASSERT is_last_plan_month('30000000-0000-0000-0000-000000000001', '2027-05-01'), 'T29: mai = dernier mois en Terminale';
+  ASSERT NOT is_last_plan_month('30000000-0000-0000-0000-000000000001', '2027-04-01'), 'T29: avril n''est pas le dernier mois';
+  SELECT * INTO r FROM dunning_schedule(y, s, '2027-05-05', true);
+  ASSERT (r.relance_on, r.warning_on, r.suspension_on) = ('2027-05-13'::date, '2027-05-21'::date, '2027-05-28'::date),
+    'T29: dernier mois = ' || r::text;
+END $$;
+
+-- T30. Pré-inscription : une demande n'est « inscrite » qu'avec sa fiche élève --------
+INSERT INTO pre_registration (id, site_id, child_name, requested_level, contact_name, contact_phone)
+VALUES ('e0000000-0000-0000-0000-000000000001', (SELECT id FROM site WHERE code = 'TMV'),
+        'RASOLOFO Nirina', '5e', 'M. Rasolofo Fidy', '+261 33 12 650 41');
+DO $$ BEGIN
+  BEGIN
+    UPDATE pre_registration SET status = 'INSCRITE' WHERE id = 'e0000000-0000-0000-0000-000000000001';
+    RAISE EXCEPTION 'T30: inscrite sans fiche élève';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE pre_registration SET status = 'INSCRITE', student_id = '20000000-0000-0000-0000-000000000001'
+   WHERE id = 'e0000000-0000-0000-0000-000000000001';
+  BEGIN
+    INSERT INTO pre_registration (site_id, child_name, requested_level, contact_name)
+    VALUES ((SELECT id FROM site WHERE code = 'TMV'), 'X', '6e', 'Sans contact');
+    RAISE EXCEPTION 'T30: demande sans téléphone ni e-mail acceptée';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
+-- T31. Spécialités : 2 en Terminale générale, aucune en STMG ---------------------
+INSERT INTO school_class (id, year_id, site_id, level_code, track, name)
+SELECT '10000000-0000-0000-0000-0000000000a1', y.id, s.id, 'TLE', 'GENERALE', 'Tle Générale'
+FROM academic_year y, site s WHERE s.code = 'TMV';
+INSERT INTO student (id, first_name, last_name, birth_date) VALUES ('20000000-0000-0000-0000-0000000000a1', 'Volana', 'RAZAFY', '2008-12-28');
+INSERT INTO enrollment (id, student_id, year_id, class_id, enrolled_on)
+SELECT '30000000-0000-0000-0000-0000000000a1', '20000000-0000-0000-0000-0000000000a1', y.id,
+       '10000000-0000-0000-0000-0000000000a1', '2026-09-01'
+FROM academic_year y WHERE y.is_current;
+DO $$ DECLARE e uuid := (SELECT id FROM enrollment WHERE class_id = '10000000-0000-0000-0000-0000000000a1'); BEGIN
+  ASSERT EXISTS (SELECT 1 FROM v_specialty_incomplete WHERE enrollment_id = e), 'T31: choix incomplet signalé';
+  INSERT INTO enrollment_specialty VALUES (e, 'MATHS'), (e, 'PC');
+  ASSERT NOT EXISTS (SELECT 1 FROM v_specialty_incomplete WHERE enrollment_id = e), 'T31: 2 spécialités = complet';
+  BEGIN
+    INSERT INTO enrollment_specialty VALUES (e, 'SVT');
+    RAISE EXCEPTION 'T31: troisième spécialité acceptée en Terminale';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T31:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    INSERT INTO enrollment_specialty VALUES ('30000000-0000-0000-0000-000000000001', 'MATHS');
+    RAISE EXCEPTION 'T31: spécialité acceptée en STMG';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T31:%' THEN RAISE; END IF;
+  END;
+END $$;
+
+-- T32. Pas de paiement partiel : une facture se règle en entier -------------------
+DO $$ DECLARE i uuid; p uuid; BEGIN
+  INSERT INTO invoice (number, enrollment_id, category, due_on, amount_mga)
+  VALUES ('ANX-T32', '30000000-0000-0000-0000-000000000001', 'FRAIS_ANNEXES', '2026-10-13', 35000) RETURNING id INTO i;
+  INSERT INTO payment (receipt_no, category, site_id, amount_mga, method, received_by)
+  SELECT 'R-T32', 'FRAIS_ANNEXES', id, 20000, 'ESPECES', '00000000-0000-0000-0000-000000000001' FROM site WHERE code = 'TMV' RETURNING id INTO p;
+  BEGIN
+    INSERT INTO payment_allocation VALUES (p, i, 20000);
+    RAISE EXCEPTION 'T32: paiement partiel accepté';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T32:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO payment_allocation VALUES (p, i, 35000); -- règlement complet accepté
+  ASSERT NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'fee_item' AND column_name = 'free_amount'), 'T32: plus de montant libre';
+END $$;
+
+-- T33. Fiche signalétique signée en ligne avec la signature de référence du parent ---
+DO $$ DECLARE g uuid := 'e0000000-0000-0000-0000-000000000001'; other uuid; sig uuid; sig2 uuid; f uuid; BEGIN
+  INSERT INTO student_guardian (student_id, guardian_id, relationship)
+  SELECT student_id, g, 'Mère' FROM enrollment WHERE id = '30000000-0000-0000-0000-000000000001' ON CONFLICT DO NOTHING;
+  INSERT INTO guardian_signature (guardian_id, image_key) VALUES (g, 'sig/hanta.png') RETURNING id INTO sig;
+  BEGIN
+    INSERT INTO guardian_signature (guardian_id, image_key) VALUES (g, 'sig/hanta-2.png');
+    RAISE EXCEPTION 'T33: deux signatures de référence actives';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  INSERT INTO student_record_form (enrollment_id, data, auth_image, auth_hospital, accepted_terms, signed_place)
+  VALUES ('30000000-0000-0000-0000-000000000001', '{"allergies": "Aucune"}', true, true, true, 'Tamatave') RETURNING id INTO f;
+  INSERT INTO student_record_signature (form_id, guardian_id, signature_id) VALUES (f, g, sig);
+  -- un autre adulte, non responsable de l'élève, ne peut pas signer
+  INSERT INTO guardian (first_name, last_name) VALUES ('Inconnu', 'TEST') RETURNING id INTO other;
+  INSERT INTO guardian_signature (guardian_id, image_key) VALUES (other, 'sig/x.png') RETURNING id INTO sig2;
+  BEGIN
+    INSERT INTO student_record_signature (form_id, guardian_id, signature_id) VALUES (f, other, sig2);
+    RAISE EXCEPTION 'T33: signature d''un non-responsable acceptée';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T33:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    INSERT INTO student_record_form (enrollment_id, data, auth_image, auth_hospital, accepted_terms, signed_place)
+    VALUES ('30000000-0000-0000-0000-0000000000a1', '{}', false, false, false, 'Tamatave');
+    RAISE EXCEPTION 'T33: fiche sans acceptation du règlement';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
+-- T34. Annulation d'un reçu : motif obligatoire, décision par la Direction seule ------
+DO $$ DECLARE p uuid := (SELECT id FROM payment WHERE receipt_no = 'R-T32'); BEGIN
+  BEGIN
+    INSERT INTO payment_cancellation (payment_id, reason, requested_by) VALUES (p, 'erreur', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T34: motif trop court accepté';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO payment_cancellation (payment_id, reason, requested_by) VALUES (p, 'Erreur d''élève : payé pour le frère', '00000000-0000-0000-0000-000000000003');
+  BEGIN
+    UPDATE payment_cancellation SET decided_by = '00000000-0000-0000-0000-000000000003', decided_at = now(), approved = true WHERE payment_id = p;
+    RAISE EXCEPTION 'T34: décision prise hors Direction';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T34:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    UPDATE payment_cancellation SET decided_by = '00000000-0000-0000-0000-000000000002', decided_at = now(), approved = false WHERE payment_id = p;
+    RAISE EXCEPTION 'T34: refus sans explication accepté';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE payment_cancellation SET decided_by = '00000000-0000-0000-0000-000000000002', decided_at = now(), approved = true WHERE payment_id = p;
+END $$;
+
+-- T35. Réductions : accordées par la Direction seule, taux plafonné ------------------
+INSERT INTO reduction_type VALUES ('REDOUBLANT_TLE', 'Redoublant en Terminale', 25, 50), ('PROCHE', 'Exonération famille et proches', 100, 0),
+  ('PERSONNEL', 'Enfant du personnel', NULL, NULL);
+DO $$ BEGIN
+  BEGIN
+    INSERT INTO reduction_type VALUES ('X', 'Trop', 120, 0);
+    RAISE EXCEPTION 'T35: taux supérieur à 100 pour cent accepté';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO enrollment_reduction (enrollment_id, type_code, motif, granted_by)
+    VALUES ('30000000-0000-0000-0000-0000000000a1', 'REDOUBLANT_TLE', 'Redouble la Terminale', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T35: réduction accordée hors Direction';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T35:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    INSERT INTO enrollment_reduction (enrollment_id, type_code, motif, granted_by)
+    VALUES ('30000000-0000-0000-0000-0000000000a1', 'PERSONNEL', 'Fils de Mme Soa', '00000000-0000-0000-0000-000000000001');
+    RAISE EXCEPTION 'T35: réduction sans taux accordée';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T35:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO enrollment_reduction (enrollment_id, type_code, motif, granted_by)
+  VALUES ('30000000-0000-0000-0000-0000000000a1', 'REDOUBLANT_TLE', 'Redouble la Terminale', '00000000-0000-0000-0000-000000000001');
+END $$;
+
+-- T36. Manuels et remise du bulletin : un manuel perdu non réglé bloque la remise ------
+DO $$ DECLARE t uuid; e uuid := '30000000-0000-0000-0000-0000000000a1'; BEGIN
+  INSERT INTO textbook (site_id, title, subject, level_codes, category, is_returnable, is_photocopy, binding, price_mga, replacement_price_mga)
+  SELECT id, 'Philosophie Terminale', 'Philosophie', '{TLE}', 'MANUEL', true, false, NULL, 25000, 66000 FROM site WHERE code = 'TMV' RETURNING id INTO t;
+  -- manuel de spécialité SVT : l'élève suit Maths et PC (T31), donc refusé
+  INSERT INTO textbook (id, site_id, title, subject, level_codes, category, is_returnable, specialty, is_photocopy, binding, price_mga, replacement_price_mga)
+  SELECT 'a0000000-0000-0000-0000-000000000001', id, 'Spécialité SVT Terminale', 'SVT', '{TLE}', 'MANUEL', true, 'SVT', false, NULL, 25000, 78000 FROM site WHERE code = 'TMV';
+  BEGIN
+    INSERT INTO textbook_loan (textbook_id, enrollment_id, state_out, issued_on, due_back) VALUES ('a0000000-0000-0000-0000-000000000001', e, 'NEUF', '2026-09-07', '2027-06-30');
+    RAISE EXCEPTION 'T36: manuel de spécialité prêté à un élève qui ne la suit pas';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T36:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    INSERT INTO textbook (site_id, title, subject, level_codes, category, is_returnable, is_photocopy, binding, price_mga)
+    SELECT id, 'Manuel sans prix de perte', 'Français', '{TLE}', 'MANUEL', true, false, NULL, 25000 FROM site WHERE code = 'TMV';
+    RAISE EXCEPTION 'T36: manuel à rendre sans prix de perte';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO textbook_loan (textbook_id, enrollment_id, state_out, issued_on, due_back) VALUES (t, e, 'BON', '2026-09-07', '2027-06-30');
+  BEGIN
+    INSERT INTO textbook_loan (textbook_id, enrollment_id, state_out, issued_on, due_back) VALUES (t, e, 'NEUF', '2026-09-08', '2027-06-30');
+    RAISE EXCEPTION 'T36: deux exemplaires du même manuel prêtés';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  UPDATE textbook_loan SET lost_on = '2026-10-08' WHERE enrollment_id = e;
+  ASSERT EXISTS (SELECT 1 FROM v_bulletin_blocked WHERE enrollment_id = e AND reason = 'MANUEL_DU'), 'T36: manuel perdu non réglé = bulletin bloqué';
+  BEGIN
+    INSERT INTO bulletin_handover (enrollment_id, term, given_at, given_to, given_by) VALUES (e, 1, now(), 'Mme Razafy', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T36: bulletin remis malgré le blocage';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T36:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    INSERT INTO bulletin_handover (enrollment_id, term, given_at, given_to, given_by, override_by, override_reason)
+    VALUES (e, 1, now(), 'Mme Razafy', '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000003', 'Échéancier');
+    RAISE EXCEPTION 'T36: blocage levé hors Direction';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T36:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO bulletin_handover (enrollment_id, term, given_at, given_to, given_by, override_by, override_reason)
+  VALUES (e, 1, now(), 'Mme Razafy', '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000001', 'Échéancier accordé');
+END $$;
+
+-- T37. Clôture de caisse : écart expliqué ; plus d'encaissement après clôture -----------
+DO $$ DECLARE s uuid := (SELECT id FROM site WHERE code = 'TMV'); BEGIN
+  BEGIN
+    INSERT INTO cash_closing (site_id, day, expected_mga, counted_mga, counts, closed_by)
+    VALUES (s, current_date, 535000, 530000, '{"20000": 26, "5000": 2}', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T37: écart sans explication accepté';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO cash_closing (site_id, day, expected_mga, counted_mga, counts, explanation, closed_by)
+  VALUES (s, current_date, 535000, 530000, '{"20000": 26, "5000": 2}', 'Monnaie rendue en trop à un parent', '00000000-0000-0000-0000-000000000003');
+  BEGIN
+    INSERT INTO payment (receipt_no, category, site_id, amount_mga, method, received_by) VALUES ('R-T37', 'ECOLAGE', s, 1000, 'ESPECES', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T37: encaissement après clôture accepté';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T37:%' THEN RAISE; END IF;
+  END;
+  -- versements prévus tous les jours ouvrés : sans versement hier, le versement est signalé oublié
+  INSERT INTO deposit_schedule (site_id, weekdays) VALUES (s, '{1,2,3,4,5}');
+  IF extract(isodow FROM current_date) BETWEEN 2 AND 6 THEN
+    ASSERT EXISTS (SELECT 1 FROM v_deposit_missed WHERE site_id = s), 'T37: versement oublié signalé';
+  END IF;
+  INSERT INTO bank_deposit (site_id, amount_mga, bank_name, slip_no, deposited_on, recorded_by)
+  VALUES (s, 500000, 'BOA Madagascar', '5530', current_date, '00000000-0000-0000-0000-000000000003');
+  ASSERT NOT EXISTS (SELECT 1 FROM v_deposit_missed WHERE site_id = s), 'T37: versement saisi';
+  BEGIN
+    INSERT INTO bank_deposit (site_id, amount_mga, bank_name, slip_no, deposited_on, recorded_by)
+    VALUES (s, 500000, 'BOA Madagascar', '5530', current_date, '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T37: même bordereau enregistré deux fois';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+END $$;
+
+-- T38. Salaires : payés par le secrétariat sans attendre la Direction, émargement pour les espèces ---
+DO $$ DECLARE s uuid := (SELECT id FROM site WHERE code = 'TMV'); st uuid := (SELECT id FROM staff_member LIMIT 1); BEGIN
+  INSERT INTO app_user (id, email, first_name, last_name) VALUES ('00000000-0000-0000-0000-000000000008', 'secretariat@exemple.mg', 'Secrétariat', 'TMV');
+  INSERT INTO user_role (user_id, role, site_id) VALUES ('00000000-0000-0000-0000-000000000008', 'BUREAU', s);
+  INSERT INTO payroll_month (site_id, month) VALUES (s, '2026-10-01');
+  INSERT INTO hourly_rate (staff_id, effective_from, rate_mga) VALUES (st, '2024-09-01', 18000), (st, '2025-09-01', 20000), (st, '2026-09-01', 22000), (st, '2027-01-01', 24000);
+  ASSERT rate_on(st, '2026-06-15') = 20000, 'T38: taux en vigueur en juin 2026';
+  INSERT INTO payroll_line (site_id, month, staff_id, hours_done, hours_planned) VALUES (s, '2026-10-01', st, 74, 76);
+  ASSERT (SELECT hourly_mga FROM payroll_line WHERE staff_id = st) = 22000, 'T38: taux d''octobre 2026 appliqué';
+  ASSERT (SELECT net_mga FROM payroll_line WHERE staff_id = st) = 1628000, 'T38: 74 h × 22 000 Ar';
+  ASSERT (SELECT method FROM payroll_line WHERE staff_id = st) = 'ESPECES', 'T38: espèces par défaut';
+  ASSERT (SELECT contract FROM staff_member WHERE id = st) = 'VACATAIRE', 'T38: professeur vacataire automatiquement';
+  BEGIN
+    UPDATE payroll_line SET paid_at = now(), paid_by = '00000000-0000-0000-0000-000000000003', signature_key = 'sig/x.png' WHERE staff_id = st;
+    RAISE EXCEPTION 'T38: salaire payé par un professeur';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T38:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    UPDATE payroll_month SET validated_by = '00000000-0000-0000-0000-000000000003', validated_at = now() WHERE site_id = s;
+    RAISE EXCEPTION 'T38: état de paie validé hors Direction';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T38:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    UPDATE payroll_line SET paid_at = now(), paid_by = '00000000-0000-0000-0000-000000000008' WHERE staff_id = st;
+    RAISE EXCEPTION 'T38: espèces sans émargement';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  -- payé par le secrétariat, sans validation préalable de la Direction
+  UPDATE payroll_line SET paid_at = now(), paid_by = '00000000-0000-0000-0000-000000000008', signature_key = 'sig/x.png' WHERE staff_id = st;
+END $$;
+
+-- T39. Engagements : au plus 2 délégués par classe -----------------------------------
+DO $$ DECLARE e2 uuid; e3 uuid; BEGIN
+  INSERT INTO student (id, first_name, last_name, birth_date) VALUES ('20000000-0000-0000-0000-0000000000b2', 'Lova', 'RABE', '2009-01-01'), ('20000000-0000-0000-0000-0000000000b3', 'Tiana', 'RASOA', '2009-02-02');
+  INSERT INTO enrollment (student_id, year_id, class_id, enrolled_on) SELECT '20000000-0000-0000-0000-0000000000b2', id, '10000000-0000-0000-0000-000000000001', '2026-09-01' FROM academic_year WHERE is_current RETURNING id INTO e2;
+  INSERT INTO enrollment (student_id, year_id, class_id, enrolled_on) SELECT '20000000-0000-0000-0000-0000000000b3', id, '10000000-0000-0000-0000-000000000001', '2026-09-01' FROM academic_year WHERE is_current RETURNING id INTO e3;
+  INSERT INTO student_engagement VALUES ('30000000-0000-0000-0000-000000000001', 'DELEGUE'), (e2, 'DELEGUE');
+  BEGIN
+    INSERT INTO student_engagement VALUES (e3, 'DELEGUE');
+    RAISE EXCEPTION 'T39: troisième délégué accepté';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T39:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO student_engagement VALUES (e3, 'SUPPLEANT'), (e3, 'ASSR1'), (e3, 'NUMERIQUE');
+END $$;
+
+-- T40. Salle d'étude : un mois pour l'élève, prolongation avec le livre, professeur sans date limite ---
+DO $$ DECLARE b uuid; l uuid; BEGIN
+  INSERT INTO library_book (site_id, kind, title, author, editor, collection, year, isbn)
+  SELECT id, 'ROMAN', 'L''Étranger', 'Albert Camus', 'Gallimard', 'Folio', 1972, '9782070360024' FROM site WHERE code = 'TMV' RETURNING id INTO b;
+  INSERT INTO library_copy (code, book_id) VALUES ('ROM-0001', b), ('ROM-0002', b);
+  BEGIN
+    INSERT INTO library_copy (code, book_id) VALUES ('ROMAN-1', b);
+    RAISE EXCEPTION 'T40: cote mal formée acceptée';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO library_loan (copy_code, enrollment_id, out_on, due_on) VALUES ('ROM-0001', '30000000-0000-0000-0000-0000000000a1', current_date - 40, current_date - 10) RETURNING id INTO l;
+  ASSERT EXISTS (SELECT 1 FROM v_bulletin_blocked WHERE enrollment_id = '30000000-0000-0000-0000-0000000000a1' AND reason = 'LIVRE'), 'T40: livre en retard = bulletin bloqué';
+  BEGIN
+    INSERT INTO library_loan (copy_code, staff_id, out_on, due_on) VALUES ('ROM-0001', (SELECT id FROM staff_member LIMIT 1), current_date, NULL);
+    RAISE EXCEPTION 'T40: exemplaire prêté deux fois';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  BEGIN
+    PERFORM renew_library_loan(l, false);
+    RAISE EXCEPTION 'T40: prolongation sans le livre';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T40:%' THEN RAISE; END IF;
+  END;
+  ASSERT renew_library_loan(l, true) = current_date + 30, 'T40: prolongé d''un mois';
+  BEGIN
+    INSERT INTO library_loan (copy_code, staff_id, out_on, due_on) VALUES ('ROM-0002', (SELECT id FROM staff_member LIMIT 1), current_date, current_date + 30);
+    RAISE EXCEPTION 'T40: date limite imposée à un professeur';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO library_loan (copy_code, staff_id, out_on) VALUES ('ROM-0002', (SELECT id FROM staff_member LIMIT 1), current_date);
+END $$;
+
+-- T41. Avis du pilote : message obligatoire ----------------------------------------------
+DO $$ BEGIN
+  INSERT INTO feedback (user_id, role, screen, kind, message) VALUES ('00000000-0000-0000-0000-000000000003', 'PROFESSEUR', 'Notes & appréciations', 'QUESTION', 'Peut-on corriger une note après validation ?');
+  BEGIN
+    INSERT INTO feedback (user_id, role, screen, kind, message) VALUES ('00000000-0000-0000-0000-000000000003', 'PROFESSEUR', 'Notes', 'IDEE', 'ok');
+    RAISE EXCEPTION 'T41: avis vide accepté';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
+-- T42. Un accès par parent ; demandes en ligne déposées par un responsable, traitées par le bureau ---
+DO $$ DECLARE g1 uuid; g2 uuid; g3 uuid; u1 uuid; r uuid; BEGIN
+  INSERT INTO guardian (first_name, last_name, phone_e164) VALUES ('Lalao', 'RAKOTO', '+261340000001') RETURNING id INTO g1;
+  INSERT INTO guardian (first_name, last_name, phone_e164) VALUES ('Fidy', 'RAKOTO', '+261320000002') RETURNING id INTO g2;
+  INSERT INTO guardian (first_name, last_name) VALUES ('Voisin', 'SANS LIEN') RETURNING id INTO g3;
+  INSERT INTO student_guardian (student_id, guardian_id, relationship) VALUES
+    ('20000000-0000-0000-0000-000000000001', g1, 'Mère'), ('20000000-0000-0000-0000-000000000001', g2, 'Père');
+  -- parent sans e-mail : compte au téléphone ; un compte ne sert qu'à un seul parent
+  INSERT INTO app_user (first_name, last_name, phone_e164, auth_provider) VALUES ('Lalao', 'RAKOTO', '+261340000001', 'PASSWORD') RETURNING id INTO u1;
+  UPDATE guardian SET user_id = u1 WHERE id = g1;
+  BEGIN
+    UPDATE guardian SET user_id = u1 WHERE id = g2;
+    RAISE EXCEPTION 'T42: deux parents sur un même accès';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO app_user (first_name, last_name) VALUES ('Sans', 'Identifiant');
+    RAISE EXCEPTION 'T42: compte sans e-mail ni téléphone';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO guardian_access_code (guardian_id, code_hash, issued_by) VALUES (g2, 'h1', '00000000-0000-0000-0000-000000000001');
+  BEGIN
+    INSERT INTO guardian_access_code (guardian_id, code_hash, issued_by) VALUES (g2, 'h2', '00000000-0000-0000-0000-000000000001');
+    RAISE EXCEPTION 'T42: deux codes actifs pour un parent';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  -- réinscription en ligne par la mère, avec une pièce jointe
+  INSERT INTO family_request (kind, student_id, submitted_by, payload) VALUES ('REINSCRIPTION', '20000000-0000-0000-0000-000000000001', g1, '{"decision":"REINSCRIT"}') RETURNING id INTO r;
+  INSERT INTO family_document (request_id, document_code, file_key) VALUES (r, 'BULLETINS', 'docs/b.pdf');
+  BEGIN
+    INSERT INTO family_request (kind, student_id, submitted_by, payload) VALUES ('MISE_A_JOUR', '20000000-0000-0000-0000-000000000001', g3, '{}');
+    RAISE EXCEPTION 'T42: demande d''une personne qui n''est pas responsable';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T42:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    UPDATE family_request SET status = 'VALIDEE', decided_by = '00000000-0000-0000-0000-000000000003' WHERE id = r;
+    RAISE EXCEPTION 'T42: demande validée par un professeur';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T42:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    UPDATE family_request SET status = 'REFUSEE', decided_by = '00000000-0000-0000-0000-000000000001' WHERE id = r;
+    RAISE EXCEPTION 'T42: refus sans motif';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE family_request SET status = 'VALIDEE', decided_by = '00000000-0000-0000-0000-000000000001' WHERE id = r;
+  ASSERT (SELECT decided_at IS NOT NULL FROM family_request WHERE id = r), 'T42: date de décision';
+END $$;
+
+-- T43. Signature d'un document : demandée par le bureau, signée par la Direction seule ---------
+DO $$ DECLARE r uuid; sig uuid; BEGIN
+  INSERT INTO app_user (id, email, first_name, last_name) VALUES ('00000000-0000-0000-0000-000000000009', 'bureau@exemple.mg', 'Bureau', 'TMV');
+  INSERT INTO user_role (user_id, role, site_id) SELECT '00000000-0000-0000-0000-000000000009', 'BUREAU', id FROM site WHERE code = 'TMV';
+  INSERT INTO official_signature (user_id, image_key) VALUES ('00000000-0000-0000-0000-000000000002', 'sig/adjointe.png') RETURNING id INTO sig;
+  INSERT INTO signature_request (document_kind, student_id, requested_by, reason)
+  VALUES ('CERTIFICAT_SCOLARITE', '20000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000009', 'Dossier de visa') RETURNING id INTO r;
+  BEGIN
+    UPDATE signature_request SET status = 'SIGNEE', signed_by = '00000000-0000-0000-0000-000000000009', signature_id = sig WHERE id = r;
+    RAISE EXCEPTION 'T43: signé par le bureau';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T43:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    UPDATE signature_request SET sent_to = 'famille@exemple.mg', sent_at = now() WHERE id = r;
+    RAISE EXCEPTION 'T43: envoyé avant signature';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE signature_request SET status = 'SIGNEE', signed_by = '00000000-0000-0000-0000-000000000002', signature_id = sig WHERE id = r;
+  ASSERT (SELECT length(verification_code) = 9 AND signed_at IS NOT NULL FROM signature_request WHERE id = r), 'T43: code de vérification et date';
+  UPDATE signature_request SET sent_to = 'famille@exemple.mg', sent_at = now() WHERE id = r;
+END $$;
+
+-- T44. Trésorerie : dépenses (photo de la facture au-delà de 100 000 Ar) et tableau de bord -------
+DO $$ DECLARE s uuid := (SELECT id FROM site WHERE code = 'TMV'); f uuid; before_net bigint; before_committed bigint; BEGIN
+  INSERT INTO expense_category VALUES ('LOYER', 'Loyer'), ('FOURNITURES', 'Fournitures');
+  INSERT INTO supplier (site_id, name, category_code) VALUES (s, 'Bailleur', 'LOYER') RETURNING id INTO f;
+  SELECT net_mga, committed_mga INTO before_net, before_committed FROM v_treasury WHERE site_id = s;
+  BEGIN
+    INSERT INTO expense (site_id, supplier_id, category_code, label, amount_mga, status, paid_on, method, created_by)
+    VALUES (s, f, 'LOYER', 'Loyer d''octobre', 2500000, 'PAYE', '2026-10-05', 'VIREMENT', '00000000-0000-0000-0000-000000000008');
+    RAISE EXCEPTION 'T44: grosse dépense sans photo de la facture';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO expense (site_id, supplier_id, category_code, label, amount_mga, status, paid_on, method, attachment_key, created_by)
+  VALUES (s, f, 'LOYER', 'Loyer d''octobre', 2500000, 'PAYE', '2026-10-05', 'VIREMENT', 'factures/loyer-10.jpg', '00000000-0000-0000-0000-000000000008');
+  INSERT INTO expense (site_id, category_code, label, amount_mga, status, due_on, created_by)
+  VALUES (s, 'FOURNITURES', 'Ramettes', 85000, 'EN_ATTENTE', '2026-10-20', '00000000-0000-0000-0000-000000000008');
+  BEGIN
+    INSERT INTO expense (site_id, category_code, label, amount_mga, status, created_by) VALUES (s, 'FOURNITURES', 'Encre', 30000, 'EN_ATTENTE', '00000000-0000-0000-0000-000000000008');
+    RAISE EXCEPTION 'T44: dépense à payer sans échéance';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  ASSERT (SELECT net_mga FROM v_treasury WHERE site_id = s) = before_net - 2500000, 'T44: loyer payé déduit de la trésorerie';
+  ASSERT (SELECT committed_mga FROM v_treasury WHERE site_id = s) = before_committed + 85000, 'T44: ramettes engagées';
+END $$;
+
+-- T45. Ajustements : matricule, avertissement téléphone, propriétaire, appréciation générale,
+--      retrait des bulletins, pistes d'orientation, campagne de pré-inscription ----------------
+DO $$ DECLARE e2 uuid; r uuid; p uuid; BEGIN
+  UPDATE enrollment SET matricule = 'TSTMG-001' WHERE id = '30000000-0000-0000-0000-000000000001';
+  BEGIN
+    UPDATE enrollment SET matricule = 'TSTMG-001' WHERE id = '30000000-0000-0000-0000-0000000000a1';
+    RAISE EXCEPTION 'T45: matricule attribué deux fois';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  BEGIN
+    UPDATE enrollment SET matricule = 'tg 1' WHERE id = '30000000-0000-0000-0000-0000000000a1';
+    RAISE EXCEPTION 'T45: matricule mal formé';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  -- avertissement : pas de durée, téléphone non gardé
+  INSERT INTO phone_confiscation (enrollment_id, action, reason, confiscated_at, confiscated_by)
+  VALUES ('30000000-0000-0000-0000-0000000000a1', 'AVERTISSEMENT', 'Téléphone sorti en classe', now(), '00000000-0000-0000-0000-000000000003');
+  BEGIN
+    INSERT INTO phone_confiscation (enrollment_id, action, reason, confiscated_at, confiscated_by, duration_code)
+    VALUES ('30000000-0000-0000-0000-0000000000a1', 'AVERTISSEMENT', 'x', now(), '00000000-0000-0000-0000-000000000003', '24H');
+    RAISE EXCEPTION 'T45: avertissement avec une durée';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  -- confiscation du téléphone d'un autre élève, 48 h
+  INSERT INTO phone_confiscation (enrollment_id, owner_enrollment_id, reason, confiscated_at, confiscated_by, received_by, duration_code)
+  VALUES ('30000000-0000-0000-0000-0000000000a1', '30000000-0000-0000-0000-000000000001', 'Téléphone d''un camarade', '2026-10-16 10:00+03',
+          '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000002', '48H') RETURNING id INTO p;
+  ASSERT (SELECT (return_due_at AT TIME ZONE 'Indian/Antananarivo')::date FROM phone_confiscation WHERE id = p) = '2026-10-20', 'T45: 48 h = 2 jours de classe';
+  -- l'avertissement est une punition : un professeur peut le donner
+  INSERT INTO discipline_measure (enrollment_id, type_code, reason, decided_by, decided_on)
+  VALUES ('30000000-0000-0000-0000-0000000000a1', 'AVERTISSEMENT', 'Bavardages répétés', '00000000-0000-0000-0000-000000000003', current_date);
+  -- appréciation générale : tapée par le secrétariat, validée par la Direction
+  SELECT id INTO r FROM report_card WHERE general_comment IS NOT NULL LIMIT 1;
+  UPDATE report_card SET general_comment = 'Trimestre correct ; doit gagner en régularité.', general_comment_by = '00000000-0000-0000-0000-000000000008',
+         general_comment_status = 'A_VALIDER', general_comment_validated_by = NULL WHERE id = r;
+  BEGIN
+    UPDATE report_card SET general_comment_status = 'VALIDE', general_comment_validated_by = '00000000-0000-0000-0000-000000000008' WHERE id = r;
+    RAISE EXCEPTION 'T45: validée par le secrétariat';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T45:%' THEN RAISE; END IF;
+  END;
+  UPDATE report_card SET general_comment_status = 'VALIDE', general_comment_validated_by = '00000000-0000-0000-0000-000000000001' WHERE id = r;
+  UPDATE report_card SET general_comment = 'Trimestre correct ; doit gagner en régularité et en rigueur.', general_comment_by = '00000000-0000-0000-0000-000000000008' WHERE id = r;
+  ASSERT (SELECT general_comment_status FROM report_card WHERE id = r) = 'A_VALIDER', 'T45: texte modifié = à revalider';
+  -- retrait des bulletins, pistes, campagne
+  INSERT INTO bulletin_release (period_id, class_id, available_from, pickup_days, set_by)
+  SELECT id, '10000000-0000-0000-0000-000000000001', '2026-12-14', 14, '00000000-0000-0000-0000-000000000001' FROM period LIMIT 1;
+  INSERT INTO orientation_track (enrollment_id, destination) VALUES ('30000000-0000-0000-0000-000000000001', 'FRANCE'), ('30000000-0000-0000-0000-000000000001', 'CANADA');
+  BEGIN
+    INSERT INTO orientation_track (enrollment_id, destination) VALUES ('30000000-0000-0000-0000-000000000001', 'CANADA');
+    RAISE EXCEPTION 'T45: deux pistes Canada ouvertes';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  BEGIN
+    UPDATE orientation_track SET closed_on = current_date WHERE destination = 'FRANCE';
+    RAISE EXCEPTION 'T45: piste clôturée sans motif';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE orientation_track SET closed_on = current_date, close_reason = 'Ne part pas en France' WHERE destination = 'FRANCE';
+  INSERT INTO pre_registration_campaign SELECT id, '2027-2028', '2027-05-03', '2027-07-16' FROM site WHERE code = 'TMV';
+  BEGIN
+    INSERT INTO pre_registration_campaign SELECT id, '2028-2029', '2028-07-16', '2028-05-03' FROM site WHERE code = 'TMV';
+    RAISE EXCEPTION 'T45: campagne qui ferme avant d''ouvrir';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
+-- T46. Réservations de livres : une seule par personne et par livre, au plus 30 jours à l'avance -----
+DO $$ DECLARE b uuid := (SELECT book_id FROM library_copy WHERE code = 'ROM-0001'); BEGIN
+  INSERT INTO library_reservation (book_id, enrollment_id, wanted_on, status, hold_until) VALUES (b, '30000000-0000-0000-0000-000000000001', current_date + 2, 'A_RETIRER', current_date + 4);
+  BEGIN
+    INSERT INTO library_reservation (book_id, enrollment_id, wanted_on) VALUES (b, '30000000-0000-0000-0000-000000000001', current_date + 5);
+    RAISE EXCEPTION 'T46: deux réservations du même livre';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO library_reservation (book_id, staff_id, wanted_on) VALUES (b, (SELECT id FROM staff_member LIMIT 1), current_date + 60);
+    RAISE EXCEPTION 'T46: réservation à deux mois';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    UPDATE library_reservation SET status = 'REMISE' WHERE book_id = b;
+    RAISE EXCEPTION 'T46: remise sans prêt';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO library_reservation (book_id, staff_id, wanted_on) VALUES (b, (SELECT id FROM staff_member LIMIT 1), current_date);
+END $$;
+
+-- T47. Heures des professeurs et absences (travail laissé) ; ressources internes -------------------
+DO $$ DECLARE sl uuid; r record; BEGIN
+  INSERT INTO timetable_slot (assignment_id, weekday, starts_at, ends_at, valid_during)
+  VALUES ('c0000000-0000-0000-0000-000000000001', 1, '07:00', '09:00', daterange('2026-09-01', '2027-07-05')) RETURNING id INTO sl;
+  BEGIN
+    INSERT INTO teacher_absence (slot_id, on_date, reason, work_kind, declared_by) VALUES (sl, '2026-10-13', 'Formation', 'AUCUN', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T47: absence un jour sans cours';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T47:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    INSERT INTO teacher_absence (slot_id, on_date, reason, work_kind, declared_by) VALUES (sl, '2026-10-12', 'Formation', 'DEVOIR', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T47: devoir sans consigne';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO teacher_absence (slot_id, on_date, reason, work_kind, work_text, declared_by)
+  VALUES (sl, '2026-10-12', 'Formation', 'DEVOIR', 'Exercices 1 à 4 p. 52', '00000000-0000-0000-0000-000000000003');
+  SELECT * INTO r FROM teacher_hours('00000000-0000-0000-0000-000000000003', '2026-10-05', '2026-10-16');
+  ASSERT r.planned = 4 AND r.absent = 2 AND r.done = 2, format('T47: heures %s / %s / %s', r.planned, r.absent, r.done);
+  BEGIN
+    INSERT INTO internal_resource (site_id, title, audiences, body, shared_by) SELECT id, 'Charte', '{PROFS}', 'Texte', '00000000-0000-0000-0000-000000000003' FROM site WHERE code = 'TMV';
+    RAISE EXCEPTION 'T47: ressource partagée par un professeur';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T47:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO internal_resource (site_id, title, audiences, body, shared_by) SELECT id, 'Charte de l''enseignant', '{PROFS}', 'Ponctualité…', '00000000-0000-0000-0000-000000000001' FROM site WHERE code = 'TMV';
+END $$;
+
+-- T48. Dispense de travail, retards cumulés, jeux de société, ressource « lien » ---------------------
+DO $$ DECLARE sl uuid; g uuid; u uuid; BEGIN
+  SELECT slot_id INTO sl FROM teacher_absence LIMIT 1;
+  BEGIN
+    INSERT INTO teacher_absence (slot_id, on_date, reason, work_kind, declared_by, granted_by)
+    VALUES (sl, '2026-10-19', 'Maladie', 'NON_REQUIS', '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T48: dispense accordée par un professeur';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T48:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO teacher_absence (slot_id, on_date, reason, work_kind, declared_by, granted_by)
+  VALUES (sl, '2026-10-19', 'Maladie (cinquième jour)', 'NON_REQUIS', '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000001');
+  INSERT INTO teacher_lateness (teacher_id, on_date, minutes, recorded_by)
+  SELECT '00000000-0000-0000-0000-000000000003', d, m, '00000000-0000-0000-0000-000000000008'
+  FROM (VALUES ('2026-10-01'::date, 10), ('2026-10-05', 15), ('2026-10-08', 20), ('2026-10-12', 25)) v(d, m);
+  ASSERT (SELECT hours_to_make_up FROM v_teacher_lateness WHERE teacher_id = '00000000-0000-0000-0000-000000000003') = 1, 'T48: 70 min = 1 h à rattraper';
+  INSERT INTO teacher_makeup (teacher_id, on_date, recorded_by) VALUES ('00000000-0000-0000-0000-000000000003', '2026-10-17', '00000000-0000-0000-0000-000000000008');
+  ASSERT (SELECT hours_to_make_up FROM v_teacher_lateness WHERE teacher_id = '00000000-0000-0000-0000-000000000003') = 0, 'T48: heure rattrapée';
+  INSERT INTO board_game (site_id, name, pieces, copies) SELECT id, 'Échecs', '32 pièces', 1 FROM site WHERE code = 'TMV' RETURNING id INTO g;
+  INSERT INTO board_game_use (game_id, players) VALUES (g, 'Hasina, Miora') RETURNING id INTO u;
+  BEGIN
+    INSERT INTO board_game_use (game_id, players) VALUES (g, 'Fy');
+    RAISE EXCEPTION 'T48: jeu sorti deux fois';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T48:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    UPDATE board_game_use SET back_at = now(), complete = false WHERE id = u;
+    RAISE EXCEPTION 'T48: incident sans description';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE board_game_use SET back_at = now(), complete = false, incident = 'Il manque un pion' WHERE id = u;
+  INSERT INTO internal_resource (site_id, title, audiences, url, shared_by) SELECT id, 'Programme officiel', '{PROFS}', 'https://eduscol.education.fr', '00000000-0000-0000-0000-000000000001' FROM site WHERE code = 'TMV';
+END $$;
+
+-- T49. Documents par public ; boîte à idées --------------------------------------------------------
+DO $$ DECLARE parent uuid; sg uuid; BEGIN
+  INSERT INTO internal_resource (site_id, title, audiences, body, shared_by)
+  SELECT id, 'Règlement intérieur', '{ELEVES,PARENTS}', 'Horaires…', '00000000-0000-0000-0000-000000000001' FROM site WHERE code = 'TMV';
+  BEGIN
+    INSERT INTO internal_resource (site_id, title, audiences, body, shared_by) SELECT id, 'x', '{VOISINS}', 'x', '00000000-0000-0000-0000-000000000001' FROM site WHERE code = 'TMV';
+    RAISE EXCEPTION 'T49: public inconnu';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO app_user (email, first_name, last_name) VALUES ('parent.t49@exemple.mg', 'Parent', 'T49') RETURNING id INTO parent;
+  INSERT INTO user_role (user_id, role, site_id) SELECT parent, 'PARENT', id FROM site WHERE code = 'TMV';
+  ASSERT (SELECT count(*) FROM resources_for(parent) WHERE title = 'Règlement intérieur') = 1, 'T49: le parent voit le règlement';
+  ASSERT NOT EXISTS (SELECT 1 FROM resources_for(parent) WHERE 'PROFS' = ANY (audiences) AND NOT 'PARENTS' = ANY (audiences)), 'T49: le parent ne voit pas les documents des professeurs';
+  INSERT INTO staff_suggestion (site_id, category, body, author_id) SELECT id, 'METHODOLOGIE', 'Une fiche méthode commune pour la dissertation', '00000000-0000-0000-0000-000000000003' FROM site WHERE code = 'TMV' RETURNING id INTO sg;
+  BEGIN
+    UPDATE staff_suggestion SET status = 'RETENUE', answered_by = '00000000-0000-0000-0000-000000000003' WHERE id = sg;
+    RAISE EXCEPTION 'T49: réponse d''un professeur';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T49:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    UPDATE staff_suggestion SET status = 'NON_RETENUE', answered_by = '00000000-0000-0000-0000-000000000001' WHERE id = sg;
+    RAISE EXCEPTION 'T49: refus sans explication';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE staff_suggestion SET status = 'RETENUE', answered_by = '00000000-0000-0000-0000-000000000001', answer = 'Au conseil pédagogique' WHERE id = sg;
+END $$;
+
+-- T50. Changements d'emploi du temps ; sortie anticipée d'un mineur ---------------------------------
+DO $$ DECLARE sl uuid := (SELECT id FROM timetable_slot LIMIT 1); BEGIN
+  BEGIN
+    INSERT INTO timetable_change (kind, class_id, slot_id, on_date, decided_by) VALUES ('ANNULE', '10000000-0000-0000-0000-000000000001', sl, '2026-10-19', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T50: cours annulé par un professeur';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T50:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    INSERT INTO timetable_change (kind, class_id, slot_id, on_date, decided_by) VALUES ('DEPLACE', '10000000-0000-0000-0000-000000000001', sl, '2026-10-19', '00000000-0000-0000-0000-000000000001');
+    RAISE EXCEPTION 'T50: cours déplacé sans nouvelle date';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO timetable_change (kind, class_id, slot_id, on_date, new_date, new_starts_at, new_ends_at, decided_by)
+  VALUES ('DEPLACE', '10000000-0000-0000-0000-000000000001', sl, '2026-10-19', '2026-10-22', '13:30', '15:30', '00000000-0000-0000-0000-000000000008');
+  -- Hery RAKOTO (né le 14/03/2009) est mineur en octobre 2026 : il ne part pas seul
+  BEGIN
+    INSERT INTO early_departure (enrollment_id, left_at, reason, parent_called_at, student_is_minor, recorded_by)
+    VALUES ('30000000-0000-0000-0000-000000000001', '2026-10-13 10:20+03', 'Malaise', '2026-10-13 10:05+03', false, '00000000-0000-0000-0000-000000000008');
+    RAISE EXCEPTION 'T50: mineur parti seul';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO early_departure (enrollment_id, left_at, reason, parent_called_at, student_is_minor, picked_up_by, relation, picked_up_is_guardian, recorded_by)
+    VALUES ('30000000-0000-0000-0000-000000000001', '2026-10-13 10:20+03', 'Malaise', '2026-10-13 10:05+03', true, 'M. Rabe', 'oncle', false, '00000000-0000-0000-0000-000000000008');
+    RAISE EXCEPTION 'T50: oncle sans confirmation du parent';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO early_departure (enrollment_id, left_at, reason, parent_called_at, student_is_minor, picked_up_by, relation, picked_up_is_guardian, guardian_confirmed, recorded_by)
+  VALUES ('30000000-0000-0000-0000-000000000001', '2026-10-13 10:20+03', 'Malaise', '2026-10-13 10:05+03', true, 'M. Rabe', 'oncle', false, true, '00000000-0000-0000-0000-000000000008');
+END $$;
+
+-- T51. Passages (Doliprane) et inventaire ----------------------------------------------------------
+DO $$ DECLARE site uuid; doli uuid; tab uuid; enr uuid := '30000000-0000-0000-0000-000000000001'; BEGIN
+  SELECT c.site_id INTO site FROM enrollment e JOIN school_class c ON c.id = e.class_id WHERE e.id = enr;
+  INSERT INTO inventory_item (site_id, category, name, qty, min_qty, is_paracetamol) VALUES (site, 'SECOURS', 'Doliprane 500 mg', 2, 1, true) RETURNING id INTO doli;
+  INSERT INTO inventory_item (site_id, category, name, qty) VALUES (site, 'MOBILIER', 'Table double', 10) RETURNING id INTO tab;
+  -- un professeur ne donne pas de Doliprane
+  BEGIN
+    INSERT INTO care_visit (enrollment_id, at, reason, paracetamol, dose, outcome, recorded_by) VALUES (enr, '2026-10-13 09:00+03', 'Mal de tête', true, '1 cp', 'REPOS', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T51: Doliprane donné par un professeur';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T51:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO care_visit (enrollment_id, at, reason, paracetamol, dose, outcome, recorded_by) VALUES (enr, '2026-10-13 09:00+03', 'Mal de tête', true, '1 cp', 'REPOS', '00000000-0000-0000-0000-000000000008');
+  IF (SELECT qty FROM inventory_item WHERE id = doli) <> 1 THEN RAISE EXCEPTION 'T51: stock non décompté'; END IF;
+  BEGIN
+    INSERT INTO care_visit (enrollment_id, at, reason, paracetamol, dose, outcome, recorded_by) VALUES (enr, '2026-10-13 12:00+03', 'Mal de tête', true, '1 cp', 'CLASSE', '00000000-0000-0000-0000-000000000008');
+    RAISE EXCEPTION 'T51: deux Doliprane en 3 heures';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T51:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO care_visit (enrollment_id, at, reason, outcome, recorded_by) VALUES (enr, '2026-10-20 10:00+03', 'Mal de ventre', 'CLASSE', '00000000-0000-0000-0000-000000000008');
+  INSERT INTO care_visit (enrollment_id, at, reason, outcome, recorded_by) VALUES (enr, '2026-10-22 10:00+03', 'Malaise', 'REPOS', '00000000-0000-0000-0000-000000000008');
+  IF NOT EXISTS (SELECT 1 FROM v_frequent_care_visits WHERE enrollment_id = enr AND visits = 3) THEN RAISE EXCEPTION 'T51: passages fréquents non signalés'; END IF;
+  -- allergie déclarée
+  UPDATE student SET health_notes = 'Allergie : paracétamol' WHERE id = (SELECT student_id FROM enrollment WHERE id = enr);
+  BEGIN
+    INSERT INTO care_visit (enrollment_id, at, reason, paracetamol, dose, outcome, recorded_by) VALUES (enr, '2026-10-23 10:00+03', 'Fièvre', true, '1 cp', 'REPOS', '00000000-0000-0000-0000-000000000008');
+    RAISE EXCEPTION 'T51: Doliprane malgré une allergie';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T51:%' THEN RAISE; END IF;
+  END;
+  -- casse, réparation, rebut, achat
+  INSERT INTO inventory_movement (item_id, kind, n, note, by_user) VALUES (tab, 'CASSE', 2, 'pied cassé', '00000000-0000-0000-0000-000000000008');
+  INSERT INTO inventory_movement (item_id, kind, n, by_user) VALUES (tab, 'REPARE', 1, '00000000-0000-0000-0000-000000000008');
+  INSERT INTO inventory_movement (item_id, kind, n, by_user) VALUES (tab, 'JETE', 1, '00000000-0000-0000-0000-000000000008');
+  INSERT INTO inventory_movement (item_id, kind, n, amount, invoice_file, by_user) VALUES (tab, 'ACHAT', 3, 150000, 'factures/table.pdf', '00000000-0000-0000-0000-000000000001');
+  IF (SELECT (qty, broken) FROM inventory_item WHERE id = tab) <> (12, 0) THEN RAISE EXCEPTION 'T51: quantités fausses'; END IF;
+  BEGIN
+    INSERT INTO inventory_movement (item_id, kind, n, by_user) VALUES (tab, 'REPARE', 1, '00000000-0000-0000-0000-000000000008');
+    RAISE EXCEPTION 'T51: réparation sans casse';
+  EXCEPTION WHEN raise_exception OR check_violation THEN IF SQLERRM LIKE 'T51:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    INSERT INTO inventory_movement (item_id, kind, n, by_user) VALUES (tab, 'CASSE', 1, '00000000-0000-0000-0000-000000000008');
+    RAISE EXCEPTION 'T51: casse sans description';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
+-- T52. Agendas école / examens / équipe ; manuels comparés à l'effectif ------------------------------
+DO $$ DECLARE site uuid; yr uuid; tle uuid; c5 uuid; ev_exam school_event; ev_team school_event; ev_all school_event; t uuid; b record; BEGIN
+  SELECT c.site_id, c.year_id, c.id INTO site, yr, tle FROM enrollment e JOIN school_class c ON c.id = e.class_id WHERE e.id = '30000000-0000-0000-0000-0000000000a1';
+  INSERT INTO school_class (year_id, site_id, level_code, name) VALUES (yr, site, '5E', '5e T52') RETURNING id INTO c5;
+  INSERT INTO school_event (site_id, title, starts_at, ends_at, all_day, calendar, created_by) VALUES (site, 'Bac blanc', '2027-02-08', '2027-02-12', true, 'EXAMENS', '00000000-0000-0000-0000-000000000001') RETURNING * INTO ev_exam;
+  INSERT INTO school_event (site_id, title, starts_at, ends_at, all_day, calendar, created_by) VALUES (site, 'Arrêt des notes', '2026-11-27', '2026-11-27', true, 'EQUIPE', '00000000-0000-0000-0000-000000000001') RETURNING * INTO ev_team;
+  INSERT INTO school_event (site_id, title, starts_at, ends_at, all_day, created_by) VALUES (site, 'Réunion de rentrée', '2026-09-10 16:00+03', '2026-09-10 17:00+03', false, '00000000-0000-0000-0000-000000000001') RETURNING * INTO ev_all;
+  IF NOT event_visible(ev_exam, false, tle) OR event_visible(ev_exam, false, c5) OR NOT event_visible(ev_exam, true, NULL) THEN RAISE EXCEPTION 'T52: agenda des examens'; END IF;
+  IF event_visible(ev_team, false, tle) OR NOT event_visible(ev_team, true, NULL) THEN RAISE EXCEPTION 'T52: agenda de l''équipe'; END IF;
+  IF NOT event_visible(ev_all, false, c5) THEN RAISE EXCEPTION 'T52: calendrier de l''école'; END IF;
+  -- manuel de Terminale : 2 en état, 1 abîmé ; effectif de Terminale du site
+  INSERT INTO textbook (site_id, title, subject, level_codes, category, is_returnable, is_photocopy, binding, price_mga, replacement_price_mga)
+  VALUES (site, 'HG Terminale T52', 'HG', '{TLE}', 'MANUEL', true, false, NULL, 25000, 68000) RETURNING id INTO t;
+  INSERT INTO textbook_stock VALUES (t, 'BON', 2), (t, 'DECHIRE', 1);
+  INSERT INTO textbook_loan (textbook_id, enrollment_id, state_out, issued_on, due_back) VALUES (t, '30000000-0000-0000-0000-0000000000a1', 'BON', '2026-09-07', '2027-06-30');
+  SELECT * INTO b FROM v_textbook_balance WHERE textbook_id = t;
+  IF b.effectif < 1 OR b.lent <> 1 OR b.damaged <> 1 OR b.good_in_stock <> 2 OR b.to_order <> greatest(0, b.effectif - 3) THEN
+    RAISE EXCEPTION 'T52: bilan des manuels faux (%)', b;
+  END IF;
+END $$;
+
+-- T53. Examens blancs (candidats libres) : relevé, sciences du brevet, saisie par le prof, carnet, projection --
+DO $$ DECLARE tle uuid := '10000000-0000-0000-0000-000000000001'; c5 uuid; c3 uuid; x uuid; b uuid; sci uuid; st uuid; ev uuid;
+  e uuid := '30000000-0000-0000-0000-000000000001'; e3 uuid; mgmt uuid; r record; BEGIN
+  SELECT student_id INTO st FROM enrollment WHERE id = e;
+  SELECT id INTO mgmt FROM subject WHERE code = 'MANAGEMENT';
+  SELECT id INTO c5 FROM school_class WHERE name = '5e T52';
+  BEGIN
+    INSERT INTO mock_exam (class_id, kind, title, held_on, created_by) VALUES (c5, 'DNB', 'Brevet blanc en 5e', '2026-10-08', '00000000-0000-0000-0000-000000000001');
+    RAISE EXCEPTION 'T53: brevet blanc en 5e';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T53:%' THEN RAISE; END IF;
+  END;
+  -- bac blanc STMG (épreuves de Terminale, 67 coefficients)
+  INSERT INTO mock_exam (class_id, kind, title, held_on, created_by) VALUES (tle, 'BAC_STMG', 'Bac blanc n°1', '2026-10-05', '00000000-0000-0000-0000-000000000001') RETURNING id INTO x;
+  INSERT INTO mock_exam_part (mock_exam_id, code, label, coef, subject_id) VALUES (x, 'PHI', 'Philosophie', 4, NULL), (x, 'MSGN', 'Management, SGN', 16, mgmt), (x, 'DE', 'Droit et économie', 16, NULL),
+    (x, 'GO', 'Grand oral', 12, NULL), (x, 'HG', 'Histoire-géographie', 3, NULL), (x, 'EMC', 'Enseignement moral et civique', 1, NULL), (x, 'MA', 'Mathématiques', 3, NULL), (x, 'LVA', 'Anglais', 3, NULL), (x, 'LVB', 'Espagnol', 3, NULL), (x, 'EPS', 'EPS', 6, NULL);
+  -- le professeur de management saisit son épreuve, pas la philosophie
+  INSERT INTO mock_exam_mark (part_id, enrollment_id, mark, entered_by) SELECT id, e, 13.5, '00000000-0000-0000-0000-000000000003' FROM mock_exam_part WHERE mock_exam_id = x AND code = 'MSGN';
+  BEGIN
+    INSERT INTO mock_exam_mark (part_id, enrollment_id, mark, entered_by) SELECT id, e, 11, '00000000-0000-0000-0000-000000000003' FROM mock_exam_part WHERE mock_exam_id = x AND code = 'PHI';
+    RAISE EXCEPTION 'T53: un prof saisit une autre matière';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T53:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO mock_exam_mark (part_id, enrollment_id, mark, absent, entered_by) SELECT p.id, e, v.m, v.m IS NULL, '00000000-0000-0000-0000-000000000001'
+  FROM mock_exam_part p JOIN (VALUES ('PHI', 11.0), ('DE', 12.0), ('GO', 14.0), ('HG', 10.0), ('EMC', 10.0), ('MA', 9.0), ('LVA', 15.0), ('LVB', 12.0)) v(code, m) ON v.code = p.code WHERE p.mock_exam_id = x;
+  SELECT * INTO r FROM v_mock_exam_result WHERE mock_exam_id = x AND enrollment_id = e;
+  IF r.complete OR r.coef_marked <> 61 THEN RAISE EXCEPTION 'T53: relevé incomplet faux (%)', r; END IF;
+  INSERT INTO mock_exam_mark (part_id, enrollment_id, mark, absent) SELECT id, e, NULL, true FROM mock_exam_part WHERE mock_exam_id = x AND code = 'EPS'; -- absent : 0
+  SELECT * INTO r FROM v_mock_exam_result WHERE mock_exam_id = x AND enrollment_id = e;
+  IF NOT r.complete OR r.average <> round((44 + 216 + 192 + 168 + 40 + 27 + 45 + 36) / 67.0, 2) THEN RAISE EXCEPTION 'T53: moyenne fausse (%)', r; END IF;
+  -- le professeur compte son épreuve dans son carnet, coefficient 3
+  ev := count_mock_part_in_gradebook((SELECT id FROM mock_exam_part WHERE mock_exam_id = x AND code = 'MSGN'), '00000000-0000-0000-0000-000000000003', 3, (SELECT id FROM period ORDER BY rank DESC LIMIT 1)); -- trimestre encore ouvert
+  IF (SELECT (coefficient, eval_type) FROM evaluation WHERE id = ev) <> (3.00, 'EXAMEN_BLANC'::text) OR (SELECT value FROM grade WHERE evaluation_id = ev AND enrollment_id = e) <> 13.5 THEN
+    RAISE EXCEPTION 'T53: épreuve non reprise dans le carnet';
+  END IF;
+  -- brevet blanc : sciences, les 2 meilleures notes sur 3
+  INSERT INTO school_class (year_id, site_id, level_code, name) SELECT year_id, site_id, '3E', '3e T53' FROM school_class WHERE id = tle RETURNING id INTO c3;
+  INSERT INTO student (id, first_name, last_name, birth_date) VALUES ('20000000-0000-0000-0000-0000000005e3', 'Toky', 'RAVELO', '2012-05-02');
+  INSERT INTO enrollment (student_id, year_id, class_id, enrolled_on) SELECT '20000000-0000-0000-0000-0000000005e3', year_id, c3, '2026-09-01' FROM school_class WHERE id = c3 RETURNING id INTO e3;
+  INSERT INTO mock_exam (class_id, kind, title, held_on, created_by) VALUES (c3, 'DNB', 'Brevet blanc', '2026-10-08', '00000000-0000-0000-0000-000000000001') RETURNING id INTO b;
+  INSERT INTO mock_exam_part (mock_exam_id, code, label, coef, best_of) VALUES (b, 'SCI', 'Sciences', 2, 2) RETURNING id INTO sci;
+  INSERT INTO mock_exam_part (mock_exam_id, parent_id, code, label) VALUES (b, sci, 'PC', 'Physique-chimie'), (b, sci, 'SVT', 'SVT'), (b, sci, 'TECH', 'Technologie');
+  INSERT INTO mock_exam_mark (part_id, enrollment_id, mark) SELECT p.id, e3, v.m FROM mock_exam_part p JOIN (VALUES ('PC', 8.0), ('SVT', 14.0)) v(code, m) ON v.code = p.code WHERE p.mock_exam_id = b;
+  IF (SELECT complete FROM v_mock_exam_result WHERE mock_exam_id = b AND enrollment_id = e3) THEN RAISE EXCEPTION 'T53: sciences notées sur 2 matières seulement'; END IF;
+  INSERT INTO mock_exam_mark (part_id, enrollment_id, mark) SELECT id, e3, 12 FROM mock_exam_part WHERE mock_exam_id = b AND code = 'TECH';
+  IF (SELECT average FROM v_mock_exam_result WHERE mock_exam_id = b AND enrollment_id = e3) <> 13 THEN RAISE EXCEPTION 'T53: sciences = (14 + 12) / 2'; END IF;
+  -- projection : notes officielles de 1re (33 coefficients) → moyenne à obtenir en Terminale
+  INSERT INTO official_exam_mark VALUES (st, 2026, 'FR_E', 5, 10), (st, 2026, 'FR_O', 5, 13), (st, 2026, 'MA_EA', 2, 12), (st, 2026, 'SGN', 8, 11),
+    (st, 2026, 'HG', 3, 12), (st, 2026, 'EMC', 1, 12), (st, 2026, 'MA', 3, 9), (st, 2026, 'LVA', 3, 14), (st, 2026, 'LVB', 3, 12);
+  IF bac_needed(st, 10) <> 9.25 OR bac_needed(st, 12) <> 12.24 OR bac_needed(st, 18) IS NOT NULL THEN
+    RAISE EXCEPTION 'T53: projection au bac fausse (%, %)', bac_needed(st, 10), bac_needed(st, 12);
+  END IF;
+END $$;
+
+-- T54. Passeport de vie scolaire : oubli = 1 h de colle, 3 retards = une colle, TIG par la CPE -------
+DO $$ DECLARE e uuid := '30000000-0000-0000-0000-000000000001'; f uuid; BEGIN
+  INSERT INTO app_user (id, email, first_name, last_name) VALUES ('00000000-0000-0000-0000-00000000000c', 'cpe@exemple.mg', 'Conseiller', 'CPE');
+  INSERT INTO user_role (user_id, role) VALUES ('00000000-0000-0000-0000-00000000000c', 'VIE_SCOLAIRE');
+  DELETE FROM attendance_event WHERE enrollment_id = e AND kind = 'RETARD';
+  INSERT INTO attendance_event (enrollment_id, kind, occurred_at, minutes_late, recorded_by)
+  SELECT e, 'RETARD', d, 10, '00000000-0000-0000-0000-00000000000c' FROM unnest(ARRAY['2026-10-01 07:10+03', '2026-10-05 07:10+03', '2026-10-08 07:05+03']::timestamptz[]) d;
+  IF colles_due_for_lates(e) <> 1 THEN RAISE EXCEPTION 'T54: 3 retards = une colle'; END IF;
+  INSERT INTO detention (enrollment_id, kind, cause, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'RETARDS', 2, '2026-10-14 13:00+03', '3 retards', '00000000-0000-0000-0000-00000000000c');
+  IF colles_due_for_lates(e) <> 0 THEN RAISE EXCEPTION 'T54: colle des retards déjà donnée'; END IF;
+  INSERT INTO school_forget (enrollment_id, on_date, kind, note, reported_by, colle_requested) VALUES (e, '2026-10-07', 'MATERIEL', 'calculatrice', '00000000-0000-0000-0000-000000000003', true) RETURNING id INTO f;
+  BEGIN
+    INSERT INTO detention (enrollment_id, kind, cause, forget_id, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'OUBLI', f, 2, '2026-10-17 08:00+03', 'oubli', '00000000-0000-0000-0000-00000000000c');
+    RAISE EXCEPTION 'T54: deux heures pour un oubli';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO detention (enrollment_id, kind, cause, forget_id, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'OUBLI', f, 1, '2026-10-21 13:00+03', 'oubli', '00000000-0000-0000-0000-00000000000c');
+  BEGIN
+    INSERT INTO detention (enrollment_id, kind, cause, forget_id, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'OUBLI', f, 1, '2026-10-28 13:00+03', 'oubli', '00000000-0000-0000-0000-00000000000c');
+    RAISE EXCEPTION 'T54: deux colles pour un même oubli';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO detention (enrollment_id, kind, cause, scheduled_at, reason, given_by) VALUES (e, 'TIG', 'AUTRE', '2026-10-16 12:00+03', 'Nettoyage', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T54: TIG donné par un professeur';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T54:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    INSERT INTO detention (enrollment_id, kind, cause, scheduled_at, reason, given_by) VALUES (e, 'TIG', 'AUTRE', '2026-10-16 12:00+03', 'Nettoyage', '00000000-0000-0000-0000-00000000000c');
+    RAISE EXCEPTION 'T54: TIG donné par la CPE';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T54:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO detention (enrollment_id, kind, cause, scheduled_at, reason, given_by) VALUES (e, 'TIG', 'AUTRE', '2026-10-16 12:00+03', 'Nettoyage d''une table', '00000000-0000-0000-0000-000000000001');
+  UPDATE detention SET status = 'FAITE' WHERE enrollment_id = e AND cause = 'RETARDS';
+  IF (SELECT (hours_due, hours_done, tig) FROM v_passport WHERE enrollment_id = e) <> (1::bigint, 2::bigint, 1::bigint) THEN RAISE EXCEPTION 'T54: passeport faux'; END IF;
+END $$;
+
+-- T55. Conditions acceptées à la première connexion ; document remplacé = redemandé ------------------
+DO $$ DECLARE d uuid; v timestamptz; BEGIN
+  INSERT INTO internal_resource (site_id, title, audiences, body, shared_by, must_accept) SELECT id, 'Règlement intérieur', '{PARENTS,ELEVES}', 'Texte', '00000000-0000-0000-0000-000000000001', true FROM site WHERE code = 'TMV' RETURNING id, shared_at INTO d, v;
+  BEGIN
+    INSERT INTO document_acceptance (user_id, resource_id, version_at, opened_at, accepted_at) VALUES ('00000000-0000-0000-0000-000000000003', d, v, '2026-10-18 10:05+03', '2026-10-18 10:00+03');
+    RAISE EXCEPTION 'T55: accepté sans avoir été ouvert';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO document_acceptance (user_id, resource_id, version_at, opened_at, accepted_at) VALUES ('00000000-0000-0000-0000-000000000003', d, v, '2026-10-18 10:00+03', '2026-10-18 10:02+03');
+  UPDATE internal_resource SET shared_at = v + interval '30 days', body = 'Texte modifié' WHERE id = d;
+  IF EXISTS (SELECT 1 FROM document_acceptance a JOIN internal_resource r ON r.id = a.resource_id WHERE a.user_id = '00000000-0000-0000-0000-000000000003' AND a.resource_id = d AND a.version_at = r.shared_at) THEN
+    RAISE EXCEPTION 'T55: nouvelle version déjà acceptée';
+  END IF;
+END $$;
+
+-- T56. Vie de l'école ; ambiance saisonnière ; notification urgente ---------------------------------
+DO $$ DECLARE site uuid := (SELECT id FROM site WHERE code = 'TMV'); staff_post uuid; prof_post uuid; cpe_post uuid; BEGIN
+  -- la Direction publie directement ; la CPE et un professeur proposent (en attente, même en demandant « PUBLIEE »)
+  INSERT INTO school_post (site_id, title, author_id) VALUES (site, 'Octobre rose', '00000000-0000-0000-0000-000000000001') RETURNING id INTO staff_post;
+  INSERT INTO school_post (site_id, title, author_id, status) VALUES (site, 'Sortie au port', '00000000-0000-0000-0000-000000000003', 'PUBLIEE') RETURNING id INTO prof_post;
+  INSERT INTO school_post (site_id, title, author_id) VALUES (site, 'Tournoi', '00000000-0000-0000-0000-00000000000c') RETURNING id INTO cpe_post;
+  IF (SELECT status FROM school_post WHERE id = staff_post) <> 'PUBLIEE' OR (SELECT status FROM school_post WHERE id = prof_post) <> 'EN_ATTENTE'
+     OR (SELECT status FROM school_post WHERE id = cpe_post) <> 'EN_ATTENTE' THEN
+    RAISE EXCEPTION 'T56: statut à la création';
+  END IF;
+  INSERT INTO school_post_photo (post_id, file_key, position) SELECT prof_post, 'photos/' || n, n FROM generate_series(1, 6) n;
+  BEGIN
+    INSERT INTO school_post_photo (post_id, file_key, position) VALUES (prof_post, 'photos/7', 7);
+    RAISE EXCEPTION 'T56: une 7e photo';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    UPDATE school_post SET status = 'PUBLIEE', moderated_by = '00000000-0000-0000-0000-00000000000c', image_rights_checked = true WHERE id = prof_post; -- CPE
+    RAISE EXCEPTION 'T56: validé par la CPE';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T56:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    UPDATE school_post SET status = 'PUBLIEE', moderated_by = '00000000-0000-0000-0000-000000000001' WHERE id = prof_post;
+    RAISE EXCEPTION 'T56: publié sans vérifier le droit à l''image';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T56:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    UPDATE school_post SET status = 'A_REVOIR', moderated_by = '00000000-0000-0000-0000-000000000001' WHERE id = prof_post;
+    RAISE EXCEPTION 'T56: renvoi sans remarque';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE school_post SET status = 'PUBLIEE', moderated_by = '00000000-0000-0000-0000-000000000001', image_rights_checked = true WHERE id = prof_post;
+  IF (SELECT moderated_at FROM school_post WHERE id = prof_post) IS NULL THEN RAISE EXCEPTION 'T56: date de validation'; END IF;
+  -- droit à l'image : l'élève de Tle STMG sans fiche signée est signalé
+  IF NOT EXISTS (SELECT 1 FROM students_without_image_rights('10000000-0000-0000-0000-000000000001')) THEN RAISE EXCEPTION 'T56: élèves sans autorisation non signalés'; END IF;
+  -- ambiances (école laïque) : Octobre rose, Nouvel An à cheval sur deux années, Nouvel An lunaire à date variable,
+  -- la plus courte l'emporte (29 mars pendant l'automne), rien hors période ; un thème religieux est refusé ;
+  -- une ambiance ajoutée par la Direction passe d'abord
+  IF active_season(site, '2026-10-28') <> 'OCTOBRE_ROSE' OR active_season(site, '2027-01-03') <> 'NOUVEL_AN'
+     OR active_season(site, '2027-02-05') <> 'NOUVEL_AN_LUNAIRE' OR active_season(site, '2027-03-28') <> 'MEMOIRE_1947'
+     OR active_season(site, '2026-12-24') IS NOT NULL OR active_season(site, '2026-11-25') IS NOT NULL THEN
+    RAISE EXCEPTION 'T56: ambiances (%, %, %)', active_season(site, '2026-10-28'), active_season(site, '2027-02-05'), active_season(site, '2027-03-28');
+  END IF;
+  BEGIN
+    INSERT INTO season (code, label, category, from_md, to_md, palette, greeting) VALUES ('NOEL', 'Noël', 'CULTUREL', '12-01', '12-25', 'rouge', 'Joyeux Noël');
+    RAISE EXCEPTION 'T56: thème religieux accepté';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO season (code, label, category, from_md, to_md, palette, greeting, note_title, note_body, added_by)
+    VALUES ('PERSO_1', 'Semaine de la Grande Guerre', 'HISTORIQUE', '11-02', '11-13', 'sobre', 'Projet des 3e', '1914-1918', 'Exposition en salle d''étude.', '00000000-0000-0000-0000-000000000001');
+  IF active_season(site, '2026-11-10') <> 'PERSO_1' THEN RAISE EXCEPTION 'T56: ambiance ajoutée'; END IF;
+  INSERT INTO site_setting (site_id, seasonal_mode) VALUES (site, 'OFF');
+  IF active_season(site, '2026-10-18') IS NOT NULL THEN RAISE EXCEPTION 'T56: ambiance désactivée'; END IF;
+  BEGIN
+    UPDATE site_setting SET facebook_url = 'http://faux' WHERE site_id = site;
+    RAISE EXCEPTION 'T56: lien non sécurisé';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  -- notification urgente : niveau contrôlé
+  BEGIN
+    INSERT INTO direct_notification (guardian_id, reason, subject, body, channels, level) SELECT id, 'DISCIPLINE', 'x', 'y', '{EMAIL}', 'TRES_URGENT' FROM guardian LIMIT 1;
+    RAISE EXCEPTION 'T56: niveau inconnu';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
+-- T57. Annonces : jamais par un professeur ; le secrétariat envoie, la Direction corrige et publie ---------
+DO $$ DECLARE a uuid; d uuid; sig text; BEGIN
+  BEGIN
+    INSERT INTO announcement (title, body_md, author_id) VALUES ('Sortie', 'Jeudi', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T57: annonce rédigée par un professeur';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T57:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    INSERT INTO announcement (title, body_md, author_id, status) VALUES ('Fermeture', 'Vendredi', '00000000-0000-0000-0000-000000000008', 'PUBLIEE');
+    RAISE EXCEPTION 'T57: publiée directement par le secrétariat';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T57:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO announcement (title, body_md, author_id, is_pinned) VALUES ('Fermeture', 'Vendredi', '00000000-0000-0000-0000-000000000008', true) RETURNING id INTO a;
+  IF (SELECT (status, is_pinned, author_service) FROM announcement WHERE id = a) <> ('BROUILLON'::publication_status, false, 'Secrétariat'::text) THEN RAISE EXCEPTION 'T57: brouillon du secrétariat'; END IF;
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-000000000008', true);
+  UPDATE announcement SET status = 'EN_ATTENTE' WHERE id = a;
+  BEGIN
+    UPDATE announcement SET body_md = 'Vendredi 12h' WHERE id = a;
+    RAISE EXCEPTION 'T57: modifiée après envoi';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T57:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    UPDATE announcement SET status = 'PUBLIEE' WHERE id = a;
+    RAISE EXCEPTION 'T57: publiée par le secrétariat';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T57:%' THEN RAISE; END IF;
+  END;
+  IF EXISTS (SELECT 1 FROM v_public_announcement WHERE id = a) THEN RAISE EXCEPTION 'T57: visible avant validation'; END IF;
+  -- la Direction renvoie, le secrétariat corrige et renvoie, la Direction corrige et publie
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-000000000001', true);
+  BEGIN
+    UPDATE announcement SET status = 'A_REVOIR' WHERE id = a;
+    RAISE EXCEPTION 'T57: renvoi sans remarque';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE announcement SET status = 'A_REVOIR', review_note = 'Préciser l''heure' WHERE id = a;
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-000000000008', true);
+  UPDATE announcement SET body_md = 'Vendredi, fermeture à 12h', status = 'EN_ATTENTE' WHERE id = a;
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-000000000001', true);
+  UPDATE announcement SET title = 'Fermeture exceptionnelle vendredi à midi', is_pinned = true WHERE id = a;
+  UPDATE announcement SET status = 'PUBLIEE' WHERE id = a;
+  SELECT signature INTO sig FROM v_public_announcement WHERE id = a;
+  IF sig IS DISTINCT FROM 'Secrétariat · validée par la Direction' THEN RAISE EXCEPTION 'T57: signature (%)', sig; END IF;
+  IF NOT (SELECT edited_by_direction AND validated_by = '00000000-0000-0000-0000-000000000001' FROM announcement WHERE id = a) THEN RAISE EXCEPTION 'T57: trace de validation'; END IF;
+  IF (SELECT string_agg(action, ',' ORDER BY id) FROM publication_event WHERE entity_id = a) <> 'CREEE,ENVOYEE,RENVOYEE,ENVOYEE,CORRIGEE,PUBLIEE' THEN
+    RAISE EXCEPTION 'T57: historique (%)', (SELECT string_agg(action, ',' ORDER BY id) FROM publication_event WHERE entity_id = a);
+  END IF;
+  -- la Direction publie directement, sous son nom de service
+  INSERT INTO announcement (title, body_md, author_id, status) VALUES ('Portes ouvertes', 'Samedi', '00000000-0000-0000-0000-000000000001', 'PUBLIEE') RETURNING id INTO d;
+  IF (SELECT signature FROM v_public_announcement WHERE id = d) <> 'Direction' THEN RAISE EXCEPTION 'T57: signature Direction'; END IF;
+  PERFORM set_config('app.user_id', '', true);
+END $$;
+
+-- T58. Mandats d'élèves : le délégué écrit à sa classe seulement, le BDE propose ; la Direction seule publie ---
+DO $$ DECLARE a uuid; b uuid; ev uuid; tmv uuid := (SELECT id FROM site WHERE code = 'TMV'); tana uuid := (SELECT id FROM site WHERE code = 'TANA');
+  per uuid := (SELECT p.id FROM period p JOIN academic_year y ON y.id = p.year_id AND y.is_current ORDER BY p.rank LIMIT 1); BEGIN
+  INSERT INTO app_user (id, email, first_name, last_name) VALUES
+    ('00000000-0000-0000-0000-0000000000e1', 'hery.eleve@exemple.mg', 'Hery', 'RAKOTO'),
+    ('00000000-0000-0000-0000-0000000000e2', 'tiana.eleve@exemple.mg', 'Tiana', 'RASOA'),
+    ('00000000-0000-0000-0000-0000000000e3', 'sans.mandat@exemple.mg', 'Sans', 'MANDAT');
+  INSERT INTO user_role (user_id, role, site_id) SELECT u, 'ELEVE', tmv FROM unnest(ARRAY['00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000e2', '00000000-0000-0000-0000-0000000000e3']::uuid[]) u;
+  UPDATE student SET user_id = '00000000-0000-0000-0000-0000000000e1' WHERE id = '20000000-0000-0000-0000-000000000001'; -- délégué de Tle STMG (T39)
+  UPDATE student SET user_id = '00000000-0000-0000-0000-0000000000e2' WHERE id = '20000000-0000-0000-0000-0000000000b3'; -- suppléante (T39)
+  INSERT INTO student_engagement SELECT e.id, 'BDE' FROM enrollment e WHERE e.student_id = '20000000-0000-0000-0000-0000000000b3';
+  IF (SELECT string_agg(kind || ':' || class_name, ',' ORDER BY kind) FROM student_mandate('00000000-0000-0000-0000-0000000000e2')) <> 'BDE:Tle STMG,DELEGUE:Tle STMG' THEN
+    RAISE EXCEPTION 'T58: mandats de la suppléante membre du BDE';
+  END IF;
+  -- sans mandat : pas d'annonce ; un élève ne s'invente pas de mandat
+  BEGIN
+    INSERT INTO announcement (title, body_md, author_id, author_mandate) VALUES ('Fête', 'Samedi', '00000000-0000-0000-0000-0000000000e3', 'BDE');
+    RAISE EXCEPTION 'T58: annonce sans mandat';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T58:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    INSERT INTO announcement (title, body_md, author_id) VALUES ('Fête', 'Samedi', '00000000-0000-0000-0000-0000000000e1');
+    RAISE EXCEPTION 'T58: annonce d''élève hors mandat';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T58:%' THEN RAISE; END IF;
+  END;
+  -- délégué : jamais publiée d'emblée, signée « Délégués de Tle STMG », élèves de sa classe seulement
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-0000000000e1', true);
+  BEGIN
+    INSERT INTO announcement (title, body_md, author_id, author_mandate, status) VALUES ('Réunion', 'Midi', '00000000-0000-0000-0000-0000000000e1', 'DELEGUE', 'PUBLIEE');
+    RAISE EXCEPTION 'T58: publiée par un délégué';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T58:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO announcement (title, body_md, author_id, author_mandate, status, is_pinned) VALUES ('Réunion de classe', 'Vendredi midi, salle 4', '00000000-0000-0000-0000-0000000000e1', 'DELEGUE', 'EN_ATTENTE', true) RETURNING id INTO a;
+  IF (SELECT (author_service, is_pinned, status) FROM announcement WHERE id = a) <> ('Délégués de Tle STMG'::text, false, 'A_RELIRE'::publication_status) THEN RAISE EXCEPTION 'T58: service du délégué, relecture CPE'; END IF;
+  BEGIN
+    INSERT INTO announcement (title, body_md, author_id, author_mandate, status, urgent, concerns_date) VALUES ('Cours annulé', 'Maths', '00000000-0000-0000-0000-0000000000e1', 'DELEGUE', 'PUBLIEE', 'ANNULATION_JOUR', current_date);
+    RAISE EXCEPTION 'T58: annulation du jour par un délégué';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T58:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    INSERT INTO announcement_audience (announcement_id, role, class_id) VALUES (a, 'PARENT', '10000000-0000-0000-0000-000000000001');
+    RAISE EXCEPTION 'T58: délégué écrit aux parents';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T58:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    INSERT INTO announcement_audience (announcement_id, role, class_id) VALUES (a, 'ELEVE', '10000000-0000-0000-0000-000000000002');
+    RAISE EXCEPTION 'T58: délégué écrit à une autre classe';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T58:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    INSERT INTO announcement_audience (announcement_id, role, site_id) VALUES (a, 'ELEVE', tmv);
+    RAISE EXCEPTION 'T58: délégué écrit à toute l''école';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T58:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO announcement_audience (announcement_id, role, class_id) VALUES (a, 'ELEVE', '10000000-0000-0000-0000-000000000001');
+  BEGIN
+    UPDATE announcement SET status = 'PUBLIEE' WHERE id = a;
+    RAISE EXCEPTION 'T58: délégué publie';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T58:%' THEN RAISE; END IF;
+  END;
+  IF EXISTS (SELECT 1 FROM v_public_announcement WHERE id = a) THEN RAISE EXCEPTION 'T58: visible avant validation'; END IF;
+  -- un délégué prépare le conseil de SA classe
+  INSERT INTO council_feedback (class_id, period_id, author_id, body) VALUES ('10000000-0000-0000-0000-000000000001', per, '00000000-0000-0000-0000-0000000000e1', 'Trop de contrôles la même semaine');
+  BEGIN
+    INSERT INTO council_feedback (class_id, period_id, author_id, body) VALUES ('10000000-0000-0000-0000-000000000002', per, '00000000-0000-0000-0000-0000000000e1', 'Autre classe');
+    RAISE EXCEPTION 'T58: conseil d''une autre classe';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T58:%' THEN RAISE; END IF;
+  END;
+  -- BDE : annonce aux élèves du site (pas d'un autre site), événement proposé jamais publié d'emblée
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-0000000000e2', true);
+  INSERT INTO announcement (title, body_md, author_id, author_mandate, status) VALUES ('Collecte de livres', 'Toute la semaine', '00000000-0000-0000-0000-0000000000e2', 'BDE', 'EN_ATTENTE') RETURNING id INTO b;
+  IF (SELECT author_service FROM announcement WHERE id = b) <> 'Bureau des élèves (BDE)' THEN RAISE EXCEPTION 'T58: service du BDE'; END IF;
+  BEGIN
+    INSERT INTO announcement_audience (announcement_id, role, site_id) VALUES (b, 'ELEVE', tana);
+    RAISE EXCEPTION 'T58: BDE écrit à un autre site';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T58:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO announcement_audience (announcement_id, role, site_id) VALUES (b, 'ELEVE', tmv);
+  INSERT INTO school_event (site_id, title, starts_at, ends_at, created_by, status) VALUES (tmv, 'Tournoi de basket', '2026-11-13 12:00+03', '2026-11-13 13:30+03', '00000000-0000-0000-0000-0000000000e2', 'PUBLIEE') RETURNING id INTO ev;
+  IF (SELECT (status, proposed_by_mandate) FROM school_event WHERE id = ev) <> ('A_RELIRE'::publication_status, 'BDE'::text) THEN RAISE EXCEPTION 'T58: événement du BDE en relecture'; END IF;
+  IF (SELECT event_visible(e, false, '10000000-0000-0000-0000-000000000001') FROM school_event e WHERE id = ev) THEN RAISE EXCEPTION 'T58: événement visible avant validation'; END IF;
+  BEGIN
+    INSERT INTO school_event (site_id, title, starts_at, ends_at, created_by, calendar) VALUES (tmv, 'Conseil', '2026-11-13', '2026-11-13', '00000000-0000-0000-0000-0000000000e2', 'EQUIPE');
+    RAISE EXCEPTION 'T58: BDE dans l''agenda de l''équipe';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T58:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    UPDATE school_event SET status = 'PUBLIEE' WHERE id = ev;
+    RAISE EXCEPTION 'T58: BDE publie son événement';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T58:%' THEN RAISE; END IF;
+  END;
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-0000000000e3', true);
+  BEGIN
+    INSERT INTO school_event (site_id, title, starts_at, ends_at, created_by) VALUES (tmv, 'Fête', '2026-11-13', '2026-11-13', '00000000-0000-0000-0000-0000000000e3');
+    RAISE EXCEPTION 'T58: événement par un élève sans mandat';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T58:%' THEN RAISE; END IF;
+  END;
+  -- la Direction ne voit rien avant la relecture de la CPE ; le secrétariat ne relit pas
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-000000000001', true);
+  BEGIN
+    UPDATE announcement SET status = 'PUBLIEE' WHERE id = a;
+    RAISE EXCEPTION 'T58: publiée sans relecture de la CPE';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T58:%' THEN RAISE; END IF;
+  END;
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-000000000008', true);
+  BEGIN
+    UPDATE announcement SET status = 'EN_ATTENTE' WHERE id = a;
+    RAISE EXCEPTION 'T58: relue par le secrétariat';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T58:%' THEN RAISE; END IF;
+  END;
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-00000000000c', true);   -- la CPE relit et transmet
+  UPDATE announcement SET status = 'EN_ATTENTE' WHERE id = a;
+  UPDATE school_event SET status = 'EN_ATTENTE' WHERE id = ev;
+  -- la Direction publie l'annonce du délégué et l'événement du BDE
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-000000000001', true);
+  UPDATE announcement SET status = 'PUBLIEE' WHERE id = a;
+  IF (SELECT signature FROM v_public_announcement WHERE id = a) <> 'Délégués de Tle STMG · validée par la Direction' THEN RAISE EXCEPTION 'T58: signature du délégué'; END IF;
+  UPDATE school_event SET status = 'PUBLIEE' WHERE id = ev;
+  IF NOT (SELECT event_visible(e, false, '10000000-0000-0000-0000-000000000001') AND validated_by = '00000000-0000-0000-0000-000000000001' FROM school_event e WHERE id = ev) THEN RAISE EXCEPTION 'T58: événement publié'; END IF;
+  IF (SELECT string_agg(action, ',' ORDER BY id) FROM publication_event WHERE entity_id = ev) <> 'CREEE,ENVOYEE,RELUE,PUBLIEE' THEN RAISE EXCEPTION 'T58: historique de l''événement'; END IF;
+  IF (SELECT string_agg(action, ',' ORDER BY id) FROM publication_event WHERE entity_id = a) <> 'CREEE,ENVOYEE,RELUE,PUBLIEE' THEN RAISE EXCEPTION 'T58: historique de l''annonce'; END IF;
+  -- mandats attribués par la Direction seule
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-00000000000c', true);
+  BEGIN
+    INSERT INTO student_engagement SELECT e.id, 'BDE' FROM enrollment e WHERE e.student_id = '20000000-0000-0000-0000-000000000002';
+    RAISE EXCEPTION 'T58: mandat attribué par la CPE';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T58:%' THEN RAISE; END IF;
+  END;
+  -- annulation d'un cours aujourd'hui : publiée tout de suite par le secrétariat ou la CPE ; un autre jour, non
+  INSERT INTO announcement (title, body_md, author_id, status, urgent, concerns_date) VALUES ('Maths : cours annulé', 'Aujourd''hui 10h', '00000000-0000-0000-0000-00000000000c', 'PUBLIEE', 'ANNULATION_JOUR', current_date) RETURNING id INTO b;
+  IF (SELECT signature FROM v_public_announcement WHERE id = b) <> 'Vie scolaire (CPE) · annulation du jour' THEN RAISE EXCEPTION 'T58: annulation du jour (CPE)'; END IF;
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-000000000008', true);
+  BEGIN
+    INSERT INTO announcement (title, body_md, author_id, status, urgent, concerns_date) VALUES ('Maths : cours annulé', 'Demain', '00000000-0000-0000-0000-000000000008', 'PUBLIEE', 'ANNULATION_JOUR', current_date + 1);
+    RAISE EXCEPTION 'T58: annulation d''un autre jour publiée sans la Direction';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T58:%' THEN RAISE; END IF;
+  END;
+  -- fin d'inscription : plus de mandat
+  UPDATE enrollment SET left_on = '2026-12-01' WHERE student_id = '20000000-0000-0000-0000-0000000000b3';
+  IF EXISTS (SELECT 1 FROM student_mandate('00000000-0000-0000-0000-0000000000e2')) THEN RAISE EXCEPTION 'T58: mandat après départ'; END IF;
+  PERFORM set_config('app.user_id', '', true);
+END $$;
+
+-- T59 — droits d'accès par écran : réglés par la Direction seule, exception par personne
+DO $$ BEGIN
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-000000000001', true);
+  INSERT INTO screen_access_role (role, screen, level) VALUES ('VIE_SCOLAIRE', 'resources', 'ECRITURE'), ('VIE_SCOLAIRE', 'care', 'AUCUN'), ('VIE_SCOLAIRE', 'booking', 'LECTURE');
+  IF screen_level('00000000-0000-0000-0000-00000000000c', 'resources') <> 'ECRITURE' THEN RAISE EXCEPTION 'T59: ressources pour la CPE'; END IF;
+  IF screen_level('00000000-0000-0000-0000-00000000000c', 'care') <> 'AUCUN' THEN RAISE EXCEPTION 'T59: soins retirés à la CPE'; END IF;
+  INSERT INTO screen_access_user (user_id, screen, level) VALUES ('00000000-0000-0000-0000-00000000000c', 'care', 'LECTURE');
+  IF screen_level('00000000-0000-0000-0000-00000000000c', 'care') <> 'LECTURE' THEN RAISE EXCEPTION 'T59: exception de la personne'; END IF;
+  IF (SELECT set_by FROM screen_access_user WHERE user_id = '00000000-0000-0000-0000-00000000000c') <> '00000000-0000-0000-0000-000000000001' THEN RAISE EXCEPTION 'T59: auteur du réglage'; END IF;
+  IF screen_level('00000000-0000-0000-0000-000000000001', 'care') <> 'ECRITURE' OR screen_level('00000000-0000-0000-0000-00000000000c', 'settings') <> 'AUCUN' THEN RAISE EXCEPTION 'T59: Direction'; END IF;
+  BEGIN
+    INSERT INTO screen_access_role (role, screen, level) VALUES ('BUREAU', 'settings', 'ECRITURE');
+    RAISE EXCEPTION 'T59: paramètres délégués';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-00000000000c', true);
+  BEGIN
+    UPDATE screen_access_user SET level = 'ECRITURE' WHERE user_id = '00000000-0000-0000-0000-00000000000c';
+    RAISE EXCEPTION 'T59: la CPE change ses propres droits';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T59:%' THEN RAISE; END IF;
+  END;
+  PERFORM set_config('app.user_id', '', true);
+END $$;
+
+-- T60 — justification sous 24 h, carnet de liaison selon l'ancienneté, oubli sans colle, objets confisqués
+DO $$ DECLARE e uuid := '30000000-0000-0000-0000-000000000001'; a uuid; f uuid; o uuid; d text; BEGIN
+  -- justification : dans les 24 h oui, après non
+  INSERT INTO attendance_event (enrollment_id, kind, occurred_at, recorded_by) VALUES (e, 'ABSENCE', now() - interval '3 hours', '00000000-0000-0000-0000-00000000000c') RETURNING id INTO a;
+  IF (SELECT status FROM v_attendance_status WHERE id = a) <> 'A_JUSTIFIER' THEN RAISE EXCEPTION 'T60: à justifier'; END IF;
+  UPDATE attendance_event SET justified = true WHERE id = a;
+  IF (SELECT status FROM v_attendance_status WHERE id = a) <> 'JUSTIFIEE' THEN RAISE EXCEPTION 'T60: justifiée'; END IF;
+  INSERT INTO attendance_event (enrollment_id, kind, occurred_at, recorded_by) VALUES (e, 'ABSENCE', now() - interval '30 hours', '00000000-0000-0000-0000-00000000000c') RETURNING id INTO a;
+  IF (SELECT status FROM v_attendance_status WHERE id = a) <> 'NON_JUSTIFIEE' THEN RAISE EXCEPTION 'T60: non justifiée après 24 h'; END IF;
+  BEGIN
+    UPDATE attendance_event SET justified = true WHERE id = a;
+    RAISE EXCEPTION 'T60: justifiée après 24 h';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T60:%' THEN RAISE; END IF;
+  END;
+  -- carnet de liaison : élève nouveau cette année → colle au 2e oubli
+  IF NOT is_new_student(e) THEN RAISE EXCEPTION 'T60: élève de démonstration supposé nouveau'; END IF;
+  INSERT INTO school_forget (enrollment_id, on_date, kind, reported_by) VALUES (e, '2026-10-12', 'CARNET', '00000000-0000-0000-0000-000000000003') RETURNING id INTO f;
+  IF carnet_colles_due(e) <> 0 THEN RAISE EXCEPTION 'T60: pas de colle au 1er carnet (nouvel élève)'; END IF;
+  BEGIN
+    INSERT INTO detention (enrollment_id, kind, cause, forget_id, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'OUBLI', f, 1, '2026-10-24 08:00+03', 'carnet', '00000000-0000-0000-0000-00000000000c');
+    RAISE EXCEPTION 'T60: colle au 1er carnet';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T60:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO school_forget (enrollment_id, on_date, kind, reported_by) VALUES (e, '2026-10-13', 'CARNET', '00000000-0000-0000-0000-000000000003') RETURNING id INTO f;
+  IF carnet_colles_due(e) <> 1 THEN RAISE EXCEPTION 'T60: colle au 2e carnet'; END IF;
+  INSERT INTO detention (enrollment_id, kind, cause, forget_id, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'OUBLI', f, 1, '2026-10-21 14:00+03', 'carnet x2', '00000000-0000-0000-0000-00000000000c');
+  IF carnet_colles_due(e) <> 0 THEN RAISE EXCEPTION 'T60: colle du carnet donnée'; END IF;
+  -- tenue d'EPS oubliée sans colle demandée : pas de colle possible
+  INSERT INTO school_forget (enrollment_id, on_date, kind, reported_by) VALUES (e, '2026-10-13', 'TENUE', '00000000-0000-0000-0000-000000000003') RETURNING id INTO f;
+  BEGIN
+    INSERT INTO detention (enrollment_id, kind, cause, forget_id, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'OUBLI', f, 1, '2026-10-28 13:00+03', 'tenue', '00000000-0000-0000-0000-00000000000c');
+    RAISE EXCEPTION 'T60: colle sans demande';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T60:%' THEN RAISE; END IF;
+  END;
+  -- écouteurs confisqués par un professeur, remis à la vie scolaire ; durée décidée par le secrétariat, pas par la CPE
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-000000000003', true);
+  INSERT INTO phone_confiscation (enrollment_id, reason, confiscated_at, confiscated_by, received_by, handed_to, object_kind)
+  VALUES (e, 'Écouteurs en cours', now(), '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-00000000000c', 'Vie scolaire (CPE)', 'ECOUTEURS') RETURNING id INTO o;
+  IF (SELECT duration_code FROM phone_confiscation WHERE id = o) IS NOT NULL THEN RAISE EXCEPTION 'T60: durée à décider'; END IF;
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-00000000000c', true);
+  BEGIN
+    UPDATE phone_confiscation SET duration_code = '24H' WHERE id = o;
+    RAISE EXCEPTION 'T60: durée décidée par la CPE';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T60:%' THEN RAISE; END IF;
+  END;
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-000000000008', true);
+  UPDATE phone_confiscation SET duration_code = '24H' WHERE id = o RETURNING duration_code INTO d;
+  IF (SELECT duration_decided_by FROM phone_confiscation WHERE id = o) <> '00000000-0000-0000-0000-000000000008' OR (SELECT return_due_at FROM phone_confiscation WHERE id = o) IS NULL THEN RAISE EXCEPTION 'T60: décision du secrétariat'; END IF;
+  PERFORM set_config('app.user_id', '', true);
+  BEGIN
+    INSERT INTO phone_confiscation (enrollment_id, reason, confiscated_at, confiscated_by, received_by, object_kind) VALUES (e, 'x', now(), '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-00000000000c', 'AUTRE');
+    RAISE EXCEPTION 'T60: objet « autre » sans précision';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
+-- T61 — annuaire des écoles d'origine, livre non rendu à facturer
+DO $$ DECLARE b uuid; e uuid := '30000000-0000-0000-0000-000000000001'; l uuid; BEGIN
+  UPDATE student SET previous_school = 'Le Petit Prince', previous_system = 'FRANCAIS' WHERE id IN (SELECT id FROM student ORDER BY id LIMIT 2);
+  IF (SELECT (students, system) FROM v_school_directory WHERE key = 'le petit prince') <> (2::bigint, 'FRANCAIS'::text) THEN RAISE EXCEPTION 'T61: annuaire des écoles'; END IF;
+  BEGIN
+    UPDATE student SET previous_system = 'BELGE' WHERE id = (SELECT id FROM student LIMIT 1);
+    RAISE EXCEPTION 'T61: système inconnu accepté';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO library_book (site_id, kind, title, editor, price) SELECT id, 'ROMAN', 'Le Petit Prince', 'Gallimard', 15000 FROM site WHERE code = 'TMV' RETURNING id INTO b;
+  INSERT INTO library_copy (code, book_id) VALUES ('ROM-0900', b);
+  INSERT INTO library_loan (copy_code, enrollment_id, out_on, due_on) VALUES ('ROM-0900', e, current_date - 40, current_date - 10) RETURNING id INTO l;
+  IF (SELECT price FROM v_library_to_bill WHERE loan_id = l) <> 15000 THEN RAISE EXCEPTION 'T61: livre à facturer'; END IF;
+  BEGIN
+    UPDATE library_loan SET billed_receipt = '123', billed_on = current_date WHERE id = l;
+    RAISE EXCEPTION 'T61: reçu sans numéro de caisse';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE library_loan SET billed_receipt = 'ANX-TMV-00300', billed_on = current_date WHERE id = l;
+  IF EXISTS (SELECT 1 FROM v_library_to_bill WHERE loan_id = l) THEN RAISE EXCEPTION 'T61: facture réglée encore due'; END IF;
+END $$;
+
+-- T62 — colles le mercredi après-midi ou le samedi matin, successives ; retard > 10 min ; engagements de l'école ; suivis
+DO $$ DECLARE e uuid := '30000000-0000-0000-0000-000000000002'; f uuid; BEGIN
+  IF NOT colle_slot_ok('2026-10-28 13:00+03', 2::smallint) OR colle_slot_ok('2026-10-29 13:00+03', 1::smallint) OR colle_slot_ok('2026-10-28 16:00+03', 2::smallint) THEN RAISE EXCEPTION 'T62: créneaux de colle'; END IF;
+  INSERT INTO detention (enrollment_id, kind, cause, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'AUTRE', 1, '2026-10-28 13:00+03', 'Professeur', '00000000-0000-0000-0000-00000000000c');
+  BEGIN
+    INSERT INTO detention (enrollment_id, kind, cause, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'AUTRE', 1, '2026-10-28 13:00+03', 'CPE', '00000000-0000-0000-0000-00000000000c');
+    RAISE EXCEPTION 'T62: deux colles en même temps';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T62:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO detention (enrollment_id, kind, cause, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'AUTRE', 1, '2026-10-28 14:00+03', 'CPE', '00000000-0000-0000-0000-00000000000c');
+  BEGIN
+    INSERT INTO detention (enrollment_id, kind, cause, hours, scheduled_at, reason, given_by) VALUES (e, 'COLLE', 'AUTRE', 1, '2026-10-29 13:00+03', 'jeudi', '00000000-0000-0000-0000-00000000000c');
+    RAISE EXCEPTION 'T62: colle un jeudi';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T62:%' THEN RAISE; END IF;
+  END;
+  IF late_entry('07:00', '09:00', 10) IS NOT NULL OR late_entry('07:00', '09:00', 12) <> '08:00' OR late_entry('10:00', '11:00', 15) <> '11:00' THEN RAISE EXCEPTION 'T62: retard de plus de 10 minutes'; END IF;
+  INSERT INTO engagement_type (code, label, kind) VALUES ('PARRAIN', 'Parrain / marraine d''un nouvel élève', 'ENGAGEMENT');
+  INSERT INTO student_engagement VALUES ((SELECT id FROM enrollment WHERE student_id = (SELECT student_id FROM enrollment WHERE id = e) LIMIT 1), 'PARRAIN');
+  BEGIN
+    INSERT INTO student_engagement VALUES (e, 'INCONNU');
+    RAISE EXCEPTION 'T62: engagement inconnu';
+  EXCEPTION WHEN foreign_key_violation THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO student_followup (enrollment_id, kind, referent_id, contact_name) VALUES (e, 'CONTRAT', '00000000-0000-0000-0000-00000000000c', 'Club de basket');
+    RAISE EXCEPTION 'T62: contact sans accord des parents';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO student_followup (enrollment_id, kind, referent_id, min_average, contact_name, contact_parent_consent) VALUES (e, 'CONTRAT', '00000000-0000-0000-0000-00000000000c', 12, 'Club de basket', true) RETURNING id INTO f;
+  INSERT INTO student_followup_note (followup_id, author_id, text) VALUES (f, '00000000-0000-0000-0000-00000000000c', 'Contrat signé');
+END $$;
+
+-- T63 — prélèvement de la Direction, photocopies, semaines A/B, surveillance des colles
+DO $$ DECLARE m uuid; tmv uuid := (SELECT id FROM site WHERE code = 'TMV'); BEGIN
+  -- la Cheffe saisit son propre prélèvement : compté tout de suite
+  INSERT INTO cash_movement (site_id, direction, category, nature, label, amount_mga, method, agent_id, withdrawn_by)
+  VALUES (tmv, 'SORTIE', 'ECOLAGE', 'Prélèvement Direction', 'Prélèvement', 100000, 'ESPECES', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001') RETURNING id INTO m;
+  IF (SELECT status FROM cash_movement WHERE id = m) <> 'VALIDE' THEN RAISE EXCEPTION 'T63: prélèvement saisi par la Cheffe'; END IF;
+  -- l'économe saisit un prélèvement de la Cheffe : à confirmer par elle seule
+  INSERT INTO cash_movement (site_id, direction, category, nature, label, amount_mga, method, agent_id, withdrawn_by)
+  VALUES (tmv, 'SORTIE', 'ECOLAGE', 'Prélèvement Direction', 'Prélèvement', 50000, 'ESPECES', '00000000-0000-0000-0000-000000000008', '00000000-0000-0000-0000-000000000001') RETURNING id INTO m;
+  IF (SELECT status FROM cash_movement WHERE id = m) <> 'A_VALIDER' THEN RAISE EXCEPTION 'T63: prélèvement saisi par l''économe'; END IF;
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-000000000008', true);
+  BEGIN
+    UPDATE cash_movement SET status = 'VALIDE' WHERE id = m;
+    RAISE EXCEPTION 'T63: confirmé par l''économe';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T63:%' THEN RAISE; END IF;
+  END;
+  PERFORM set_config('app.user_id', '00000000-0000-0000-0000-000000000001', true);
+  UPDATE cash_movement SET status = 'VALIDE', decided_at = now() WHERE id = m;
+  PERFORM set_config('app.user_id', '', true);
+  -- photocopie : reliure et impression obligatoires ; original : ni l'une ni l'autre
+  BEGIN
+    INSERT INTO textbook (site_id, title, subject, level_codes, category, is_returnable, is_photocopy, binding, price_mga, replacement_price_mga) VALUES (tmv, 'Maths 4e', 'Mathématiques', '{4E}', 'MANUEL', true, true, 'RELIURE', 25000, 30000);
+    RAISE EXCEPTION 'T63: photocopie sans impression';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO textbook (site_id, title, subject, level_codes, category, is_returnable, is_photocopy, binding, print_mode, price_mga, replacement_price_mga) VALUES (tmv, 'Maths 4e', 'Mathématiques', '{4E}', 'MANUEL', true, true, 'RELIURE', 'NB', 25000, 30000);
+  -- surveillance des colles : CPE ou secrétariat, un mercredi ou un samedi
+  INSERT INTO detention_watch VALUES (tmv, '2026-10-28', '00000000-0000-0000-0000-00000000000c');
+  BEGIN
+    INSERT INTO detention_watch VALUES (tmv, '2026-10-31', '00000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'T63: surveillance par un professeur';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T63:%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    INSERT INTO detention_watch VALUES (tmv, '2026-10-29', '00000000-0000-0000-0000-00000000000c');
+    RAISE EXCEPTION 'T63: surveillance un jeudi';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
+-- T64 — justification par la famille, notifications (heures calmes, e-mail de secours), remplacement, favoris
+DO $$ DECLARE e uuid := '30000000-0000-0000-0000-000000000001'; a uuid; r uuid; g uuid := 'e0000000-0000-0000-0000-000000000001';
+  cpe uuid := '00000000-0000-0000-0000-00000000000c'; u uuid := '00000000-0000-0000-0000-000000000001'; tmv uuid; n uuid; BEGIN
+  SELECT id INTO tmv FROM site WHERE code = 'TMV';
+  -- absence de ce matin : la famille justifie à temps, la CPE accepte le lendemain
+  INSERT INTO attendance_event (enrollment_id, kind, occurred_at, recorded_by) VALUES (e, 'ABSENCE', now() - interval '20 hours', cpe) RETURNING id INTO a;
+  INSERT INTO attendance_request (attendance_id, guardian_id, reason, sent_at) VALUES (a, g, 'Maladie', now() - interval '18 hours') RETURNING id INTO r;
+  IF (SELECT status FROM v_attendance_status WHERE id = a) <> 'EN_ATTENTE' THEN RAISE EXCEPTION 'T64: en attente de la vie scolaire'; END IF;
+  -- deuxième demande tant que la première attend : refusée
+  BEGIN
+    INSERT INTO attendance_request (attendance_id, guardian_id, reason, sent_at) VALUES (a, g, 'Accident de transport', now() - interval '17 hours');
+    RAISE EXCEPTION 'T64: deux demandes en attente';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  UPDATE attendance_request SET accepted = true, decided_at = now() + interval '10 hours', decided_by = cpe WHERE id = r;
+  IF (SELECT status FROM v_attendance_status WHERE id = a) <> 'JUSTIFIEE' THEN RAISE EXCEPTION 'T64: acceptée après le délai mais envoyée à temps'; END IF;
+  -- motif « Autre » sans précision, refus sans raison, envoi après 24 h : refusés
+  INSERT INTO attendance_event (enrollment_id, kind, occurred_at, recorded_by) VALUES (e, 'ABSENCE', now() - interval '30 hours', cpe) RETURNING id INTO a;
+  BEGIN
+    INSERT INTO attendance_request (attendance_id, guardian_id, reason) VALUES (a, g, 'Maladie');
+    RAISE EXCEPTION 'T64: envoi après 24 h';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'T64:%' THEN RAISE; END IF;
+  END;
+  INSERT INTO attendance_event (enrollment_id, kind, occurred_at, recorded_by) VALUES (e, 'RETARD', now() - interval '2 hours', cpe) RETURNING id INTO a;
+  BEGIN
+    INSERT INTO attendance_request (attendance_id, guardian_id, reason) VALUES (a, g, 'Autre');
+    RAISE EXCEPTION 'T64: Autre sans précision';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO attendance_request (attendance_id, guardian_id, reason) VALUES (a, g, 'Accident de transport') RETURNING id INTO r;
+  BEGIN
+    UPDATE attendance_request SET accepted = false, decided_at = now(), decided_by = cpe WHERE id = r;
+    RAISE EXCEPTION 'T64: refus sans raison';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE attendance_request SET accepted = false, decided_at = now(), decided_by = cpe, refusal_reason = 'Le bus passait à l''heure' WHERE id = r;
+  -- heures calmes : urgent toujours ; le reste seulement de 7h à 20h
+  IF NOT push_allowed('URGENT', '2026-10-13 22:30+03') THEN RAISE EXCEPTION 'T64: urgence la nuit'; END IF;
+  IF push_allowed('IMPORTANT', '2026-10-13 22:30+03') THEN RAISE EXCEPTION 'T64: note la nuit'; END IF;
+  IF NOT push_allowed('IMPORTANT', '2026-10-13 07:00+03') THEN RAISE EXCEPTION 'T64: note à 7h'; END IF;
+  -- e-mail de secours après 2 h sans ouverture
+  INSERT INTO notification_outbox (user_id, level, kind, body, sent_at) VALUES (u, 'URGENT', 'SOIN', 'Aina à l''infirmerie', now() - interval '3 hours') RETURNING id INTO n;
+  IF NOT EXISTS (SELECT 1 FROM v_notification_email_due WHERE id = n) THEN RAISE EXCEPTION 'T64: e-mail de secours'; END IF;
+  UPDATE notification_outbox SET opened_at = now() WHERE id = n;
+  IF EXISTS (SELECT 1 FROM v_notification_email_due WHERE id = n) THEN RAISE EXCEPTION 'T64: ouverte, pas d''e-mail'; END IF;
+  -- remplacement : jamais vers soi-même ; favoris : 5 au plus
+  INSERT INTO staff_cover VALUES (tmv, '2026-10-13', 'VIE_SCOLAIRE', 'BUREAU', u);
+  BEGIN
+    INSERT INTO staff_cover VALUES (tmv, '2026-10-14', 'BUREAU', 'BUREAU', u);
+    RAISE EXCEPTION 'T64: remplacement par soi-même';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO user_favorite VALUES (u, 'accounting', 1), (u, 'vs', 2), (u, 'bulletins', 3), (u, 'council', 4), (u, 'news', 5);
+  BEGIN
+    INSERT INTO user_favorite VALUES (u, 'timetable', 6);
+    RAISE EXCEPTION 'T64: sixième favori';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
+
+-- T65 — envoi au secrétariat sans suite notée, réactions (une par émoji et par personne)
+DO $$ DECLARE e uuid := '30000000-0000-0000-0000-000000000001'; cpe uuid := '00000000-0000-0000-0000-00000000000c';
+  u uuid := '00000000-0000-0000-0000-000000000001'; v uuid; p uuid; tmv uuid; BEGIN
+  SELECT id INTO tmv FROM site WHERE code = 'TMV';
+  INSERT INTO care_visit (enrollment_id, at, reason, recorded_by, sent_by) VALUES (e, now(), 'Mal de tête', cpe, cpe) RETURNING id INTO v;
+  IF NOT EXISTS (SELECT 1 FROM v_care_here_now WHERE id = v) THEN RAISE EXCEPTION 'T65: au secrétariat maintenant'; END IF;
+  UPDATE care_visit SET outcome = 'CLASSE', back_in_class_at = now() WHERE id = v;
+  IF EXISTS (SELECT 1 FROM v_care_here_now WHERE id = v) THEN RAISE EXCEPTION 'T65: reparti en classe'; END IF;
+  BEGIN
+    INSERT INTO care_visit (enrollment_id, at, reason, recorded_by) VALUES (e, now(), 'Malaise', cpe);
+    RAISE EXCEPTION 'T65: passage sans suite ni envoi';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO school_post (site_id, title, author_id, status) VALUES (tmv, 'Kermesse', u, 'PUBLIEE') RETURNING id INTO p;
+  INSERT INTO school_post_reaction (post_id, user_id, emoji) VALUES (p, u, '👏'), (p, u, '❤️');
+  BEGIN
+    INSERT INTO school_post_reaction (post_id, user_id, emoji) VALUES (p, u, '👏');
+    RAISE EXCEPTION 'T65: réaction en double';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO school_post_reaction (post_id, user_id, emoji) VALUES (p, u, '💩');
+    RAISE EXCEPTION 'T65: émoji hors liste';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+
+
+-- T66 — rendez-vous (un créneau au moins), dispense d'EPS, fiche d'orientation étape par étape
+DO $$ DECLARE e uuid := '30000000-0000-0000-0000-000000000001'; g uuid := 'e0000000-0000-0000-0000-000000000001';
+  u uuid := '00000000-0000-0000-0000-000000000001'; s uuid; BEGIN
+  SELECT student_id INTO s FROM enrollment WHERE id = e;
+  INSERT INTO family_request (kind, student_id, submitted_by, payload) VALUES ('RDV', s, g, '{"with":"La vie scolaire (CPE)","reason":"Retards","slots":[{"date":"2026-10-28","time":"10:00"}]}');
+  BEGIN
+    INSERT INTO family_request (kind, student_id, submitted_by, payload) VALUES ('RDV', s, g, '{"with":"Le secrétariat","reason":"Certificat"}');
+    RAISE EXCEPTION 'T66: rendez-vous sans créneau';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO family_request (kind, student_id, submitted_by, payload) VALUES ('DISPENSE_EPS', s, g, '{"type":"PONCTUELLE","from":"2026-10-27","reason":"Entorse"}');
+  INSERT INTO orientation_sheet_step (enrollment_id, step, payload, signed_by) VALUES (e, 't2Request', '{"ranks":["STMG","G"]}', u);
+  BEGIN
+    INSERT INTO orientation_sheet_step (enrollment_id, step, payload, signed_by) VALUES (e, 't3Request', '{"ranks":[]}', u);
+    RAISE EXCEPTION 'T66: choix sans voie';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO orientation_sheet_step (enrollment_id, step, payload, signed_by) VALUES (e, 't2Request', '{"ranks":["G"]}', u);
+    RAISE EXCEPTION 'T66: étape signée deux fois';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+END $$;
+
+-- T67 — bonus / malus (± 2 par demi-point, motif) ; mesure annulée avec motif, gardée au dossier
+DO $$ DECLARE e uuid := '30000000-0000-0000-0000-000000000001'; a uuid := 'c0000000-0000-0000-0000-000000000001';
+  u uuid := '00000000-0000-0000-0000-000000000003'; p uuid; m uuid; BEGIN
+  SELECT id INTO p FROM period WHERE rank = 1 LIMIT 1;
+  INSERT INTO grade_adjustment (assignment_id, period_id, enrollment_id, points, reason, entered_by) VALUES (a, p, e, 1.5, 'Participation orale', u);
+  BEGIN
+    UPDATE grade_adjustment SET points = 2.5 WHERE assignment_id = a AND enrollment_id = e;
+    RAISE EXCEPTION 'T67: bonus au-delà de 2 points';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    UPDATE grade_adjustment SET points = 0.3 WHERE assignment_id = a AND enrollment_id = e;
+    RAISE EXCEPTION 'T67: bonus hors demi-point';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    UPDATE grade_adjustment SET reason = ' ' WHERE assignment_id = a AND enrollment_id = e;
+    RAISE EXCEPTION 'T67: bonus sans motif';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO discipline_measure (enrollment_id, type_code, reason, decided_by) VALUES (e, 'OBSERVATION', 'Bavardages', u) RETURNING id INTO m;
+  BEGIN
+    UPDATE discipline_measure SET cancelled_at = now(), cancelled_by = u WHERE id = m;
+    RAISE EXCEPTION 'T67: annulation sans motif';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE discipline_measure SET cancelled_at = now(), cancelled_by = u, cancel_reason = 'Erreur de saisie' WHERE id = m;
+END $$;
+
+ROLLBACK;
+\echo 'OK — tous les scénarios T1 à T67 passent'

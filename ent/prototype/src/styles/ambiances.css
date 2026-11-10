@@ -1,0 +1,72 @@
+/* Ambiances saisonnières et événementielles (cf. rules/ambiances.js).
+   Une palette = une classe sur <html> (`ambiance--rose`…) qui redéfinit les variables --amb-*.
+   Les composants ne lisent QUE ces variables : ajouter une palette, c'est ajouter un bloc ici.
+   Contrastes (vérifiés par tests/rules.test.js, qui lit ce fichier) :
+   - --amb-band-fg sur --amb-band-bg et --amb-note-fg sur --amb-note-bg : ≥ 7:1 (WCAG AAA) ;
+   - --amb-link sur --amb-note-bg : ≥ 7:1 ;
+   - texte blanc sur --amb-topbar-end (fin du dégradé de la barre du haut) : ≥ 4,5:1 (WCAG AA).
+   --amb-accent est purement décoratif (filets, particules) : il ne porte jamais de texte. */
+
+:root {
+  --amb-accent: #005baa;
+  --amb-topbar-end: #005baa;
+  --amb-band-bg: #eef4fb;
+  --amb-band-fg: #003366;
+  --amb-note-bg: #f8fbff;
+  --amb-note-fg: #0f2a4a;
+  --amb-note-border: #a9c6e8;
+  --amb-link: #003366;
+}
+
+/* ---- Palettes ---------------------------------------------------------------------------------- */
+:root.ambiance--ciel   { --amb-accent: #0ea5e9; --amb-topbar-end: #0369a1; --amb-band-bg: #e0f2fe; --amb-band-fg: #0c4a6e; --amb-note-bg: #f0f9ff; --amb-note-fg: #0c4a6e; --amb-note-border: #7dd3fc; --amb-link: #0c4a6e; }
+:root.ambiance--vert   { --amb-accent: #22c55e; --amb-topbar-end: #15803d; --amb-band-bg: #dcfce7; --amb-band-fg: #14532d; --amb-note-bg: #f0fdf4; --amb-note-fg: #14532d; --amb-note-border: #86efac; --amb-link: #14532d; }
+:root.ambiance--rose   { --amb-accent: #ec4899; --amb-topbar-end: #be185d; --amb-band-bg: #fce7f3; --amb-band-fg: #831843; --amb-note-bg: #fdf2f8; --amb-note-fg: #831843; --amb-note-border: #f9a8d4; --amb-link: #831843; }
+:root.ambiance--violet { --amb-accent: #8b5cf6; --amb-topbar-end: #6d28d9; --amb-band-bg: #ede9fe; --amb-band-fg: #4c1d95; --amb-note-bg: #f5f3ff; --amb-note-fg: #4c1d95; --amb-note-border: #c4b5fd; --amb-link: #4c1d95; }
+:root.ambiance--or     { --amb-accent: #f59e0b; --amb-topbar-end: #92400e; --amb-band-bg: #fef3c7; --amb-band-fg: #78350f; --amb-note-bg: #fffbeb; --amb-note-fg: #78350f; --amb-note-border: #fcd34d; --amb-link: #78350f; }
+:root.ambiance--rouge  { --amb-accent: #ef4444; --amb-topbar-end: #b91c1c; --amb-band-bg: #fee2e2; --amb-band-fg: #7f1d1d; --amb-note-bg: #fef2f2; --amb-note-fg: #7f1d1d; --amb-note-border: #fca5a5; --amb-link: #7f1d1d; }
+:root.ambiance--ambre  { --amb-accent: #f97316; --amb-topbar-end: #9a3412; --amb-band-bg: #ffedd5; --amb-band-fg: #7c2d12; --amb-note-bg: #fff7ed; --amb-note-fg: #7c2d12; --amb-note-border: #fdba74; --amb-link: #7c2d12; }
+:root.ambiance--sobre  { --amb-accent: #64748b; --amb-topbar-end: #334155; --amb-band-bg: #e2e8f0; --amb-band-fg: #1e293b; --amb-note-bg: #f8fafc; --amb-note-fg: #1e293b; --amb-note-border: #cbd5e1; --amb-link: #1e293b; }
+
+/* ---- Barre du haut : le dégradé se termine sur la teinte de l'ambiance --------------------------- */
+:root[class*="ambiance--"] .amb-topbar {
+  background: linear-gradient(100deg, #002a55 0%, #005baa 60%, var(--amb-topbar-end) 100%) !important;
+  color: #ffffff !important;
+}
+
+/* ---- Bande d'ambiance (sous la barre du haut) ---------------------------------------------------- */
+.amb-band {
+  background: var(--amb-band-bg);
+  color: var(--amb-band-fg);
+  border-bottom: 2px solid var(--amb-accent);
+}
+.amb-band button { color: var(--amb-band-fg); text-decoration: underline; text-underline-offset: 3px; }
+.amb-band button:focus-visible, .amb-note button:focus-visible, .amb-note a:focus-visible {
+  outline: 3px solid var(--amb-band-fg); outline-offset: 2px; border-radius: 4px;
+}
+
+/* ---- Encart « Le saviez-vous ? » ----------------------------------------------------------------- */
+.amb-note {
+  background: var(--amb-note-bg);
+  color: var(--amb-note-fg);
+  border: 1px solid var(--amb-note-border);
+  border-left: 6px solid var(--amb-accent);
+}
+.amb-note a { color: var(--amb-link); text-decoration: underline; }
+
+/* ---- Effets : couche décorative au-dessus du contenu, jamais cliquable --------------------------- */
+.amb-effects { position: fixed; inset: 0; z-index: 40; pointer-events: none; transition: opacity 1.2s ease; }
+.amb-effects[data-done="true"] { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .amb-effects { display: none !important; }  /* double sécurité : le composant ne dessine déjà rien */
+}
+
+/* Modes à contraste forcé (Windows) : on laisse le système choisir les couleurs. */
+@media (forced-colors: active) {
+  .amb-band, .amb-note { background: Canvas; color: CanvasText; border-color: CanvasText; }
+  .amb-effects { display: none !important; }
+}
+
+@media print {
+  .amb-band, .amb-note, .amb-effects { display: none !important; }
+}
