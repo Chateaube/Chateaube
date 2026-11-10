@@ -363,6 +363,8 @@ export default function App() {
     <div className={`min-h-screen ${protectedProfile ? 'screen-guard' : ''}`} onClick={() => { setAccountOpen(false); setBellOpen(false); setQuickOpen(false); }}>
       {/* Bandeau du prototype : changer de profil, protection d'écran */}
       <a href="#contenu" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[60] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-navy-900 focus:shadow-lg">Aller au contenu</a>
+      {/* en ligne : pas de bandeau du prototype (ni changement de profil, ni « données fictives ») */}
+      {!ONLINE && (
       <div role="region" aria-label="Bandeau du prototype" className="print:hidden bg-slate-900 px-4 py-1.5 text-[11px] text-slate-300 lg:px-8">
         <div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-x-4 gap-y-1.5">
           <span className="rounded-full bg-amber-400/90 px-2 py-0.5 font-semibold text-slate-900">Prototype · données fictives</span>
@@ -380,6 +382,7 @@ export default function App() {
           {purged && <span role="status" className="text-emerald-300">Données inutilisées depuis plus de {REAL_DATA_IDLE_DAYS} jours effacées de cet ordinateur.</span>}
         </div>
       </div>
+      )}
 
       {/* Barre du haut : logo, site, action rapide, notifications, compte */}
       <header className="amb-topbar print:hidden sticky top-0 z-30 shadow-[0_8px_24px_-16px_rgb(0_51_102/0.6)]"
