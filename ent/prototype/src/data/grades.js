@@ -1,3 +1,4 @@
+import { sortSubjects } from '../rules/subjectOrder.js';
 // Données de démonstration — notes, compétences et conseil de classe (FICTIVES).
 import { CLASS_LIST } from './people.js';
 import { COMPETENCY_HISTORY } from './competencyHistory.js';
@@ -104,7 +105,7 @@ export const COUNCIL_FLAGS = [
 
 // --- Conseil de classe : 1re STMG -----------------------------------------------
 // inAverage : faux pour Vie de classe (hors moyenne générale). Arts plastiques et Musique : collège uniquement
-export const CLASS_SUBJECTS = [
+const RAW_CLASS_SUBJECTS = [
   { id: 'FR', label: 'Français', teacher: 'Mme Nathalie', inAverage: true, coef: 1 },
   { id: 'MATHS', label: 'Mathématiques', teacher: 'M. Steven', inAverage: true, coef: 1 },
   { id: 'HG', label: 'Histoire-Géographie', teacher: 'Mme Felana', inAverage: true, coef: 1 },
@@ -118,6 +119,8 @@ export const CLASS_SUBJECTS = [
   { id: 'ECO', label: 'Économie', teacher: 'Mme Karele', inAverage: true, coef: 1 },
   { id: 'VDC', label: 'Vie de classe', teacher: 'Mme Ranaivo', inAverage: false, coef: 1 },
 ];
+export const CLASS_SUBJECTS = sortSubjects(RAW_CLASS_SUBJECTS); // ordre des matières de l'école
+
 
 // Niveau de base de chaque élève (sert à générer des moyennes réalistes et stables)
 const BASE = {
@@ -160,5 +163,5 @@ export function allSubjects(assignments = []) {
   CLASS_SUBJECTS.forEach((s) => add(s.id, s.label));
   assignments.flatMap((a) => a.subjects ?? []).forEach((label) => add(FIXED_IDS[foldLabel(label)] ?? label, label));
   add('MUS', 'Musique'); add('AP', 'Arts plastiques');
-  return [...new Map([...out.values()].map((s) => [s.id, s])).values()].sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+  return sortSubjects([...new Map([...out.values()].map((s) => [s.id, s])).values()]);
 }

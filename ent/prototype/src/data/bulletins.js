@@ -1,7 +1,8 @@
+import { sortSubjects } from '../rules/subjectOrder.js';
 // Données de démonstration — Terminale Générale (noms d'élèves FICTIFS), 1er trimestre.
 // Professeurs : liste officielle des enseignements. Chaque élève suit 2 spécialités sur 3.
 
-export const TLE_G_SUBJECTS = [
+const RAW_TLE_G_SUBJECTS = [
   { id: 'PHILO', label: 'Philosophie', teacher: 'M. Raymond', comp: 'Philosophie' },
   { id: 'ANG', label: 'Anglais', teacher: 'Mme Pasimiry', comp: 'Anglais' },
   { id: 'ESP', label: 'Espagnol', teacher: 'Mme Henriette', comp: 'Espagnol' },
@@ -13,6 +14,8 @@ export const TLE_G_SUBJECTS = [
   { id: 'EMC', label: 'Éducation morale et civique', teacher: 'Mme Felana', comp: 'Enseignement moral et civique' },
   { id: 'EPS', label: 'Éducation physique et sportive', teacher: 'Mme Doris', comp: 'EPS' },
 ];
+export const TLE_G_SUBJECTS = sortSubjects(RAW_TLE_G_SUBJECTS);
+
 
 const base = [
   ['RANDRIA', 'Mamy', 'M', '2008-09-21', ['MATHS', 'PC'], 14.2, 2, 1],

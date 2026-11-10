@@ -2126,3 +2126,9 @@ test('EduFinance : le trajet pour un versement est une dépense, le versement un
   assert.equal(expenseCategory('Déplacement versement vers à banque'), 'Transport');
   assert.equal(expenseCategory('Versement espèces n°887399'), 'TRANSFERT');
 });
+
+test('ordre des matières de l\'école (bulletins, conseil)', async () => {
+  const { sortSubjects } = await import('../src/rules/subjectOrder.js');
+  const l = ['EPS', 'Vie de classe', 'Droit', 'Spécialité SVT', 'Philosophie', 'Français', 'Mandarin', 'Anglais', 'MSGN', 'Économie', 'Physique-Chimie'].map((label) => ({ label, id: label }));
+  assert.deepEqual(sortSubjects(l).map((s) => s.label), ['Français', 'Philosophie', 'Anglais', 'Mandarin', 'Physique-Chimie', 'Spécialité SVT', 'Économie', 'Droit', 'MSGN', 'EPS', 'Vie de classe']);
+});
