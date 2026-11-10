@@ -1,4 +1,3 @@
-import LoadingAnimation from './LoadingAnimation.jsx';
 import React, { useEffect, useState } from 'react';
 import { supabase, signIn, forgotCode, loadAccount, setCode, signOut, codeErrors } from '../online/client.js';
 import { saveMe, loadMe } from '../identity.js';
@@ -65,9 +64,6 @@ function NewCode({ first, onDone }) {
 
 export default function OnlineGate({ children }) {
   const [state, setState] = useState({ step: 'loading' });
-  // l'animation reste au moins un instant à la première ouverture (une fois par session)
-  const [shown, setShown] = useState(() => { try { return sessionStorage.getItem('ent-splash') === '1'; } catch { return true; } });
-  useEffect(() => { if (shown) return undefined; const t = setTimeout(() => { setShown(true); try { sessionStorage.setItem('ent-splash', '1'); } catch { /* rien */ } }, 1600); return () => clearTimeout(t); }, [shown]);
   const refresh = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { setState({ step: 'login' }); return; }
@@ -91,13 +87,7 @@ export default function OnlineGate({ children }) {
     const { data } = supabase.auth.onAuthStateChange((event) => { if (event === 'PASSWORD_RECOVERY') setState({ step: 'recovery' }); });
     return () => data.subscription.unsubscribe();
   }, []);
-  if (state.step === 'loading' || !shown) return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-navy-900 to-navy-700 p-4 text-center" role="status">
-      <div className="rounded-full bg-white/95 p-3 shadow-xl"><LoadingAnimation size={170} /></div>
-      <p className="mt-5 font-display text-lg font-semibold text-white">ENT Chateaubriand</p>
-      <p className="text-sm text-white/80">Chargement…</p>
-    </div>
-  );
+  if (state.step === 'loading') return <Shell title="Connexion…"><p className="text-sm text-slate-600">Un instant.</p></Shell>;
   if (state.step === 'login') return <Login onDone={refresh} />;
   if (state.step === 'first') return <NewCode first onDone={refresh} />;
   if (state.step === 'recovery') return <NewCode onDone={() => { window.location.hash = ''; refresh(); }} />;
