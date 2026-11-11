@@ -24,6 +24,8 @@ export function writeStored(key, value) {
   try {
     localStorage.setItem(key, JSON.stringify(value));
     memory.delete(key);
+    // signal « Enregistré » affiché dans la barre du haut (saisies seulement, pas les réglages techniques)
+    if (/^ent-[sk]-/.test(key)) try { window.dispatchEvent(new CustomEvent('ent-saved')); } catch { /* hors navigateur */ }
     return true;
   } catch { memory.set(key, value); return false; }
 }
