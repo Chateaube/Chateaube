@@ -4,7 +4,9 @@ import { supabase, FN_COMPTES } from '../online/client.js';
 import { printOnly } from '../print.js';
 import { askConfirm } from './Dialogs.jsx';
 import { usePersistent } from '../persist.js';
-import { CONTRATS } from '../data/people.js';
+import AgentForm, { EMPTY_AGENT, serviceText } from './AgentForm.jsx';
+import { StaffDocumentsButtons } from './StaffDocuments.jsx';
+import { schoolYearOf } from '../rules/documents.js';
 import { today } from '../clock.js';
 
 const fr = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
@@ -41,68 +43,85 @@ function Slip({ slip, onClose }) {
   );
 }
 
-export default function AccountsModule({ embedded = false }) {
+export default function AccountsModule({ embedded = false, settings }) {
   const [list, setList] = useState(null); const [err, setErr] = useState('');
-  const [d, setD] = useState({ first: '', last: '', role: 'PROFESSEUR', title: '', email: '' });
+  const [d, setD] = useState(null); // nouvel agent : fiche complète
   const [busy, setBusy] = useState(false); const [slip, setSlip] = useState(null);
-  // fiche de l'agent (registre) : contrat, entrée, sortie — au même endroit que son compte
+  // fiche de chaque agent (contrat, identité, enseignements, taux) : sur l'appareil de la Direction
   const [fiches, setFiches] = usePersistent('ent-s-fiches-agents', {});
-  const [open, setOpen] = useState(null);
-  const setFiche = (id, patch) => setFiches({ ...fiches, [id]: { ...(fiches[id] ?? {}), ...patch } });
+  const [edit, setEdit] = useState(null); // { id, value }
+  const [docsFor, setDocsFor] = useState(null);
   const load = async () => {
     const { data, error } = await supabase.from('app_user').select('id, first_name, last_name, login, email, is_active, last_login_at, must_change_code, user_role(role, title)').order('last_name');
     if (error) setErr('La liste des comptes n\'a pas pu être chargée.'); else setList(data);
   };
   useEffect(() => { load(); }, []);
   const run = async (fn) => { setBusy(true); setErr(''); try { await fn(); await load(); } catch (x) { setErr(x.message); } setBusy(false); };
-  const ok = d.first.trim() && d.last.trim();
+  const ok = d && d.first.trim() && d.last.trim();
+  const ficheOf = (u) => ({ ...EMPTY_AGENT, first: u.first_name, last: u.last_name, title: u.user_role?.[0]?.title ?? '', role: u.user_role?.[0]?.role ?? 'PROFESSEUR', ...(fiches[u.id] ?? {}) });
+  const number = (u) => `${schoolYearOf(today())}/${String(list.findIndex((x) => x.id === u.id) + 1).padStart(3, '0')}`;
+  const create = () => run(async () => {
+    const r = await call({ action: 'create', first: d.first, last: d.last, role: d.role, title: d.title, email: d.email });
+    const { email, ...rest } = d;
+    setFiches({ ...fiches, [r.id]: rest });
+    setSlip({ ...r, name: `${d.first.trim()} ${d.last.trim().toUpperCase()}` });
+    setD(null);
+  });
   return (
     <div className="space-y-5">
       {embedded ? <p className="text-sm text-slate-600">Identifiant : 2 premières lettres du nom + prénom (ex. am.fatema), attribué automatiquement ; un code provisoire à remettre. L'e-mail (Gmail, Outlook…) sert seulement en cas de code oublié.</p> : <div>
         <p className="text-sm font-semibold text-navy-500">Version en ligne</p>
         <h1 className="text-2xl font-semibold text-navy-900">Comptes du personnel</h1>
-        <p className="text-sm text-slate-600">Chaque personne reçoit un identifiant et un code provisoire. L'e-mail sert seulement en cas de code oublié.</p>
       </div>}
       {err && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p>}
       {slip && <Slip slip={slip} onClose={() => setSlip(null)} />}
-      <Card title="Nouveau compte">
-        <form className="grid gap-3 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); if (!ok) return; run(async () => { const r = await call({ action: 'create', ...d }); setSlip({ ...r, name: `${d.first.trim()} ${d.last.trim().toUpperCase()}` }); setD({ first: '', last: '', role: d.role, title: '', email: '' }); }); }}>
-          <label className="text-xs font-medium text-slate-600">Prénom<input value={d.first} onChange={(e) => setD({ ...d, first: e.target.value })} className={field} /></label>
-          <label className="text-xs font-medium text-slate-600">Nom<input value={d.last} onChange={(e) => setD({ ...d, last: e.target.value })} className={field} /></label>
-          <label className="text-xs font-medium text-slate-600">Fonction<select value={d.role} onChange={(e) => setD({ ...d, role: e.target.value })} className={field}>{ROLES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
-          <label className="text-xs font-medium text-slate-600">Intitulé du poste (facultatif : Directrice, Économe…)<input value={d.title} onChange={(e) => setD({ ...d, title: e.target.value })} className={field} /></label>
-          <label className="text-xs font-medium text-slate-600 sm:col-span-2">E-mail (facultatif, pour le code oublié)<input type="email" value={d.email} onChange={(e) => setD({ ...d, email: e.target.value })} className={field} /></label>
-          <div className="sm:col-span-2"><Button type="submit" disabled={!ok || busy}>{busy ? 'Création…' : 'Créer le compte'}</Button></div>
-        </form>
-      </Card>
-      <Card title={`Comptes (${list?.length ?? '…'})`}>
+      {d ? (
+        <Card title="Nouvel agent" subtitle="Tout en une fois : le compte est créé et la fiche enregistrée. Seuls le prénom, le nom et la fonction sont obligatoires.">
+          <AgentForm value={d} onChange={setD} />
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button disabled={!ok || busy} onClick={create}>{busy ? 'Création…' : 'Créer le compte et enregistrer la fiche'}</Button>
+            <Button variant="secondary" onClick={() => setD(null)}>Annuler</Button>
+          </div>
+        </Card>
+      ) : <Button onClick={() => setD({ ...EMPTY_AGENT })}>＋ Nouvel agent</Button>}
+      <Card title={`Agents (${list?.length ?? '…'})`}>
         {!list ? <p className="text-sm text-slate-500">Chargement…</p> : (
           <ul className="divide-y divide-slate-100">
-            {list.map((u) => (
-              <li key={u.id} className={`flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm ${u.is_active ? '' : 'opacity-60'}`}>
-                <div className="min-w-0">
-                  <p className="font-medium text-slate-900">{u.last_name} {u.first_name} <span className="font-mono text-xs font-normal text-slate-500">· {u.login}</span></p>
-                  {(() => { const f = fiches[u.id] ?? {}; const gone = f.exit && f.exit < today(); return (
-                    <p className="text-xs text-slate-600">{[f.contract, f.entry && `entré·e le ${fr(f.entry)}`, f.exit && (gone ? `sorti·e le ${fr(f.exit)}` : `fin prévue le ${fr(f.exit)}`)].filter(Boolean).join(' · ') || <span className="text-slate-400">fiche à compléter</span>}
-                      {gone && u.is_active && <span className="ml-1 font-medium text-red-700">— compte encore actif : à désactiver</span>}</p>); })()}
-                  <p className="text-xs text-slate-600">{(u.user_role ?? []).map((r) => r.title || LABEL[r.role] || r.role).join(', ')}{/\.invalid$/.test(u.email) ? ' · sans e-mail' : ''} · {u.last_login_at ? `dernière connexion le ${new Date(u.last_login_at).toLocaleDateString('fr-FR')}` : 'jamais connecté·e'}</p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {u.must_change_code && u.is_active && <Badge tone="amber">code provisoire</Badge>}
-                  {!u.is_active && <Badge tone="slate">désactivé</Badge>}
-                  <Button variant="ghost" className="!py-1 text-xs" onClick={() => setOpen(open === u.id ? null : u.id)}>{open === u.id ? 'Fermer la fiche' : 'Fiche'}</Button>
-                  <Button variant="secondary" className="!py-1 text-xs" disabled={busy || !u.is_active} onClick={() => run(async () => { const r = await call({ action: 'reset', userId: u.id }); setSlip({ ...r, name: `${u.first_name} ${u.last_name}` }); })}>Nouveau code</Button>
-                  <Button variant="ghost" className="!py-1 text-xs" disabled={busy} onClick={async () => { if (u.is_active && !(await askConfirm(`Désactiver le compte de ${u.first_name} ${u.last_name} ? La personne ne pourra plus se connecter ; ses saisies restent.`))) return; run(() => call({ action: 'active', userId: u.id, active: !u.is_active })); }}>{u.is_active ? 'Désactiver' : 'Réactiver'}</Button>
-                </div>
-                {open === u.id && (
-                  <div className="grid w-full gap-2 rounded-lg bg-slate-50 p-2 sm:grid-cols-3">
-                    <label className="text-xs text-slate-600">Contrat<select value={fiches[u.id]?.contract ?? ''} onChange={(e) => setFiche(u.id, { contract: e.target.value })} className={field}><option value="">—</option>{CONTRATS.map((c) => <option key={c}>{c}</option>)}</select></label>
-                    <label className="text-xs text-slate-600">Date d'entrée<input type="date" value={fiches[u.id]?.entry ?? ''} onChange={(e) => setFiche(u.id, { entry: e.target.value })} className={field} /></label>
-                    <label className="text-xs text-slate-600">Date de sortie (départ)<input type="date" value={fiches[u.id]?.exit ?? ''} onChange={(e) => setFiche(u.id, { exit: e.target.value })} className={field} /></label>
+            {list.map((u) => {
+              const f = ficheOf(u); const gone = f.exit && f.exit < today();
+              return (
+                <li key={u.id} className={`py-2.5 text-sm ${u.is_active ? '' : 'opacity-60'}`}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-slate-900">{u.last_name} {u.first_name} <span className="font-mono text-xs font-normal text-slate-500">· {u.login}</span></p>
+                      <p className="text-xs text-slate-600">{(u.user_role ?? []).map((r) => r.title || LABEL[r.role] || r.role).join(', ')}{fiches[u.id]?.contract ? ` · ${fiches[u.id].contract}` : ''}{f.entry ? ` · entré·e le ${fr(f.entry)}` : ''}{f.exit ? (gone ? ` · sorti·e le ${fr(f.exit)}` : ` · fin prévue le ${fr(f.exit)}`) : ''}
+                        {gone && u.is_active && <span className="ml-1 font-medium text-red-700">— compte encore actif : à désactiver</span>}</p>
+                      {serviceText(f.services) && <p className="text-xs text-slate-500">{serviceText(f.services)}</p>}
+                      <p className="text-xs text-slate-500">{/\.invalid$/.test(u.email) ? 'sans e-mail · ' : ''}{u.last_login_at ? `dernière connexion le ${new Date(u.last_login_at).toLocaleDateString('fr-FR')}` : 'jamais connecté·e'}</p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {u.must_change_code && u.is_active && <Badge tone="amber">code provisoire</Badge>}
+                      {!u.is_active && <Badge tone="slate">désactivé</Badge>}
+                      <Button variant="ghost" className="!py-1 text-xs" onClick={() => setEdit(edit?.id === u.id ? null : { id: u.id, value: f })}>{edit?.id === u.id ? 'Fermer la fiche' : 'Fiche'}</Button>
+                      <Button variant="ghost" className="!py-1 text-xs" onClick={() => setDocsFor(docsFor === u.id ? null : u.id)}>Documents</Button>
+                      <Button variant="secondary" className="!py-1 text-xs" disabled={busy || !u.is_active} onClick={() => run(async () => { const r = await call({ action: 'reset', userId: u.id }); setSlip({ ...r, name: `${u.first_name} ${u.last_name}` }); })}>Nouveau code</Button>
+                      <Button variant="ghost" className="!py-1 text-xs" disabled={busy} onClick={async () => { if (u.is_active && !(await askConfirm(`Désactiver le compte de ${u.first_name} ${u.last_name} ? La personne ne pourra plus se connecter ; ses saisies restent.`))) return; run(() => call({ action: 'active', userId: u.id, active: !u.is_active })); }}>{u.is_active ? 'Désactiver' : 'Réactiver'}</Button>
+                    </div>
                   </div>
-                )}
-              </li>
-            ))}
+                  {docsFor === u.id && <div className="mt-2 rounded-lg bg-slate-50 p-2"><StaffDocumentsButtons agent={f} headName={settings?.school?.headName} number={number(u)} /></div>}
+                  {edit?.id === u.id && (
+                    <div className="mt-2 rounded-xl bg-slate-50 p-3">
+                      <AgentForm value={edit.value} onChange={(value) => setEdit({ ...edit, value })} withAccount={false} />
+                      <p className="mt-2 text-xs text-slate-500">Le nom et la fonction dans l'ENT ne changent pas ici (compte de connexion) ; le reste de la fiche, oui.</p>
+                      <div className="mt-3 flex gap-2">
+                        <Button onClick={() => { const { email, ...rest } = edit.value; setFiches({ ...fiches, [u.id]: rest }); setEdit(null); }}>Enregistrer la fiche</Button>
+                        <Button variant="secondary" onClick={() => setEdit(null)}>Annuler</Button>
+                      </div>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </Card>
