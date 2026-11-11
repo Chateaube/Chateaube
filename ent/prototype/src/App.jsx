@@ -1,6 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import SavedBadge from './components/SavedBadge.jsx';
 import ComingSoon from './components/ComingSoon.jsx';
+
+// Rubriques déjà utilisables en ligne par tout le personnel (les autres : « fonction en cours de création »)
+const ONLINE_READY = [];
+const COMING_TEXT = {
+  grades: 'La saisie des notes en ligne ouvre très prochainement. En attendant, gardez vos notes comme d\'habitude : vous les recopierez ici évaluation par évaluation.',
+  'grade-sheets': 'Les grilles de notes arrivent avec la saisie des notes en ligne.',
+  default: 'Cette rubrique sera ouverte lors de la bascule complète sur l\'ENT. Pour l\'instant, on continue comme d\'habitude.',
+};
 import { hasRealData, purgeExpired, wipeLocalData, REAL_DATA_IDLE_DAYS } from './privacy.js';
 import { Icon, Avatar } from './components/ui.jsx';
 import DirectionDashboard from './components/DirectionDashboard.jsx';
@@ -257,7 +265,11 @@ export default function App() {
   const account = DIRECTION_ACCOUNTS.find((a) => a.id === accountId);
   // rubriques masquées par la Direction (Droits d'accès → Rubriques de l'école) : retirées du menu
   const NAV = applyAccess({ profile, person: PERSON_OF[profile], baseNav: PROFILES[profile].nav, catalogue: catalogue(), access: settings.access }).map((g) => ({ ...g, items: g.items.filter((it) => featureVisible(settings, it.feature, profile)) })).filter((g) => g.items.length);
-  const Current = (NAV.flatMap((g) => g.items).find((i) => i.id === screen) ?? NAV[0].items[0]).screen;
+  // En ligne, pour le personnel (hors Direction) : les rubriques pas encore ouvertes restent visibles mais
+  // affichent « Fonction en cours de création » (leurs données ne sont pas encore partagées en ligne).
+  const notYet = (it) => ONLINE && profile !== 'DIRECTION' && it.id !== PROFILES[profile].home && !ONLINE_READY.includes(it.id);
+  const screenOf = (it) => (notYet(it) ? () => <ComingSoon title={it.label} text={COMING_TEXT[it.id] ?? COMING_TEXT.default} /> : it.screen);
+  const Current = screenOf(NAV.flatMap((g) => g.items).find((i) => i.id === screen) ?? NAV[0].items[0]);
   const switchProfile = (p) => { setProfile(p); setScreen(PROFILES[p].home); };
 
   const myself = realData0 ? loadMe() : null;
