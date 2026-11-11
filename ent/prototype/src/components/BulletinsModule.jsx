@@ -1,4 +1,5 @@
 import { termGrades, subjectAverage } from '../termGrades.js';
+import { absenceTotals } from '../rules/absenceCarry.js';
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Badge, Button, Card, StudentSelect } from './ui.jsx';
 import { BulletinSheet } from './Bulletin.jsx';
@@ -56,7 +57,7 @@ function buildPremiereSTMG(settings) {
       competencies: s.service ? (TEACHER_COMPETENCIES[s.service] ?? []).slice(0, 4) : compsFor(COMP_KEY[s.label] ?? s.label, '1re STMG'),
       appreciation: demoAppreciation(st.avgs[s.id]),
     })),
-    general: generals[i], classGeneral: classStats(generals).avg, justified: ABSENCES[st.name]?.justified ?? 0, unjustified: ABSENCES[st.name]?.unjustified ?? 0, late: ABSENCES[st.name]?.late ?? 0,
+    general: generals[i], classGeneral: classStats(generals).avg, ...absenceTotals(st.name, ABSENCES[st.name]),
     generalAppreciation: onBulletin(ga[st.name]), // seulement si validée par la Direction
   }));
 }
@@ -88,7 +89,7 @@ function buildImported() {
     birthLine: st.birthDate ? `${accord(st.sex, 'Né', 'Née')} le ${longDate(st.birthDate)}` : '',
     classLine: classLine('Terminale Générale', st.specialties ?? []),
     rows: subjectsOf(st, TLE_G_SUBJECTS).map((s) => ({ label: s.label, teacher: s.teacher, avg: null, classAvg: null, competencies: compsFor(s.comp, 'Tle G'), appreciation: '' })),
-    general: null, classGeneral: null, justified: 0, unjustified: 0, late: 0,
+    general: null, classGeneral: null, ...absenceTotals(`${st.lastName} ${st.firstName}`),
   }));
 }
 
