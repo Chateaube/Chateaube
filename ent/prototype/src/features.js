@@ -16,7 +16,7 @@ export const FEATURES = [
   { id: 'bibliotheque', label: 'Bibliothèque (salle d\'étude)', where: 'Matériel', default: 'TOUS' },
   { id: 'reservations', label: 'Réservations de matériel', where: 'Matériel', default: 'TOUS' },
   { id: 'appel', label: 'Appel en ligne (professeurs)', where: 'Enseignants', default: 'AUCUN',
-    note: 'Fait sur papier pour l\'instant : à afficher quand l\'école passe à l\'appel dans l\'ENT.' },
+    note: 'Masquée = l\'écran Appel affiche « fonction en cours de création ». À rendre visible quand l\'école passe à l\'appel dans l\'ENT.' },
   { id: 'cahier-textes', label: 'Cahier de textes en ligne', where: 'Enseignants, familles', default: 'AUCUN',
     note: 'Tenu sur papier jusqu\'à la rentrée 2027 : à afficher ce jour-là pour passer au cahier en ligne.' },
 ];
