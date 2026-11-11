@@ -93,7 +93,7 @@ const MANUALS = { id: 'manuals', label: 'Manuels scolaires', icon: 'cap', screen
 const FEEDBACK = { id: 'feedback', label: 'Avis et idées', icon: 'bell', screen: FeedbackModule };
 const LIBRARY = { id: 'library', label: 'Bibliothèque', icon: 'pen', screen: LibraryModule, feature: 'bibliotheque' };
 // Gestion des agents (en ligne) : une seule liste, l'accès à l'ENT et la fiche de chaque personne
-function StaffHub() {
+function StaffHub({ settings }) {
   return (
     <div className="space-y-4">
       <div>
@@ -101,7 +101,7 @@ function StaffHub() {
         <h1 className="text-2xl font-semibold text-navy-900">Gestion des agents</h1>
         <p className="text-sm text-slate-600">Une ligne par personne : son accès à l'ENT (identifiant, code) et sa fiche (contrat, entrée, sortie).</p>
       </div>
-      <AccountsModule embedded />
+      <AccountsModule embedded settings={settings} />
     </div>
   );
 }
