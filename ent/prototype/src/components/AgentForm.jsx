@@ -10,7 +10,7 @@ import { loadImport } from '../importStore.js';
 export const ROLES = [['PROFESSEUR', 'Professeur'], ['VIE_SCOLAIRE', 'CPE / vie scolaire'], ['BUREAU', 'Secrétariat / économat'], ['DIRECTION', 'Direction']];
 export const CLASSES = ['6e', '5e', '4e', '3e', '2de', '1re Générale', '1re STMG', 'Terminale Générale', 'Terminale STMG'];
 export const EMPTY_AGENT = {
-  civility: 'Madame', first: '', usual: '', last: '', role: 'PROFESSEUR', title: '', email: '', phone: '',
+  civility: 'Madame', first: '', usual: '', last: '', birthDate: '', birthPlace: '', role: 'PROFESSEUR', title: '', email: '', phone: '',
   contract: 'Vacataire', entry: '', exit: '', rate: '', address: '', idType: 'CIN', idNumber: '', idIssued: '', idPlace: '',
   services: [],
 };
@@ -42,6 +42,8 @@ export default function AgentForm({ value: d, onChange, withAccount = true, with
         <label className={`${label} sm:col-span-2`}>Type<select value={d.contract} onChange={(e) => set({ contract: e.target.value })} className={field}>{CONTRATS.map((c) => <option key={c}>{c}</option>)}</select></label>
         <label className={`${label} sm:col-span-2`}>Date d'entrée<input type="date" value={d.entry} onChange={(e) => set({ entry: e.target.value })} className={field} /></label>
         <label className={`${label} sm:col-span-2`}>Date de sortie<input type="date" value={d.exit} onChange={(e) => set({ exit: e.target.value })} className={field} /></label>
+        <label className={`${label} sm:col-span-2`}>Date de naissance<input type="date" value={d.birthDate ?? ''} onChange={(e) => set({ birthDate: e.target.value })} className={field} /></label>
+        <label className={`${label} sm:col-span-4`}>Lieu de naissance<input value={d.birthPlace ?? ''} onChange={(e) => set({ birthPlace: e.target.value })} className={field} /></label>
         <label className={`${label} sm:col-span-6`}>Adresse<input value={d.address} onChange={(e) => set({ address: e.target.value })} className={field} /></label>
         <label className={`${label} sm:col-span-1`}>Pièce<select value={d.idType} onChange={(e) => set({ idType: e.target.value })} className={field}><option>CIN</option><option>Passeport</option><option>Carte de résident</option></select></label>
         <label className={`${label} sm:col-span-2`}>Numéro<input value={d.idNumber} onChange={(e) => set({ idNumber: e.target.value })} className={field} /></label>
