@@ -116,7 +116,8 @@ export function WorkSheet({ agent: a, kind, signatory, date = today() }) {
 export function StaffDocumentsButtons({ agent, headName, number }) {
   const [open, setOpen] = useState(null);
   const [sig, setSig] = useState(SIGNATORIES[1].id);
-  const signatory = SIGNATORIES.find((s) => s.id === sig);
+  const base = SIGNATORIES.find((s) => s.id === sig);
+  const signatory = base.id === 'CHEFFE' && headName ? { ...base, intro: `${headName}, fondatrice et Cheffe d'établissement de Chateaubriand`, name: headName } : base;
   const titles = { CONTRAT: 'Contrat de vacation', ATTESTATION: 'Attestation de travail', CERTIFICAT: 'Certificat de travail' };
   return (
     <>

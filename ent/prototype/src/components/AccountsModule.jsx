@@ -6,6 +6,7 @@ import { askConfirm } from './Dialogs.jsx';
 import { usePersistent } from '../persist.js';
 import AgentForm, { EMPTY_AGENT, serviceText } from './AgentForm.jsx';
 import { StaffDocumentsButtons } from './StaffDocuments.jsx';
+import BulkTeachers from './BulkTeachers.jsx';
 import { schoolYearOf } from '../rules/documents.js';
 import { today } from '../clock.js';
 
@@ -51,6 +52,7 @@ export default function AccountsModule({ embedded = false, settings }) {
   const [fiches, setFiches] = usePersistent('ent-s-fiches-agents', {});
   const [edit, setEdit] = useState(null); // { id, value }
   const [docsFor, setDocsFor] = useState(null);
+  const [bulk, setBulk] = useState(false);
   const load = async () => {
     const { data, error } = await supabase.from('app_user').select('id, first_name, last_name, login, email, is_active, last_login_at, must_change_code, user_role(role, title)').order('last_name');
     if (error) setErr('La liste des comptes n\'a pas pu être chargée.'); else setList(data);
@@ -61,7 +63,7 @@ export default function AccountsModule({ embedded = false, settings }) {
   const ficheOf = (u) => ({ ...EMPTY_AGENT, first: u.first_name, last: u.last_name, title: u.user_role?.[0]?.title ?? '', role: u.user_role?.[0]?.role ?? 'PROFESSEUR', ...(fiches[u.id] ?? {}) });
   const number = (u) => `${schoolYearOf(today())}/${String(list.findIndex((x) => x.id === u.id) + 1).padStart(3, '0')}`;
   const create = () => run(async () => {
-    const r = await call({ action: 'create', first: d.first, last: d.last, role: d.role, title: d.title, email: d.email });
+    const r = await call({ action: 'create', first: d.first, last: d.last, usual: d.usual, role: d.role, title: d.title, email: d.email });
     const { email, ...rest } = d;
     setFiches({ ...fiches, [r.id]: rest });
     setSlip({ ...r, name: `${d.first.trim()} ${d.last.trim().toUpperCase()}` });
@@ -83,7 +85,18 @@ export default function AccountsModule({ embedded = false, settings }) {
             <Button variant="secondary" onClick={() => setD(null)}>Annuler</Button>
           </div>
         </Card>
-      ) : <Button onClick={() => setD({ ...EMPTY_AGENT })}>＋ Nouvel agent</Button>}
+      ) : !bulk && <div className="flex flex-wrap gap-2"><Button onClick={() => setD({ ...EMPTY_AGENT })}>＋ Nouvel agent</Button><Button variant="secondary" onClick={() => setBulk(true)}>Créer les comptes des professeurs (liste)</Button></div>}
+      {bulk && !d && (
+        <>
+          <BulkTeachers existingLogins={(list ?? []).map((u) => u.login)} onDone={load}
+            create={async (r) => {
+              const res = await call({ action: 'create', first: r.first, last: r.last, usual: r.usual, role: 'PROFESSEUR', title: 'Professeur' });
+              setFiches((prev) => ({ ...prev, [res.id]: { ...EMPTY_AGENT, civility: r.civility ?? 'Madame', first: r.first, usual: r.usual, last: r.last, role: 'PROFESSEUR', title: 'Professeur', services: r.services } }));
+              return res;
+            }} />
+          <Button variant="ghost" onClick={() => setBulk(false)}>Fermer la création groupée</Button>
+        </>
+      )}
       <Card title={`Agents (${list?.length ?? '…'})`}>
         {!list ? <p className="text-sm text-slate-500">Chargement…</p> : (
           <ul className="divide-y divide-slate-100">
