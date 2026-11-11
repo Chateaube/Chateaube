@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import SavedBadge from './components/SavedBadge.jsx';
 import { hasRealData, purgeExpired, wipeLocalData, REAL_DATA_IDLE_DAYS } from './privacy.js';
 import { Icon, Avatar } from './components/ui.jsx';
 import DirectionDashboard from './components/DirectionDashboard.jsx';
@@ -422,6 +423,7 @@ export default function App() {
           )}
 
           <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+            <SavedBadge />
             {staffProfile && <GlobalSearch nav={NAV} go={goTo} />}
             {QUICK.length > 0 && (
               <div className="relative" onClick={(e) => e.stopPropagation()}>
