@@ -183,7 +183,7 @@ const PROFILES = {
       // trois groupes : la journée, les évaluations, les élèves ; puis échanges et ressources
       { group: 'Ma journée', items: [
         { id: 'teacher', label: 'Ma journée', icon: 'home', screen: TeacherPortal },
-        { id: 'appel', label: 'Appel', icon: 'check', screen: AttendanceModule },
+        { id: 'appel', label: 'Appel', icon: 'check', feature: 'appel', screen: AttendanceModule },
         { id: 'homework', label: 'Cahier de textes', icon: 'calendar', feature: 'cahier-textes', screen: HomeworkModule },
         AGENDA, BOOKING, { ...HOURS, label: 'Mes heures et absences' },
       ] },
@@ -524,8 +524,8 @@ export default function App() {
       </div>
       {profile === 'ENSEIGNANT' && (
         // téléphone : les cinq écrans du quotidien en bas, à portée de pouce
-        <nav aria-label="Raccourcis enseignant" className={`print:hidden fixed inset-x-0 bottom-0 z-40 grid ${featureVisible(settings, 'cahier-textes', profile) ? 'grid-cols-5' : 'grid-cols-4'} border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] sm:hidden`}>
-          {[['teacher', 'Journée', 'home'], ['appel', 'Appel', 'check'], ['grades', 'Notes', 'pen'], ['homework', 'Cahier', 'calendar'], ['messages', 'Messages', 'bell']].filter(([id]) => id !== 'homework' || featureVisible(settings, 'cahier-textes', profile)).map(([id, label, icon]) => (
+        <nav aria-label="Raccourcis enseignant" className={`print:hidden fixed inset-x-0 bottom-0 z-40 grid ${['grid-cols-3', 'grid-cols-4', 'grid-cols-5'][Number(featureVisible(settings, 'cahier-textes', profile)) + Number(featureVisible(settings, 'appel', profile))]} border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] sm:hidden`}>
+          {[['teacher', 'Journée', 'home'], ['appel', 'Appel', 'check'], ['grades', 'Notes', 'pen'], ['homework', 'Cahier', 'calendar'], ['messages', 'Messages', 'bell']].filter(([id]) => (id !== 'homework' || featureVisible(settings, 'cahier-textes', profile)) && (id !== 'appel' || featureVisible(settings, 'appel', profile))).map(([id, label, icon]) => (
             <button key={id} type="button" onClick={() => goTo(id)} aria-current={screen === id ? 'page' : undefined}
               className={`flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-[11px] font-semibold ${screen === id ? 'text-navy-700' : 'text-slate-600'}`}><Icon name={icon} className="h-5 w-5" />{label}</button>
           ))}

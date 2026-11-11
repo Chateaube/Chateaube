@@ -17,6 +17,10 @@ export function sessionState(s, now, record) {
 /* Retard de plus de 10 minutes : l'élève est compté ABSENT pour l'heure commencée et entre à l'heure pleine
  * suivante du cours (cours de 7h à 9h, arrivé à 7h12 : absent de 7h à 8h, entre à 8h). Pour un cours d'une
  * heure, il rejoint le cours suivant. */
+/** Appel fermé 15 minutes après le début du cours : ensuite, seule la vie scolaire le saisit ou le corrige. */
+export const CALL_CLOSE_AFTER = 15;
+export const callOpen = (s, now) => s.date === now.date && min(now.time) >= min(s.start) - OPEN_BEFORE && min(now.time) <= min(s.start) + CALL_CLOSE_AFTER;
+
 export const LATE_LIMIT = 10;
 const hm = (n) => `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
 export function lateOutcome({ start, end }, minutes) {
