@@ -1,5 +1,6 @@
 import React from 'react';
 import { CONTRATS } from '../data/people.js';
+import { PAY_MODES, PRORATA_BASES } from '../rules/pay.js';
 import { allSubjects } from '../data/grades.js';
 import { ASSIGNMENTS } from '../data/staffAssignments.js';
 import { loadImport } from '../importStore.js';
@@ -11,7 +12,7 @@ export const ROLES = [['PROFESSEUR', 'Professeur'], ['VIE_SCOLAIRE', 'CPE / vie 
 export const CLASSES = ['6e', '5e', '4e', '3e', '2de', '1re Générale', '1re STMG', 'Terminale Générale', 'Terminale STMG'];
 export const EMPTY_AGENT = {
   civility: 'Madame', first: '', usual: '', last: '', birthDate: '', birthPlace: '', role: 'PROFESSEUR', title: '', email: '', phone: '',
-  contract: 'Vacataire', entry: '', exit: '', rate: '', address: '', idType: 'CIN', idNumber: '', idIssued: '', idPlace: '',
+  contract: 'Vacataire', entry: '', exit: '', payMode: 'HORAIRE', rate: '', monthly: '', prorataBase: 'ENTREE', address: '', idType: 'CIN', idNumber: '', idIssued: '', idPlace: '',
   services: [],
 };
 const field = 'mt-1 w-full rounded-lg border border-slate-300 px-2.5 py-2 text-sm';
@@ -49,7 +50,10 @@ export default function AgentForm({ value: d, onChange, withAccount = true, with
         <label className={`${label} sm:col-span-2`}>Numéro<input value={d.idNumber} onChange={(e) => set({ idNumber: e.target.value })} className={field} /></label>
         <label className={`${label} sm:col-span-1`}>Délivrée le<input type="date" value={d.idIssued} onChange={(e) => set({ idIssued: e.target.value })} className={field} /></label>
         <label className={`${label} sm:col-span-2`}>À<input value={d.idPlace} onChange={(e) => set({ idPlace: e.target.value })} className={field} /></label>
-        {withRate && <label className={`${label} sm:col-span-2`}>Taux horaire (Ar) <span className="font-normal text-slate-400">· confidentiel</span><input inputMode="numeric" value={d.rate} onChange={(e) => set({ rate: e.target.value.replace(/[^\d]/g, '') })} className={field} /></label>}
+        {withRate && <label className={`${label} sm:col-span-2`}>Rémunération <span className="font-normal text-slate-400">· confidentiel</span><select value={d.payMode ?? 'HORAIRE'} onChange={(e) => set({ payMode: e.target.value })} className={field}>{PAY_MODES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>}
+        {withRate && (d.payMode ?? 'HORAIRE') === 'HORAIRE' && <label className={`${label} sm:col-span-2`}>Taux horaire (Ar)<input inputMode="numeric" value={d.rate} onChange={(e) => set({ rate: e.target.value.replace(/[^\d]/g, '') })} className={field} /></label>}
+        {withRate && (d.payMode ?? 'HORAIRE') !== 'HORAIRE' && <label className={`${label} sm:col-span-2`}>Salaire mensuel (Ar)<input inputMode="numeric" value={d.monthly ?? ''} onChange={(e) => set({ monthly: e.target.value.replace(/[^\d]/g, '') })} className={field} /></label>}
+        {withRate && d.payMode === 'PRORATA' && <label className={`${label} sm:col-span-2`}>Prorata<select value={d.prorataBase ?? 'ENTREE'} onChange={(e) => set({ prorataBase: e.target.value })} className={field}>{PRORATA_BASES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>}
       </fieldset>
 
       {teaches && (

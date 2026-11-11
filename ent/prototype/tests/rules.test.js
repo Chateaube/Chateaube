@@ -2158,3 +2158,12 @@ test('appel fermé 15 minutes après le début du cours', async () => {
   assert.equal(callOpen(s, { date: '2026-12-01', time: '08:16' }), false);
   assert.equal(callOpen(s, { date: '2026-12-02', time: '08:05' }), false);
 });
+
+test('rémunération : horaire, fixe, prorata (date d\'entrée ou semaines)', async () => {
+  const { monthPay } = await import('../src/rules/pay.js');
+  assert.equal(monthPay({ payMode: 'HORAIRE', rate: 40000 }, '2026-11', { hours: 9 }), 360000);
+  assert.equal(monthPay({ payMode: 'FIXE', monthly: 600000 }, '2026-11'), 600000);
+  assert.equal(monthPay({ payMode: 'PRORATA', monthly: 600000, entry: '2026-11-16' }, '2026-11'), 300000); // 15 jours sur 30
+  assert.equal(monthPay({ payMode: 'PRORATA', monthly: 600000, entry: '2026-12-01' }, '2026-11'), 0);
+  assert.equal(monthPay({ payMode: 'PRORATA', prorataBase: 'SEMAINES', monthly: 600000 }, '2026-11', { weeks: 3, weeksInMonth: 4 }), 450000);
+});
