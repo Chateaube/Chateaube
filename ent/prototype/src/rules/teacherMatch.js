@@ -10,13 +10,23 @@ export function splitName(line) {
 
 /** Rapproche une ligne d'un professeur de l'emploi du temps ; renvoie le prénom d'usage et les services. */
 export function matchTeacher(line, list) {
-  const { last, first } = splitName(line);
+  // « (Mme Lanto) » en fin de ligne : nom de l'emploi du temps donné explicitement
+  const hint = /\(([^)]+)\)\s*$/.exec(line)?.[1]?.trim();
+  const { last, first } = splitName(String(line).replace(/\([^)]*\)\s*$/, ''));
+  if (hint) {
+    const n = [...new Set(list.map((a) => a.name))].find((x) => fold(x) === fold(hint) || fold(x.replace(/^(m\.|mme|mlle)\s*/i, '')) === fold(hint.replace(/^(m\.|mme|mlle)\s*/i, '')));
+    if (n) {
+      const usual = n.replace(/^(m\.|mme|mlle)\s*/i, '');
+      const services = list.filter((a) => a.name === n).flatMap((a) => (a.subjects ?? []).map((s) => ({ subject: s, classes: a.classes ?? [], hours: '' })));
+      return { teacher: n, civility: /^mme/i.test(n) ? 'Madame' : 'Monsieur', last, first, usual, services };
+    }
+  }
   const names = [...new Set(list.map((a) => a.name))];
   for (const n of names) {
     const civ = /^mme/i.test(n) ? 'Madame' : 'Monsieur';
     const key = fold(n.replace(/^(m\.|mme|mlle)\s*/i, ''));
     const firstWords = first.split(/\s+/);
-    const byFirst = firstWords.find((w) => fold(w) === key);
+    const byFirst = firstWords.find((w) => fold(w) === key) ?? (key.length >= 4 ? firstWords.find((w) => fold(w).startsWith(key)) && key.replace(/^./, (c) => c.toUpperCase()) && n.replace(/^(m\.|mme|mlle)\s*/i, '') : undefined);
     if (byFirst || fold(last) === key) {
       const services = list.filter((a) => a.name === n).flatMap((a) => (a.subjects ?? []).map((s) => ({ subject: s, classes: a.classes ?? [], hours: '' })));
       return { teacher: n, civility: civ, last, first, usual: byFirst ?? firstWords[0], services };

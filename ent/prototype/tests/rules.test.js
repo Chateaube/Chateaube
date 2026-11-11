@@ -2167,3 +2167,11 @@ test('rémunération : horaire, fixe, prorata (date d\'entrée ou semaines)', as
   assert.equal(monthPay({ payMode: 'PRORATA', monthly: 600000, entry: '2026-12-01' }, '2026-11'), 0);
   assert.equal(monthPay({ payMode: 'PRORATA', prorataBase: 'SEMAINES', monthly: 600000 }, '2026-11', { weeks: 3, weeksInMonth: 4 }), 450000);
 });
+
+test('création groupée : diminutif (Lantonirina → Lanto) et nom de l\'emploi du temps entre parenthèses', async () => {
+  const { matchTeacher } = await import('../src/rules/teacherMatch.js');
+  const list = [{ name: 'Mme Lanto', subjects: ['Mandarin'], classes: ['6e'] }];
+  assert.equal(matchTeacher('RABE Lantonirina Jo', list).usual, 'Lanto');
+  const r = matchTeacher('RABE Jo Lala (Mme Lanto)', list);
+  assert.equal(r.teacher, 'Mme Lanto'); assert.equal(r.usual, 'Lanto'); assert.equal(r.first, 'Jo Lala');
+});
