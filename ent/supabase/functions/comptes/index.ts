@@ -33,7 +33,8 @@ Deno.serve(async (req) => {
       if (email && !/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(email)) return reply({ error: 'Adresse e-mail invalide.' }, 400);
       // identifiant (le même pour tous, voir rules/logins.js) : 2 premières lettres du nom, un point, le premier
       // prénom — « am.fatema » ; homonyme : une lettre du nom de plus (« amb.fatema »…), puis un chiffre
-      const f = fold(first.split(/\s+/)[0]) || 'x'; const l = fold(last) || 'x';
+      // prénom d'usage (ex. « Fortuna ») s'il est donné, sinon le premier prénom
+      const f = fold(String(body.usual ?? '').trim().split(/\s+/)[0] || first.split(/\s+/)[0]) || 'x'; const l = fold(last) || 'x';
       const { data: taken } = await admin.from('app_user').select('login').like('login', `%.${f}%`);
       const used = new Set((taken ?? []).map((t: { login: string }) => t.login));
       let login = '';

@@ -2132,3 +2132,13 @@ test('ordre des matières de l\'école (bulletins, conseil)', async () => {
   const l = ['EPS', 'Vie de classe', 'Droit', 'Spécialité SVT', 'Philosophie', 'Français', 'Mandarin', 'Anglais', 'MSGN', 'Économie', 'Physique-Chimie'].map((label) => ({ label, id: label }));
   assert.deepEqual(sortSubjects(l).map((s) => s.label), ['Français', 'Philosophie', 'Anglais', 'Mandarin', 'Physique-Chimie', 'Spécialité SVT', 'Droit', 'Économie', 'MSGN', 'EPS', 'Vie de classe']);
 });
+
+test('création groupée des professeurs : nom, prénom d\'usage, rapprochement avec l\'emploi du temps', async () => {
+  const { splitName, matchTeacher } = await import('../src/rules/teacherMatch.js');
+  assert.deepEqual(splitName('PIERRE Valentin Fortuna'), { last: 'PIERRE', first: 'Valentin Fortuna' });
+  const list = [{ name: 'M. Fortuna', subjects: ['SGN'], classes: ['1re STMG'] }, { name: 'M. Hassanaly', subjects: ['Mathématiques'], classes: ['Terminale STMG'] }];
+  const a = matchTeacher('PIERRE Valentin Fortuna', list);
+  assert.equal(a.teacher, 'M. Fortuna'); assert.equal(a.usual, 'Fortuna'); assert.equal(a.civility, 'Monsieur');
+  const b = matchTeacher('HASSANALY Issac', list);
+  assert.equal(b.teacher, 'M. Hassanaly'); assert.equal(b.usual, 'Issac');
+});
