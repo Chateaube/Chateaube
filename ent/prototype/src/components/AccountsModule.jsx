@@ -88,7 +88,7 @@ export default function AccountsModule({ embedded = false, settings }) {
       ) : !bulk && <div className="flex flex-wrap gap-2"><Button onClick={() => setD({ ...EMPTY_AGENT })}>＋ Nouvel agent</Button><Button variant="secondary" onClick={() => setBulk(true)}>Créer les comptes des professeurs (liste)</Button></div>}
       {bulk && !d && (
         <>
-          <BulkTeachers existingLogins={(list ?? []).map((u) => u.login)} onDone={load}
+          <BulkTeachers existingLogins={(list ?? []).map((u) => u.login)} existingNames={(list ?? []).map((u) => `${u.last_name} ${u.first_name}`)} onDone={load}
             create={async (r) => {
               const res = await call({ action: 'create', first: r.first, last: r.last, usual: r.usual, role: 'PROFESSEUR', title: 'Professeur' });
               setFiches((prev) => ({ ...prev, [res.id]: { ...EMPTY_AGENT, civility: r.civility ?? 'Madame', first: r.first, usual: r.usual, last: r.last, role: 'PROFESSEUR', title: 'Professeur', services: r.services } }));

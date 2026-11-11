@@ -11,7 +11,7 @@ import { matchTeacher } from '../rules/teacherMatch.js';
 // d'usage sert à l'identifiant, les matières et classes de l'emploi du temps remplissent la fiche.
 const assignments = () => (loadImport()?.assignments?.length ? loadImport().assignments : ASSIGNMENTS);
 
-export default function BulkTeachers({ existingLogins = [], create, onDone }) {
+export default function BulkTeachers({ existingLogins = [], existingNames = [], create, onDone }) {
   const [text, setText] = useState('');
   const [skip, setSkip] = useState({});
   const [busy, setBusy] = useState(false); const [done, setDone] = useState(null); const [err, setErr] = useState('');
@@ -19,11 +19,13 @@ export default function BulkTeachers({ existingLogins = [], create, onDone }) {
     const taken = new Set(existingLogins);
     return text.split('\n').map((l) => l.trim()).filter(Boolean).map((line, i) => {
       const m = matchTeacher(line, assignments());
-      const login = loginFor(m.usual, m.last, taken); taken.add(login);
-      return { i, line, ...m, login };
+      const key = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
+      const exists = existingNames.some((n) => key(n) === key(`${m.last} ${m.first}`));
+      const login = exists ? '—' : loginFor(m.usual, m.last, taken); if (!exists) taken.add(login);
+      return { i, line, ...m, login, exists };
     });
   }, [text, existingLogins]);
-  const chosen = rows.filter((r) => !skip[r.i] && r.last && r.first);
+  const chosen = rows.filter((r) => !skip[r.i] && !r.exists && r.last && r.first);
   const go = async () => {
     setBusy(true); setErr(''); const out = [];
     for (const r of chosen) {
@@ -64,10 +66,10 @@ export default function BulkTeachers({ existingLogins = [], create, onDone }) {
             <tbody>
               {rows.map((r) => (
                 <tr key={r.i} className="border-b border-slate-100 align-top">
-                  <td className="py-1.5 pr-2"><input type="checkbox" aria-label={`Créer ${r.line}`} checked={!skip[r.i]} onChange={() => setSkip({ ...skip, [r.i]: !skip[r.i] })} /></td>
+                  <td className="py-1.5 pr-2"><input type="checkbox" aria-label={`Créer ${r.line}`} checked={!skip[r.i] && !r.exists} disabled={r.exists} onChange={() => setSkip({ ...skip, [r.i]: !skip[r.i] })} /></td>
                   <td className="pr-2 font-medium">{r.last}</td>
                   <td className="pr-2">{r.first}{r.usual !== r.first.split(/\s+/)[0] && <span className="block text-xs text-slate-500">d'usage : {r.usual}</span>}</td>
-                  <td className="pr-2">{r.teacher ?? <Badge tone="amber">non trouvé</Badge>}</td>
+                  <td className="pr-2">{r.exists ? <Badge tone="slate">compte déjà créé</Badge> : r.teacher ?? <Badge tone="amber">non trouvé</Badge>}</td>
                   <td className="pr-2 font-mono text-xs">{r.login}</td>
                   <td className="text-xs text-slate-600">{r.services.map((s) => `${s.subject} (${s.classes.join(', ')})`).join(' · ') || '—'}</td>
                 </tr>
