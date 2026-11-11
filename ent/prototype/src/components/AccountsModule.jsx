@@ -53,6 +53,7 @@ export default function AccountsModule({ embedded = false, settings }) {
   const [edit, setEdit] = useState(null); // { id, value }
   const [docsFor, setDocsFor] = useState(null);
   const [bulk, setBulk] = useState(false);
+  const [slips, setSlips] = useState(null); // nouveaux codes en série
   const load = async () => {
     const { data, error } = await supabase.from('app_user').select('id, first_name, last_name, login, email, is_active, last_login_at, must_change_code, user_role(role, title)').order('last_name');
     if (error) setErr('La liste des comptes n\'a pas pu être chargée.'); else setList(data);
@@ -85,7 +86,30 @@ export default function AccountsModule({ embedded = false, settings }) {
             <Button variant="secondary" onClick={() => setD(null)}>Annuler</Button>
           </div>
         </Card>
-      ) : !bulk && <div className="flex flex-wrap gap-2"><Button onClick={() => setD({ ...EMPTY_AGENT })}>＋ Nouvel agent</Button><Button variant="secondary" onClick={() => setBulk(true)}>Créer les comptes des professeurs (liste)</Button></div>}
+      ) : !bulk && <div className="flex flex-wrap gap-2"><Button onClick={() => setD({ ...EMPTY_AGENT })}>＋ Nouvel agent</Button><Button variant="secondary" onClick={() => setBulk(true)}>Créer les comptes des professeurs (liste)</Button>
+        {(list ?? []).some((u) => u.must_change_code && u.is_active) && <Button variant="secondary" disabled={busy} onClick={async () => {
+          const todo = list.filter((u) => u.must_change_code && u.is_active);
+          if (!(await askConfirm(`Donner un nouveau code provisoire aux ${todo.length} compte(s) qui ne se sont pas encore connectés ? Les anciens codes ne marcheront plus.`))) return;
+          run(async () => { const out = []; for (const u of todo) { try { const r = await call({ action: 'reset', userId: u.id }); out.push({ ...r, name: `${u.first_name} ${u.last_name}` }); } catch (x) { out.push({ name: `${u.first_name} ${u.last_name}`, error: x.message }); } } setSlips(out); });
+        }}>Nouveaux codes pour tous les « code provisoire »</Button>}</div>}
+      {slips && (
+        <Card title={`Fiches d'accès (${slips.filter((s) => !s.error).length})`} subtitle="À imprimer maintenant : les codes ne s'affichent qu'une fois">
+          {slips.some((s) => s.error) && <ul className="mb-2 text-xs text-red-700">{slips.filter((s) => s.error).map((s) => <li key={s.name}>{s.name} : {s.error}</li>)}</ul>}
+          <div className="series-slips grid gap-2 sm:grid-cols-2" style={{ fontFamily: 'Poppins, sans-serif' }}>
+            {slips.filter((s) => !s.error).map((s) => (
+              <div key={s.login} style={{ border: '1px dashed #000', padding: '10px', fontSize: '11px', breakInside: 'avoid', color: '#000' }}>
+                <p style={{ fontWeight: 700 }}>ENT Chateaubriand — vos accès</p>
+                <p style={{ marginTop: 4 }}>{s.name}</p>
+                <p style={{ marginTop: 4 }}>Adresse : <strong>{window.location.href.split('#')[0]}</strong></p>
+                <p>Identifiant : <strong style={{ fontFamily: 'monospace', fontSize: 14 }}>{s.login}</strong></p>
+                <p>Code provisoire : <strong style={{ fontFamily: 'monospace', fontSize: 14 }}>{s.code}</strong></p>
+                <p style={{ marginTop: 4, fontSize: 9.5 }}>À la première connexion, choisissez votre propre code (8 caractères, lettres et chiffres). Ne le communiquez à personne.</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex gap-2"><Button onClick={() => printOnly('.series-slips', 'size: A4 portrait; margin: 10mm;', 'Accès ENT')}>Imprimer toutes les fiches</Button><Button variant="secondary" onClick={() => setSlips(null)}>Terminé</Button></div>
+        </Card>
+      )}
       {bulk && !d && (
         <>
           <BulkTeachers existingLogins={(list ?? []).map((u) => u.login)} existingNames={(list ?? []).map((u) => `${u.last_name} ${u.first_name}`)} onDone={load}
