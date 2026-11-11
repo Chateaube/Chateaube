@@ -1,3 +1,4 @@
+import AbsenceCarryTab from './AbsenceCarryTab.jsx';
 import React, { useState } from 'react';
 import { Badge, Button, Card, Icon, Stat } from './ui.jsx';
 import { CLASSES, classOf, STAFF_NAMES, MEASURES_LOG } from '../data/schoollife.js';
@@ -377,7 +378,7 @@ function PhonesTab({ phones, setPhones, settings, toast, role }) {
   );
 }
 
-const TABS = [['attendance', 'Absences & retards'], ['passport', 'Passeport de vie scolaire'], ['measures', 'Punitions & sanctions'], ['phones', 'Objets confisqués'], ['leave', 'Sorties anticipées']];
+const TABS = [['attendance', 'Absences & retards'], ['passport', 'Passeport de vie scolaire'], ['measures', 'Punitions & sanctions'], ['phones', 'Objets confisqués'], ['leave', 'Sorties anticipées'], ['carry', 'Reprise du 1er trimestre']];
 
 /* ---------- Sorties anticipées : un mineur ne part pas seul ---------- */
 const LEAVE_KEY = 'ent-sorties-v1';
@@ -480,6 +481,7 @@ export default function VieScolaireModule({ settings, role = 'VIE_SCOLAIRE', ini
       {tab === 'attendance' && <AttendanceTab key={`att-${pick.n}`} initialFilter={pick.filter ?? intent?.filter} rows={rows} setRows={setRows} toast={setMessage} role={role} />}
       {tab === 'measures' && <MeasuresTab log={log} setLog={setLog} role={role} toast={setMessage} />}
       {tab === 'leave' && <EarlyLeaveTab toast={setMessage} />}
+      {tab === 'carry' && <AbsenceCarryTab />}
       {tab === 'passport' && <div className="space-y-5">{role !== 'ENSEIGNANT' && <ColleSessionsCard role={role} />}<PassportTab role={role} toast={setMessage} /></div>}
       {tab === 'phones' && <PhonesTab phones={phones} setPhones={setPhones} settings={settings} toast={setMessage} role={role} />}
     </div>

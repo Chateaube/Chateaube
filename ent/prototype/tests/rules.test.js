@@ -2142,3 +2142,10 @@ test('création groupée des professeurs : nom, prénom d\'usage, rapprochement 
   const b = matchTeacher('HASSANALY Issac', list);
   assert.equal(b.teacher, 'M. Hassanaly'); assert.equal(b.usual, 'Issac');
 });
+
+test('reprise des absences du 1er trimestre : ajoutée aux absences saisies dans l\'ENT', async () => {
+  const { absenceTotals } = await import('../src/rules/absenceCarry.js');
+  const carry = { until: '2026-11-10', students: { 'TEST Élève': { justified: 4, unjustified: '', late: 2 } } };
+  assert.deepEqual(absenceTotals('TEST Élève', { justified: 1, unjustified: 2, late: 0 }, carry), { justified: 5, unjustified: 2, late: 2 });
+  assert.deepEqual(absenceTotals('AUTRE Élève', {}, carry), { justified: 0, unjustified: 0, late: 0 });
+});
