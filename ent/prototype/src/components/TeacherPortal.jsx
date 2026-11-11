@@ -1,4 +1,5 @@
 import { featureVisible } from '../features.js';
+import { ONLINE } from '../online/client.js';
 import React from 'react';
 import { Badge, Button, Card, Icon } from './ui.jsx';
 import { TEACHER } from '../data/people.js';
@@ -29,7 +30,7 @@ export default function TeacherPortal({ go, settings }) {
       <div>
         <p className="text-sm font-semibold text-navy-500">Ma journée</p>
         <h1 className="text-2xl font-semibold text-navy-900">Bonjour {me('ENSEIGNANT')}</h1>
-        <p className="text-sm text-slate-600">{TEACHER.subjects}</p>
+        {!ONLINE && <p className="text-sm text-slate-600">{TEACHER.subjects}</p>}
       </div>
 
       {appel && current && (
@@ -47,7 +48,8 @@ export default function TeacherPortal({ go, settings }) {
 
       <Card title="À faire">
         <ul className="space-y-2">
-          {TEACHER.todo.map((t) => (
+          {ONLINE && <li className="text-sm text-slate-700">Notes du 1er trimestre : la saisie en ligne ouvre très prochainement (bouton Notes). L'arrêt des notes reste fixé par la Direction.</li>}
+          {(ONLINE ? [] : TEACHER.todo).map((t) => (
             <li key={t.label} className="flex items-start gap-3">
               <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${t.tone === 'amber' ? 'bg-amber-500' : 'bg-navy-500'}`} />
               <div><p className="text-sm font-medium text-slate-800">{t.label}</p><p className="text-xs text-slate-600">{t.detail}</p></div>
@@ -56,11 +58,12 @@ export default function TeacherPortal({ go, settings }) {
         </ul>
       </Card>
 
-      <QuickEntry role="ENSEIGNANT" go={go} />
+      {!ONLINE && <QuickEntry role="ENSEIGNANT" go={go} />}
 
       <div className="grid gap-5 xl:grid-cols-[1fr_380px] xl:items-start">
         <Card title="Mes cours aujourd'hui">
           <ol className="space-y-2">
+            {!today.length && <li className="text-sm text-slate-500">{ONLINE ? 'Votre emploi du temps apparaîtra ici après la mise en ligne des classes.' : 'Pas de cours aujourd\'hui.'}</li>}
             {today.map((s) => {
               const st = stateOf(s);
               return (
@@ -84,7 +87,8 @@ export default function TeacherPortal({ go, settings }) {
         </Card>
         <Card title="Annonces aux professeurs">
           <ul className="space-y-3">
-            {TEACHER.news.map((n) => (
+            {ONLINE && <li className="text-sm text-slate-500">Aucune annonce pour l'instant.</li>}
+            {(ONLINE ? [] : TEACHER.news).map((n) => (
               <li key={n.title}><p className="text-xs text-slate-600">{n.date}</p><p className="text-sm font-medium text-slate-800">{n.title}</p><p className="text-sm text-slate-600">{n.body}</p></li>
             ))}
           </ul>
