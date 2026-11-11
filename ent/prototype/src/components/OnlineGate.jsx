@@ -67,7 +67,8 @@ export default function OnlineGate({ children }) {
   const refresh = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { setState({ step: 'login' }); return; }
-    const acc = await loadAccount().catch(() => null);
+    const acc = await loadAccount().catch((e) => ({ failed: true, message: e?.message }));
+    if (acc?.failed) { setState({ step: 'failed', message: acc.message }); return; }
     if (!acc || acc.orphan) { setState({ step: 'orphan' }); return; }
     if (acc.mustChange) { setState({ step: 'first', acc }); return; }
     if (!acc.profile) { setState({ step: 'norole', acc }); return; }
@@ -91,6 +92,13 @@ export default function OnlineGate({ children }) {
   if (state.step === 'login') return <Login onDone={refresh} />;
   if (state.step === 'first') return <NewCode first onDone={refresh} />;
   if (state.step === 'recovery') return <NewCode onDone={() => { window.location.hash = ''; refresh(); }} />;
+  if (state.step === 'failed') return (
+    <Shell title="Connexion à la base impossible">
+      <p className="text-sm text-slate-700">Votre compte n'a pas pu être lu pour l'instant (réseau lent ou service momentanément indisponible). Vos données ne sont pas touchées.</p>
+      <button type="button" onClick={() => { setState({ step: 'loading' }); refresh(); }} className="mt-4 min-h-[44px] w-full rounded-xl bg-navy-500 font-semibold text-white">Réessayer</button>
+      {state.message && <p className="mt-3 text-[11px] text-slate-400">Détail technique : {state.message}</p>}
+    </Shell>
+  );
   if (state.step === 'orphan' || state.step === 'norole') return (
     <Shell title="Compte incomplet">
       <p className="text-sm text-slate-700">Ce compte n'est pas encore relié à une fonction dans l'ENT. Demandez à la Direction de le compléter.</p>

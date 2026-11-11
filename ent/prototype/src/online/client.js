@@ -35,7 +35,8 @@ export async function loadAccount() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
   const { data, error } = await supabase.from('app_user').select('id, first_name, last_name, login, must_change_code, user_role(role, title)').eq('auth_uid', user.id).maybeSingle();
-  if (error || !data) return { orphan: true, email: user.email };
+  if (error) return { failed: true, message: error.message }; // base injoignable ou refus : ce n'est pas un compte incomplet
+  if (!data) return { orphan: true, email: user.email };
   const roles = (data.user_role ?? []).map((r) => r.role).sort((a, b) => RANK.indexOf(a) - RANK.indexOf(b));
   return {
     id: data.id, login: data.login, name: `${data.first_name} ${data.last_name}`.trim(), mustChange: data.must_change_code,
