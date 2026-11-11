@@ -5,6 +5,7 @@ import { SIGNATORIES } from './Certificate.jsx';
 import { frDate, schoolYearOf } from '../rules/documents.js';
 import { printOnly } from '../print.js';
 import { today } from '../clock.js';
+import { loadSignatures } from '../signatureStore.js';
 import { serviceText, weeklyHours } from './AgentForm.jsx';
 
 // Documents de l'agent, imprimés à la demande par la Direction seule (même présentation que le certificat
@@ -46,7 +47,7 @@ export function ContractSheet({ agent: a, headName, number, date = today() }) {
       <h2 className="mt-5 text-center text-[15px] font-bold tracking-wide">CONTRAT DE VACATION D'ENSEIGNEMENT</h2>
       <p className="text-center">Contrat n° {blank(number, '25mm')} · Conformément au Code du travail de la République de Madagascar</p>
       <p className="mt-4 font-bold">ENTRE LES SOUSSIGNÉS :</p>
-      <p className="mt-1">{SCHOOL.name}, 27 Rue Nationale, 501 Tamatave, représentée par {blank(headName, '55mm')}, en sa qualité de Cheffe d'établissement, ci-après dénommée « L'Employeur »,</p>
+      <p className="mt-1">{SCHOOL.name}, 27 Rue Nationale, 501 Tamatave, représentée par {headName ? `Madame ${headName}` : blank('', '55mm')}, en sa qualité de Cheffe d'établissement, ci-après dénommée « L'Employeur »,</p>
       <p className="mt-2 font-bold">ET</p>
       <p className="mt-1">{fullName(a)}, demeurant à {blank(a.address, '70mm')}, {a.idType || 'pièce d\'identité'} n° {blank(a.idNumber, '35mm')}, délivré{a.idType === 'CIN' || a.idType === 'Carte de résident' ? 'e' : ''} le {blank(frDate(a.idIssued), '25mm')} à {blank(a.idPlace, '35mm')}, ci-après {fem(a, 'dénommé', 'dénommée')} « {fem(a, 'Le Vacataire', 'La Vacataire')} ».</p>
       <p className="mt-2">Il a été convenu ce qui suit :</p>
@@ -89,25 +90,37 @@ export function ContractSheet({ agent: a, headName, number, date = today() }) {
   );
 }
 
-/** Attestation de travail (en poste) ou certificat de travail (fin d'engagement). */
-export function WorkSheet({ agent: a, kind, signatory, date = today() }) {
-  const svc = serviceText(a.services);
-  const job = a.title || (svc ? fem(a, 'Professeur', 'Professeure') : '');
+const LONG = { SVT: 'Sciences de la Vie et de la Terre (SVT)', 'Spécialité SVT': 'Sciences de la Vie et de la Terre (SVT, spécialité)', SES: 'Sciences Économiques et Sociales (SES)', SNT: 'Sciences Numériques et Technologie (SNT)', EMC: 'Enseignement Moral et Civique (EMC)', EPS: 'Éducation Physique et Sportive (EPS)' };
+const de = (w) => (/^[aeiouyhàâéèêîôû]/i.test(w) ? `d'${w}` : `de ${w}`);
+const monthDate = (iso) => (iso ? new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }).replace(/^1 /, '1er ') : null);
+
+/** Attestation de travail (en poste) ou certificat de travail (fin d'engagement), sur le modèle de l'école. */
+export function WorkSheet({ agent: a, kind, signatory, appreciation = true, signatureUrl, stampUrl, date = today() }) {
   const cert = kind === 'CERTIFICAT';
+  const subjects = [...new Set((a.services ?? []).map((s) => s.subject).filter(Boolean))].map((s) => LONG[s] ?? s);
+  const job = String((a.title && !/^professeur$/i.test(a.title) ? a.title : (subjects.length || a.role === 'PROFESSEUR' ? fem(a, 'enseignant', 'enseignante') : a.title)) ?? '').toLowerCase();
+  const civ = isF(a) ? 'Mme' : 'M.';
+  const head = signatory.id === 'CHEFFE' ? 'Cheffe de l\'établissement' : 'Directrice adjointe de l\'établissement';
   return (
-    <div className="staff-doc flex min-h-[148mm] w-full max-w-[210mm] flex-col bg-white px-[14mm] py-[10mm] text-[12px] leading-relaxed text-black" style={{ fontFamily: 'Poppins, sans-serif' }}>
+    <div className="staff-doc flex min-h-[270mm] w-full max-w-[210mm] flex-col bg-white px-[18mm] py-[12mm] text-[12.5px] leading-relaxed text-black" style={{ fontFamily: 'Poppins, sans-serif' }}>
       <Header date={date} />
-      <h2 className="mt-10 text-center text-[16px] font-bold tracking-wide">{cert ? 'CERTIFICAT DE TRAVAIL' : 'ATTESTATION DE TRAVAIL'}</h2>
-      <p className="mt-8 text-justify">Je soussignée, {signatory.intro}, {cert ? 'certifie que' : 'atteste que'} :</p>
-      <p className="mt-4 text-center font-bold">{fullName(a)}</p>
-      <p className="mt-4 text-justify">
+      <h2 className="mt-12 text-center text-[17px] font-bold tracking-wide">{cert ? 'CERTIFICAT DE TRAVAIL' : 'ATTESTATION DE TRAVAIL'}</h2>
+      <p className="mt-10">Je soussignée, {blank(signatory.name, '50mm')}, {head} Chateaubriand Tamatave,<br />situé au 27 rue Nationale, 501 Tamatave, Madagascar,</p>
+      <p className="mt-5">{cert ? 'certifie que :' : 'atteste que :'}</p>
+      <p className="mt-5"><strong>{civ} {String(a.last).toUpperCase()} {a.first}</strong>, {fem(a, 'né', 'née')} le {blank(monthDate(a.birthDate), '35mm')}, à {blank(a.birthPlace, '35mm')},<br />
         {cert
-          ? <>a été {fem(a, 'employé', 'employée')} au sein de notre établissement du {blank(frDate(a.entry), '25mm')} au {blank(frDate(a.exit), '25mm')}, en qualité de {blank(job, '45mm')}{svc ? ` (${svc})` : ''}.</>
-          : <>est {fem(a, 'employé', 'employée')} au sein de notre établissement{a.entry ? ` depuis le ${frDate(a.entry)}` : ''}, en qualité de {blank(job, '45mm')}{a.contract ? ` (${a.contract.toLowerCase()})` : ''}{svc ? `, et y enseigne : ${svc}` : ''}.</>}
-      </p>
+          ? <>a exercé les fonctions {de(job || '…')} au sein de notre établissement<br />du {blank(monthDate(a.entry), '35mm')} au {blank(monthDate(a.exit), '35mm')}</>
+          : <>exerce les fonctions {de(job || '…')} au sein de notre établissement<br />depuis le {blank(monthDate(a.entry), '35mm')} à ce jour</>}
+        {subjects.length ? <>,<br />{subjects.length > 1 ? 'dans les disciplines suivantes' : 'dans la discipline suivante'} : {subjects.join(', ')}.</> : '.'}</p>
+      {appreciation && <p className="mt-5">{fem(a, 'Il', 'Elle')} {cert ? 'a exercé' : 'exerce'} ses fonctions avec sérieux, professionnalisme et engagement.</p>}
       {cert && <p className="mt-3">{fem(a, 'Il', 'Elle')} nous quitte libre de tout engagement.</p>}
-      <p className="mt-3">Pour servir et faire valoir ce que de droit.</p>
-      <Sign signatory={signatory} />
+      <p className="mt-5">{cert ? 'Le présent certificat est délivré' : 'La présente attestation est délivrée'} pour servir et valoir ce que de droit.</p>
+      <div className="relative mt-16 self-end pr-6 text-left">
+        {stampUrl && <img src={stampUrl} alt="Tampon" className="absolute -left-[32mm] -top-[4mm] h-[30mm] w-[30mm] object-contain opacity-90" style={{ mixBlendMode: 'multiply' }} />}
+        <p>{signatory.title.replace(',', '')}</p>
+        {signatureUrl ? <img src={signatureUrl} alt="Signature" className="h-[16mm] max-w-[48mm] object-contain" style={{ mixBlendMode: 'multiply' }} /> : <div className="h-[18mm]" />}
+        <p><strong>{signatory.name || ' '}</strong></p>
+      </div>
     </div>
   );
 }
@@ -117,7 +130,10 @@ export function StaffDocumentsButtons({ agent, headName, number }) {
   const [open, setOpen] = useState(null);
   const [sig, setSig] = useState(SIGNATORIES[1].id);
   const base = SIGNATORIES.find((s) => s.id === sig);
-  const signatory = base.id === 'CHEFFE' && headName ? { ...base, intro: `${headName}, fondatrice et Cheffe d'établissement de Chateaubriand`, name: headName } : base;
+  const signatory = base.id === 'CHEFFE' ? { ...base, name: headName || base.name } : { ...base, name: base.name };
+  const [appr, setAppr] = useState(true); const [elec, setElec] = useState(false);
+  const sigs = loadSignatures();
+  const signatureUrl = elec ? sigs.officials?.[sig]?.dataUrl : null; const stampUrl = elec ? sigs.stamp : null;
   const titles = { CONTRAT: 'Contrat de vacation', ATTESTATION: 'Attestation de travail', CERTIFICAT: 'Certificat de travail' };
   return (
     <>
@@ -129,6 +145,8 @@ export function StaffDocumentsButtons({ agent, headName, number }) {
           <div className="mx-auto max-w-[820px]" onClick={(e) => e.stopPropagation()}>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-3 text-sm">
               <strong>{titles[open]}</strong>
+              {open !== 'CONTRAT' && <label className="flex items-center gap-1.5"><input type="checkbox" checked={appr} onChange={(e) => setAppr(e.target.checked)} />Phrase « sérieux, professionnalisme et engagement »</label>}
+              {open !== 'CONTRAT' && <label className="flex items-center gap-1.5"><input type="checkbox" checked={elec} onChange={(e) => setElec(e.target.checked)} />Signature et tampon électroniques{elec && !sigs.officials?.[sig]?.dataUrl ? ' (signature non déposée : Documents à signer)' : ''}</label>}
               {open !== 'CONTRAT' && (
                 <label className="flex items-center gap-2">Signataire
                   <select value={sig} onChange={(e) => setSig(e.target.value)} className="rounded-lg border border-slate-200 px-2 py-1">{SIGNATORIES.map((s) => <option key={s.id} value={s.id}>{s.title.replace(',', '')}</option>)}</select>
@@ -141,7 +159,7 @@ export function StaffDocumentsButtons({ agent, headName, number }) {
               <p className="w-full text-xs text-slate-500">Les lignes pointillées correspondent aux informations non renseignées dans la fiche : complétez la fiche ou écrivez-les à la main.</p>
             </div>
             <div className="staff-print bg-white">
-              {open === 'CONTRAT' ? <ContractSheet agent={agent} headName={headName} number={number} /> : <WorkSheet agent={agent} kind={open} signatory={signatory} />}
+              {open === 'CONTRAT' ? <ContractSheet agent={agent} headName={headName} number={number} /> : <WorkSheet agent={agent} kind={open} signatory={signatory} appreciation={appr} signatureUrl={signatureUrl} stampUrl={stampUrl} />}
             </div>
           </div>
         </div>
