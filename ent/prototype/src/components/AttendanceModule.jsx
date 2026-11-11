@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Avatar, Badge, Button, Card, Icon } from './ui.jsx';
 import { WEEK_SESSIONS, ROSTERS, NOW } from '../data/attendance.js';
-import { sessionState, tally, nextToDo, lateOutcome, LATE_LIMIT } from '../rules/attendance.js';
+import { sessionState, tally, nextToDo, lateOutcome, LATE_LIMIT, callOpen, CALL_CLOSE_AFTER } from '../rules/attendance.js';
 import { formatDateFr } from '../rules/calendar.js';
 import { useOnline } from '../online.js';
 import { takeIntent } from '../navIntent.js';
@@ -36,7 +36,8 @@ function Roll({ session, record, classes, online, onSave, onBack }) {
   const [notify, setNotify] = useState(true);
   const [query, setQuery] = useState('');
   const t = tally(roster, marks);
-  const set = (n, v) => setMarks((m) => { const x = { ...m }; if (v) x[n] = v; else delete x[n]; return x; });
+  const open = callOpen(session, NOW);
+  const set = (n, v) => { if (open) setMarks((m) => { const x = { ...m }; if (v) x[n] = v; else delete x[n]; return x; }); };
   const shown = roster.filter((n) => n.toLowerCase().includes(query.toLowerCase()));
 
   return (
@@ -102,8 +103,9 @@ function Roll({ session, record, classes, online, onSave, onBack }) {
           Prévenir les parents des absents et retardataires ({t.absent.length + t.late.length})
         </label>
         {!online && <p className="text-xs text-amber-800">Hors connexion : l'appel est gardé sur le téléphone et envoyé au retour du réseau.</p>}
-        <Button className="w-full !py-3 text-base" onClick={() => onSave({ marks, notify })}>{record ? 'Enregistrer la correction' : 'Valider l\'appel'}</Button>
-        <p className="text-[11px] text-slate-500">L'appel validé compte comme heure de cours effectuée (paie des vacataires). Il reste modifiable jusqu'au soir ; ensuite, la vie scolaire corrige.</p>
+        {!open && <p className="rounded-lg bg-red-50 p-2 text-sm text-red-800">Appel fermé : il se fait au début du cours, jusqu'à {CALL_CLOSE_AFTER} minutes après. Pour une correction, voyez la vie scolaire.</p>}
+        <Button className="w-full !py-3 text-base" disabled={!open} onClick={() => onSave({ marks, notify })}>{record ? 'Enregistrer la correction' : 'Valider l\'appel'}</Button>
+        <p className="text-[11px] text-slate-500">L'appel se fait dans les {CALL_CLOSE_AFTER} premières minutes du cours, puis il est fermé ; la vie scolaire corrige ensuite. L'appel validé compte comme heure de cours effectuée.</p>
       </div>
     </div>
   );

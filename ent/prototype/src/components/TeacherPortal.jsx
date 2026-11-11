@@ -22,6 +22,7 @@ export default function TeacherPortal({ go, settings }) {
   const forgotten = WEEK_SESSIONS.filter((s) => stateOf(s) === 'OUBLIE');
   const booking = (s) => TEACHER.today.find((x) => x.start === s.start && x.cls === s.cls)?.booking;
   const call = (s) => { setIntent('appel', { session: s.id }); go('appel'); };
+  const appel = featureVisible(settings, 'appel', 'ENSEIGNANT'); // appel en ligne : pas encore (papier)
 
   return (
     <div className="space-y-5 pb-16 sm:pb-0">
@@ -31,16 +32,16 @@ export default function TeacherPortal({ go, settings }) {
         <p className="text-sm text-slate-600">{TEACHER.subjects}</p>
       </div>
 
-      {current && (
+      {appel && current && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-navy-900 p-5 text-white shadow-soft">
           <div><p className="text-xs uppercase tracking-wide text-navy-200">Cours en cours</p><p className="font-display text-lg font-semibold">{current.cls} · {current.subject}</p><p className="text-sm text-navy-100">{h(current.start)}–{h(current.end)} · {current.room}</p></div>
           <button type="button" onClick={() => call(current)} className="min-h-[44px] rounded-xl bg-white px-5 py-3 text-base font-semibold text-navy-900 shadow hover:bg-navy-50">Faire l'appel</button>
         </div>
       )}
-      {forgotten.map((s) => (
+      {appel && forgotten.map((s) => (
         <div key={s.id} className="flex flex-col gap-2 rounded-2xl border-2 border-red-200 bg-red-50 p-3 text-sm text-red-900 sm:flex-row sm:items-center sm:justify-between">
           <span><strong>Appel oublié</strong> · {s.cls} · {s.subject}, {s.date === NOW.date ? 'aujourd\'hui' : `le ${s.date.slice(8, 10)}/${s.date.slice(5, 7)}`} {h(s.start)}–{h(s.end)}</span>
-          <Button className="!py-1.5 text-sm" onClick={() => call(s)}>Faire maintenant</Button>
+          <span className="text-xs">Appel fermé après 15 minutes : voyez la vie scolaire.</span>
         </div>
       ))}
 
@@ -72,7 +73,7 @@ export default function TeacherPortal({ go, settings }) {
                   <Badge tone={STATE_UI[st][0]}>{STATE_UI[st][1]}</Badge>
                   {/* tout part du cours : appel, cahier de textes, notes de la classe */}
                   <span className="flex w-full flex-wrap gap-1.5 sm:w-auto">
-                    {st !== 'A_VENIR' && <Button variant={st === 'FAIT' ? 'secondary' : 'primary'} className="!py-1 text-xs" onClick={() => call(s)}><Icon name="check" />{st === 'FAIT' ? 'Corriger l\'appel' : 'Appel'}</Button>}
+                    {appel && st !== 'A_VENIR' && <Button variant={st === 'FAIT' ? 'secondary' : 'primary'} className="!py-1 text-xs" onClick={() => call(s)}><Icon name="check" />{st === 'FAIT' ? 'Corriger l\'appel' : 'Appel'}</Button>}
                     {featureVisible(settings, 'cahier-textes', 'ENSEIGNANT') && <Button variant="secondary" className="!py-1 text-xs" onClick={() => { setIntent('homework', { cls: s.cls, subject: s.subject }); go('homework'); }}><Icon name="calendar" />Cahier de textes</Button>}
                     <Button variant="secondary" className="!py-1 text-xs" onClick={() => { setIntent('grades', { cls: s.cls, subject: s.subject }); go('grades'); }}><Icon name="pen" />Notes</Button>
                   </span>

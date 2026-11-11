@@ -2149,3 +2149,12 @@ test('reprise des absences du 1er trimestre : ajoutée aux absences saisies dans
   assert.deepEqual(absenceTotals('TEST Élève', { justified: 1, unjustified: 2, late: 0 }, carry), { justified: 5, unjustified: 2, late: 2 });
   assert.deepEqual(absenceTotals('AUTRE Élève', {}, carry), { justified: 0, unjustified: 0, late: 0 });
 });
+
+test('appel fermé 15 minutes après le début du cours', async () => {
+  const { callOpen } = await import('../src/rules/attendance.js');
+  const s = { date: '2026-12-01', start: '08:00', end: '10:00' };
+  assert.equal(callOpen(s, { date: '2026-12-01', time: '07:52' }), true);
+  assert.equal(callOpen(s, { date: '2026-12-01', time: '08:15' }), true);
+  assert.equal(callOpen(s, { date: '2026-12-01', time: '08:16' }), false);
+  assert.equal(callOpen(s, { date: '2026-12-02', time: '08:05' }), false);
+});
