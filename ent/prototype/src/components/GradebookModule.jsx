@@ -82,7 +82,7 @@ function EvaluationForm({ draft, setDraft, settings, competencies, onCreate, onC
       </label>
       <div>
         <p className="text-xs text-slate-600">Compétences évaluées <span className="text-slate-400">(vos compétences pour cette classe)</span></p>
-        {competencies.length === 0 ? <p className="mt-1 text-xs text-slate-400">Aucune compétence : définissez-les à l'étape « 1. Compétences ».</p> : (
+        {competencies.length === 0 ? <p className="mt-1 text-xs text-slate-400">Aucune compétence : facultatif : elles s'ajoutent à l'étape « 3. Compétences du bulletin ».</p> : (
           <div className="mt-1 space-y-1">
             {competencies.map((c) => (
               <label key={c} className="flex items-center gap-2 text-sm text-slate-700">
@@ -287,7 +287,7 @@ function CompetenciesStep({ service, settings, evaluations, mine, setMine }) {
   const [label, setLabel] = useState('');
   return (
     <div className="grid gap-5 xl:grid-cols-[1fr_360px] xl:items-start">
-      <Card title={`Mes compétences — ${service.cls} · ${service.subject}`} subtitle="Celles que vous évaluez dans vos devoirs ; modifiables à tout moment">
+      <Card title={`Mes compétences — ${service.cls} · ${service.subject}`} subtitle="Facultatif : ce qui a été travaillé ce trimestre, repris dans la colonne « Compétences » du bulletin (le détail reste dans le cahier de textes)">
         {mine.length === 0 && <p className="mb-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">Aucune compétence pour l'instant : reprenez la base proposée ou écrivez les vôtres.</p>}
         <ol className="space-y-1.5">
           {mine.map((c, i) => {
@@ -480,7 +480,7 @@ function AppreciationsStep({ service, evaluations, grades, validated, settings, 
 }
 
 /* ---------------- Module ---------------- */
-const STEPS = [['competences', '1. Compétences'], ['notes', '2. Notes'], ['appreciations', '3. Appréciations']];
+const STEPS = [['notes', '1. Notes'], ['appreciations', '2. Appréciations'], ['competences', '3. Compétences du bulletin']]; // compétences : facultatives, seulement pour la colonne du bulletin
 
 
 export default function GradebookModule({ settings, go }) {
