@@ -81,8 +81,8 @@ function EvaluationForm({ draft, setDraft, settings, competencies, onCreate, onC
         <input value={draft.themesText} onChange={(e) => set({ themesText: e.target.value })} placeholder="Séparez les thèmes par une virgule" className={`mt-1 w-full ${inputCls}`} />
       </label>
       <div>
-        <p className="text-xs text-slate-600">Compétences évaluées <span className="text-slate-400">(vos compétences pour cette classe)</span></p>
-        {competencies.length === 0 ? <p className="mt-1 text-xs text-slate-400">Aucune compétence : facultatif : elles s'ajoutent à l'étape « 3. Compétences du bulletin ».</p> : (
+        <p className="text-xs text-slate-600">Compétences évaluées dans ce devoir <span className="text-slate-400">(facultatif)</span></p>
+        {competencies.length === 0 ? <p className="mt-1 text-xs text-slate-400">Facultatif. Les compétences de la classe se renseignent à l'étape « 3. Compétences du bulletin ».</p> : (
           <div className="mt-1 space-y-1">
             {competencies.map((c) => (
               <label key={c} className="flex items-center gap-2 text-sm text-slate-700">
@@ -251,6 +251,10 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
             <Icon name={check.empty.length ? 'x' : 'check'} className="mt-0.5 h-4 w-4 shrink-0" />
             {check.empty.length ? `${check.empty.length} case(s) vide(s) : saisir une note ou ABS / DISP / NN` : 'Toutes les cases sont remplies'}
           </li>
+          <li className={`flex gap-2 ${competencies.length ? 'text-emerald-800' : 'text-red-800'}`}>
+            <Icon name={competencies.length ? 'check' : 'x'} className="mt-0.5 h-4 w-4 shrink-0" />
+            {competencies.length ? `${competencies.length} compétence(s) pour le bulletin` : 'Compétences du bulletin à renseigner (étape 3)'}
+          </li>
           {adjErrors.length > 0 && (
             <li className="flex gap-2 text-red-800"><Icon name="x" className="mt-0.5 h-4 w-4 shrink-0" /><span>Bonus / malus : {adjErrors.join(' ')}</span></li>
           )}
@@ -269,8 +273,8 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
           </div>
         ) : (
           <>
-            <Button className="mt-4 w-full" disabled={!check.ok || adjErrors.length > 0} onClick={() => setValidated(true)}>Valider les notes du trimestre</Button>
-            {!check.ok && <p className="mt-1.5 text-xs text-red-800">Pas encore possible : {[check.missing && `il manque ${check.missing} évaluation${check.missing > 1 ? 's' : ''}`, check.pending.length && `${check.pending.length} saisie(s) à corriger`, check.empty.length && `${check.empty.length} case(s) vide(s)`].filter(Boolean).join(', ')}.</p>}
+            <Button className="mt-4 w-full" disabled={!check.ok || adjErrors.length > 0 || !competencies.length} onClick={() => setValidated(true)}>Valider les notes du trimestre</Button>
+            {(!check.ok || !competencies.length) && <p className="mt-1.5 text-xs text-red-800">Pas encore possible : {[check.missing && `il manque ${check.missing} évaluation${check.missing > 1 ? 's' : ''}`, check.pending.length && `${check.pending.length} saisie(s) à corriger`, check.empty.length && `${check.empty.length} case(s) vide(s)`, !competencies.length && 'compétences du bulletin à renseigner'].filter(Boolean).join(', ')}.</p>}
           </>
         )}
         <p className="mt-3 text-xs text-slate-600">Arrêt des notes du 1er trimestre : <strong>vendredi 27 novembre</strong> (même date pour toutes les classes).</p>
@@ -287,7 +291,7 @@ function CompetenciesStep({ service, settings, evaluations, mine, setMine }) {
   const [label, setLabel] = useState('');
   return (
     <div className="grid gap-5 xl:grid-cols-[1fr_360px] xl:items-start">
-      <Card title={`Mes compétences — ${service.cls} · ${service.subject}`} subtitle="Facultatif : ce qui a été travaillé ce trimestre, repris dans la colonne « Compétences » du bulletin (le détail reste dans le cahier de textes)">
+      <Card title={`Mes compétences — ${service.cls} · ${service.subject}`} subtitle="Obligatoire pour le bulletin : ce qui a été travaillé ce trimestre, repris dans la colonne « Compétences » (le détail reste dans le cahier de textes)">
         {mine.length === 0 && <p className="mb-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">Aucune compétence pour l'instant : reprenez la base proposée ou écrivez les vôtres.</p>}
         <ol className="space-y-1.5">
           {mine.map((c, i) => {
@@ -480,7 +484,7 @@ function AppreciationsStep({ service, evaluations, grades, validated, settings, 
 }
 
 /* ---------------- Module ---------------- */
-const STEPS = [['notes', '1. Notes'], ['appreciations', '2. Appréciations'], ['competences', '3. Compétences du bulletin']]; // compétences : facultatives, seulement pour la colonne du bulletin
+const STEPS = [['notes', '1. Notes'], ['appreciations', '2. Appréciations'], ['competences', '3. Compétences du bulletin']]; // obligatoires pour le bulletin ; par devoir, facultatives
 
 
 export default function GradebookModule({ settings, go }) {
