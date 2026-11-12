@@ -54,6 +54,8 @@ export default function AccountsModule({ embedded = false, settings }) {
   const [docsFor, setDocsFor] = useState(null);
   const [bulk, setBulk] = useState(false);
   const [slips, setSlips] = useState(null); // nouveaux codes en série
+  // codes en série : jamais les comptes de la Direction (on ne se retire pas son propre accès par erreur)
+  const toRenew = (u) => u.must_change_code && u.is_active && !(u.user_role ?? []).some((r) => r.role === 'DIRECTION');
   const load = async () => {
     const { data, error } = await supabase.from('app_user').select('id, first_name, last_name, login, email, is_active, last_login_at, must_change_code, user_role(role, title)').order('last_name');
     if (error) setErr('La liste des comptes n\'a pas pu être chargée.'); else setList(data);
@@ -87,8 +89,8 @@ export default function AccountsModule({ embedded = false, settings }) {
           </div>
         </Card>
       ) : !bulk && <div className="flex flex-wrap gap-2"><Button onClick={() => setD({ ...EMPTY_AGENT })}>＋ Nouvel agent</Button><Button variant="secondary" onClick={() => setBulk(true)}>Créer les comptes des professeurs (liste)</Button>
-        {(list ?? []).some((u) => u.must_change_code && u.is_active) && <Button variant="secondary" disabled={busy} onClick={async () => {
-          const todo = list.filter((u) => u.must_change_code && u.is_active);
+        {(list ?? []).some(toRenew) && <Button variant="secondary" disabled={busy} onClick={async () => {
+          const todo = list.filter(toRenew);
           if (!(await askConfirm(`Donner un nouveau code provisoire aux ${todo.length} compte(s) qui ne se sont pas encore connectés ? Les anciens codes ne marcheront plus.`))) return;
           run(async () => { const out = []; for (const u of todo) { try { const r = await call({ action: 'reset', userId: u.id }); out.push({ ...r, name: `${u.first_name} ${u.last_name}` }); } catch (x) { out.push({ name: `${u.first_name} ${u.last_name}`, error: x.message }); } } setSlips(out); });
         }}>Nouveaux codes pour tous les « code provisoire »</Button>}</div>}
