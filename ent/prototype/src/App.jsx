@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import SavedBadge from './components/SavedBadge.jsx';
+import NotesReceived from './components/NotesReceived.jsx';
 import ComingSoon from './components/ComingSoon.jsx';
 
 // Rubriques déjà utilisables en ligne par tout le personnel (les autres : « fonction en cours de création »)
-const ONLINE_READY = [];
+const ONLINE_READY = ['grades']; // carnet de notes en ligne (le reste suit à la bascule de décembre)
 const COMING_TEXT = {
   grades: 'La saisie des notes en ligne ouvre très prochainement. En attendant, gardez vos notes comme d\'habitude : vous les recopierez ici évaluation par évaluation.',
   'grade-sheets': 'Les grilles de notes arrivent avec la saisie des notes en ligne.',
@@ -151,7 +152,7 @@ const PROFILES = {
     nav: arrangeNav(DIRECTION_TREE, [
       { group: 'Aujourd\'hui', items: [{ id: 'dashboard', label: 'Mes décisions', icon: 'home', screen: DirectionDashboard }, SIGNATURES, FEEDBACK] },
       { group: 'Élèves', items: [ELEVES, { id: 'students', label: 'Mobilité Tamatave → Tana', icon: 'swap' }] },
-      { group: 'Pédagogie', items: [COUNCIL, BULLETINS, MOCK_EXAMS, GRADE_SHEETS, ...OVERSIGHT, TIMETABLE, { id: 'exams', label: 'Examens & Campus France', icon: 'cap' }] },
+      { group: 'Pédagogie', items: [...(ONLINE ? [{ id: 'notes-recues', label: 'Notes reçues', icon: 'pen', screen: NotesReceived }] : []), COUNCIL, BULLETINS, MOCK_EXAMS, GRADE_SHEETS, ...OVERSIGHT, TIMETABLE, { id: 'exams', label: 'Examens & Campus France', icon: 'cap' }] },
       { group: 'Vie scolaire', items: [VIE_SCOLAIRE, CARE, HOURS, FOLLOW_UP, MANDATES] },
       { group: 'Finances', items: [ACCOUNTING] },
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, AGENDA] },

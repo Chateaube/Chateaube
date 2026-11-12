@@ -46,3 +46,12 @@ Tests locaux : `fake_supabase.sql` puis `installation.sql` puis `test_supabase.s
 La version installable (`npm run build:app`, mode `app`, réglages dans `ent/prototype/.env.app`) demande la
 connexion (identifiant + code) et n'affiche jamais d'exemples fictifs. La démonstration (claude.ai) reste
 hors ligne, avec ses exemples. La Direction crée les comptes dans Réglages › Comptes du personnel.
+
+## 6. Mise à jour 3 — carnets de notes en ligne (une seule fois)
+1. SQL Editor › New query → coller le contenu de `30_carnets.sql` → Run. En bas : `ent_doc` et `ent_doc_history`.
+2. Dans l'ENT (Direction) : **Pédagogie › Notes reçues › Envoyer les classes aux professeurs** (depuis l'ordinateur où
+   le modèle Excel a été importé). À refaire après un nouvel import ou une fiche d'agent modifiée.
+3. Les professeurs ouvrent **Notes et appréciations** : chaque saisie part sur le serveur (« ✓ Enregistré sur le
+   serveur à … ») ; sans réseau, elle reste sur l'appareil et repart toute seule.
+4. **Notes reçues** montre ce que chacun a saisi et exporte tout en Excel. L'historique (`ent_doc_history`) garde les
+   versions précédentes de chaque carnet (une toutes les 10 minutes au plus), lisible par la Direction seule.

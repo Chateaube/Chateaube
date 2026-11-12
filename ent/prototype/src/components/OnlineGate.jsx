@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { supabase, signIn, forgotCode, loadAccount, setCode, signOut, codeErrors } from '../online/client.js';
 import { saveMe, loadMe } from '../identity.js';
+import { loadRoster } from '../online/roster.js';
+import { loadRemoteCarnet } from '../gradebookStore.js';
+import { flushAll } from '../online/docs.js';
 
 // Version en ligne : rien ne s'affiche sans connexion. Identifiant + code ; « code oublié » envoie un lien à
 // l'adresse du compte ; à la première connexion (code provisoire remis par la Direction), on choisit son code.
@@ -81,6 +84,15 @@ export default function OnlineGate({ children }) {
       sessionStorage.setItem('ent-me-reload', '1'); window.location.reload(); return;
     }
     sessionStorage.removeItem('ent-me-reload');
+    // personnel hors Direction : classes publiées par la Direction ; professeur : son carnet de notes.
+    // Si le serveur ne répond pas, on n'ouvre pas (sinon un carnet vide pourrait remplacer le vrai).
+    if (acc.profile !== 'DIRECTION') {
+      try {
+        await loadRoster();
+        if (acc.profile === 'ENSEIGNANT') await loadRemoteCarnet(acc.id);
+      } catch (e) { setState({ step: 'failed', message: e?.message, sync: true }); return; }
+    }
+    flushAll();
     setState({ step: 'in', acc });
   };
   useEffect(() => {
@@ -94,7 +106,7 @@ export default function OnlineGate({ children }) {
   if (state.step === 'recovery') return <NewCode onDone={() => { window.location.hash = ''; refresh(); }} />;
   if (state.step === 'failed') return (
     <Shell title="Connexion à la base impossible">
-      <p className="text-sm text-slate-700">Votre compte n'a pas pu être lu pour l'instant (réseau lent ou service momentanément indisponible). Vos données ne sont pas touchées.</p>
+      <p className="text-sm text-slate-700">{state.sync ? 'Vos classes et vos notes n\'ont pas pu être chargées (réseau lent ou coupé). Rien n\'est perdu : les notes déjà envoyées sont sur le serveur, celles en attente restent sur cet appareil.' : 'Votre compte n\'a pas pu être lu pour l\'instant (réseau lent ou service momentanément indisponible). Vos données ne sont pas touchées.'}</p>
       <button type="button" onClick={() => { setState({ step: 'loading' }); refresh(); }} className="mt-4 min-h-[44px] w-full rounded-xl bg-navy-500 font-semibold text-white">Réessayer</button>
       {state.message && <p className="mt-3 text-[11px] text-slate-400">Détail technique : {state.message}</p>}
     </Shell>

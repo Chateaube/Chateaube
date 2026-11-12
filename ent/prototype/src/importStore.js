@@ -20,6 +20,8 @@ export function saveImport(data) {
     memory = null; importStorage = 'LOCAL'; return 'LOCAL';
   } catch { memory = value; importStorage = 'MEMORY'; return 'MEMORY'; }
 }
+/** Version en ligne (personnel hors Direction) : classes publiées par la Direction, gardées en mémoire seulement. */
+export function setRemoteImport(data) { memory = data; importStorage = 'MEMORY'; }
 export function clearImport() {
   memory = null;
   try { localStorage.removeItem(KEY); } catch { /* stockage indisponible */ }
