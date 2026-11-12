@@ -6,7 +6,7 @@ import { me } from '../identity.js';
 import { realData } from '../demoData.js';
 
 // Accueil de la Direction, dans l'ordre demandé :
-// 1. l'école sur 7 ou 30 jours (chiffres cliquables) et, à droite, ce qui est en cours ou à venir ;
+// 1. l'école aujourd'hui ou cette semaine (chiffres cliquables) et, à droite, ce qui est en cours ou à venir ;
 // 2. « À faire » : décisions et tâches réunies ; 3. « Ce qui s'est passé », par service, avec accès direct.
 // Deux rangées équilibrées : l'école | les finances, puis « À faire » | ce qui arrive (court, le reste dans l'agenda).
 export default function DirectionDashboard({ account, settings, go, site = 'TMV' }) {

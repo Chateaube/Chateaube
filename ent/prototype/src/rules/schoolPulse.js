@@ -1,10 +1,21 @@
-// « L'école sur 7 ou 30 jours » : les chiffres de la période et leur évolution par rapport à la période
-// précédente (même durée). Tout vient des mêmes données que les écrans, pour des chiffres identiques partout.
+// « L'école aujourd'hui / cette semaine » : les chiffres de la période et leur évolution par rapport à la
+// période précédente (jour de classe précédent, semaine précédente du lundi au vendredi). Tout vient des mêmes données que les écrans, pour des chiffres identiques partout.
 const day = (x) => String(x ?? '').slice(0, 10);
 const shift = (iso, n) => { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 
-/** Bornes de la période [from, to] et de la précédente. */
-export function periodRange(today, days) {
+const weekday = (iso) => new Date(`${iso}T12:00:00Z`).getUTCDay();
+/** Bornes de la période [from, to] et de la précédente. `p` : 'DAY', 'WEEK' (lundi–vendredi) ou un nombre de jours. */
+export function periodRange(today, p) {
+  if (p === 'DAY') {
+    const back = weekday(today) === 1 ? 3 : weekday(today) === 0 ? 2 : 1; // lundi → vendredi précédent
+    const prev = shift(today, -back);
+    return { from: today, to: today, prevFrom: prev, prevTo: prev };
+  }
+  if (p === 'WEEK') {
+    const wd = weekday(today); const monday = shift(today, wd === 0 ? -6 : 1 - wd);
+    return { from: monday, to: shift(monday, 4), prevFrom: shift(monday, -7), prevTo: shift(monday, -3) };
+  }
+  const days = p;
   const from = shift(today, -(days - 1));
   return { from, to: today, prevFrom: shift(from, -days), prevTo: shift(from, -1) };
 }

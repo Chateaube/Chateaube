@@ -16,7 +16,8 @@ import { me } from '../identity.js';
 
 // Accueil de la CPE : d'abord ce qui attend (du plus urgent au moins urgent), puis la journée concrète
 // (séances à surveiller, colles, objets en garde), puis les tâches confiées et le journal.
-export default function CpeHome({ go, account }) {
+export default function CpeHome({ go, account, role = 'VIE_SCOLAIRE' }) {
+  const takeover = role === 'BUREAU'; // le secrétariat assure la vie scolaire (départ de la CPE)
   const notes = notificationsFor('VIE_SCOLAIRE', { account });
   const day = [...notes.urgent.map((n) => ({ ...n, urgent: true })), ...notes.todo.filter((n) => n.id !== 'tasks')];
   const toSupervise = sessionsToSupervise(loadTeacherAbsences(), TIMETABLE, TODAY).filter((x) => x.date === TODAY);
@@ -27,10 +28,10 @@ export default function CpeHome({ go, account }) {
     <div className="space-y-5 pb-16 sm:pb-0">
       <div>
         <p className="text-sm font-semibold text-navy-500">Vie scolaire · Tamatave</p>
-        <h1 className="text-2xl font-semibold text-navy-900">Bonjour {me('VIE_SCOLAIRE')}</h1>
+        <h1 className="text-2xl font-semibold text-navy-900">{takeover ? 'Journée de la vie scolaire' : `Bonjour ${me('VIE_SCOLAIRE')}`}</h1>
         <p className="text-sm text-slate-600">{day.length ? `${day.length} chose${day.length > 1 ? 's' : ''} à traiter aujourd'hui.` : 'Rien d\'urgent aujourd\'hui.'}</p>
       </div>
-      <QuickEntry role="VIE_SCOLAIRE" />
+      <QuickEntry role={takeover ? 'BUREAU' : 'VIE_SCOLAIRE'} />
       <Card title={`À traiter (${day.length})`} subtitle="Du plus urgent au moins urgent">
         {day.length === 0 ? <p className="text-sm text-slate-600">Tout est à jour ✓</p> : (
           <ul className="divide-y divide-slate-100">
@@ -66,14 +67,14 @@ export default function CpeHome({ go, account }) {
         </Card>
       </div>
       <ColleSessionsCard role="VIE_SCOLAIRE" />
-      <TodoList who="VIE_SCOLAIRE" title="Mes tâches" />
+      <TodoList who="VIE_SCOLAIRE" title={takeover ? 'Tâches de la vie scolaire' : 'Mes tâches'} />
       <div className="flex flex-wrap gap-2">
         <Button variant="secondary" onClick={() => go?.('vs')}><Icon name="users" />Absences, retards et punitions</Button>
         <Button variant="secondary" onClick={() => go?.('care')}><Icon name="care" />Soins (secrétariat)</Button>
         <Button variant="secondary" onClick={() => go?.('tt-changes')}><Icon name="clock" />Annuler un cours aujourd'hui</Button>
       </div>
       <ActivityJournal go={go} />
-      <AbsentToggle role="VIE_SCOLAIRE" />
+      {!takeover && <AbsentToggle role="VIE_SCOLAIRE" />}
     </div>
   );
 }

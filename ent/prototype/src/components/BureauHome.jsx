@@ -13,7 +13,7 @@ import { TODAY } from '../notify.js';
 import { me } from '../identity.js';
 
 // Accueil du secrétariat, sur le modèle de celui de la Direction, avec le guichet du jour :
-// 1. l'école sur 7 / 30 jours et ce qui vient ; 2. le guichet (caisse du jour par journal, clôture, chèques,
+// 1. l'école aujourd'hui / cette semaine et ce qui vient ; 2. le guichet (caisse du jour par journal, clôture, chèques,
 // certificats) ; 3. « À faire » (urgences, guichet, démarches, tâches) ; « À savoir » ; 4. ce qui s'est passé.
 export default function BureauHome({ go, settings }) {
   const receipts = RECEIPTS_TODAY.filter((r) => r.date === TODAY && r.status !== 'ANNULE');

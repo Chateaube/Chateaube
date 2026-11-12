@@ -130,7 +130,7 @@ function Sheet({ action, role, onClose, onSaved }) {
 
 /** Quatre boutons (ordinateur) et barre fixée en bas (téléphone). */
 // Enseignant : appel, réservation de matériel et confiscation en classe (l'objet est remis à la vie scolaire).
-const ROLE_ACTIONS = { ENSEIGNANT: ['APPEL', 'RESA', 'OBJET'], BUREAU: ['SOIN', 'ABSENCE'], VIE_SCOLAIRE: ['RETARD', 'ABSENCE', 'OBJET', 'SOIN'] }; // secrétariat : soins et absences
+const ROLE_ACTIONS = { ENSEIGNANT: ['APPEL', 'RESA', 'OBJET'], BUREAU: ['RETARD', 'ABSENCE', 'OBJET', 'SOIN'], VIE_SCOLAIRE: ['RETARD', 'ABSENCE', 'OBJET', 'SOIN'] }; // secrétariat et vie scolaire : la même saisie
 
 export default function QuickEntry({ role = 'VIE_SCOLAIRE', go }) {
   const allowed = ACTIONS.filter(([k]) => !ROLE_ACTIONS[role] || ROLE_ACTIONS[role].includes(k));
