@@ -15,18 +15,17 @@ import { loadEventProposals, saveEventProposal } from '../studentInitiativesStor
 import { approve, sendBack, trail, forward, cpeSendBack } from '../rules/publication.js';
 import { today, weekStart, addDays } from '../clock.js';
 import { me } from '../identity.js';
-import { reviewsAsCpe } from '../delegationStore.js';
 
 // Événements proposés par le BDE : ils n'entrent au calendrier de l'école qu'une fois publiés par la Direction.
 const publishedProposals = () => loadEventProposals().filter((e) => e.status === 'PUBLIEE').map((e) => ({ id: e.id, agenda: 'ECOLE', date: e.date, start: e.start, end: e.end, title: `${e.title} (BDE)`, place: e.place, classes: [] }));
 
 function ProposalReview({ onChange, role }) {
-  const cpe = reviewsAsCpe(role); // la CPE (ou le secrétariat qui la remplace) relit, la Direction publie
+  const cpe = role === 'VIE_SCOLAIRE'; // la CPE relit, la Direction publie
   const [list, setList] = useState(() => loadEventProposals().filter((e) => e.status === (cpe ? 'A_RELIRE' : 'EN_ATTENTE')));
   const [notes, setNotes] = useState({});
   const [err, setErr] = useState('');
   if (!list.length) return null;
-  const actor = { role: cpe ? 'VIE_SCOLAIRE' : 'DIRECTION', name: cpe ? me(role) : me('DIRECTION'), at: new Date().toISOString().slice(0, 16) };
+  const actor = { role: cpe ? 'VIE_SCOLAIRE' : 'DIRECTION', name: cpe ? me('VIE_SCOLAIRE') : me('DIRECTION'), at: new Date().toISOString().slice(0, 16) };
   const run = (e, fn) => { try { saveEventProposal(fn(e)); setList(list.filter((x) => x.id !== e.id)); onChange(); } catch (x) { setErr(x.message); } };
   return (
     <Card title={cpe ? 'Événements proposés par le BDE — à relire' : 'Événements proposés par le BDE — à valider'}>
@@ -174,7 +173,7 @@ export default function AgendaModule({ role, cls: fixedCls, settings, compact = 
         )}
       </Card>
 
-      {(role === 'DIRECTION' || reviewsAsCpe(role)) && <ProposalReview role={role} onChange={() => setTick((n) => n + 1)} />}
+      {['DIRECTION', 'VIE_SCOLAIRE'].includes(role) && <ProposalReview role={role} onChange={() => setTick((n) => n + 1)} />}
       <div className="grid gap-5 xl:grid-cols-[1fr_320px] xl:items-start">
         <Card title="Prochains jours" subtitle={summary ? 'Vue d\'ensemble : événements, devoirs et cours qui changent. Choisir une classe pour voir tous ses cours.' : undefined}>
           {days.length === 0 && <p className="text-sm text-slate-500">Rien à afficher.</p>}
