@@ -1,6 +1,9 @@
 import { withMockExams } from '../termGrades.js';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { loadCarnet, saveCarnet } from '../gradebookStore.js';
+import { loadCarnet, saveCarnet, carnetKey, remoteCarnetId } from '../gradebookStore.js';
+import { ONLINE } from '../online/client.js';
+import { onSync, syncState } from '../online/docs.js';
+import { currentRoster, servicesFor } from '../online/roster.js';
 import { demoOr } from '../demoData.js';
 import { Badge, Button, Card, Icon, StudentSelect } from './ui.jsx';
 import { Annotated, RulePanel, GradeCell } from './gradeUi.jsx';
@@ -487,8 +490,24 @@ function AppreciationsStep({ service, evaluations, grades, validated, settings, 
 const STEPS = [['notes', '1. Notes'], ['appreciations', '2. Appréciations'], ['competences', '3. Compétences du bulletin']]; // obligatoires pour le bulletin ; par devoir, facultatives
 
 
+// En ligne : les services du professeur connecté, publiés par la Direction (classes × matières de sa fiche)
+const myServices = () => (ONLINE ? servicesFor(currentRoster(), remoteCarnetId()) : SERVICES);
+const hm = (d) => `${String(d.getHours()).padStart(2, '0')} h ${String(d.getMinutes()).padStart(2, '0')}`;
+
+/** État de l'envoi au serveur, toujours visible : le professeur sait que ses notes sont arrivées. */
+function SyncLine() {
+  const key = carnetKey(remoteCarnetId());
+  const [st, setSt] = useState(() => syncState(key));
+  useEffect(() => onSync((k, s) => { if (k === key) setSt({ ...s }); }), [key]);
+  if (!st) return <p className="text-xs text-slate-500" role="status">Chaque note est envoyée au serveur dès qu'elle est saisie.</p>;
+  if (st.status === 'saved') return <p className="text-xs font-medium text-emerald-700" role="status">✓ Enregistré sur le serveur à {hm(st.at)}</p>;
+  if (st.status === 'pending') return <p className="text-xs text-slate-600" role="status">Envoi en cours…</p>;
+  return <p className="text-xs font-medium text-amber-800" role="status">Pas de connexion : vos notes sont gardées sur cet appareil et partiront automatiquement (ne videz pas le navigateur).</p>;
+}
+
 export default function GradebookModule({ settings, go }) {
-  const [serviceId, setServiceId] = useState(() => { const i = takeIntent('grades'); return SERVICES.find((x) => x.cls === i?.cls && x.subject === i?.subject)?.id ?? SERVICES.find((x) => x.cls === i?.cls)?.id ?? 's1'; });
+  const SERVICES = useMemo(myServices, []);
+  const [serviceId, setServiceId] = useState(() => { const i = takeIntent('grades'); return SERVICES.find((x) => x.cls === i?.cls && x.subject === i?.subject)?.id ?? SERVICES.find((x) => x.cls === i?.cls)?.id ?? SERVICES[0]?.id; });
   const [step, setStep] = useState('notes');
   // carnet enregistré (saisies précédentes) ; sinon exemples de démonstration, ou vide avec les vraies données
   const [saved] = useState(loadCarnet);
@@ -496,7 +515,7 @@ export default function GradebookModule({ settings, go }) {
   const [evaluations, setEvaluations] = useState(mock.ev);
   const [grades, setGrades] = useState(mock.gr);
   const [remarks, setRemarks] = useState(saved?.remarks ?? demoOr(REMARKS, {}));
-  const [myComps, setMyComps] = useState(saved?.myComps ?? TEACHER_COMPETENCIES);
+  const [myComps, setMyComps] = useState(saved?.myComps ?? demoOr(TEACHER_COMPETENCIES, {}));
   const [validated, setValidated] = useState(saved?.validated ?? {});
   const [comments, setComments] = useState(saved?.comments ?? {});
   const [adjust, setAdjust] = useState(saved?.adjust ?? {}); // bonus / malus par service et par élève
@@ -510,6 +529,12 @@ export default function GradebookModule({ settings, go }) {
   }, [evaluations, grades, remarks, myComps, validated, comments, flags, adjust]);
 
   const service = SERVICES.find((s) => s.id === serviceId);
+  if (!service) return (
+    <div className="space-y-5">
+      <h1 className="text-2xl font-semibold text-navy-900">Notes et appréciations</h1>
+      <Card><p className="text-sm text-slate-700">Aucune classe ne vous est encore attribuée. La Direction doit compléter votre fiche (matières et classes) puis envoyer les classes en ligne. Prévenez-la.</p></Card>
+    </div>
+  );
   const appOnly = service.mode === 'APPRECIATION_SEULE';
   const currentStep = appOnly ? 'appreciations' : step;
   const props = {
@@ -531,11 +556,11 @@ export default function GradebookModule({ settings, go }) {
       <div>
         <p className="text-sm font-semibold text-navy-500">{TERM.label} · conseil de classe le {TERM.council}</p>
         <h1 className="text-2xl font-semibold text-navy-900">Notes et appréciations</h1>
-        <p className={`text-xs ${savedOk === false ? 'font-medium text-red-700' : 'text-slate-500'}`} role="status">
+        {ONLINE ? <SyncLine /> : <p className={`text-xs ${savedOk === false ? 'font-medium text-red-700' : 'text-slate-500'}`} role="status">
           {savedOk === false ? 'Ce navigateur refuse l\'enregistrement : vos dernières saisies seront perdues au rechargement.'
             : savedOk ? '✓ Enregistré automatiquement — revenez ajouter vos notes quand vous voulez.'
             : 'Chaque note est enregistrée dès qu\'elle est saisie : remplissez au fil du trimestre, devoir après devoir.'}
-        </p>
+        </p>}
       </div>
       <div className="flex gap-2 overflow-x-auto pb-1">
         {SERVICES.map((s) => {

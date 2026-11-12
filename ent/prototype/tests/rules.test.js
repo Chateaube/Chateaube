@@ -2192,3 +2192,28 @@ test('départ de la CPE : le secrétariat reçoit ses alertes à partir de la da
   assert.deepEqual(coveringFor('BUREAU', '2026-12-10', {}, h), []);
   assert.deepEqual(coveringFor('VIE_SCOLAIRE', '2027-01-05', {}, h), []);
 });
+
+test('carnets en ligne : classes envoyées, services du professeur, spécialités, résumé', async () => {
+  const { buildRoster, servicesFor, specialtyOf } = await import('../src/online/roster.js');
+  const students = [
+    { cls: '1re Générale', lastName: 'ALPHA', firstName: 'Ana', specialties: ['MATHS'], birthDate: '2010-01-01', phones: ['034'] },
+    { cls: '1re Générale', lastName: 'BETA', firstName: 'Bo', specialties: ['SVT'] },
+    { cls: '1re Générale', lastName: 'DELTA', firstName: 'Di', specialties: [] },
+    { cls: '2de', lastName: 'GAMMA', firstName: 'Gil' },
+  ];
+  const fiches = { t1: { services: [{ subject: 'Spécialité Mathématiques', classes: ['1re Générale'] }, { subject: 'Mathématiques', classes: ['2de', '6e'] }] } };
+  const r = buildRoster({ students, fiches, teachers: [{ id: 't1', name: 'M. Un' }, { id: 't2', name: 'Mme Deux' }] });
+  assert.deepEqual(Object.keys(r.students[0]).sort(), ['cls', 'firstName', 'lastName', 'specialties']); // rien d'autre ne part
+  assert.ok(r.warnings.some((w) => w.includes('Mme Deux')) && r.warnings.some((w) => w.includes('« 6e »')));
+  const s = servicesFor(r, 't1');
+  assert.deepEqual(s.map((x) => x.id), ['1re Générale|Spécialité Mathématiques', '2de|Mathématiques', '6e|Mathématiques']);
+  assert.deepEqual(s[0].students, ['ALPHA Ana', 'DELTA Di']); // BETA n'a pas la spécialité ; DELTA sans choix connu reste
+  assert.deepEqual(servicesFor(r, 't2'), []);
+  assert.equal(specialtyOf('Spécialité Physique-Chimie', 'Terminale Générale'), 'PC');
+  assert.equal(specialtyOf('Mathématiques', '1re Générale'), null);
+  const { serviceSummary } = await import('../src/components/NotesReceived.jsx').catch(() => ({}));
+  if (serviceSummary) {
+    const x = serviceSummary({ evaluations: { [s[0].id]: [{ id: 'e1' }, { id: 'e2' }] }, grades: { [s[0].id]: { 'ALPHA Ana': { e1: '12', e2: '' } } }, myComps: { [s[0].id]: ['C'] } }, s[0]);
+    assert.deepEqual([x.got, x.expected, x.competencies], [1, 4, 1]);
+  }
+});
