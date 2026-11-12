@@ -4,15 +4,14 @@ import { readStored, writeStored } from './persist.js';
 import { today } from './clock.js';
 
 const KEY = 'ent-remplacements-v1';
-// Reprise durable (départ de la CPE) : à partir d'une date, le secrétariat assure la vie scolaire.
-// Réglée par la Direction (Droits d'accès) ; gardée d'une année sur l'autre (« ent-k- »).
+// Alertes partagées (durable) : à partir d'une date, le secrétariat reçoit aussi les alertes de la CPE.
+// Le compte de la CPE reste ouvert et ses accès ne changent pas : seuls les accès (Droits d'accès) distinguent
+// les deux postes. Réglé par la Direction ; gardé d'une année sur l'autre (« ent-k- »).
 const HANDOVER_KEY = 'ent-k-reprise-vie-scolaire';
 export const loadHandover = () => readStored(HANDOVER_KEY) ?? null; // { since: 'AAAA-MM-JJ' } ou null
 export const saveHandover = (h) => writeStored(HANDOVER_KEY, h);
-/** Le secrétariat assure-t-il la vie scolaire ce jour-là ? */
+/** Le secrétariat reçoit-il aussi les alertes de la CPE ce jour-là ? */
 export const cpeHandedOver = (day = today(), h = loadHandover()) => Boolean(h?.since && h.since <= day);
-/** Rôle qui fait le travail de la CPE ce jour-là (relectures, alertes). */
-export const reviewsAsCpe = (role, day) => role === 'VIE_SCOLAIRE' || (role === 'BUREAU' && cpeHandedOver(day));
 export const DELEGABLE = { VIE_SCOLAIRE: 'BUREAU', BUREAU: 'VIE_SCOLAIRE' };
 export const LABELS = { VIE_SCOLAIRE: 'la CPE', BUREAU: 'le secrétariat' };
 export const TO_LABELS = { VIE_SCOLAIRE: 'à la CPE', BUREAU: 'au secrétariat' };

@@ -60,7 +60,6 @@ import FollowUpsModule from './components/FollowUpsModule.jsx';
 import TimetableView from './components/TimetableView.jsx';
 import ReadOnlyGuard from './components/ReadOnlyGuard.jsx';
 import { applyAccess, DIRECTION_ONLY } from './rules/access.js';
-import { cpeHandedOver } from './delegationStore.js';
 import { DIRECTION_TREE, arrangeNav } from './rules/navigation.js';
 import StudentTimeline from './components/StudentTimeline.jsx';
 import { loadLargeText, applyLargeText } from './textSize.js';
@@ -227,11 +226,6 @@ const PROFILES = {
 // et menus d'origine des profils du personnel. Personne du registre derrière chaque profil de démonstration.
 const catalogue = () => PROFILES.DIRECTION.nav.flatMap((g) => g.items.filter((it) => it.screen && !DIRECTION_ONLY.includes(it.id)).map((it) => ({ ...it, group: g.group })));
 const baseNavs = () => ({ BUREAU: PROFILES.BUREAU.nav, VIE_SCOLAIRE: PROFILES.VIE_SCOLAIRE.nav, ENSEIGNANT: PROFILES.ENSEIGNANT.nav });
-// Départ de la CPE : à partir de la date réglée par la Direction, le secrétariat reçoit en plus la journée
-// de la vie scolaire (alertes, colles, objets en garde) ; le reste de ses menus couvre déjà la vie scolaire.
-const withCpeTakeover = (profile, nav) => (profile === 'BUREAU' && cpeHandedOver() ? [...nav.slice(0, 1), { group: 'Vie scolaire (CPE)', items: [
-  { id: 'cpe-home', label: 'Journée vie scolaire', icon: 'home', screen: CpeHome }, vsTab('cpe-colles', 'Colles', 'passport'), vsTab('cpe-objets', 'Objets en garde', 'phones'),
-] }, ...nav.slice(1)] : nav);
 const PERSON_OF = { BUREAU: 'p7', VIE_SCOLAIRE: 'p8', ENSEIGNANT: 'p1' };
 
 // Personne connectée, par profil (démonstration)
@@ -270,7 +264,7 @@ export default function App() {
   const [accountId, setAccountId] = useState('u1');
   const account = DIRECTION_ACCOUNTS.find((a) => a.id === accountId);
   // rubriques masquées par la Direction (Droits d'accès → Rubriques de l'école) : retirées du menu
-  const NAV = withCpeTakeover(profile, applyAccess({ profile, person: PERSON_OF[profile], baseNav: PROFILES[profile].nav, catalogue: catalogue(), access: settings.access })).map((g) => ({ ...g, items: g.items.filter((it) => featureVisible(settings, it.feature, profile)) })).filter((g) => g.items.length);
+  const NAV = applyAccess({ profile, person: PERSON_OF[profile], baseNav: PROFILES[profile].nav, catalogue: catalogue(), access: settings.access }).map((g) => ({ ...g, items: g.items.filter((it) => featureVisible(settings, it.feature, profile)) })).filter((g) => g.items.length);
   // En ligne, pour le personnel (hors Direction) : les rubriques pas encore ouvertes restent visibles mais
   // affichent « Fonction en cours de création » (leurs données ne sont pas encore partagées en ligne).
   const notYet = (it) => ONLINE && profile !== 'DIRECTION' && it.id !== PROFILES[profile].home && !ONLINE_READY.includes(it.id);
