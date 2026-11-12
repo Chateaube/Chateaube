@@ -9,6 +9,7 @@ import { DocumentInput, DocumentThumb } from './PhotoInput.jsx';
 import { me } from '../identity.js';
 import { realData } from '../demoData.js';
 import { tell } from './Dialogs.jsx';
+import { reviewsAsCpe } from '../delegationStore.js';
 
 // Annonces : un message (texte et photos) à tous les parents, toute l'école, un cycle, des niveaux
 // ou des classes, sur un site ou les deux.
@@ -76,10 +77,10 @@ function ReviewItem({ a, onDone }) {
 }
 
 /** Relecture de la CPE : les annonces des délégués et du BDE passent par elle avant la Direction. */
-function CpeReviewItem({ a, onDone }) {
+function CpeReviewItem({ a, onDone, by = 'VIE_SCOLAIRE' }) {
   const [note, setNote] = useState('');
   const [err, setErr] = useState('');
-  const actor = { role: 'VIE_SCOLAIRE', name: ACTOR_NAME.VIE_SCOLAIRE, at: now() };
+  const actor = { role: 'VIE_SCOLAIRE', name: ACTOR_NAME[by] ?? ACTOR_NAME.VIE_SCOLAIRE, at: now() };
   const run = (fn, msg) => { try { saveAnnouncement(fn()); onDone(msg); } catch (e) { setErr(e.message); } };
   return (
     <li className="rounded-xl border border-amber-200 bg-amber-50/40 p-3">
@@ -130,7 +131,7 @@ export default function AnnouncementsModule({ role, account }) {
 
   const mine = workView(data.list, { role, name: actorOf().name });
   const pending = publisher ? data.list.filter((a) => a.status === 'EN_ATTENTE') : [];
-  const toReread = role === REVIEWER ? data.list.filter((a) => a.status === 'A_RELIRE') : [];
+  const toReread = role === REVIEWER || reviewsAsCpe(role) ? data.list.filter((a) => a.status === 'A_RELIRE') : [];
   const myOpen = mine.filter((a) => !publisher && ['BROUILLON', 'EN_ATTENTE', 'A_REVOIR'].includes(a.status) && a.authorName === actorOf().name);
   const published = mine.filter((a) => a.status === 'PUBLIEE');
 
@@ -172,7 +173,7 @@ export default function AnnouncementsModule({ role, account }) {
       )}
       {toReread.length > 0 && (
         <Card title={`À relire — délégués et BDE (${toReread.length})`} subtitle="Première relecture avant la Direction : transmettez, ou renvoyez à l'élève avec une remarque">
-          <ul className="space-y-3">{toReread.map((a) => <CpeReviewItem key={a.id} a={a} onDone={refresh} />)}</ul>
+          <ul className="space-y-3">{toReread.map((a) => <CpeReviewItem key={a.id} a={a} by={role} onDone={refresh} />)}</ul>
         </Card>
       )}
       {myOpen.length > 0 && (

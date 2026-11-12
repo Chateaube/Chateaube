@@ -27,7 +27,7 @@ import { toTransactions, treasuryKpis, monthlyFlows } from '../rules/treasury.js
 import { formatAr } from '../rules/finance.js';
 
 // Blocs des accueils Direction et Secrétariat, dans l'ordre voulu par la Direction :
-// 1. l'école sur 7 ou 30 jours (chiffres cliquables) avec, à droite, ce qui est en cours ou à venir ;
+// 1. l'école aujourd'hui ou cette semaine (chiffres cliquables) avec, à droite, ce qui est en cours ou à venir ;
 // 2. « À faire » : décisions et tâches réunies ; 3. « Ce qui s'est passé » (ActivityJournal).
 
 // « Mer. 14 oct. » : une ligne, pour que la liste reste courte
@@ -49,17 +49,19 @@ function series() {
   };
 }
 
-/** « L'école sur 7 / 30 jours » : chaque chiffre ouvre sa liste ; à côté, l'évolution. */
+const PERIODS = [['DAY', "Aujourd'hui", "aujourd'hui", 'le jour de classe précédent'], ['WEEK', 'Cette semaine', 'cette semaine', 'la semaine dernière']];
+/** « L'école aujourd'hui / cette semaine (lundi–vendredi) » : chaque chiffre ouvre sa liste ; à côté, l'évolution. */
 export function PulseCard({ go, only }) {
-  const [days, setDays] = useState(7);
+  const [days, setDays] = useState('DAY');
+  const per = PERIODS.find(([k]) => k === days);
   const s = series();
   const ids = (only ?? Object.keys(s)).filter((k) => s[k]);
   const p = pulse(Object.fromEntries(ids.map((k) => [k, s[k]])), TODAY, days);
   const open = ([screen, intent]) => { if (intent) setIntent(screen, intent); go?.(screen); };
   return (
-    <Card title={`L'école sur ${days} jours`} subtitle="Chaque chiffre ouvre la liste qui l'explique · entre parenthèses, l'écart avec la période précédente"
-      action={<div className="inline-flex rounded-lg bg-slate-100 p-1">{[7, 30].map((d) => (
-        <button key={d} type="button" aria-pressed={days === d} onClick={() => setDays(d)} className={`rounded-md px-2.5 py-1 text-xs font-medium ${days === d ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>{d} jours</button>
+    <Card title={`L'école ${per[2]}`} subtitle={`${days === 'WEEK' ? 'Du lundi au vendredi · ' : ''}Chaque chiffre ouvre la liste qui l'explique · entre parenthèses, l'écart avec ${per[3]}`}
+      action={<div className="inline-flex rounded-lg bg-slate-100 p-1">{PERIODS.map(([d, l]) => (
+        <button key={d} type="button" aria-pressed={days === d} onClick={() => setDays(d)} className={`rounded-md px-2.5 py-1 text-xs font-medium ${days === d ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>{l}</button>
       ))}</div>}>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {ids.map((k) => (

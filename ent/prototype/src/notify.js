@@ -6,7 +6,7 @@
 import { CLASSES } from './data/schoollife.js';
 import { loadObjects } from './objectsStore.js';
 import { loadAttendance } from './attendanceStore.js';
-import { coveringFor, LABELS } from './delegationStore.js';
+import { coveringFor, LABELS, cpeHandedOver } from './delegationStore.js';
 import { justificationState } from './rules/attendance.js';
 import { loadTasks } from './tasksStore.js';
 import { loadEventProposals, loadCouncilFeedback } from './studentInitiativesStore.js';
@@ -50,7 +50,7 @@ export function notificationsFor(role, { account, covering = true } = {}) {
     const other = ownNotifications(from, { account });
     const ids = new Set([...base.urgent, ...base.todo].map((n) => n.id));
     base.urgent.push(...other.urgent.filter((n) => !ids.has(n.id)));
-    base.todo.push(...other.todo.filter((n) => !ids.has(n.id)).map((n) => ({ ...n, id: `${from}-${n.id}`, text: `Pour ${LABELS[from]} (absente aujourd'hui) : ${n.text}` })));
+    base.todo.push(...other.todo.filter((n) => !ids.has(n.id)).map((n) => ({ ...n, id: `${from}-${n.id}`, text: from === 'VIE_SCOLAIRE' && cpeHandedOver(TODAY) ? `Vie scolaire : ${n.text}` : `Pour ${LABELS[from]} (absente aujourd'hui) : ${n.text}` })));
   });
   return base;
 }

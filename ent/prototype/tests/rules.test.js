@@ -2175,3 +2175,20 @@ test('création groupée : diminutif (Lantonirina → Lanto) et nom de l\'emploi
   const r = matchTeacher('RABE Jo Lala (Mme Lanto)', list);
   assert.equal(r.teacher, 'Mme Lanto'); assert.equal(r.usual, 'Lanto'); assert.equal(r.first, 'Jo Lala');
 });
+
+test('accueil : aujourd\'hui (comparé au jour de classe précédent) et semaine du lundi au vendredi', () => {
+  assert.deepEqual(periodRange('2026-10-13', 'DAY'), { from: '2026-10-13', to: '2026-10-13', prevFrom: '2026-10-12', prevTo: '2026-10-12' });
+  assert.equal(periodRange('2026-10-12', 'DAY').prevFrom, '2026-10-09'); // lundi → vendredi
+  assert.deepEqual(periodRange('2026-10-14', 'WEEK'), { from: '2026-10-12', to: '2026-10-16', prevFrom: '2026-10-05', prevTo: '2026-10-09' });
+  assert.equal(periodRange('2026-10-18', 'WEEK').from, '2026-10-12'); // dimanche : semaine écoulée
+});
+
+test('départ de la CPE : le secrétariat reçoit ses alertes à partir de la date choisie', async () => {
+  const { coveringFor, cpeHandedOver } = await import('../src/delegationStore.js');
+  const h = { since: '2027-01-04' };
+  assert.equal(cpeHandedOver('2027-01-03', h), false);
+  assert.equal(cpeHandedOver('2027-01-04', h), true);
+  assert.deepEqual(coveringFor('BUREAU', '2027-01-05', {}, h), ['VIE_SCOLAIRE']);
+  assert.deepEqual(coveringFor('BUREAU', '2026-12-10', {}, h), []);
+  assert.deepEqual(coveringFor('VIE_SCOLAIRE', '2027-01-05', {}, h), []);
+});

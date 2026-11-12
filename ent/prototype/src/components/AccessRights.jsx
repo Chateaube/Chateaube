@@ -7,6 +7,8 @@ import { staffStatus } from './StaffModule.jsx';
 import { LEVELS, STAFF_PROFILES, baseLevel, levelFor, setLevel, exceptionsOf } from '../rules/access.js';
 import { FEATURES, MODES, featureMode } from '../features.js';
 import { askConfirm } from './Dialogs.jsx';
+import { loadHandover, saveHandover, cpeHandedOver } from '../delegationStore.js';
+import { formatDateFr } from '../rules/calendar.js';
 
 // Droits d'accès (Direction) : qui voit quoi et qui peut modifier, écran par écran.
 // Par profil (Secrétariat, CPE, Enseignant), puis exceptions par personne (niveau d'accréditation).
@@ -84,6 +86,7 @@ export default function AccessRights({ settings, onChange, catalogue, baseNavs }
         ['profiles', 'Par profil', byProfile],
         ['people', 'Par personne', <People key="people" access={access} save={save} catalogue={catalogue} groups={groups} baseNavs={baseNavs} />],
         ['features', 'Rubriques de l\'école', <Features key="features" settings={settings} onChange={onChange} />],
+        ['handover', 'Départ de la CPE', <CpeHandover key="handover" />],
       ]} />
     </div>
   );
@@ -163,6 +166,37 @@ function Features({ settings, onChange }) {
           </li>
         ))}
       </ul>
+    </Card>
+  );
+}
+
+// Départ de la CPE (fin de CDD) : à partir d'une date, le secrétariat assure la vie scolaire.
+// Il reçoit toutes les alertes de la CPE (absences, justificatifs des familles, colles, objets, soins),
+// sa « Journée vie scolaire » s'ajoute au menu et il relit à sa place les annonces des délégués et du BDE.
+function CpeHandover() {
+  const [h, setH] = useState(loadHandover);
+  const [since, setSince] = useState(h?.since ?? '2027-01-04');
+  const on = Boolean(h?.since);
+  const apply = (v) => { saveHandover(v); setH(v); };
+  return (
+    <Card title="La vie scolaire assurée par le secrétariat" subtitle="Pour un départ de la CPE (fin de contrat) ou une absence longue">
+      <ul className="mb-3 list-disc space-y-1 pl-5 text-sm text-slate-700">
+        <li>Le secrétariat reçoit toutes les alertes et demandes de la CPE : absences et retards à prévenir, justificatifs des familles, colles, objets en garde, soins.</li>
+        <li>Son menu gagne la « Journée vie scolaire », les Colles et les Objets en garde ; la saisie express est déjà la même.</li>
+        <li>Il relit à la place de la CPE les annonces des délégués et les événements du BDE avant la Direction.</li>
+      </ul>
+      {on ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <Badge tone={cpeHandedOver() ? 'emerald' : 'amber'}>{cpeHandedOver() ? `En place depuis le ${formatDateFr(h.since)}` : `Prévu à partir du ${formatDateFr(h.since)}`}</Badge>
+          <Button variant="secondary" onClick={async () => { if (await askConfirm('Rendre la vie scolaire à une CPE ? Le secrétariat ne recevra plus ses alertes.')) apply(null); }}>Annuler (nouvelle CPE)</Button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="text-xs font-medium text-slate-600">À partir du<input type="date" value={since} onChange={(e) => setSince(e.target.value)} className={`mt-1 block ${field}`} /></label>
+          <Button disabled={!since} onClick={() => apply({ since })}>Confier la vie scolaire au secrétariat</Button>
+        </div>
+      )}
+      <p className="mt-3 text-xs text-slate-500">Pensez aussi, le jour du départ, à désactiver le compte de la CPE (Gestion des agents) et à noter sa date de sortie sur sa fiche.</p>
     </Card>
   );
 }
