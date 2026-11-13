@@ -9,6 +9,7 @@ import AbsentAtTests from './AbsentAtTests.jsx';
 import { loadImport } from '../importStore.js';
 import { readStored, writeStored } from '../persist.js';
 import { matchTeacher, refineByTimetable, timetableAssignments } from '../rules/teacherMatch.js';
+import { sameSubject } from '../rules/timetableImport.js';
 import { buildXlsx } from '../xlsx.js';
 import { saveFile } from '../download.js';
 import { askConfirm } from './Dialogs.jsx';
@@ -93,10 +94,28 @@ export default function NotesReceived({ settings, go }) {
     // tout le personnel (une personne de la Direction peut enseigner, ex. Arts plastiques) ; l'emploi du temps
     // complète l'onglet 3 (professeur ou classe oubliés)
     const sources = [...list, ...timetableAssignments(slots)];
-    staff.filter((t) => recompute || !fiches[t.id]?.services?.some((x) => x.subject && x.classes?.length)).forEach((t) => {
+    const matched = new Set(); const added = [];
+    staff.forEach((t) => {
       const m = matchTeacher(t.line, sources);
-      if (m.teacher && m.services.length) auto[t.id] = { ...(fiches[t.id] ?? {}), services: refineByTimetable(m.services, m.teacher, slots) };
+      if (!m.teacher || !m.services.length) return;
+      matched.add(m.teacher);
+      const current = (fiches[t.id]?.services ?? []).filter((x) => x.subject && x.classes?.length);
+      const same = (a, b) => sameSubject(a, b) || sameSubject(b, a);
+      let next;
+      if (recompute || !current.length) next = refineByTimetable(m.services, m.teacher, slots);
+      else {
+        // fiche déjà remplie : on ajoute seulement ce que l'emploi du temps montre en plus (jamais de retrait)
+        next = current.map((x) => ({ ...x, classes: [...x.classes] }));
+        slots.filter((sl) => sl.teacherId === m.teacher && !/parcours d.?ouverture|vie de classe/i.test(sl.subject)).forEach((sl) => {
+          const ex = next.find((x) => same(x.subject, sl.subject));
+          if (!ex) next.push({ subject: sl.subject, classes: [sl.cls], hours: '' }); else if (!ex.classes.includes(sl.cls)) ex.classes.push(sl.cls);
+        });
+      }
+      const pairs = (list) => list.flatMap((x) => x.classes.map((c) => `${x.subject} ${c}`));
+      const before = new Set(pairs(current)); const gained = pairs(next).filter((p) => !before.has(p));
+      if (gained.length || recompute) { auto[t.id] = { ...(fiches[t.id] ?? {}), services: next }; if (gained.length) added.push(`${t.name} : ${gained.join(', ')}`); }
     });
+    const unmatched = [...new Set(timetableAssignments(slots).map((a) => a.name))].filter((n) => !matched.has(n));
     const merged = { ...fiches, ...auto };
     if (Object.keys(auto).length) { writeStored('ent-s-fiches-agents', merged); setFiches(merged); }
     const sendTo = staff.filter((t) => t.prof || merged[t.id]?.services?.length);
@@ -106,7 +125,7 @@ export default function NotesReceived({ settings, go }) {
     const { error } = await supabase.from('ent_doc').upsert({ key: 'roster', kind: 'ROSTER', owner: null, value: roster });
     setBusy(false);
     if (error) { setErr(`Envoi impossible : ${error.message}. Avez-vous lancé le script 30_carnets.sql dans Supabase ?`); return; }
-    setMsg(`Classes envoyées : les professeurs les verront à leur prochaine connexion (ou en rechargeant la page).${Object.keys(auto).length ? ` Enseignements remplis automatiquement depuis votre import pour ${Object.keys(auto).length} fiche(s) : vérifiez-les dans Gestion des agents.` : ''}`);
+    setMsg(`Classes envoyées : les professeurs les verront à leur prochaine connexion (ou en rechargeant la page).${added.length ? ` Ajouté depuis votre import : ${added.join(' ; ')}.` : ''}${unmatched.length ? ` Dans l'emploi du temps mais sans compte trouvé (créez le compte, puis renvoyez) : ${unmatched.join(', ')}.` : ''}`);
     load();
   };
 
