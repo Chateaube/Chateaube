@@ -125,7 +125,7 @@ const STMG_KEYS = { sgn: 'sciences de gestion et numerique', msgn: 'management s
 const subjectKey = (t) => { const n = norm(t).replace(/^(specialite|spe) /, ''); return STMG_KEYS[n] ?? SUBJECT_KEY[n] ?? n; };
 // Modules sans enseignant attitré ni note obligatoire (faits quand la classe en a besoin) : pas de contrôle
 const MODULE = /parcours d.?ouverture|vie de classe/i;
-function sameSubject(course, taught) {
+export function sameSubject(course, taught) {
   if (course === taught) return true;
   if (subjectKey(course) === subjectKey(taught)) return true; // « Physique-Chimie » = « Physique-chimie » = « PC »
   if (course === `Spécialité ${taught}`) return true;

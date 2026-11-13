@@ -7,7 +7,7 @@ import { loadRemoteCarnet } from '../gradebookStore.js';
 import GradebookModule from './GradebookModule.jsx';
 import { loadImport } from '../importStore.js';
 import { readStored, writeStored } from '../persist.js';
-import { matchTeacher } from '../rules/teacherMatch.js';
+import { matchTeacher, refineByTimetable } from '../rules/teacherMatch.js';
 import { buildXlsx } from '../xlsx.js';
 import { saveFile } from '../download.js';
 import { askConfirm } from './Dialogs.jsx';
@@ -70,14 +70,16 @@ export default function NotesReceived({ settings, go }) {
     .map((u) => ({ id: u.id, name: `${u.first_name} ${u.last_name}`.trim(), line: `${u.last_name} ${u.first_name}`.trim() }));
   const students = loadImport()?.students ?? [];
 
-  const send = async () => {
+  const send = async (recompute = false) => {
     if (!students.length) { setErr('Aucun élève importé sur cet appareil : importez d\'abord le modèle Excel (Réglages › Import), depuis cet ordinateur.'); return; }
     // fiches sans enseignements : remplies depuis l'import (onglet 3 Personnel / emploi du temps), puis gardées sur la fiche
     const list = loadImport()?.assignments ?? [];
     const auto = {};
-    teachers.filter((t) => !fiches[t.id]?.services?.some((x) => x.subject && x.classes?.length)).forEach((t) => {
+    if (recompute && !(await askConfirm('Recalculer les matières et classes de TOUTES les fiches depuis l\'import (onglet 3 + emploi du temps) ? Les corrections faites à la main sur les fiches seront remplacées.'))) return;
+    const slots = loadImport()?.timetable ?? [];
+    teachers.filter((t) => recompute || !fiches[t.id]?.services?.some((x) => x.subject && x.classes?.length)).forEach((t) => {
       const m = matchTeacher(t.line, list);
-      if (m.services.length) auto[t.id] = { ...(fiches[t.id] ?? {}), services: m.services };
+      if (m.services.length) auto[t.id] = { ...(fiches[t.id] ?? {}), services: refineByTimetable(m.services, m.teacher, slots) };
     });
     const merged = { ...fiches, ...auto };
     if (Object.keys(auto).length) { writeStored('ent-s-fiches-agents', merged); setFiches(merged); }
@@ -123,7 +125,8 @@ export default function NotesReceived({ settings, go }) {
       <Card title="1. Classes envoyées aux professeurs" subtitle="Élèves de votre import + matières et classes de chaque professeur. Une fiche sans enseignements est remplie toute seule depuis l'onglet 3 Personnel de votre import. À refaire après un nouvel import ou une fiche modifiée.">
         <p className="text-sm text-slate-700">{roster ? <>Dernier envoi : <strong>{when(roster.sentAt)}</strong> · {roster.students.length} élèves</> : <strong className="text-amber-800">Pas encore envoyé : les professeurs ne voient aucune classe.</strong>}</p>
         {roster?.warnings?.length > 0 && <ul className="mt-2 list-disc space-y-0.5 pl-5 text-xs text-amber-800">{roster.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
-        <Button className="mt-3" disabled={busy || !data} onClick={send}>{busy ? 'Envoi…' : roster ? 'Renvoyer les classes' : 'Envoyer les classes aux professeurs'}</Button>
+        <Button className="mt-3" disabled={busy || !data} onClick={() => send(false)}>{busy ? 'Envoi…' : roster ? 'Renvoyer les classes' : 'Envoyer les classes aux professeurs'}</Button>
+        <Button variant="secondary" className="ml-2 mt-3" disabled={busy || !data} onClick={() => send(true)}>Recalculer toutes les fiches depuis l'import</Button>
       </Card>
 
       <Card title="2. Saisies des professeurs" subtitle="Notes saisies / notes attendues (élèves × devoirs)"
