@@ -1712,7 +1712,7 @@ import { orderSubjects, moveSubject } from '../src/rules/bulletin.js';
 test('bulletin : ordre des matières fixé par la Direction', () => {
   const rows = ['EPS', 'Mathématiques', 'Français', 'Anglais'].map((label) => ({ label }));
   assert.deepEqual(orderSubjects(rows, ['Français', 'mathematiques', 'EPS']).map((r) => r.label), ['Français', 'Mathématiques', 'EPS', 'Anglais']);
-  assert.deepEqual(orderSubjects(rows, []).map((r) => r.label), ['EPS', 'Mathématiques', 'Français', 'Anglais']);
+  assert.deepEqual(orderSubjects(rows, []).map((r) => r.label), ['Français', 'Anglais', 'Mathématiques', 'EPS']); // sans réglage : ordre de l'école
   assert.deepEqual(moveSubject(['A', 'B', 'C'], 'C', -1), ['A', 'C', 'B']);
   assert.deepEqual(moveSubject(['A', 'B', 'C'], 'A', -1), ['A', 'B', 'C']);
 });
@@ -2250,4 +2250,17 @@ test('STMG : Management et SGN distincts en 1re, MSGN unique en Terminale, Merca
   assert.deepEqual(c([{ teacherId: 'M. F', subject: 'Sciences de gestion et numérique', cls: '1re STMG', line: 1 }, { teacherId: 'M. F', subject: 'Management, sciences de gestion et numérique', cls: 'Terminale STMG', line: 2 }], A), []);
   assert.equal(c([{ teacherId: 'M. F', subject: 'Management', cls: '1re STMG', line: 3 }], A).length, 1); // autre professeur
   assert.deepEqual(c([{ teacherId: 'Mme S', subject: 'Parcours d\'ouverture', cls: '2de', line: 4 }], A), []);
+});
+
+test('bulletin : ordre de l\'école, matière à deux professeurs, minimum de notes', async () => {
+  const { orderSubjects, combineTeachers } = await import('../src/rules/bulletin.js');
+  const { minEvaluationsFor } = await import('../src/rules/grading.js');
+  assert.deepEqual(orderSubjects(['EPS', 'Mathématiques', 'Français', 'Anglais'].map((label) => ({ label }))).map((r) => r.label), ['Français', 'Anglais', 'Mathématiques', 'EPS']);
+  const c = combineTeachers([{ teacher: 'M. A', average: 12, appreciation: 'Bien.', competencies: ['X'] }, { teacher: 'Mme B', average: 15, appreciation: 'Sérieux.', competencies: ['X', 'Y'] }]);
+  assert.equal(c.average, 13.5); assert.deepEqual(c.competencies, ['X', 'Y']); assert.equal(c.appreciation, 'M. A : Bien.\nMme B : Sérieux.');
+  assert.equal(combineTeachers([{ teacher: 'M. A', average: 12 }, { teacher: 'Mme B', average: null }]).average, 12);
+  assert.equal(minEvaluationsFor({ subject: 'EMC' }, 4), 2);
+  assert.equal(minEvaluationsFor({ subject: 'Enseignement moral et civique' }, 4), 2);
+  assert.equal(minEvaluationsFor({ subject: 'Espagnol', shared: true }, 4), 2);
+  assert.equal(minEvaluationsFor({ subject: 'Mathématiques' }, 4), 4);
 });

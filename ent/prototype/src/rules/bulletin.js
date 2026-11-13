@@ -1,6 +1,7 @@
 // Bulletins : les lignes dépendent de l'élève (spécialités de Terminale ou de Première générale),
 // les cases s'adaptent à la longueur des appréciations : plus de formules ni de lignes décalées.
 import { classStats } from './grading.js';
+import { subjectRank } from './subjectOrder.js';
 
 export const SPECIALTIES = {
   MATHS: 'Mathématiques',
@@ -50,6 +51,9 @@ const subjKey = (l) => String(l ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').
  * Les matières absentes de la liste gardent leur ordre d'origine, après celles qui y sont.
  */
 export function orderSubjects(rows, order = []) {
+  // d'abord l'ordre de l'école (subjectOrder.js : A humanités, B sciences, C SES/STMG, D arts et EPS…)
+  const rk = (r) => { const a = subjectRank(r.label); return a === 900 ? subjectRank(r.id ?? r.label) : a; };
+  rows = rows.map((r, i) => ({ r, i })).sort((a, b) => rk(a.r) - rk(b.r) || a.i - b.i).map((x) => x.r);
   if (!order?.length) return rows;
   const rank = new Map(order.map((l, i) => [subjKey(l), i]));
   return rows.map((r, i) => ({ r, i, k: rank.get(subjKey(r.label)) ?? order.length + i }))
@@ -61,4 +65,20 @@ export function moveSubject(order, label, dir) {
   if (i < 0 || j < 0 || j >= order.length) return order;
   const next = [...order]; [next[i], next[j]] = [next[j], next[i]];
   return next;
+}
+
+/**
+ * Matière à deux professeurs (Enseignement scientifique, MSGN, Espagnol…) : UNE ligne au bulletin.
+ * Moyenne = moyenne des moyennes de chaque professeur (chacun compte pour moitié) ; appréciations
+ * l'une sous l'autre, signées ; compétences réunies sans doublon. parts : [{ teacher, average, appreciation, competencies }]
+ */
+export function combineTeachers(parts = []) {
+  const avgs = parts.map((p) => p.average).filter((a) => typeof a === 'number' && !Number.isNaN(a));
+  const average = avgs.length ? Math.round((avgs.reduce((x, y) => x + y, 0) / avgs.length) * 100) / 100 : null;
+  return {
+    teachers: parts.map((p) => p.teacher),
+    average,
+    appreciation: parts.filter((p) => (p.appreciation ?? '').trim()).map((p) => (parts.length > 1 ? `${p.teacher} : ${p.appreciation.trim()}` : p.appreciation.trim())).join('\n'),
+    competencies: [...new Set(parts.flatMap((p) => p.competencies ?? []))],
+  };
 }

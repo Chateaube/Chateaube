@@ -2,6 +2,8 @@ import { withMockExams } from '../termGrades.js';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { loadCarnet, saveCarnet, carnetKey, remoteCarnetId } from '../gradebookStore.js';
 import { ONLINE } from '../online/client.js';
+import GradebookGuide from './GradebookGuide.jsx';
+import { readStored, writeStored } from '../persist.js';
 import { onSync, syncState } from '../online/docs.js';
 import { currentRoster, servicesFor } from '../online/roster.js';
 import { demoOr } from '../demoData.js';
@@ -12,7 +14,7 @@ import { THEME_SUGGESTIONS, themeOf, saveTheme } from '../termThemeStore.js';
 import {
   TERM, SERVICES, EVALUATIONS, GRADES, REMARKS, competenciesFor, historyFor, levelOf, TEACHER_COMPETENCIES, COUNCIL_FLAGS, CLASS_SUBJECTS, OTHER_AVERAGES,
 } from '../data/grades.js';
-import { studentAverage, notesCount, termValidation, classStats, generalAverage, fmtAvg, parentPublishOn, competencyProposals, adjustedAverage, adjustmentErrors } from '../rules/grading.js';
+import { minEvaluationsFor, studentAverage, notesCount, termValidation, classStats, generalAverage, fmtAvg, parentPublishOn, competencyProposals, adjustedAverage, adjustmentErrors } from '../rules/grading.js';
 import { checkAppreciation, autoFix, rephrase } from '../rules/appreciation.js';
 import { today } from '../clock.js';
 import { askConfirm } from './Dialogs.jsx';
@@ -108,7 +110,7 @@ function EvaluationForm({ draft, setDraft, settings, competencies, onCreate, onC
 
 /* ---------------- 2. Notes ---------------- */
 function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, remarks, setRemarks, adjust = {}, setAdjust, validated, setValidated, settings, competencies = [], go }) {
-  const min = settings.grading.minEvaluations;
+  const min = minEvaluationsFor(service, settings.grading.minEvaluations); // EMC et matière partagée : 2
   const blank = {
     type: settings.grading.evaluationTypes[0], title: '', date: TODAY, publishOn: TODAY, remarksEnabled: false,
     scale: settings.grading.defaultScale, coef: settings.grading.defaultCoef, normalize: true, comment: '', themesText: '', competencies: [],
@@ -505,8 +507,10 @@ function SyncLine() {
   return <p className="text-xs font-medium text-amber-800" role="status">Pas de connexion : vos notes sont gardées sur cet appareil et partiront automatiquement (ne videz pas le navigateur).</p>;
 }
 
-export default function GradebookModule({ settings, go }) {
+export default function GradebookModule({ settings, go, role }) {
   const SERVICES = useMemo(myServices, []);
+  const [guide, setGuide] = useState(() => role === 'ENSEIGNANT' && !readStored('ent-k-guide-notes-vu')); // première ouverture (professeurs)
+  const closeGuide = () => { writeStored('ent-k-guide-notes-vu', true); setGuide(false); };
   const [serviceId, setServiceId] = useState(() => { const i = takeIntent('grades'); return SERVICES.find((x) => x.cls === i?.cls && x.subject === i?.subject)?.id ?? SERVICES.find((x) => x.cls === i?.cls)?.id ?? SERVICES[0]?.id; });
   const [step, setStep] = useState('notes');
   // carnet enregistré (saisies précédentes) ; sinon exemples de démonstration, ou vide avec les vraies données
@@ -555,7 +559,9 @@ export default function GradebookModule({ settings, go }) {
     <div className="space-y-5">
       <div>
         <p className="text-sm font-semibold text-navy-500">{TERM.label} · conseil de classe le {TERM.council}</p>
-        <h1 className="text-2xl font-semibold text-navy-900">Notes et appréciations</h1>
+        <h1 className="flex flex-wrap items-center gap-2 text-2xl font-semibold text-navy-900">Notes et appréciations
+          <button type="button" onClick={() => setGuide(true)} className="rounded-full px-2.5 py-1 font-sans text-xs font-medium text-navy-700 ring-1 ring-navy-200">Comment ça marche ?</button></h1>
+        {guide && <GradebookGuide onClose={closeGuide} />}
         {ONLINE ? <SyncLine /> : <p className={`text-xs ${savedOk === false ? 'font-medium text-red-700' : 'text-slate-500'}`} role="status">
           {savedOk === false ? 'Ce navigateur refuse l\'enregistrement : vos dernières saisies seront perdues au rechargement.'
             : savedOk ? '✓ Enregistré automatiquement — revenez ajouter vos notes quand vous voulez.'

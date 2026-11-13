@@ -142,7 +142,8 @@ const classesNow = () => (importedTleG().length ? [[IMPORTED, buildImported], ..
 /** Mise en page (Direction) : marges et ordre des matières, communs à tous les bulletins. */
 function LayoutPanel({ settings, onChange, labels }) {
   const b = settings.bulletin ?? {};
-  const order = [...(b.subjectOrder ?? []).filter((l) => labels.includes(l)), ...labels.filter((l) => !(b.subjectOrder ?? []).includes(l))];
+  const school = orderSubjects(labels.map((l) => ({ label: l })), []).map((r) => r.label); // ordre de l'école
+  const order = [...(b.subjectOrder ?? []).filter((l) => labels.includes(l)), ...school.filter((l) => !(b.subjectOrder ?? []).includes(l))];
   const save = (patch) => onChange?.({ ...settings, bulletin: { ...b, ...patch } });
   const keepOthers = (next) => [...next, ...(b.subjectOrder ?? []).filter((l) => !labels.includes(l))];
   return (
@@ -162,6 +163,7 @@ function LayoutPanel({ settings, onChange, labels }) {
               <button type="button" disabled={i === order.length - 1} onClick={() => save({ subjectOrder: keepOthers(moveSubject(order, l, 1)) })} aria-label={`Descendre ${l}`} className="h-7 w-7 rounded ring-1 ring-slate-300 disabled:opacity-40">↓</button>
             </li>
           ))}</ol>
+          {(b.subjectOrder ?? []).length > 0 && <button type="button" onClick={() => save({ subjectOrder: [] })} className="mt-2 rounded-lg px-3 py-1.5 text-xs font-medium text-navy-700 ring-1 ring-navy-200">Revenir à l'ordre de l'école</button>}
         </div>
       </div>
     </details>
