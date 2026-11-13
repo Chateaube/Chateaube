@@ -5,7 +5,7 @@
 // Direction : 5 rubriques (au lieu de 8). Les écrans à onglets internes restent des entrées de menu.
 export const DIRECTION_TREE = [
   { group: 'Aujourd\'hui', ids: ['dashboard', 'messages', 'signatures', 'feedback'] },
-  { group: 'Élèves et vie scolaire', ids: ['eleves', 'mandates', 'vs', 'followup', 'care', 'hours'] },
+  { group: 'Élèves et vie scolaire', ids: ['eleves', 'eleves-portail?', 'mandates', 'vs', 'followup', 'care', 'hours'] },
   { group: 'Pédagogie', ids: ['notes-recues?', 'my-grades?', 'council', 'bulletins', 'mock-exams', 'timetable', 'oversight-grades'] }, // grilles : onglet des conseils
   { group: 'Communication', ids: ['news', 'school-life', 'agenda', 'resources'] },
   { group: 'Administration', ids: ['accounting', 'manuals', 'staff', 'inventory', 'library', 'booking', 'settings', 'access', 'import'] }, // « ? » : écran présent seulement dans certaines versions (comptes : en ligne)

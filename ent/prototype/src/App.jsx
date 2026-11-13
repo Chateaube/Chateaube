@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import SavedBadge from './components/SavedBadge.jsx';
 import NotesReceived from './components/NotesReceived.jsx';
 import MyGrades from './components/MyGrades.jsx';
+import OnlineStudentPortal from './components/OnlineStudentPortal.jsx';
+import StudentAccounts from './components/StudentAccounts.jsx';
 import AbsentAtTests from './components/AbsentAtTests.jsx';
 import ComingSoon from './components/ComingSoon.jsx';
 
@@ -153,7 +155,7 @@ const PROFILES = {
     home: 'dashboard',
     nav: arrangeNav(DIRECTION_TREE, [
       { group: 'Aujourd\'hui', items: [{ id: 'dashboard', label: 'Mes décisions', icon: 'home', screen: DirectionDashboard }, SIGNATURES, FEEDBACK] },
-      { group: 'Élèves', items: [ELEVES, { id: 'students', label: 'Mobilité Tamatave → Tana', icon: 'swap' }] },
+      { group: 'Élèves', items: [ELEVES, ...(ONLINE ? [{ id: 'eleves-portail', label: 'Portail des élèves (comptes)', icon: 'cap', screen: StudentAccounts }] : []), { id: 'students', label: 'Mobilité Tamatave → Tana', icon: 'swap' }] },
       { group: 'Pédagogie', items: [...(ONLINE ? [{ id: 'notes-recues', label: 'Notes reçues', icon: 'pen', screen: NotesReceived }, { id: 'my-grades', label: 'Mes notes (mes classes)', icon: 'pen', screen: MyGrades }] : []), COUNCIL, BULLETINS, MOCK_EXAMS, GRADE_SHEETS, ...OVERSIGHT, TIMETABLE, { id: 'exams', label: 'Examens & Campus France', icon: 'cap' }] },
       { group: 'Vie scolaire', items: [VIE_SCOLAIRE, CARE, HOURS, FOLLOW_UP, MANDATES] },
       { group: 'Finances', items: [ACCOUNTING] },
@@ -214,7 +216,7 @@ const PROFILES = {
     label: 'Élève',
     title: 'Élève',
     home: 'eleve',
-    nav: [{ group: 'Élève', items: [{ id: 'eleve', label: 'Portail élèves', icon: 'cap', screen: (p) => <FamilyPortal {...p} audience="ELEVE" /> }] }],
+    nav: [{ group: 'Élève', items: [{ id: 'eleve', label: 'Portail élèves', icon: 'cap', screen: (p) => (ONLINE ? <OnlineStudentPortal {...p} /> : <FamilyPortal {...p} audience="ELEVE" />) }] }],
   },
   // Nouvelle famille, sans compte : formulaire de pré-inscription en ligne (lien sur le site, Facebook…)
   VISITEUR: {
