@@ -2217,3 +2217,13 @@ test('carnets en ligne : classes envoyées, services du professeur, spécialité
     assert.deepEqual([x.got, x.expected, x.competencies], [1, 4, 1]);
   }
 });
+
+test('import : classes et matières des enseignements, toutes écritures', async () => {
+  const { splitClasses } = await import('../src/rules/importer.js');
+  const { checkAgainstAssignments } = await import('../src/rules/timetableImport.js');
+  assert.deepEqual(splitClasses('5ème et 4ème'), ['5e', '4e']);
+  assert.deepEqual(splitClasses('4e-5e ; 3e'), ['4e', '5e', '3e']);
+  assert.deepEqual(splitClasses('2nde - 1e STMG - Tle STMG'), ['2de', '1re STMG', 'Terminale STMG']);
+  assert.deepEqual(checkAgainstAssignments([{ teacherId: 'M. X', subject: 'Physique-Chimie', cls: '5e', line: 2 }], [{ name: 'M. X', subjects: ['PC'], classes: ['5e'] }]), []);
+  assert.equal(checkAgainstAssignments([{ teacherId: 'M. X', subject: 'Physique-Chimie', cls: '6e', line: 2 }], [{ name: 'M. X', subjects: ['PC'], classes: ['5e'] }]).length, 1);
+});

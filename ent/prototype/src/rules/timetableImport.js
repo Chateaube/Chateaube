@@ -118,8 +118,11 @@ export function timetableSheet(book) {
 }
 
 /** La matière d'un cours correspond-elle à celle d'un enseignement ? (spécialité ↔ matière, Eco-Droit ↔ Économie ou Droit, ETLV ↔ Anglais) */
+const SUBJECT_KEY = { pc: 'physique chimie', 'p c': 'physique chimie', maths: 'mathematiques', math: 'mathematiques', hg: 'histoire geographie', hge: 'histoire geographie', svt: 'sciences de la vie et de la terre' };
+const subjectKey = (t) => { const n = norm(t).replace(/^(specialite|spe) /, ''); return SUBJECT_KEY[n] ?? n; };
 function sameSubject(course, taught) {
   if (course === taught) return true;
+  if (subjectKey(course) === subjectKey(taught)) return true; // « Physique-Chimie » = « Physique-chimie » = « PC »
   if (course === `Spécialité ${taught}`) return true;
   if (course === 'Droit et économie') return ['Économie', 'Droit'].includes(taught);
   if (course === 'Anglais — ETLV') return taught === 'Anglais';
