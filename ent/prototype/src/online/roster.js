@@ -2,7 +2,7 @@
 // des fiches des agents (matières × classes de chaque professeur). Seuls les noms des élèves, leur classe et
 // leurs spécialités partent : aucune autre donnée personnelle.
 import { fetchDoc } from './docs.js';
-import { setRemoteImport } from '../importStore.js';
+import { setRemoteImport, currentStudents } from '../importStore.js';
 
 const fold = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
@@ -18,7 +18,7 @@ export function buildRoster({ students = [], fiches = {}, teachers = [] }) {
     list.forEach((s) => s.classes.filter((c) => !classes.has(c)).forEach((c) => warnings.push(`${t.name} : la classe « ${c} » n'a aucun élève dans l'import`)));
   });
   return {
-    students: students.filter((s) => s.cls && s.lastName).map((s) => ({ cls: s.cls, lastName: s.lastName, firstName: s.firstName ?? '', specialties: s.specialties ?? [] })),
+    students: students.filter((s) => s.cls && s.lastName).map((s) => ({ cls: s.cls, lastName: s.lastName, firstName: s.firstName ?? '', usualName: s.usualName ?? '', specialties: s.specialties ?? [] })),
     services, names, warnings, sentAt: new Date().toISOString(),
   };
 }
@@ -53,14 +53,26 @@ export const SHARED_MIN = 2;
 export const isShareable = (subject) => /enseignement scientifique/i.test(String(subject ?? '').normalize('NFD').replace(/[̀-ͯ]/g, ''));
 
 let current = null;
+let nameMap = null;
+/**
+ * Nom court d'un élève dans les écrans de saisie : initiale du nom + prénom d'usage (« R. Tsiry »), pour gagner
+ * de la place. Le nom complet reste la clé des notes et apparaît au survol.
+ */
+export function shortName(full) {
+  if (!nameMap) { nameMap = new Map(); (current?.students ?? currentStudents()).forEach((s) => nameMap.set(`${s.lastName} ${s.firstName}`.trim(), s)); }
+  const s = nameMap.get(full);
+  if (s) return `${s.lastName.charAt(0)}. ${s.usualName?.trim() || (s.firstName ?? '').split(/\s+/)[0] || s.lastName}`;
+  const words = String(full ?? '').split(/\s+/); const caps = []; while (words.length > 1 && words[0] === words[0].toUpperCase()) caps.push(words.shift());
+  return caps.length && words.length ? `${caps[0].charAt(0)}. ${words[0]}` : full;
+}
 export const currentRoster = () => current;
 /** Direction : utilise la liste envoyée sans remplacer son propre import (saisie à la place d'un professeur). */
-export const setCurrentRoster = (r) => { current = r; };
+export const setCurrentRoster = (r) => { current = r; nameMap = null; };
 
 /** Au démarrage (personnel hors Direction) : charge la liste publiée et la rend disponible aux écrans. */
 export async function loadRoster() {
   const doc = await fetchDoc('roster');
-  current = doc?.value ?? null;
+  current = doc?.value ?? null; nameMap = null;
   if (current) setRemoteImport({ students: current.students, importedAt: current.sentAt });
   return current;
 }

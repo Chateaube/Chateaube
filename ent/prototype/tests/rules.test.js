@@ -2203,7 +2203,7 @@ test('carnets en ligne : classes envoyées, services du professeur, spécialité
   ];
   const fiches = { t1: { services: [{ subject: 'Spécialité Mathématiques', classes: ['1re Générale'] }, { subject: 'Mathématiques', classes: ['2de', '6e'] }] } };
   const r = buildRoster({ students, fiches, teachers: [{ id: 't1', name: 'M. Un' }, { id: 't2', name: 'Mme Deux' }] });
-  assert.deepEqual(Object.keys(r.students[0]).sort(), ['cls', 'firstName', 'lastName', 'specialties']); // rien d'autre ne part
+  assert.deepEqual(Object.keys(r.students[0]).sort(), ['cls', 'firstName', 'lastName', 'specialties', 'usualName']); // rien d'autre ne part (prénom d'usage : noms courts)
   assert.ok(r.warnings.some((w) => w.includes('Mme Deux')) && r.warnings.some((w) => w.includes('« 6e »')));
   const s = servicesFor(r, 't1');
   assert.deepEqual(s.map((x) => x.id), ['1re Générale|Spécialité Mathématiques', '2de|Mathématiques', '6e|Mathématiques']);
@@ -2341,4 +2341,13 @@ test('identifiants d\'aperçu : prénom d\'usage, comme le compte créé', async
   const m = schoolLogins([p, q]);
   assert.equal(accountsFor(p, m)[0].login, 'ra.noro');
   assert.equal(accountsFor(q, m)[0].login, 'ti.dylan');
+});
+
+test('nom court d\'un élève : initiale du nom + prénom d\'usage', async () => {
+  const { shortName, setCurrentRoster } = await import('../src/online/roster.js');
+  setCurrentRoster({ students: [{ lastName: 'RAVO ANDRIAMBELO', firstName: 'Lalaina Anay', usualName: 'Gabriella' }, { lastName: 'TSIMBA', firstName: 'Fanilo Dylan', usualName: '' }] });
+  assert.equal(shortName('RAVO ANDRIAMBELO Lalaina Anay'), 'R. Lalaina');
+  assert.equal(shortName('TSIMBA Fanilo Dylan'), 'T. Fanilo');
+  assert.equal(shortName('RAKOTO Aina'), 'R. Aina'); // hors liste : lecture du nom
+  setCurrentRoster(null);
 });

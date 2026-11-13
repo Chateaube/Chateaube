@@ -126,14 +126,14 @@ export function Icon({ name, className = 'h-4 w-4' }) {
  * plus pratique qu'une longue liste à faire défiler pour une classe de 30.
  * `suffix(s)` ajoute un repère au nom (ex. « ✓ validée »).
  */
-export function StudentSelect({ students, value, onChange, suffix, label = 'Élève' }) {
+export function StudentSelect({ students, value, onChange, suffix, label = 'Élève', format = (s) => s }) {
   const i = students.indexOf(value);
   return (
     <div className="flex flex-wrap items-end gap-2">
       <label className="min-w-0 flex-1 text-xs font-medium text-slate-600">
         {label}
         <select value={value} onChange={(e) => onChange(e.target.value)} className="nav-control mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900">
-          {students.map((s) => <option key={s} value={s}>{s}{suffix ? suffix(s) : ''}</option>)}
+          {students.map((s) => <option key={s} value={s}>{format(s)}{suffix ? suffix(s) : ''}</option>)}
         </select>
       </label>
       <div className="flex gap-1">
