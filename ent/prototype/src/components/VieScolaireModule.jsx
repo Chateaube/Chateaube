@@ -144,7 +144,8 @@ function MeasuresTab({ log, setLog, role, toast }) {
     <div className="grid gap-5 xl:grid-cols-[1fr_380px] xl:items-start">
       <Card title="Punitions et sanctions" subtitle="Chaque mesure a un motif ; le parent confirme en avoir pris connaissance">
         <ul className="divide-y divide-slate-100">
-          {[...log].sort((a, b) => b.date.localeCompare(a.date)).map((m) => (
+          {/* professeur : seulement ses mesures, et celles que la Direction a choisi de partager */}
+          {[...log].filter((m) => authorRole !== 'PROFESSEUR' || authors.includes(m.author) || m.sharedWithTeachers).sort((a, b) => b.date.localeCompare(a.date)).map((m) => (
             <li key={m.id} className={`flex flex-wrap items-start justify-between gap-3 py-3 ${m.cancelled ? 'opacity-60' : ''}`}>
               <div className="min-w-0">
                 <p className={`text-sm font-medium text-slate-900 ${m.cancelled ? 'line-through' : ''}`}>{m.student} <span className="font-normal text-slate-500">· {classOf(m.student)} · {formatDateFr(m.date).replace(/ \d{4}$/, '')}</span></p>
@@ -162,6 +163,9 @@ function MeasuresTab({ log, setLog, role, toast }) {
                       toast('Mesure annulée ; le parent en est informé.');
                     }}>Annuler la mesure</button>
                   </p>
+                )}
+                {authorRole === 'DIRECTION' && !m.cancelled && (
+                  <label className="mt-1 flex items-center gap-1.5 text-xs text-slate-600"><input type="checkbox" checked={!!m.sharedWithTeachers} onChange={(e) => setLog(log.map((x) => (x.id === m.id ? { ...x, sharedWithTeachers: e.target.checked } : x)))} />Partager avec les professeurs</label>
                 )}
               </div>
               <div className="text-right">

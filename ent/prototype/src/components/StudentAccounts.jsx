@@ -9,6 +9,7 @@ import { SCHOOL_EVENTS, seedParcoursup } from '../data/events.js';
 import { loadChanges } from './TimetableChanges.jsx';
 import { printOnly } from '../print.js';
 import { askConfirm } from './Dialogs.jsx';
+import { loginFor } from '../rules/logins.js';
 
 // Portail des élèves (Direction, version en ligne) :
 // 1. envoyer aux élèves l'emploi du temps, les changements de cours et le calendrier (vacances, événements) ;
@@ -68,6 +69,12 @@ export default function StudentAccounts({ settings }) {
     }
     setBusy(false); setSlips(out); load();
   };
+  const remove = async (list) => {
+    if (!(await askConfirm(`Supprimer définitivement ${list.length} compte(s) élève ? Les fiches d'accès déjà remises ne marcheront plus ; vous pourrez recréer les comptes ensuite.`))) return;
+    setBusy(true); setErr(''); setMsg(''); let n = 0; const fails = [];
+    for (const u of list) { try { await call({ action: 'delete', userId: u.id }); n += 1; } catch (e) { fails.push(`${u.first_name} ${u.last_name} : ${e.message}`); } }
+    setBusy(false); setMsg(`${n} compte(s) supprimé(s).`); if (fails.length) setErr(fails.join(' · ')); load();
+  };
   const reset = async (s, u) => {
     setBusy(true); setErr('');
     try { const r = await call({ action: 'reset', userId: u.id }); await writeProfile(u.id, s); setSlips([{ ...r, name: `${s.lastName} ${s.firstName}`, cls: s.cls }]); }
@@ -123,11 +130,13 @@ export default function StudentAccounts({ settings }) {
                   <li key={`${s.lastName}-${s.firstName}`} className="flex flex-wrap items-center justify-between gap-2 py-1.5">
                     <span className="font-medium text-slate-900">{s.lastName} {s.firstName}</span>
                     {u ? <span className="flex items-center gap-2"><span className="font-mono text-xs">{u.login}</span>{u.must_change_code ? <Badge tone="amber">code provisoire</Badge> : <Badge tone="green">connecté·e</Badge>}
-                      <Button variant="secondary" className="!py-0.5 text-xs" disabled={busy} onClick={() => reset(s, u)}>Nouveau code</Button></span>
-                      : <Badge tone="slate">pas de compte</Badge>}
+                      <Button variant="secondary" className="!py-0.5 text-xs" disabled={busy} onClick={() => reset(s, u)}>Nouveau code</Button>
+                      <button type="button" disabled={busy} onClick={() => remove([u])} className="text-xs text-red-700 underline">Supprimer</button></span>
+                      : <span className="flex items-center gap-2"><span className="font-mono text-xs text-slate-500" title="Identifiant qui sera créé">{loginFor(s.firstName, s.lastName, new Set((accounts ?? []).map((a) => a.login)), s.usualName)}</span><Badge tone="slate">pas de compte</Badge></span>}
                   </li>
                 ); })}
               </ul>
+              {list.some((s) => accountOf(s)) && <Button variant="secondary" className="mr-2 mt-3" disabled={busy} onClick={() => remove(list.map(accountOf).filter(Boolean))}>Supprimer les comptes de la classe</Button>}
               <Button className="mt-3" disabled={busy || !missing.length} onClick={create}>{busy ? 'Création…' : missing.length ? `Créer ${missing.length} compte${missing.length > 1 ? 's' : ''} (${cls})` : 'Tous les élèves de la classe ont un compte'}</Button>
             </>
           )}

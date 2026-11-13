@@ -9,7 +9,7 @@ import AppreciationsReview from './components/AppreciationsReview.jsx';
 import ComingSoon from './components/ComingSoon.jsx';
 
 // Rubriques déjà utilisables en ligne par tout le personnel (les autres : « fonction en cours de création »)
-const ONLINE_READY = ['grades', 'absents-devoirs']; // carnet de notes en ligne (le reste suit à la bascule de décembre)
+const ONLINE_READY = ['grades', 'absents-devoirs', 'agenda']; // carnet de notes en ligne (le reste suit à la bascule de décembre)
 const COMING_TEXT = {
   grades: 'La saisie des notes en ligne ouvre très prochainement. En attendant, gardez vos notes comme d\'habitude : vous les recopierez ici évaluation par évaluation.',
   'grade-sheets': 'Les grilles de notes arrivent avec la saisie des notes en ligne.',

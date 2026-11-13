@@ -2,6 +2,10 @@ import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card } from './ui.jsx';
 import { AGENDAS, agendaItems, agendasFor, closuresAsEvents, isExamClass, toIcs, overview } from '../rules/agenda.js';
 import { SCHOOL_EVENTS, seedParcoursup } from '../data/events.js';
+import { ONLINE } from '../online/client.js';
+import { currentRoster, servicesFor } from '../online/roster.js';
+import { sameSubject } from '../rules/timetableImport.js';
+import { loadMe } from '../identity.js';
 import { usePersistent } from '../persist.js';
 import { loadTimetable } from '../timetableStore.js';
 import { plannedSessions } from '../rules/teachingHours.js';
@@ -106,6 +110,13 @@ function DayAgenda({ visible, shown, setShown, available, today }) {
   );
 }
 
+// professeur : ses cours (en ligne, d'après ses classes et matières ; en démonstration, Mme Ranaivo)
+const mySlot = (x) => {
+  if (!ONLINE) return x.teacherId === 'p1';
+  const mine = servicesFor(currentRoster(), loadMe()?.id);
+  return mine.some((s) => s.cls === x.cls && (sameSubject(x.subject, s.subject) || sameSubject(s.subject, x.subject)));
+};
+
 export default function AgendaModule({ role, cls: fixedCls, settings, compact = false, today: day = today() }) {
   const staff = ['DIRECTION', 'BUREAU', 'VIE_SCOLAIRE', 'ENSEIGNANT'].includes(role);
   const canAdd = ['DIRECTION', 'BUREAU'].includes(role); // la CPE consulte
@@ -120,7 +131,7 @@ export default function AgendaModule({ role, cls: fixedCls, settings, compact = 
   const events = [...own, ...publishedProposals().filter((p) => !own.some((e) => e.id === p.id))];
   const [draft, setDraft] = useState(null);
   // cours des prochaines semaines, d'après l'emploi du temps (jours de classe), puis les changements
-  const courses = useMemo(() => plannedSessions(role === 'ENSEIGNANT' ? loadTimetable().filter((x) => x.teacherId === 'p1') : loadTimetable(), START, addDays(START, 25), settings ?? DEFAULT_SETTINGS)
+  const courses = useMemo(() => plannedSessions(role === 'ENSEIGNANT' ? loadTimetable().filter(mySlot) : loadTimetable(), START, addDays(START, 25), settings ?? DEFAULT_SETTINGS)
     .map((x) => ({ id: `${x.slotId}-${x.date}`, date: x.date, start: x.start, end: x.end, cls: x.cls, subject: x.subject, room: '' })), [role, settings]);
   const closures = useMemo(() => closuresAsEvents((settings ?? DEFAULT_SETTINGS).calendar), [settings]);
   // l'enseignant ne voit que les devoirs de ses classes

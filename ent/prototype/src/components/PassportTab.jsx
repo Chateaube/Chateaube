@@ -86,12 +86,16 @@ export default function PassportTab({ role, toast }) {
         <ClassStudentPicker value={student} onChange={setStudent} />
         {p && (
           <div className="mt-4 space-y-4">
-            <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
+            {isTeacher && <p className="text-xs text-slate-500">Vous voyez les oublis notés et les colles données par vous pour cet élève.</p>}
+            {isTeacher && (() => { const mine = data.forgets.filter((f) => f.student === student && f.by === by); return mine.length > 0 && (
+              <ul className="space-y-1 text-sm">{mine.map((f) => <li key={f.id} className="rounded-lg bg-slate-50 px-3 py-1.5">{f.date.split('-').reverse().join('/')} · {f.kind}{f.note ? ` (${f.note})` : ''}{f.colle ? ' · colle demandée' : ''}</li>)}</ul>
+            ); })()}
+            {!isTeacher && <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
               <div className="rounded-lg bg-slate-50 p-2"><p className="text-xl font-semibold text-navy-900">{p.lates}</p><p className="text-xs text-slate-500">retards · {p.latesInCycle}/{LATES_PER_COLLE} avant la prochaine colle</p></div>
               <div className="rounded-lg bg-slate-50 p-2"><p className="text-xl font-semibold text-navy-900">{p.forgets}</p><p className="text-xs text-slate-500">oublis · dont {p.carnets} carnet{p.carnets > 1 ? 's' : ''}{isNew ? ' (nouvel élève)' : ''}</p></div>
               <div className="rounded-lg bg-amber-50 p-2"><p className="text-xl font-semibold text-amber-800">{p.collesDue} h</p><p className="text-xs text-amber-800">de colle à faire</p></div>
               <div className="rounded-lg bg-emerald-50 p-2"><p className="text-xl font-semibold text-emerald-800">{p.collesDone} h</p><p className="text-xs text-emerald-800">effectuées{p.tig ? ` · ${p.tig} TIG` : ''}</p></div>
-            </div>
+            </div>}
             {!isTeacher && p.toGive.length > 0 && (
               <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
                 <p className="mb-1 font-semibold">Colles à donner <span className="font-normal">· {colleSlotsLabel()} ; proposées à la suite des autres colles de l'élève</span></p>
@@ -111,7 +115,7 @@ export default function PassportTab({ role, toast }) {
             )}
             {err.length > 0 && <ul className="rounded-md bg-red-50 p-2 text-xs text-red-800">{err.map((e) => <li key={e}>· {e}</li>)}</ul>}
             <ul className="divide-y divide-slate-100 text-sm">
-              {p.entries.map((c) => (
+              {p.entries.filter((c) => !isTeacher || c.by === by).map((c) => (
                 <li key={c.id} className="flex flex-wrap items-start justify-between gap-2 py-2">
                   <span className="min-w-0"><span className="font-medium text-slate-900">{c.kind === 'TIG' ? 'TIG' : `Colle de ${c.hours} h`}</span> <span className="text-slate-500">· {fmt(c.when)}</span>
                     <span className="block text-xs text-slate-500">{c.reason} · donnée par {c.by}</span></span>
@@ -122,7 +126,7 @@ export default function PassportTab({ role, toast }) {
                   )}
                 </li>
               ))}
-              {p.entries.length === 0 && <li className="py-2 text-sm text-slate-500">Aucune colle ni TIG.</li>}
+              {p.entries.filter((c) => !isTeacher || c.by === by).length === 0 && <li className="py-2 text-sm text-slate-500">Aucune colle ni TIG.</li>}
             </ul>
           </div>
         )}
