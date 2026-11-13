@@ -2296,3 +2296,10 @@ test('absents aux devoirs : les ABS des carnets', async () => {
   const r = absencesAtTests(carnets, { t1: 'Mme F' });
   assert.deepEqual(r.map((x) => [x.date, x.student, x.title, x.teacher, x.cls]), [['2026-11-12', 'BETA Bo', 'Couleurs', 'Mme F', '6e'], ['2026-11-10', 'ALPHA Ana', 'Croquis', 'Mme F', '6e']]);
 });
+
+test('calendrier Parcoursup 2027 : dates des deux Terminales', async () => {
+  const { PARCOURSUP_2027 } = await import('../src/data/events.js');
+  assert.equal(PARCOURSUP_2027.length, 6);
+  assert.ok(PARCOURSUP_2027.every((e) => e.classes.includes('Terminale STMG') && e.classes.includes('Terminale Générale') && /Parcoursup/.test(e.title)));
+  assert.deepEqual(PARCOURSUP_2027.find((e) => e.id === 'ps27-2').end, '2027-03-11');
+});

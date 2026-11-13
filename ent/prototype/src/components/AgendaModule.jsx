@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card } from './ui.jsx';
 import { AGENDAS, agendaItems, agendasFor, closuresAsEvents, isExamClass, toIcs, overview } from '../rules/agenda.js';
-import { SCHOOL_EVENTS } from '../data/events.js';
+import { SCHOOL_EVENTS, seedParcoursup } from '../data/events.js';
 import { usePersistent } from '../persist.js';
 import { loadTimetable } from '../timetableStore.js';
 import { plannedSessions } from '../rules/teachingHours.js';
@@ -113,6 +113,8 @@ export default function AgendaModule({ role, cls: fixedCls, settings, compact = 
   const available = agendasFor({ staff, cls: cls || null });
   const [shown, setShown] = useState(Object.keys(AGENDAS));
   // événements de l'école enregistrés ; les propositions des élèves publiées s'y ajoutent à l'affichage
+  // Direction : le calendrier Parcoursup 2027 est ajouté une fois aux événements (modifiable ensuite)
+  useState(() => { if (role === 'DIRECTION') seedParcoursup(); });
   const [own, setOwn] = usePersistent('ent-s-evenements', () => [...SCHOOL_EVENTS]);
   const [, setTick] = useState(0);
   const events = [...own, ...publishedProposals().filter((p) => !own.some((e) => e.id === p.id))];
