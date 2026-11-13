@@ -4,7 +4,7 @@ import { saveMe, loadMe } from '../identity.js';
 import { loadRoster } from '../online/roster.js';
 import { loadRemoteCarnet } from '../gradebookStore.js';
 import { flushAll } from '../online/docs.js';
-import { loadStudentContext } from '../online/school.js';
+import { loadStudentContext, loadSchoolForStaff } from '../online/school.js';
 
 // Version en ligne : rien ne s'affiche sans connexion. Identifiant + code ; « code oublié » envoie un lien à
 // l'adresse du compte ; à la première connexion (code provisoire remis par la Direction), on choisit son code.
@@ -91,7 +91,8 @@ export default function OnlineGate({ children }) {
       try { await loadStudentContext(acc.id); } catch (e) { setState({ step: 'failed', message: e?.message, sync: true }); return; }
     } else if (acc.profile !== 'DIRECTION') {
       try {
-        await loadRoster();
+        const roster = await loadRoster();
+        await loadSchoolForStaff(roster?.students ?? []); // agenda : emploi du temps et événements publiés
         if (acc.profile === 'ENSEIGNANT') await loadRemoteCarnet(acc.id);
       } catch (e) { setState({ step: 'failed', message: e?.message, sync: true }); return; }
     }

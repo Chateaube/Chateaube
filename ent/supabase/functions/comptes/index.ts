@@ -65,6 +65,19 @@ Deno.serve(async (req) => {
       await admin.from('app_user').update({ is_active: Boolean(body.active) }).eq('id', target.id);
       return reply({ ok: true });
     }
+    // suppression définitive : seulement un compte ÉLÈVE (jamais un compte du personnel)
+    if (body.action === 'delete') {
+      const { data: target } = await admin.from('app_user').select('id, auth_uid, user_role(role)').eq('id', body.userId).maybeSingle();
+      if (!target) return reply({ error: 'Compte introuvable.' }, 404);
+      const roles = (target.user_role ?? []).map((r: { role: string }) => r.role);
+      if (!roles.length || roles.some((r: string) => r !== 'ELEVE')) return reply({ error: 'Seuls les comptes élèves peuvent être supprimés ici.' }, 400);
+      await admin.from('ent_doc').delete().eq('owner', target.id);
+      await admin.from('user_role').delete().eq('user_id', target.id);
+      const { error } = await admin.from('app_user').delete().eq('id', target.id);
+      if (error) return reply({ error: 'Suppression impossible : ce compte est utilisé ailleurs.' }, 400);
+      if (target.auth_uid) await admin.auth.admin.deleteUser(target.auth_uid);
+      return reply({ ok: true });
+    }
     return reply({ error: 'Action inconnue.' }, 400);
   } catch (_e) {
     return reply({ error: 'Erreur du serveur. Réessayez.' }, 500);

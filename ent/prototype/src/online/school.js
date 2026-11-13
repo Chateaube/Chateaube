@@ -34,3 +34,14 @@ export async function loadStudentContext(accountId) {
   }
   return { me, school };
 }
+
+/** Personnel (hors Direction) : emploi du temps, changements et événements publiés, pour l'agenda. */
+export async function loadSchoolForStaff(students = []) {
+  const ecole = await fetchDoc('ecole').catch(() => null);
+  school = ecole?.value ?? null;
+  if (!school) return null;
+  setRemoteImport({ students, timetable: school.timetable ?? [], importedAt: school.sentAt ?? 'x' });
+  writeStored('ent-s-evenements', school.events ?? []);
+  try { localStorage.setItem('ent-changements-edt-v1', JSON.stringify(school.changes ?? [])); } catch { /* rien */ }
+  return school;
+}
