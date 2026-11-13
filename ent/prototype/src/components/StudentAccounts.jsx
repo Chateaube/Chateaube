@@ -5,7 +5,7 @@ import { fetchDoc } from '../online/docs.js';
 import { buildSchool } from '../online/school.js';
 import { loadImport } from '../importStore.js';
 import { readStored } from '../persist.js';
-import { SCHOOL_EVENTS } from '../data/events.js';
+import { SCHOOL_EVENTS, seedParcoursup } from '../data/events.js';
 import { loadChanges } from './TimetableChanges.jsx';
 import { printOnly } from '../print.js';
 import { askConfirm } from './Dialogs.jsx';
@@ -48,6 +48,7 @@ export default function StudentAccounts({ settings }) {
     const timetable = loadImport()?.timetable ?? [];
     if (!timetable.length && !(await askConfirm('Aucun emploi du temps importé sur cet ordinateur. Envoyer quand même le calendrier seul ?'))) return;
     setBusy(true); setErr(''); setMsg('');
+    seedParcoursup();
     const value = buildSchool({ timetable, changes: loadChanges(), calendar: settings?.calendar ?? null, events: readStored('ent-s-evenements') ?? [...SCHOOL_EVENTS] });
     const { error } = await supabase.from('ent_doc').upsert({ key: 'ecole', kind: 'ECOLE', owner: null, value });
     setBusy(false);
