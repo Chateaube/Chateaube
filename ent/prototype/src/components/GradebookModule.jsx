@@ -296,7 +296,7 @@ function CompetenciesStep({ service, settings, evaluations, mine, setMine }) {
   const [label, setLabel] = useState('');
   return (
     <div className="grid gap-5 xl:grid-cols-[1fr_360px] xl:items-start">
-      <Card title={`Mes compétences — ${service.cls} · ${service.subject}`} subtitle="Obligatoire pour le bulletin : ce qui a été travaillé ce trimestre, repris dans la colonne « Compétences » (le détail reste dans le cahier de textes)">
+      <Card title={`Mes compétences — ${service.cls} · ${service.subject}`} subtitle="Ce qui a été travaillé ce trimestre, repris dans la colonne « Compétences » du bulletin (le détail reste dans le cahier de textes)">
         {mine.length === 0 && <p className="mb-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">Aucune compétence pour l'instant : reprenez la base proposée ou écrivez les vôtres.</p>}
         <ol className="space-y-1.5">
           {mine.map((c, i) => {
