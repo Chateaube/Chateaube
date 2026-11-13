@@ -77,7 +77,7 @@ function buildTerminaleG() {
 }
 
 // Élèves importés (année en cours, gardés dans ce navigateur) : fiches complétées si elles existent
-const IMPORTED = 'Tle Générale (vos élèves)';
+const IMPORTED = 'Terminale Générale';
 const importedTleG = () => {
   const imp = loadImport();
   return (imp?.profiles?.length ? imp.profiles : imp?.students ?? []).filter((s) => s.cls === 'Terminale Générale');
@@ -111,6 +111,16 @@ function SpecialtiesPanel({ onChange }) {
   }));
   const fillDefault = () => persist(list.map((s) => (s.specialties?.length ? s : { ...s, specialties: ['MATHS', 'SVT'] })));
   const incomplete = list.filter((s) => specialtyErrors('Terminale Générale', s.specialties ?? []).length).length;
+  // tout est déjà rempli (Excel) : replié, on l'ouvre seulement pour corriger
+  if (!incomplete) return (
+    <details className="rounded-2xl bg-white p-4 shadow-soft">
+      <summary className="cursor-pointer text-sm text-slate-600">Spécialités : toutes renseignées (reprises de l'Excel) — ouvrir pour corriger</summary>
+      <ul className="mt-2 divide-y divide-slate-100">{list.map((s) => (
+        <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 py-1.5 text-sm"><span>{s.lastName} {s.firstName}</span>
+          <span className="flex gap-1.5">{Object.entries(SPECIALTIES).map(([code, label]) => { const on = (s.specialties ?? []).includes(code); return <button key={code} type="button" aria-pressed={on} title={label} onClick={() => toggle(s.id, code)} className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${on ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-600 ring-slate-300'}`}>{code === 'MATHS' ? 'Maths' : code}</button>; })}</span></li>
+      ))}</ul>
+    </details>
+  );
   return (
     <Card title="Spécialités des élèves" subtitle="2 spécialités sur 3 par élève : seules celles-ci apparaissent sur son bulletin">
       <div className="mb-3 flex flex-wrap items-center gap-3">
