@@ -42,7 +42,7 @@ export default function StudentAccounts({ settings }) {
   const accountOf = (s) => (accounts ?? []).find((u) => fold(`${u.last_name} ${u.first_name}`) === fold(`${s.lastName} ${s.firstName}`));
   const list = students.filter((s) => s.cls === cls).sort((a, b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'fr'));
   const missing = list.filter((s) => !accountOf(s));
-  const profile = (s) => ({ lastName: s.lastName, firstName: s.firstName, cls: s.cls, specialties: s.specialties ?? [] });
+  const profile = (s) => ({ lastName: s.lastName, firstName: s.firstName, usualName: s.usualName ?? '', cls: s.cls, specialties: s.specialties ?? [] });
   const writeProfile = (id, s) => supabase.from('ent_doc').upsert({ key: `eleve:${id}`, kind: 'ELEVE', owner: id, value: profile(s) });
 
   const sendSchool = async () => {
