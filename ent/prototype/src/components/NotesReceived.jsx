@@ -7,7 +7,7 @@ import { loadRemoteCarnet } from '../gradebookStore.js';
 import GradebookModule from './GradebookModule.jsx';
 import { loadImport } from '../importStore.js';
 import { readStored, writeStored } from '../persist.js';
-import { matchTeacher, refineByTimetable } from '../rules/teacherMatch.js';
+import { matchTeacher, refineByTimetable, timetableAssignments } from '../rules/teacherMatch.js';
 import { buildXlsx } from '../xlsx.js';
 import { saveFile } from '../download.js';
 import { askConfirm } from './Dialogs.jsx';
@@ -77,6 +77,7 @@ export default function NotesReceived({ settings, go }) {
   useEffect(() => { load(); }, []);
 
   const [fiches, setFiches] = useState(() => readStored('ent-s-fiches-agents') ?? {});
+  const staff = (data?.users ?? []).filter((u) => u.is_active).map((u) => ({ id: u.id, name: `${u.first_name} ${u.last_name}`.trim(), line: `${u.last_name} ${u.first_name}`.trim(), prof: (u.user_role ?? []).some((r) => r.role === 'PROFESSEUR') }));
   const teachers = (data?.users ?? []).filter((u) => u.is_active && ((u.user_role ?? []).some((r) => r.role === 'PROFESSEUR') || fiches[u.id]?.services?.length))
     .map((u) => ({ id: u.id, name: `${u.first_name} ${u.last_name}`.trim(), line: `${u.last_name} ${u.first_name}`.trim() }));
   const students = loadImport()?.students ?? [];
@@ -88,14 +89,18 @@ export default function NotesReceived({ settings, go }) {
     const auto = {};
     if (recompute && !(await askConfirm('Recalculer les matières et classes de TOUTES les fiches depuis l\'import (onglet 3 + emploi du temps) ? Les corrections faites à la main sur les fiches seront remplacées.'))) return;
     const slots = loadImport()?.timetable ?? [];
-    teachers.filter((t) => recompute || !fiches[t.id]?.services?.some((x) => x.subject && x.classes?.length)).forEach((t) => {
-      const m = matchTeacher(t.line, list);
-      if (m.services.length) auto[t.id] = { ...(fiches[t.id] ?? {}), services: refineByTimetable(m.services, m.teacher, slots) };
+    // tout le personnel (une personne de la Direction peut enseigner, ex. Arts plastiques) ; l'emploi du temps
+    // complète l'onglet 3 (professeur ou classe oubliés)
+    const sources = [...list, ...timetableAssignments(slots)];
+    staff.filter((t) => recompute || !fiches[t.id]?.services?.some((x) => x.subject && x.classes?.length)).forEach((t) => {
+      const m = matchTeacher(t.line, sources);
+      if (m.teacher && m.services.length) auto[t.id] = { ...(fiches[t.id] ?? {}), services: refineByTimetable(m.services, m.teacher, slots) };
     });
     const merged = { ...fiches, ...auto };
     if (Object.keys(auto).length) { writeStored('ent-s-fiches-agents', merged); setFiches(merged); }
-    const roster = buildRoster({ students, fiches: merged, teachers });
-    if (!(await askConfirm(`Envoyer aux professeurs les ${roster.students.length} élèves et les classes de ${teachers.length} professeur(s) ?${roster.warnings.length ? ` Attention : ${roster.warnings.length} point(s) à vérifier (affichés ensuite).` : ''}`))) return;
+    const sendTo = staff.filter((t) => t.prof || merged[t.id]?.services?.length);
+    const roster = buildRoster({ students, fiches: merged, teachers: sendTo });
+    if (!(await askConfirm(`Envoyer aux professeurs les ${roster.students.length} élèves et les classes de ${sendTo.length} professeur(s) ?${roster.warnings.length ? ` Attention : ${roster.warnings.length} point(s) à vérifier (affichés ensuite).` : ''}`))) return;
     setBusy(true); setMsg(''); setErr('');
     const { error } = await supabase.from('ent_doc').upsert({ key: 'roster', kind: 'ROSTER', owner: null, value: roster });
     setBusy(false);
