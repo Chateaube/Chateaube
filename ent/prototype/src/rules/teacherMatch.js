@@ -1,3 +1,4 @@
+import { sameSubject } from './timetableImport.js';
 // Rapprochement d'une liste « NOM Prénoms » avec les professeurs de l'emploi du temps (création groupée des comptes).
 const fold = (t) => String(t ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]/g, '');
 
@@ -35,3 +36,16 @@ export function matchTeacher(line, list) {
   return { teacher: null, last, first, usual: first.split(/\s+/)[0] ?? '', services: [] };
 }
 
+
+/**
+ * Classes de chaque matière : celles de l'emploi du temps quand la matière y figure pour ce professeur
+ * (évite « SGN en Terminale » quand la ligne de l'onglet 3 regroupe 1re et Terminale) ; sinon (matière faite
+ * pendant les heures d'une autre, comme la Mercatique pendant le MSGN) toutes les classes de la ligne.
+ */
+export function refineByTimetable(services, teacher, slots = []) {
+  const mine = slots.filter((s) => s.teacherId === teacher);
+  return services.map((sv) => {
+    const inEdt = [...new Set(mine.filter((s) => sameSubject(s.subject, sv.subject)).map((s) => s.cls))];
+    return inEdt.length ? { ...sv, classes: sv.classes.filter((c) => inEdt.includes(c)).length ? sv.classes.filter((c) => inEdt.includes(c)) : inEdt } : sv;
+  });
+}
