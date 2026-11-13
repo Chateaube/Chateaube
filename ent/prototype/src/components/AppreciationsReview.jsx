@@ -110,7 +110,7 @@ export default function AppreciationsReview() {
                   <p className="text-xs text-slate-600">{r.subject}<span className="block text-slate-400">{r.teacher}</span>
                     {!v.trim() ? <Badge tone="slate">vide</Badge> : n ? <Badge tone="amber">{n} point(s) à revoir</Badge> : r.corr && !r.stale ? <Badge tone="violet">corrigée</Badge> : null}
                     {r.stale && <Badge tone="amber">modifiée par le prof après votre correction</Badge>}</p>
-                  <textarea rows={2} value={v} onChange={(e) => setEdits({ ...edits, [r.key]: e.target.value })} aria-label={`Appréciation — ${r.student} — ${r.subject}`}
+                  <textarea spellCheck lang="fr" rows={2} value={v} onChange={(e) => setEdits({ ...edits, [r.key]: e.target.value })} aria-label={`Appréciation — ${r.student} — ${r.subject}`}
                     className={`w-full resize-y rounded-lg border px-2 py-1.5 text-sm ${edits[r.key] !== undefined ? 'border-violet-300 bg-violet-50/40' : 'border-slate-200'}`} />
                 </div>
               </li>
