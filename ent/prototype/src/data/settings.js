@@ -59,7 +59,7 @@ export const DEFAULT_SETTINGS = {
     excludedSubjects: ['AP', 'MUS', 'VDC'], // Arts plastiques, Musique, Vie de classe : hors moyenne générale
     parentDelayDays: 1, // Espace Parents : note publiée aux parents 1 jour après les élèves
     maxAdjustment: 2, // bonus / malus du professeur sur un devoir (pas sur la moyenne) : au plus ± 2 points, avec un motif
-    allowTutoiement: false, // appréciations : tutoiement refusé par défaut (document officiel lu par la famille) ; la Direction peut l'autoriser
+    allowTutoiement: true, // appréciations : tutoiement accepté (choix de l'école) ; la Direction peut le refuser dans les Paramètres
   },
 
   // Base de compétences PROPOSÉE aux enseignants, par matière et par niveau (série au lycée :

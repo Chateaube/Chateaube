@@ -131,11 +131,12 @@ export function checkAppreciation(text, ctx = {}) {
   }
 
   const has = (rule) => errors.some((e) => e.rule === rule);
+  // liste courte : les phrases et la longueur sont comptées à part (RulePanel) ; le tutoiement seulement s'il est
+  // refusé ; le format « Admis.e » seulement pour l'appréciation générale (Direction)
   const checks = [
-    { rule: 'MIN_SENTENCES', label: 'Au moins deux phrases complètes', ok: !has('MIN_SENTENCES') },
-    { rule: 'TUTOIEMENT', label: 'Aucun tutoiement', ok: !has('TUTOIEMENT') },
+    ...(ctx.tutoiement ? [] : [{ rule: 'TUTOIEMENT', label: 'Aucun tutoiement', ok: !has('TUTOIEMENT') }]),
     { rule: 'DECOURAGEANT', label: 'Aucune formule décourageante', ok: !has('DECOURAGEANT') },
-    { rule: 'INCLUSIF', label: 'Décision au format « Admis.e / Retenu.e »', ok: !has('INCLUSIF') },
+    ...(ctx.decision ? [{ rule: 'INCLUSIF', label: 'Décision au format « Admis.e / Retenu.e »', ok: !has('INCLUSIF') }] : []),
   ];
   if (ctx.mode === 'APPRECIATION_SEULE') checks.push({ rule: 'SANS_NOTE', label: 'Aucune note chiffrée (Parcours)', ok: !has('SANS_NOTE') });
 

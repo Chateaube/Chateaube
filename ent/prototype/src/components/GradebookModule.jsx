@@ -176,7 +176,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
             <table data-grid className="w-full text-sm" style={{ minWidth: 260 + evaluations.length * 130 }}>
               <thead>
                 <tr className="border-y border-slate-100 bg-slate-50 text-left align-bottom text-xs text-slate-500">
-                  <th className="sticky left-0 bg-slate-50 px-4 py-2 font-medium">Élève</th>
+                  <th className="sticky left-0 z-20 bg-slate-50 px-3 py-2 font-medium shadow-[2px_0_0_#e2e8f0]">Élève</th>
                   {evaluations.map((ev) => (
                     <th key={ev.id} className="px-2 py-2 font-medium">
                       <Badge tone="navy">{ev.type}</Badge>
@@ -212,7 +212,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
                   const n = notesCount(evaluations, grades[s]);
                   return (
                     <tr key={s} className="border-b border-slate-100 align-top">
-                      <td className="sticky left-0 bg-white px-3 py-2.5 font-medium text-slate-800" title={s}>
+                      <td className="sticky left-0 z-20 bg-white px-3 py-2.5 font-medium text-slate-800 shadow-[2px_0_0_#e2e8f0]" title={s}>
                         {shortName(s)}
                         {n < min && <p className="text-[11px] font-normal text-amber-700">{n} note{n > 1 ? 's' : ''} retenue{n > 1 ? 's' : ''}</p>}
                       </td>
@@ -236,7 +236,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
               </tbody>
               <tfoot>
                 <tr className="bg-slate-50 text-xs text-slate-600">
-                  <td className="sticky left-0 bg-slate-50 px-4 py-2 font-medium">Classe</td>
+                  <td className="sticky left-0 z-20 bg-slate-50 px-3 py-2 font-medium shadow-[2px_0_0_#e2e8f0]">Classe</td>
                   {evaluations.map((ev) => {
                     const st = classStats(service.students.map((s) => studentAverage([ev], grades[s], bonus[s])));
                     return <td key={ev.id} className="px-2 py-2 tabular-nums">moy. {fmtAvg(st.avg)}<br />{fmtAvg(st.min)} – {fmtAvg(st.max)}</td>;
@@ -397,7 +397,7 @@ function AppreciationsStep({ service, evaluations, grades, validated, settings, 
   const appOnly = service.mode === 'APPRECIATION_SEULE';
   const key = `${service.id}:${student}`;
   const entry = comments[key] ?? { text: '', validated: false };
-  const tutoiement = !!settings?.grading?.allowTutoiement;
+  const tutoiement = settings?.grading?.allowTutoiement !== false; // tutoiement accepté (choix de l'école)
   const result = useMemo(() => checkAppreciation(entry.text, { mode: service.mode, tutoiement }), [entry.text, service.mode, tutoiement]);
   const setText = (text) => { setComments({ ...comments, [key]: { text, validated: false } }); setAiNote(null); };
 
