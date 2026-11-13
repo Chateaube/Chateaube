@@ -298,12 +298,21 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
 
 /* ---------------- 1. Compétences ---------------- */
 // Base proposée par l'établissement (par matière et niveau) + compétences écrites par l'enseignant.
-function CompetenciesStep({ service, settings, evaluations, mine, setMine }) {
+function CompetenciesStep({ service, settings, evaluations, mine, setMine, siblings = [], siblingComps = [], linked = true, setLinked }) {
   const base = competenciesFor(service, settings);
   const proposals = competencyProposals(base, mine);
   const [label, setLabel] = useState('');
+  const names = siblings.map((x) => x.cls).join(', ');
+  const other = siblingComps.find((x) => x.comps.length && x.comps.join('|') !== mine.join('|'));
   return (
     <div className="grid gap-5 xl:grid-cols-[1fr_360px] xl:items-start">
+      {siblings.length > 0 && (
+        <div className="space-y-2 rounded-xl bg-navy-50 p-3 text-sm text-navy-900 xl:col-span-2">
+          <label className="flex items-center gap-2"><input type="checkbox" checked={linked} onChange={(e) => setLinked?.(e.target.checked)} className="h-4 w-4" />
+            Mêmes compétences en {names} : ce que vous écrivez ici s'y applique aussi.</label>
+          {other && <Button variant="secondary" className="!py-1 text-xs" onClick={() => setMine([...new Set([...mine, ...other.comps])])}>Reprendre les {other.comps.length} compétence{other.comps.length > 1 ? 's' : ''} de {other.cls}</Button>}
+        </div>
+      )}
       <Card title={`Mes compétences — ${service.cls} · ${service.subject}`} subtitle="Ce qui a été travaillé ce trimestre, repris dans la colonne « Compétences » du bulletin (le détail reste dans le cahier de textes)">
         {mine.length === 0 && <p className="mb-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">Aucune compétence pour l'instant : reprenez la base proposée ou écrivez les vôtres.</p>}
         <ol className="space-y-1.5">
@@ -531,6 +540,7 @@ export default function GradebookModule({ settings, go, role }) {
   const [validated, setValidated] = useState(saved?.validated ?? {});
   const [comments, setComments] = useState(saved?.comments ?? {});
   const [adjust] = useState(saved?.adjust ?? {}); // ancien bonus sur la moyenne (n'est plus utilisé, gardé tel quel)
+  const [unlinked, setUnlinked] = useState(saved?.unlinked ?? {}); // compétences propres à une classe (sinon partagées 1re STMG / 1re G…)
   const [bonus, setBonus] = useState(saved?.bonus ?? {}); // bonus / malus par devoir : service → élève → devoir
   const [flags, setFlags] = useState(saved?.flags ?? demoOr({ 's1:RAJAONARIVELO Tsiry': { ids: ['BAVARD'], note: '' } }, {}));
   // chaque saisie est enregistrée tout de suite : on remplit les notes au fil du trimestre
@@ -538,8 +548,8 @@ export default function GradebookModule({ settings, go, role }) {
   const first = useRef(true);
   useEffect(() => {
     if (first.current) { first.current = false; return; }
-    setSavedOk(saveCarnet({ evaluations, grades, remarks, myComps, validated, comments, flags, adjust, bonus }));
-  }, [evaluations, grades, remarks, myComps, validated, comments, flags, adjust, bonus]);
+    setSavedOk(saveCarnet({ evaluations, grades, remarks, myComps, validated, comments, flags, adjust, bonus, unlinked }));
+  }, [evaluations, grades, remarks, myComps, validated, comments, flags, adjust, bonus, unlinked]);
 
   const service = SERVICES.find((s) => s.id === serviceId);
   if (!service) return (
@@ -549,6 +559,9 @@ export default function GradebookModule({ settings, go, role }) {
     </div>
   );
   const appOnly = service.mode === 'APPRECIATION_SEULE';
+  // même matière, même année (Tle STMG et Tle Générale, 1re STMG et 1re Générale) : mêmes compétences
+  const yearOf = (cls) => levelOf(cls).split(' ')[0];
+  const siblings = SERVICES.filter((x) => x.id !== service.id && x.subject === service.subject && yearOf(x.cls) === yearOf(service.cls));
   const currentStep = appOnly ? 'appreciations' : step;
   const props = {
     service, settings,
@@ -600,7 +613,10 @@ export default function GradebookModule({ settings, go, role }) {
         </div>
       )}
       {currentStep === 'notes' && <NotesStep {...props} go={go} competencies={myComps[serviceId] ?? []} />}
-      {currentStep === 'competences' && <CompetenciesStep service={service} settings={settings} evaluations={evaluations[serviceId] ?? []} mine={myComps[serviceId] ?? []} setMine={(v) => setMyComps({ ...myComps, [serviceId]: v })} />}
+      {currentStep === 'competences' && <CompetenciesStep service={service} settings={settings} evaluations={evaluations[serviceId] ?? []} mine={myComps[serviceId] ?? []}
+        siblings={siblings} siblingComps={siblings.map((x) => ({ ...x, comps: myComps[x.id] ?? [] }))} linked={!unlinked[serviceId]}
+        setLinked={(on) => setUnlinked({ ...unlinked, [serviceId]: !on })}
+        setMine={(v) => setMyComps({ ...myComps, [serviceId]: v, ...(unlinked[serviceId] ? {} : Object.fromEntries(siblings.map((x) => [x.id, v]))) })} />}
       {currentStep === 'appreciations' && <AppreciationsStep {...props} go={go} comments={comments} setComments={setComments} flags={flags} setFlags={setFlags} />}
     </div>
   );
