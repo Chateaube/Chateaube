@@ -144,7 +144,7 @@ export default function NotesReceived({ settings, go }) {
                       const x = serviceSummary(r.carnet, s);
                       return (
                         <li key={s.id} className="flex flex-wrap items-center gap-2 py-1.5">
-                          <span className="min-w-[12rem] flex-1 text-slate-800">{s.cls} · {s.subject} <span className="text-xs text-slate-500">({s.students.length} élèves)</span></span>
+                          <span className="min-w-[12rem] flex-1 text-slate-800">{s.cls} · {s.subject} <span className="text-xs text-slate-500">({s.students.length} élèves)</span>{s.shared && <span className="ml-1"><Badge tone="violet">partagée avec {s.coTeachers.join(', ')} · 2 notes min.</Badge></span>}</span>
                           <span className="text-xs text-slate-600">{x.evaluations} devoir{x.evaluations > 1 ? 's' : ''} · {x.got}/{x.expected} notes</span>
                           <Badge tone={x.competencies ? 'emerald' : 'slate'}>{x.competencies ? 'compétences ✓' : 'compétences —'}</Badge>
                           {x.validated && <Badge tone="emerald">validé</Badge>}

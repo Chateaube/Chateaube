@@ -188,3 +188,14 @@ export function adjustmentErrors(adj, max = 2) {
   if (!String(adj.reason ?? '').trim()) e.push('Indiquer le motif (participation, travail personnel, comportement…).');
   return e;
 }
+
+/**
+ * Nombre minimum de notes par trimestre : 4 en général (Paramètres) ; 2 pour l'EMC (peu d'heures) et pour
+ * chaque professeur d'une matière partagée à deux (ES, MSGN, Espagnol…).
+ */
+export const LIGHT_SUBJECTS = /^(emc|enseignement moral et civique|education morale et civique)$/i;
+export function minEvaluationsFor(service, defaultMin = 4) {
+  const label = String(service?.subject ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+  if (service?.shared || LIGHT_SUBJECTS.test(label)) return Math.min(2, defaultMin);
+  return defaultMin;
+}

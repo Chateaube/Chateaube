@@ -39,9 +39,14 @@ export function servicesFor(roster, accountId) {
     const spe = specialtyOf(s.subject, cls);
     const students = (byClass[cls] ?? []).filter((st) => !spe || !st.specialties?.length || st.specialties.includes(spe))
       .map((st) => `${st.lastName} ${st.firstName}`.trim()).sort((a, b) => a.localeCompare(b, 'fr'));
-    return { id: `${cls}|${s.subject}`, cls, subject: s.subject, students };
+    // matière partagée (ES, MSGN, Espagnol…) : un autre professeur a la même matière dans la même classe
+    const others = Object.entries(roster?.services ?? {}).filter(([id, list]) => id !== accountId && list.some((o) => o.subject === s.subject && o.classes.includes(cls))).map(([id]) => roster?.names?.[id] ?? '');
+    return { id: `${cls}|${s.subject}`, cls, subject: s.subject, students, ...(others.length ? { shared: true, coTeachers: others, minEvaluations: SHARED_MIN } : {}) };
   }));
 }
+
+/** Matière partagée entre deux professeurs : une seule ligne au bulletin, 2 notes minimum pour chacun. */
+export const SHARED_MIN = 2;
 
 let current = null;
 export const currentRoster = () => current;
