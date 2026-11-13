@@ -4,7 +4,8 @@ import { supabase } from '../online/client.js';
 import { fetchDocs, fetchDoc } from '../online/docs.js';
 import { buildRoster, servicesFor } from '../online/roster.js';
 import { loadImport } from '../importStore.js';
-import { readStored } from '../persist.js';
+import { readStored, writeStored } from '../persist.js';
+import { matchTeacher } from '../rules/teacherMatch.js';
 import { buildXlsx } from '../xlsx.js';
 import { saveFile } from '../download.js';
 import { askConfirm } from './Dialogs.jsx';
@@ -61,20 +62,29 @@ export default function NotesReceived() {
   };
   useEffect(() => { load(); }, []);
 
-  const fiches = readStored('ent-s-fiches-agents') ?? {};
+  const [fiches, setFiches] = useState(() => readStored('ent-s-fiches-agents') ?? {});
   const teachers = (data?.users ?? []).filter((u) => u.is_active && ((u.user_role ?? []).some((r) => r.role === 'PROFESSEUR') || fiches[u.id]?.services?.length))
-    .map((u) => ({ id: u.id, name: `${u.first_name} ${u.last_name}`.trim() }));
+    .map((u) => ({ id: u.id, name: `${u.first_name} ${u.last_name}`.trim(), line: `${u.last_name} ${u.first_name}`.trim() }));
   const students = loadImport()?.students ?? [];
 
   const send = async () => {
     if (!students.length) { setErr('Aucun élève importé sur cet appareil : importez d\'abord le modèle Excel (Réglages › Import), depuis cet ordinateur.'); return; }
-    const roster = buildRoster({ students, fiches, teachers });
+    // fiches sans enseignements : remplies depuis l'import (onglet 3 Personnel / emploi du temps), puis gardées sur la fiche
+    const list = loadImport()?.assignments ?? [];
+    const auto = {};
+    teachers.filter((t) => !fiches[t.id]?.services?.some((x) => x.subject && x.classes?.length)).forEach((t) => {
+      const m = matchTeacher(t.line, list);
+      if (m.services.length) auto[t.id] = { ...(fiches[t.id] ?? {}), services: m.services };
+    });
+    const merged = { ...fiches, ...auto };
+    if (Object.keys(auto).length) { writeStored('ent-s-fiches-agents', merged); setFiches(merged); }
+    const roster = buildRoster({ students, fiches: merged, teachers });
     if (!(await askConfirm(`Envoyer aux professeurs les ${roster.students.length} élèves et les classes de ${teachers.length} professeur(s) ?${roster.warnings.length ? ` Attention : ${roster.warnings.length} point(s) à vérifier (affichés ensuite).` : ''}`))) return;
     setBusy(true); setMsg(''); setErr('');
     const { error } = await supabase.from('ent_doc').upsert({ key: 'roster', kind: 'ROSTER', owner: null, value: roster });
     setBusy(false);
     if (error) { setErr(`Envoi impossible : ${error.message}. Avez-vous lancé le script 30_carnets.sql dans Supabase ?`); return; }
-    setMsg(`Classes envoyées : les professeurs les verront à leur prochaine connexion (ou en rechargeant la page).`);
+    setMsg(`Classes envoyées : les professeurs les verront à leur prochaine connexion (ou en rechargeant la page).${Object.keys(auto).length ? ` Enseignements remplis automatiquement depuis votre import pour ${Object.keys(auto).length} fiche(s) : vérifiez-les dans Gestion des agents.` : ''}`);
     load();
   };
 
@@ -92,7 +102,7 @@ export default function NotesReceived() {
       {err && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{err}</p>}
       {msg && <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{msg}</p>}
 
-      <Card title="1. Classes envoyées aux professeurs" subtitle="Élèves de votre import + matières et classes de chaque fiche d'agent. À refaire après un nouvel import ou une fiche modifiée.">
+      <Card title="1. Classes envoyées aux professeurs" subtitle="Élèves de votre import + matières et classes de chaque professeur. Une fiche sans enseignements est remplie toute seule depuis l'onglet 3 Personnel de votre import. À refaire après un nouvel import ou une fiche modifiée.">
         <p className="text-sm text-slate-700">{roster ? <>Dernier envoi : <strong>{when(roster.sentAt)}</strong> · {roster.students.length} élèves</> : <strong className="text-amber-800">Pas encore envoyé : les professeurs ne voient aucune classe.</strong>}</p>
         {roster?.warnings?.length > 0 && <ul className="mt-2 list-disc space-y-0.5 pl-5 text-xs text-amber-800">{roster.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
         <Button className="mt-3" disabled={busy || !data} onClick={send}>{busy ? 'Envoi…' : roster ? 'Renvoyer les classes' : 'Envoyer les classes aux professeurs'}</Button>
@@ -106,7 +116,7 @@ export default function NotesReceived() {
               <div key={r.id} className="rounded-lg border border-slate-200 p-3">
                 <p className="flex flex-wrap items-center justify-between gap-2 text-sm"><strong className="text-slate-900">{r.name}</strong>
                   <span className="text-xs text-slate-500">{r.carnet ? `dernière saisie : ${when(r.at)}` : 'pas encore commencé'}</span></p>
-                {r.services.length === 0 ? <p className="mt-1 text-xs text-amber-800">Aucune classe attribuée : complétez sa fiche (Gestion des agents) puis renvoyez les classes.</p> : (
+                {r.services.length === 0 ? <p className="mt-1 text-xs text-amber-800">Aucune classe : son nom n'a pas été trouvé dans l'onglet 3 Personnel de l'import. Ajoutez ses enseignements sur sa fiche (Gestion des agents) puis renvoyez les classes.</p> : (
                   <ul className="mt-2 divide-y divide-slate-100 text-sm">
                     {r.services.map((s) => {
                       const x = serviceSummary(r.carnet, s);
