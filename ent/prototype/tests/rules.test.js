@@ -2278,3 +2278,14 @@ test('matière partagée : poids (heures) et nom sur le bulletin', async () => {
     assert.deepEqual(shareOf({ [g[0].key]: { k: { shown: false } } }, g[0].key, 'k', g), { weight: 1, shown: false });
   }
 });
+
+test('bonus / malus sur un devoir (pas sur la moyenne)', async () => {
+  const { studentAverage, bonusErrors } = await import('../src/rules/grading.js');
+  const evs = [{ id: 'a', scale: 20, coef: 1 }, { id: 'b', scale: 20, coef: 1 }];
+  assert.equal(studentAverage(evs, { a: '10', b: '14' }), 12);
+  assert.equal(studentAverage(evs, { a: '10', b: '14' }, { a: { points: 2, reason: 'Présentation' } }), 13);
+  assert.equal(studentAverage(evs, { a: '19.5', b: '14' }, { a: { points: 2, reason: 'x' } }), 17); // plafonné au barème
+  assert.equal(studentAverage(evs, { a: 'ABS', b: '14' }, { a: { points: 2, reason: 'x' } }), 14); // absent : pas de bonus
+  assert.deepEqual(bonusErrors({ a: { points: 1 } }), ['motif à indiquer']);
+  assert.deepEqual(bonusErrors({ a: { points: 3, reason: 'x' } }, 2), ['au plus ± 2 points']);
+});

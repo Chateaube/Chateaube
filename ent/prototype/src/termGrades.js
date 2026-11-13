@@ -6,7 +6,7 @@ import { EXAMS } from './rules/mockExam.js';
 import { SERVICES, EVALUATIONS, GRADES } from './data/grades.js';
 import { loadCarnet, carnetRaw } from './gradebookStore.js';
 import { demoOr } from './demoData.js';
-import { studentAverage, adjustedAverage } from './rules/grading.js';
+import { studentAverage } from './rules/grading.js';
 
 /** Épreuves d'examen blanc que le professeur a choisi de compter dans son carnet (avec son coefficient). */
 export function withMockExams(evaluations, grades) {
@@ -32,12 +32,12 @@ export function termGrades() {
   const carnet = loadCarnet();
   const { ev, gr } = withMockExams(carnet?.evaluations ?? demoOr(EVALUATIONS, {}), carnet?.grades ?? demoOr(GRADES, {}));
   SERVICES.forEach((s) => { ev[s.id] ??= []; gr[s.id] ??= {}; }); // un service sans devoir : liste vide
-  cache = { raw, value: { EVALUATIONS: ev, GRADES: gr, ADJUST: carnet?.adjust ?? {} } };
+  cache = { raw, value: { EVALUATIONS: ev, GRADES: gr, BONUS: carnet?.bonus ?? {} } };
   return cache.value;
 }
 
-/** Moyenne d'un élève dans un service, bonus / malus du professeur compris (grilles, conseil, bulletins). */
+/** Moyenne d'un élève dans un service, bonus / malus des devoirs compris (grilles, conseil, bulletins). */
 export function subjectAverage(serviceId, name) {
   const t = termGrades();
-  return adjustedAverage(studentAverage(t.EVALUATIONS[serviceId] ?? [], t.GRADES[serviceId]?.[name]), t.ADJUST[serviceId]?.[name]);
+  return studentAverage(t.EVALUATIONS[serviceId] ?? [], t.GRADES[serviceId]?.[name], t.BONUS[serviceId]?.[name]);
 }

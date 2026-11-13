@@ -21,14 +21,15 @@ export function cellValue(raw, scale) {
  * « Ramener sur 20 » (par défaut) : la note compte sur 20 (8/10 → 16/20).
  * Sinon elle compte en points dans son barème : 8/10 et 14/20 font 22/30, soit 14,67/20.
  */
-export function studentAverage(evaluations, studentGrades = {}) {
+export function studentAverage(evaluations, studentGrades = {}, studentBonus = {}) {
   let points = 0;
   let max = 0;
   for (const ev of evaluations) {
     const c = cellValue(studentGrades[ev.id] ?? '', ev.scale);
     if (!c.counted) continue;
     const normalize = ev.normalize !== false;
-    points += (normalize ? (c.value / ev.scale) * 20 : c.value) * ev.coef;
+    const value = withBonus(c.value, studentBonus?.[ev.id], ev.scale); // bonus / malus du devoir
+    points += (normalize ? (value / ev.scale) * 20 : value) * ev.coef;
     max += (normalize ? 20 : ev.scale) * ev.coef;
   }
   return max ? round2((points / max) * 20) : null;
@@ -198,4 +199,16 @@ export function minEvaluationsFor(service, defaultMin = 4) {
   const label = String(service?.subject ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
   if (service?.shared || LIGHT_SUBJECTS.test(label)) return Math.min(2, defaultMin);
   return defaultMin;
+}
+
+/**
+ * Bonus / malus sur UN devoir (pas sur la moyenne) : par demi-point, au plus ± max, motif obligatoire.
+ * La note du devoir corrigée reste entre 0 et le barème.
+ */
+export const withBonus = (value, b, scale = 20) => (b?.points ? Math.min(scale, Math.max(0, round2(value + b.points))) : value);
+export function bonusErrors(bonus = {}, max = 2) {
+  return Object.values(bonus).flatMap((b) => (!b?.points ? [] : [
+    ...(Math.abs(b.points) > max ? [`au plus ± ${max} points`] : []),
+    ...(!(b.reason ?? '').trim() ? ['motif à indiquer'] : []),
+  ]));
 }
