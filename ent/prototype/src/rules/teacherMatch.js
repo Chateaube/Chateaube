@@ -38,14 +38,26 @@ export function matchTeacher(line, list) {
 
 
 /**
- * Classes de chaque matière : celles de l'emploi du temps quand la matière y figure pour ce professeur
- * (évite « SGN en Terminale » quand la ligne de l'onglet 3 regroupe 1re et Terminale) ; sinon (matière faite
- * pendant les heures d'une autre, comme la Mercatique pendant le MSGN) toutes les classes de la ligne.
+ * Enseignements d'un professeur : l'emploi du temps fait foi (matières et classes réellement enseignées, même si
+ * l'onglet 3 en oublie) ; les matières de l'onglet 3 absentes de l'emploi du temps (ex. Mercatique, faite pendant
+ * le MSGN) sont gardées avec les classes de leur ligne.
  */
 export function refineByTimetable(services, teacher, slots = []) {
-  const mine = slots.filter((s) => s.teacherId === teacher);
-  return services.map((sv) => {
-    const inEdt = [...new Set(mine.filter((s) => sameSubject(s.subject, sv.subject)).map((s) => s.cls))];
-    return inEdt.length ? { ...sv, classes: sv.classes.filter((c) => inEdt.includes(c)).length ? sv.classes.filter((c) => inEdt.includes(c)) : inEdt } : sv;
-  });
+  const mine = slots.filter((s) => s.teacherId === teacher && !MODULE.test(s.subject));
+  const out = [];
+  const add = (subject, classes) => {
+    const ex = out.find((o) => sameSubject(o.subject, subject) || sameSubject(subject, o.subject));
+    if (ex) ex.classes = [...new Set([...ex.classes, ...classes])]; else out.push({ subject, classes: [...new Set(classes)], hours: '' });
+  };
+  mine.forEach((s) => add(s.subject, [s.cls]));
+  services.forEach((sv) => { if (!mine.some((s) => sameSubject(s.subject, sv.subject) || sameSubject(sv.subject, s.subject))) add(sv.subject, sv.classes ?? []); });
+  return out;
+}
+// modules sans note (faits quand la classe en a besoin) : pas un enseignement à noter
+const MODULE = /parcours d.?ouverture|vie de classe/i;
+/** Professeurs de l'emploi du temps vus comme des lignes « Nom | Matière | Classes » (s'ajoutent à l'onglet 3). */
+export function timetableAssignments(slots = []) {
+  const by = {};
+  slots.filter((s) => s.teacherId && s.teacherId !== 'À désigner' && !MODULE.test(s.subject)).forEach((s) => { const k = `${s.teacherId}|${s.subject}`; (by[k] ??= { name: s.teacherId, subjects: [s.subject], classes: [] }).classes.push(s.cls); });
+  return Object.values(by).map((a) => ({ ...a, classes: [...new Set(a.classes)] }));
 }
