@@ -101,12 +101,13 @@ export default function OnlineStudentPortal({ settings }) {
     <div className="mx-auto max-w-md p-4"><Box title="Compte pas encore relié à une classe"><p className="text-sm text-slate-700">Ton compte existe, mais ta classe n'est pas encore indiquée. Préviens la Direction.</p></Box></div>
   );
   const go = (v) => { setView(v); window.scrollTo(0, 0); };
+  const first = me.usualName?.trim() || (me.firstName ?? '').split(/\s+/)[0];
   const isTab = TABS.some(([id]) => id === view);
   return (
     <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-md flex-col">
-      <header className="mt-2 rounded-[28px] px-5 pb-4 pt-5 text-white" style={{ background: 'linear-gradient(135deg, #003366, #00427f 55%, #0b6aa8)' }}>
-        <p className="text-xs text-white">Chateaubriand · Tamatave</p>
-        <h1 className="on-dark mt-0.5 font-display text-xl font-semibold text-white">Bonjour {me.firstName} · {me.cls}</h1>
+      <header className="px-5 pb-1 pt-4">
+        <p className="text-xs font-medium text-slate-500">Chateaubriand · Tamatave · {me.cls}</p>
+        <h1 className="font-display text-2xl font-semibold text-navy-900">Bonjour {first}</h1>
       </header>
       <main className="flex-1 space-y-3 p-4 pb-24">
         <TermsGate phone viewer="ELEVE" account={me.id}>
@@ -123,16 +124,22 @@ export default function OnlineStudentPortal({ settings }) {
           {view === 'school' && <Soon title="Vie de l'école, annonces et vie scolaire" />}
           {view === 'notes' && <Box title="Mes notes"><p className="text-sm text-slate-600">Tes notes et tes moyennes seront visibles ici à partir du <strong>17 décembre</strong>.</p></Box>}
           {view === 'agenda' && <AgendaModule compact role="ELEVE" cls={me.cls} settings={st} today={today()} />}
-          {view === 'more' && (
+          {view === 'more' && (<>
             <Box>
-              <ul className="divide-y divide-slate-100">{MORE.map(([id, label, icon, ready]) => (
-                <li key={id}><button type="button" onClick={() => go(id)} className="flex min-h-[48px] w-full items-center justify-between gap-2 text-left text-sm">
-                  <span className="flex items-center gap-2 text-slate-900"><Icon name={icon} />{label}</span>
-                  {!ready && <span className="text-xs text-slate-500">en cours de création</span>}
+              <ul className="divide-y divide-slate-100">{MORE.filter(([, , , ready]) => ready).map(([id, label, icon]) => (
+                <li key={id}><button type="button" onClick={() => go(id)} className="flex min-h-[52px] w-full items-center gap-3 text-left text-[15px] text-slate-900">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-navy-50 text-navy-700"><Icon name={icon} /></span>
+                  <span className="flex-1">{label}</span><span aria-hidden="true" className="text-slate-400">›</span>
                 </button></li>
               ))}</ul>
             </Box>
-          )}
+            <div className="px-1">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Bientôt disponible</p>
+              <div className="flex flex-wrap gap-2">{MORE.filter(([, , , ready]) => !ready).map(([id, label, icon]) => (
+                <span key={id} className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs text-slate-500 ring-1 ring-slate-200"><Icon name={icon} className="h-3.5 w-3.5" />{label}</span>
+              ))}</div>
+            </div>
+          </>)}
           {view === 'orientation' && <Orientation me={me} school={school} />}
           {view === 'schooldocs' && <FamilyDocuments audience="ELEVE" />}
           {MORE.some(([id, , , ready]) => id === view && !ready) && <Soon title={MORE.find(([id]) => id === view)[1]} />}

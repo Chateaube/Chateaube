@@ -61,12 +61,19 @@ const WINDOW_DAYS = 21; // trois semaines affichées, puis « Voir la suite »
 const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 
 /** Version téléphone (parents, élèves) : une bande de dates, puis le programme du jour choisi. */
-function DayAgenda({ visible, shown, setShown, available, today }) {
-  const dates = [...new Set(visible.filter((i) => i.date >= today).map((i) => i.date))].slice(0, 30);
+function DayAgenda({ visible: all, shown, setShown, available, today }) {
+  // téléphone (une seule classe) : « Espagnol » plutôt que « Espagnol — Terminale STMG »
+  const visible = all.map((i) => (i.agenda === 'COURS' ? { ...i, title: i.title.replace(/ — [^—(]+(?= \(|$)/, '') } : i));
+  // bande de dates : les jours avec quelque chose dans les 3 semaines ; au-delà, « À venir » (liste courte)
+  const until = new Date(`${today}T12:00:00Z`); until.setUTCDate(until.getUTCDate() + WINDOW_DAYS);
+  const limit = until.toISOString().slice(0, 10);
+  const dates = [...new Set(visible.filter((i) => i.date >= today && i.date <= limit).map((i) => i.date))];
+  const later = visible.filter((i) => i.date > limit && i.agenda !== 'COURS').sort((a, b) => a.date.localeCompare(b.date)).slice(0, 6);
   const [day, setDay] = useState(dates[0]);
   const list = visible.filter((i) => i.date === day);
   const following = dates.slice(dates.indexOf(day) + 1, dates.indexOf(day) + 4);
-  const short = (iso) => formatDateFr(iso).split(' ');
+  const MONTHS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+  const short = (iso) => { const [wd, n] = formatDateFr(iso).split(' '); return [wd, n, MONTHS[Number(iso.slice(5, 7)) - 1]]; };
   return (
     <div className="space-y-3">
       <h1 className="px-1 font-display text-lg font-semibold text-navy-900">Agenda</h1>
@@ -77,13 +84,13 @@ function DayAgenda({ visible, shown, setShown, available, today }) {
             className={`min-h-[36px] rounded-full px-3 text-xs font-medium ring-1 ${shown.includes(k) ? 'bg-navy-50 text-navy-900 ring-navy-300' : 'bg-white text-slate-500 ring-slate-200 line-through'}`}>{shown.includes(k) ? '✓ ' : ''}{FAMILY_LABEL[k] ?? AGENDAS[k].label}</button>
         ))}
       </div>
-      <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1" role="tablist" aria-label="Jours">
+      <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1" role="group" aria-label="Jours">
         {dates.map((d) => {
           const [wd, n, m] = short(d);
           return (
-            <button key={d} type="button" role="tab" aria-selected={d === day} onClick={() => setDay(d)}
+            <button key={d} type="button" aria-pressed={d === day} onClick={() => setDay(d)}
               className={`flex w-14 shrink-0 flex-col items-center rounded-xl py-1.5 text-[11px] ${d === day ? 'bg-navy-900 text-white' : 'bg-white text-slate-600 shadow-soft'}`}>
-              <span>{wd.slice(0, 3)}.</span><span className="text-base font-semibold">{n}</span><span>{m.slice(0, 4)}</span>
+              <span>{wd.slice(0, 3)}.</span><span className="text-base font-semibold">{n === '1er' ? '1' : n}</span><span>{m}</span>
             </button>
           );
         })}
@@ -106,6 +113,14 @@ function DayAgenda({ visible, shown, setShown, available, today }) {
           <ul className="space-y-1">{visible.filter((i) => i.date === d).map((i) => <li key={i.id} className="flex gap-2 text-sm"><span className="w-[86px] shrink-0 text-xs tabular-nums text-slate-600">{i.allDay ? 'journée' : i.start.replace(':', 'h')}</span><span className={`min-w-0 flex-1 ${i.status === 'ANNULE' ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{i.title}</span></li>)}</ul>
         </div>
       ))}
+      {later.length > 0 && (
+        <div className="rounded-2xl bg-white p-3 shadow-soft">
+          <p className="mb-2 text-xs font-semibold text-slate-500">À venir</p>
+          <ul className="space-y-1.5">{later.map((i) => (
+            <li key={i.id} className="flex gap-2 text-sm"><span className="w-[86px] shrink-0 text-xs tabular-nums text-slate-600">{cap(formatDateFr(i.date)).replace(/ \d{4}$/, '').replace(/^\S+ /, '')}</span><span className="min-w-0 flex-1 text-slate-800">{i.title}</span></li>
+          ))}</ul>
+        </div>
+      )}
     </div>
   );
 }
