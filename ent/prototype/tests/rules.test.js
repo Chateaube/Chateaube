@@ -2227,3 +2227,17 @@ test('import : classes et matières des enseignements, toutes écritures', async
   assert.deepEqual(checkAgainstAssignments([{ teacherId: 'M. X', subject: 'Physique-Chimie', cls: '5e', line: 2 }], [{ name: 'M. X', subjects: ['PC'], classes: ['5e'] }]), []);
   assert.equal(checkAgainstAssignments([{ teacherId: 'M. X', subject: 'Physique-Chimie', cls: '6e', line: 2 }], [{ name: 'M. X', subjects: ['PC'], classes: ['5e'] }]).length, 1);
 });
+
+test('cours ajouté : exceptionnel (motif, jusqu\'au) ou définitif (chaque semaine)', async () => {
+  const { changeErrors, changeNotice, applyChanges } = await import('../src/rules/timetableChanges.js');
+  const base = { type: 'AJOUT', cls: '1re STMG', subject: 'Management', date: '2026-11-16', start: '14:00', end: '15:00' };
+  assert.ok(changeErrors({ ...base, addMode: 'PONCTUEL' }).some((e) => e.includes('motif')));
+  assert.equal(changeErrors({ ...base, addMode: 'DEFINITIF' }).length, 0);
+  const lbl = (d) => d;
+  assert.match(changeNotice({ ...base, addMode: 'PONCTUEL', reason: 'Soutien', until: '2026-11-30' }, lbl).text, /chaque lundi, du 2026-11-16 au 2026-11-30/);
+  const sessions = [{ date: '2026-12-14', start: '08:00', end: '09:00', cls: '1re STMG', subject: 'Anglais' }];
+  assert.equal(applyChanges(sessions, [{ ...base, id: 'a', addMode: 'PONCTUEL', reason: 'Soutien', until: '2026-11-30' }]).length, 1 + 3);
+  const def = applyChanges(sessions, [{ ...base, id: 'b', addMode: 'DEFINITIF' }]).filter((s) => s.subject === 'Management');
+  assert.equal(def.length, 5); assert.equal(def[0].status, undefined); // 16/11 → 14/12
+  assert.equal(applyChanges(sessions, [{ ...base, id: 'c', reason: 'Rattrapage' }]).length, 2); // ancien format : une date
+});

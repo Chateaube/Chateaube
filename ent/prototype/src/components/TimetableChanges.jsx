@@ -4,7 +4,7 @@ import { loadTimetable } from '../timetableStore.js';
 import { DEFAULT_SETTINGS } from '../data/settings.js';
 import { weekLetter } from '../rules/teachingHours.js';
 import { POPULATION } from '../data/announcements.js';
-import { CHANGE_TYPES, changeErrors, changeNotice } from '../rules/timetableChanges.js';
+import { ADD_REASONS, CHANGE_TYPES, changeErrors, changeNotice } from '../rules/timetableChanges.js';
 import { publishAnnouncement } from '../announcementsStore.js';
 import { formatDateFr } from '../rules/calendar.js';
 import { me } from '../identity.js';
@@ -31,7 +31,7 @@ export default function TimetableChanges({ role, settings = DEFAULT_SETTINGS }) 
   const canEdit = ['DIRECTION', 'BUREAU'].includes(role) || sameDayOnly;
   const today = localToday();
   const [list, setList] = useState(loadChanges);
-  const blank = { type: 'ANNULE', cls: '1re STMG', subject: '', date: sameDayOnly ? today : '2026-10-20', start: '', end: '', newDate: '', newStart: '', newEnd: '', newWeekday: 1, room: '', note: '' };
+  const blank = { type: 'ANNULE', cls: '1re STMG', subject: '', date: sameDayOnly ? today : '2026-10-20', start: '', end: '', newDate: '', newStart: '', newEnd: '', newWeekday: 1, room: '', note: '', addMode: 'PONCTUEL', reason: '', until: '' };
   const [c, setC] = useState(blank);
   const [tried, setTried] = useState(false);
   const wd = new Date(`${c.date}T12:00:00Z`).getUTCDay() || 7;
@@ -69,9 +69,19 @@ export default function TimetableChanges({ role, settings = DEFAULT_SETTINGS }) 
           </div>
           <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <label className="text-xs text-slate-600">Classe<select value={c.cls} onChange={(e) => setC({ ...c, cls: e.target.value, subject: '', start: '', end: '' })} className={`mt-1 w-full ${inputCls}`}>{CLASSES.map((x) => <option key={x}>{x}</option>)}</select></label>
-            <label className="text-xs text-slate-600">{c.type === 'DEFINITIF' ? 'À partir du' : c.type === 'AJOUT' ? 'Date du cours ajouté' : 'Date du cours'}<input type="date" value={c.date} readOnly={sameDayOnly} onChange={(e) => setC({ ...c, date: e.target.value, start: '', end: '' })} className={`mt-1 w-full ${inputCls}`} /></label>
+            <label className="text-xs text-slate-600">{c.type === 'DEFINITIF' || (c.type === 'AJOUT' && c.addMode === 'DEFINITIF') ? 'À partir du' : c.type === 'AJOUT' ? (c.until ? 'Premier cours le' : 'Date du cours ajouté') : 'Date du cours'}<input type="date" value={c.date} readOnly={sameDayOnly} onChange={(e) => setC({ ...c, date: e.target.value, start: '', end: '' })} className={`mt-1 w-full ${inputCls}`} /></label>
             {c.type === 'AJOUT' ? (
               <>
+                <div className="sm:col-span-2 lg:col-span-4" role="group" aria-label="Cours exceptionnel ou définitif">
+                  <div className="flex flex-wrap gap-1.5">
+                    {[['PONCTUEL', 'Exceptionnel (motif, date, durée)'], ['DEFINITIF', 'Définitif (chaque semaine)']].map(([k, l]) => <button key={k} type="button" aria-pressed={c.addMode === k} onClick={() => setC({ ...c, addMode: k })}
+                      className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${c.addMode === k ? 'bg-navy-700 text-white ring-navy-700' : 'bg-white text-slate-600 ring-slate-300'}`}>{l}</button>)}
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">{c.addMode === 'DEFINITIF' ? 'Le cours entre dans l\'emploi du temps : chaque semaine, le même jour, à partir de la date choisie.' : 'Une seule fois, ou chaque semaine jusqu\'à une date (ex. soutien avant le bac blanc). Le motif est obligatoire.'}</p>
+                </div>
+                {c.addMode !== 'DEFINITIF' && <label className="text-xs text-slate-600">Motif *<select value={ADD_REASONS.includes(c.reason) ? c.reason : (c.reason ? 'Autre' : '')} onChange={(e) => setC({ ...c, reason: e.target.value === 'Autre' ? ' ' : e.target.value })} className={`mt-1 w-full ${inputCls}`}><option value="">Choisir…</option>{ADD_REASONS.map((x) => <option key={x}>{x}</option>)}</select></label>}
+                {c.addMode !== 'DEFINITIF' && c.reason && !ADD_REASONS.slice(0, -1).includes(c.reason) && <label className="text-xs text-slate-600">Préciser le motif *<input value={c.reason.trim()} onChange={(e) => setC({ ...c, reason: e.target.value || ' ' })} className={`mt-1 w-full ${inputCls}`} /></label>}
+                {c.addMode !== 'DEFINITIF' && <label className="text-xs text-slate-600">Répéter chaque semaine jusqu'au (facultatif)<input type="date" value={c.until} min={c.date} onChange={(e) => setC({ ...c, until: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>}
                 <label className="text-xs text-slate-600">Matière<select value={c.subject} onChange={(e) => setC({ ...c, subject: e.target.value })} className={`mt-1 w-full ${inputCls}`}><option value="">Choisir…</option>{subjects.map((x) => <option key={x}>{x}</option>)}</select></label>
                 <span className="flex gap-2"><label className="text-xs text-slate-600">De<input type="time" value={c.start} onChange={(e) => setC({ ...c, start: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label><label className="text-xs text-slate-600">À<input type="time" value={c.end} onChange={(e) => setC({ ...c, end: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label></span>
               </>

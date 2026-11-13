@@ -119,7 +119,11 @@ export function timetableSheet(book) {
 
 /** La matière d'un cours correspond-elle à celle d'un enseignement ? (spécialité ↔ matière, Eco-Droit ↔ Économie ou Droit, ETLV ↔ Anglais) */
 const SUBJECT_KEY = { pc: 'physique chimie', 'p c': 'physique chimie', maths: 'mathematiques', math: 'mathematiques', hg: 'histoire geographie', hge: 'histoire geographie', svt: 'sciences de la vie et de la terre' };
-const subjectKey = (t) => { const n = norm(t).replace(/^(specialite|spe) /, ''); return SUBJECT_KEY[n] ?? n; };
+// STMG : Management, SGN et MSGN sont le même enseignement (1re : Management + SGN ; Tle : MSGN)
+const GESTION = /^(msgn|sgn|management|sciences de gestion et numerique|management sciences de gestion et numerique)$/;
+const subjectKey = (t) => { const n = norm(t).replace(/^(specialite|spe) /, ''); return GESTION.test(n) ? 'gestion' : SUBJECT_KEY[n] ?? n; };
+// Modules sans enseignant attitré ni note obligatoire (faits quand la classe en a besoin) : pas de contrôle
+const MODULE = /parcours d.?ouverture|vie de classe/i;
 function sameSubject(course, taught) {
   if (course === taught) return true;
   if (subjectKey(course) === subjectKey(taught)) return true; // « Physique-Chimie » = « Physique-chimie » = « PC »
@@ -138,7 +142,7 @@ export function checkAgainstAssignments(slots, assignments) {
   const seen = new Set();
   slots.forEach((s) => {
     const k = `${s.teacherId}|${s.subject}|${s.cls}`;
-    if (seen.has(k)) return; seen.add(k);
+    if (seen.has(k) || MODULE.test(s.subject)) return; seen.add(k);
     const lines = slots.filter((x) => `${x.teacherId}|${x.subject}|${x.cls}` === k).map((x) => x.line).join(', ');
     if (!names.has(s.teacherId)) { out.push(`${s.teacherId} n'est pas dans la liste des enseignements (${s.subject}, ${s.cls} — ligne${lines.includes(',') ? 's' : ''} ${lines}).`); return; }
     const ok = assignments.some((a) => a.name === s.teacherId && a.classes.includes(s.cls) && a.subjects.some((t) => sameSubject(s.subject, t)));
