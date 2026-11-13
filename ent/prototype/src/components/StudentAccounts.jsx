@@ -61,7 +61,7 @@ export default function StudentAccounts({ settings }) {
     setBusy(true); setErr(''); setMsg(''); const out = [];
     for (const s of missing) {
       try {
-        const r = await call({ action: 'create', first: s.firstName, last: s.lastName, role: 'ELEVE', title: s.cls });
+        const r = await call({ action: 'create', first: s.firstName, last: s.lastName, usual: s.usualName || '', role: 'ELEVE', title: s.cls }); // identifiant : prénom d'usage s'il est donné
         const { error } = await writeProfile(r.id, s); if (error) throw new Error(error.message);
         out.push({ ...r, name: `${s.lastName} ${s.firstName}`, cls: s.cls });
       } catch (e) { out.push({ name: `${s.lastName} ${s.firstName}`, error: e.message }); }
@@ -114,7 +114,7 @@ export default function StudentAccounts({ settings }) {
           <p className="mt-2 text-xs text-amber-700">Imprimez maintenant : les codes provisoires ne sont plus affichés ensuite.</p>
         </Card>
       ) : (
-        <Card title="2. Comptes des élèves" subtitle="Identifiant : 2 lettres du nom + prénom (ex. ra.tsiry). Un code provisoire par élève, à remettre en main propre."
+        <Card title="2. Comptes des élèves" subtitle="Identifiant : 2 lettres du nom + prénom d'usage (colonne « Prénom d'usage » de l'Excel), sinon le premier prénom (ex. ra.tsiry). Un code provisoire par élève, à remettre en main propre."
           action={<select value={cls} onChange={(e) => setCls(e.target.value)} aria-label="Classe" className="rounded-lg border border-slate-300 px-2 py-1 text-sm">{classes.map((c) => <option key={c}>{c}</option>)}</select>}>
           {!students.length ? <p className="text-sm text-slate-600">Aucun élève importé sur cet ordinateur : importez d'abord le modèle Excel.</p> : !accounts ? <p className="text-sm text-slate-600">Chargement…</p> : (
             <>
