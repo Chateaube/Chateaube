@@ -80,7 +80,7 @@ function EvaluationForm({ draft, setDraft, settings, competencies, onCreate, onC
         {draft.scale === 20 && <span className="text-xs text-slate-400">(déjà sur 20)</span>}
       </label>
       <label className="block text-xs text-slate-600">Commentaire, visible par les élèves <span className="text-slate-500">(facultatif)</span>
-        <textarea rows={2} value={draft.comment} onChange={(e) => set({ comment: e.target.value })} placeholder="Rédigez votre commentaire…" className={`mt-1 w-full ${inputCls}`} />
+        <textarea spellCheck lang="fr" rows={2} value={draft.comment} onChange={(e) => set({ comment: e.target.value })} placeholder="Rédigez votre commentaire…" className={`mt-1 w-full ${inputCls}`} />
       </label>
       <label className="block text-xs text-slate-600">Thème(s) <span className="text-slate-500">(facultatif)</span>
         <input value={draft.themesText} onChange={(e) => set({ themesText: e.target.value })} placeholder="Séparez les thèmes par une virgule" className={`mt-1 w-full ${inputCls}`} />
@@ -459,7 +459,7 @@ function AppreciationsStep({ service, evaluations, grades, validated, settings, 
         {blocked && (
           <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">Les notes du trimestre ne sont pas encore validées : vous pouvez rédiger, la validation de l'appréciation sera possible ensuite.</p>
         )}
-        <textarea rows={6} value={entry.text} onChange={(e) => setText(e.target.value)} placeholder="Appréciation du trimestre (au moins deux phrases complètes, à la 3e personne)…"
+        <textarea spellCheck lang="fr" rows={6} value={entry.text} onChange={(e) => setText(e.target.value)} placeholder="Appréciation du trimestre (au moins deux phrases complètes, à la 3e personne)…"
           className={`w-full resize-y rounded-lg border px-3 py-2 text-sm leading-relaxed outline-none focus:ring-2 ${result.ok ? 'border-slate-300 focus:ring-navy-200' : 'border-red-300 focus:ring-red-200'}`} />
         {entry.text.trim() && (result.errors.length > 0 || result.warnings.length > 0) && (
           <div className="mt-2 rounded-lg bg-slate-50 p-3 text-sm leading-relaxed text-slate-700">
