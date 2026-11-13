@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card } from './ui.jsx';
 import { AGENDAS, agendaItems, agendasFor, closuresAsEvents, isExamClass, toIcs, overview } from '../rules/agenda.js';
 import { SCHOOL_EVENTS, seedParcoursup } from '../data/events.js';
+import { shortSubject } from '../rules/timetableGrid.js';
 import { ONLINE } from '../online/client.js';
 import { currentRoster, servicesFor } from '../online/roster.js';
 import { sameSubject } from '../rules/timetableImport.js';
@@ -63,15 +64,15 @@ const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 /** Version téléphone (parents, élèves) : une bande de dates, puis le programme du jour choisi. */
 function DayAgenda({ visible: all, shown, setShown, available, today }) {
   // téléphone (une seule classe) : « Espagnol » plutôt que « Espagnol — Terminale STMG »
-  const visible = all.map((i) => (i.agenda === 'COURS' ? { ...i, title: i.title.replace(/ — [^—(]+(?= \(|$)/, '') } : i));
-  // bande de dates : les jours avec quelque chose dans les 3 semaines ; au-delà, « À venir » (liste courte)
-  const until = new Date(`${today}T12:00:00Z`); until.setUTCDate(until.getUTCDate() + WINDOW_DAYS);
-  const limit = until.toISOString().slice(0, 10);
-  const dates = [...new Set(visible.filter((i) => i.date >= today && i.date <= limit).map((i) => i.date))];
-  const later = visible.filter((i) => i.date > limit && i.agenda !== 'COURS').sort((a, b) => a.date.localeCompare(b.date)).slice(0, 6);
+  // et le nom court de la matière (MSGN, HGE…), comme sur l'emploi du temps
+  const visible = all.map((i) => { if (i.agenda !== 'COURS') return i; const m = i.title.match(/^(.*?) — [^—(]+( \(.+\))?$/); return m ? { ...i, title: `${shortSubject({ subject: m[1] })}${m[2] ?? ''}` } : i; });
+  // les 3 prochains jours qui ont quelque chose ; puis « À venir » : les 3 événements suivants (sans les cours)
+  const dates = [...new Set(visible.filter((i) => i.date >= today).map((i) => i.date))].sort().slice(0, 3);
+  const limit = dates[dates.length - 1] ?? today;
+  const later = visible.filter((i) => i.date > limit && i.agenda !== 'COURS').sort((a, b) => a.date.localeCompare(b.date)).slice(0, 3);
   const [day, setDay] = useState(dates[0]);
   const list = visible.filter((i) => i.date === day);
-  const following = dates.slice(dates.indexOf(day) + 1, dates.indexOf(day) + 4);
+  const following = dates.slice(dates.indexOf(day) + 1);
   const MONTHS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
   const short = (iso) => { const [wd, n] = formatDateFr(iso).split(' '); return [wd, n, MONTHS[Number(iso.slice(5, 7)) - 1]]; };
   return (

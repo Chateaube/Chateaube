@@ -4,6 +4,9 @@
 //  - INFO : annonces, publications (sans badge rouge).
 // Le rouge est réservé à l'urgent.
 import { CLASSES } from './data/schoollife.js';
+import { keyDateAlerts } from './rules/keyDates.js';
+import { readStored } from './persist.js';
+import { SCHOOL_EVENTS } from './data/events.js';
 import { loadObjects } from './objectsStore.js';
 import { loadAttendance } from './attendanceStore.js';
 import { coveringFor, LABELS, cpeHandedOver } from './delegationStore.js';
@@ -150,6 +153,8 @@ function ownNotifications(role, { account } = {}) {
   const published = loadPosts().filter((p) => p.status === 'PUBLIEE').slice(0, 1);
   published.forEach((p) => info.push({ id: `post-${p.id}`, level: 'INFO', to: 'school-life', text: `Vie de l'école : ${p.title}` }));
   const seen = loadSeen();
+  // dates clés (Parcoursup…) : rappel à la Direction une semaine avant et pendant la période
+  if (role === 'DIRECTION') keyDateAlerts(readStored('ent-s-evenements') ?? [...SCHOOL_EVENTS], today).forEach((k) => todo.push({ level: 'TODO', id: `kd-${k.id}`, to: 'agenda', action: 'Agenda', text: k.text }));
   return { urgent: urgent.filter((u) => !seen[u.id]), todo, info };
 }
 

@@ -2351,3 +2351,14 @@ test('nom court d\'un élève : initiale du nom + prénom d\'usage', async () =>
   assert.equal(shortName('RAKOTO Aina'), 'R. Aina'); // hors liste : lecture du nom
   setCurrentRoster(null);
 });
+
+test('dates clés Parcoursup : rappel avant et pendant la période', async () => {
+  const { keyDateAlerts } = await import('../src/rules/keyDates.js');
+  const ev = [{ id: 'a', title: 'Parcoursup : ouverture', date: '2026-12-17', classes: ['Terminale STMG'] },
+    { id: 'b', title: 'Parcoursup : saisie des vœux', date: '2027-01-18', end: '2027-03-11', classes: ['Terminale STMG'] }, { id: 'c', title: 'Conseil', date: '2026-12-15' }];
+  assert.deepEqual(keyDateAlerts(ev, '2026-12-14').map((k) => k.id), ['a']);
+  assert.match(keyDateAlerts(ev, '2026-12-14')[0].text, /dans 3 jours/);
+  assert.deepEqual(keyDateAlerts(ev, '2027-02-01', { cls: 'Terminale STMG' }).map((k) => k.ongoing), [true]);
+  assert.deepEqual(keyDateAlerts(ev, '2027-02-01', { cls: '6e' }), []);
+  assert.deepEqual(keyDateAlerts(ev, '2026-11-13'), []);
+});

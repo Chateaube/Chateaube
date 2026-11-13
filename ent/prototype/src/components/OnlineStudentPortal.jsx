@@ -9,6 +9,7 @@ import { loadChanges } from './TimetableChanges.jsx';
 import { dayCourses, nowNext, shortSubject, subjectColor as courseColor } from '../rules/timetableGrid.js';
 import { sheetKind } from '../rules/orientationSheet.js';
 import { STEPS } from '../data/terminale.js';
+import { keyDateAlerts } from '../rules/keyDates.js';
 import { formatDateFr } from '../rules/calendar.js';
 import { today, nowTime } from '../clock.js';
 import { DEFAULT_SETTINGS } from '../data/settings.js';
@@ -114,6 +115,13 @@ export default function OnlineStudentPortal({ settings }) {
           {!isTab && <button type="button" onClick={() => go('more')} className="text-sm font-medium text-navy-600">‹ Autres</button>}
           {view === 'home' && (<>
             <Today me={me} settings={st} />
+            {keyDateAlerts(school?.events ?? [], today(), { cls: me.cls, before: 14 }).length > 0 && (
+              <Box title="À ne pas manquer">
+                <ul className="space-y-2">{keyDateAlerts(school?.events ?? [], today(), { cls: me.cls, before: 14 }).map((k) => (
+                  <li key={k.id}><button type="button" onClick={() => go('orientation')} className={`w-full rounded-xl px-3 py-2 text-left text-sm ${k.ongoing ? 'bg-amber-50 text-amber-900' : 'bg-navy-50 text-navy-900'}`}>{k.text}</button></li>
+                ))}</ul>
+              </Box>
+            )}
             {(sheetKind(me.cls) || /^Terminale/.test(me.cls)) && (
               <button type="button" onClick={() => go('orientation')} className="flex w-full items-center justify-between rounded-2xl bg-amber-50 p-4 text-left shadow-soft">
                 <span><span className="block font-semibold text-amber-900">Orientation{/^Terminale/.test(me.cls) ? ' et Parcoursup' : ''}</span><span className="text-sm text-amber-800">Ta fiche d'orientation et le calendrier</span></span><span aria-hidden="true">›</span>
@@ -124,22 +132,18 @@ export default function OnlineStudentPortal({ settings }) {
           {view === 'school' && <Soon title="Vie de l'école, annonces et vie scolaire" />}
           {view === 'notes' && <Box title="Mes notes"><p className="text-sm text-slate-600">Tes notes et tes moyennes seront visibles ici à partir du <strong>17 décembre</strong>.</p></Box>}
           {view === 'agenda' && <AgendaModule compact role="ELEVE" cls={me.cls} settings={st} today={today()} />}
-          {view === 'more' && (<>
-            <Box>
-              <ul className="divide-y divide-slate-100">{MORE.filter(([, , , ready]) => ready).map(([id, label, icon]) => (
-                <li key={id}><button type="button" onClick={() => go(id)} className="flex min-h-[52px] w-full items-center gap-3 text-left text-[15px] text-slate-900">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-navy-50 text-navy-700"><Icon name={icon} /></span>
-                  <span className="flex-1">{label}</span><span aria-hidden="true" className="text-slate-400">›</span>
-                </button></li>
-              ))}</ul>
-            </Box>
-            <div className="px-1">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Bientôt disponible</p>
-              <div className="flex flex-wrap gap-2">{MORE.filter(([, , , ready]) => !ready).map(([id, label, icon]) => (
-                <span key={id} className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs text-slate-500 ring-1 ring-slate-200"><Icon name={icon} className="h-3.5 w-3.5" />{label}</span>
-              ))}</div>
+          {view === 'more' && (
+            <div className="grid grid-cols-2 gap-3">
+              {MORE.map(([id, label, icon, ready]) => (
+                <button key={id} type="button" disabled={!ready} onClick={() => go(id)}
+                  className={`flex aspect-square flex-col items-center justify-center gap-2 rounded-2xl p-3 text-center text-sm font-medium shadow-soft ${ready ? 'bg-white text-slate-900' : 'bg-white/60 text-slate-400'}`}>
+                  <span className={`flex h-12 w-12 items-center justify-center rounded-2xl ${ready ? 'bg-navy-50 text-navy-700' : 'bg-slate-100 text-slate-400'}`}><Icon name={icon} /></span>
+                  <span className="leading-tight">{label}</span>
+                  {!ready && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Bientôt</span>}
+                </button>
+              ))}
             </div>
-          </>)}
+          )}
           {view === 'orientation' && <Orientation me={me} school={school} />}
           {view === 'schooldocs' && <FamilyDocuments audience="ELEVE" />}
           {MORE.some(([id, , , ready]) => id === view && !ready) && <Soon title={MORE.find(([id]) => id === view)[1]} />}
