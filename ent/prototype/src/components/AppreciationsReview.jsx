@@ -41,7 +41,7 @@ export default function AppreciationsReview() {
   }, [data, theClass]);
   const subjects = [...new Set(rows.map((r) => r.subject))].sort();
   const valueOf = (r) => edits[r.key] ?? finalText(r.original, r.corr);
-  const issuesOf = (r) => { const t = valueOf(r); return t.trim() ? checkAppreciation(t).errors.length : 0; };
+  const issuesOf = (r) => { const t = valueOf(r); return t.trim() ? checkAppreciation(t, { tutoiement: true }).errors.length : 0; };
   const shown = rows.filter((r) => (!subject || r.subject === subject) && (!onlyIssues || !valueOf(r).trim() || issuesOf(r) > 0 || r.stale));
   const changed = Object.keys(edits).length;
 

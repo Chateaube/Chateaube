@@ -79,7 +79,7 @@ export default function CouncilGrid({ settings, role, go }) {
   const pendingSubjects = CLASS_SUBJECTS.filter((s) => ENTRY_STATUS[s.id]);
   const decided = rows.filter((r) => decisions[r.name] !== undefined).length;
   const appText = appreciations[current] ?? '';
-  const appCheck = checkAppreciation(appText);
+  const appCheck = checkAppreciation(appText, { decision: true, tutoiement: settings?.grading?.allowTutoiement !== false });
   const written = CLASS_LIST.filter((n) => ga[n]?.status === 'VALIDEE').length;
   const toValidate = CLASS_LIST.filter((n) => ga[n]?.status === 'A_VALIDER');
   const flagText = (r) => r.flags.map((f) => `${f.subject} : ${FLAG[f.flag].label}`).join(' / ');

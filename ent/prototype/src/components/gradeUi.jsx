@@ -41,8 +41,8 @@ export function RulePanel({ result }) {
           <p className={`font-semibold tabular-nums ${result.stats.complete >= 2 ? 'text-emerald-700' : 'text-red-700'}`}>{result.stats.complete} / 2 min.</p>
         </div>
         <div className="rounded-lg bg-slate-50 p-2">
-          <p className="text-[11px] text-slate-500">Longueur</p>
-          <p className={`font-semibold tabular-nums ${result.stats.length > 450 ? 'text-amber-700' : 'text-slate-800'}`}>{result.stats.length} / 450</p>
+          <p className="text-[11px] text-slate-500">Longueur (caractères)</p>
+          <p className={`font-semibold tabular-nums ${result.stats.length > 450 ? 'text-amber-700' : 'text-slate-800'}`}>{result.stats.length} / 450 max.</p>
         </div>
       </div>
       {result.errors.length > 0 && (
