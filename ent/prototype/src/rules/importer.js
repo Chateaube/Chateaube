@@ -31,7 +31,7 @@ const col = (row, ...labels) => {
 export function normalizeClass(raw) {
   const t = strip(raw).replace(/\s+/g, ' ');
   if (!t) return '';
-  const m = t.match(/^(6|5|4|3)e?$/);
+  const m = t.match(/^(6|5|4|3)\s*(e|eme|em|ieme)?$/);
   if (m) return `${m[1]}e`;
   if (/^2(nde|de|nd)?$/.test(t)) return '2de';
   const serie = /stmg/.test(t) ? 'STMG' : /g(en|é)?/.test(t.replace(/^(1|t)\S*\s*/, '')) ? 'Générale' : '';
@@ -171,6 +171,13 @@ export function normalizeSubjects(raw) {
   });
 }
 
+/** « 2nde - 1e STMG, 5ème et 4ème ; 3e/6e ; 4e-5e » → classes de l'école (toutes les écritures courantes). */
+export function splitClasses(raw) {
+  return [...new Set(String(raw ?? '').split(/\s+[-–]\s+|[,;/+&]|\s+et\s+/i)
+    .flatMap((p) => (/^\s*\d\s*(e|eme|ème|è)?\s*-\s*\d/i.test(p) ? p.split('-') : [p]))
+    .map((p) => p.trim()).filter(Boolean).map(normalizeClass))];
+}
+
 /** Enseignements : « Mme Karele | SES, Eco-Droit, Management | 2nde - 1e STMG - Tle STMG ». */
 export function parseAssignments(rows) {
   return rows.map((row) => {
@@ -179,7 +186,7 @@ export function parseAssignments(rows) {
     return {
       name,
       subjects: normalizeSubjects(col(row, 'Matière', 'Matiere')),
-      classes: col(row, 'Classe').split(/\s+-\s+|,/).map(normalizeClass).filter(Boolean),
+      classes: splitClasses(col(row, 'Classe')),
     };
   }).filter(Boolean);
 }
