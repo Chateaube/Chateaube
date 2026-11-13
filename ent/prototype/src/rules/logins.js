@@ -6,8 +6,9 @@ const letters = (t) => String(t ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').
 const CIVILITY = /^(m|mme|mlle|mr|mrs|monsieur|madame|mademoiselle)\.?$/i;
 
 /** Identifiant libre pour « prénom », « nom » ; `taken` : identifiants déjà attribués (Set). */
-export function loginFor(first, last, taken = new Set()) {
-  const f = letters(String(first ?? '').trim().split(/\s+/)[0]) || 'x';
+export function loginFor(first, last, taken = new Set(), usual = '') {
+  // prénom d'usage en entier (« Ny Soa » → nysoa), sinon le premier prénom
+  const f = letters(String(usual ?? '').trim()) || letters(String(first ?? '').trim().split(/\s+/)[0]) || 'x';
   const l = letters(last) || 'x';
   for (let n = Math.min(2, l.length); n <= l.length; n += 1) {
     const c = `${l.slice(0, n)}.${f}`;
