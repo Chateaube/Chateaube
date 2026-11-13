@@ -4,6 +4,7 @@ import NotesReceived from './components/NotesReceived.jsx';
 import MyGrades from './components/MyGrades.jsx';
 import OnlineStudentPortal from './components/OnlineStudentPortal.jsx';
 import StudentAccounts from './components/StudentAccounts.jsx';
+import OnlineParentPortal from './components/OnlineParentPortal.jsx';
 import AbsentAtTests from './components/AbsentAtTests.jsx';
 import AppreciationsReview from './components/AppreciationsReview.jsx';
 import ComingSoon from './components/ComingSoon.jsx';
@@ -211,7 +212,7 @@ const PROFILES = {
     label: 'Parent',
     title: 'Famille',
     home: 'parent',
-    nav: [{ group: 'Famille', items: [{ id: 'parent', label: 'Portail parents', icon: 'users', screen: (p) => <FamilyPortal {...p} audience="PARENT" /> }] }],
+    nav: [{ group: 'Famille', items: [{ id: 'parent', label: 'Portail parents', icon: 'users', screen: (p) => (ONLINE ? <OnlineParentPortal /> : <FamilyPortal {...p} audience="PARENT" />) }] }],
   },
   ELEVE: {
     label: 'Élève',
