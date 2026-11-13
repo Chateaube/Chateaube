@@ -6,7 +6,7 @@ import { buildRoster, servicesFor, setCurrentRoster, isShareable } from '../onli
 import { loadRemoteCarnet } from '../gradebookStore.js';
 import GradebookModule from './GradebookModule.jsx';
 import AbsentAtTests from './AbsentAtTests.jsx';
-import { loadImport } from '../importStore.js';
+import { loadImport, currentStudents } from '../importStore.js';
 import { readStored, writeStored } from '../persist.js';
 import { matchTeacher, refineByTimetable, timetableAssignments } from '../rules/teacherMatch.js';
 import { sameSubject } from '../rules/timetableImport.js';
@@ -82,7 +82,7 @@ export default function NotesReceived({ settings, go }) {
   const staff = (data?.users ?? []).filter((u) => u.is_active).map((u) => ({ id: u.id, name: `${u.first_name} ${u.last_name}`.trim(), line: `${u.last_name} ${u.first_name}`.trim(), prof: (u.user_role ?? []).some((r) => r.role === 'PROFESSEUR') }));
   const teachers = (data?.users ?? []).filter((u) => u.is_active && ((u.user_role ?? []).some((r) => r.role === 'PROFESSEUR') || fiches[u.id]?.services?.length))
     .map((u) => ({ id: u.id, name: `${u.first_name} ${u.last_name}`.trim(), line: `${u.last_name} ${u.first_name}`.trim() }));
-  const students = loadImport()?.students ?? [];
+  const students = currentStudents();
 
   const send = async (recompute = false) => {
     if (!students.length) { setErr('Aucun élève importé sur cet appareil : importez d\'abord le modèle Excel (Réglages › Import), depuis cet ordinateur.'); return; }

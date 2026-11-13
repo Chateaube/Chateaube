@@ -10,7 +10,7 @@ import { COMPETENCY_HISTORY } from '../data/competencyHistory.js';
 import { studentAverage, generalAverage, classStats } from '../rules/grading.js';
 import { onBulletin } from '../rules/generalAppreciation.js';
 import { subjectsOf, subjectClassAverage, classLine, specialtyErrors, SPECIALTIES, orderSubjects, moveSubject } from '../rules/bulletin.js';
-import { loadImport, saveImport } from '../importStore.js';
+import { loadImport, saveImport, currentStudents } from '../importStore.js';
 import { demoAppreciation, accord } from '../rules/documents.js';
 import { formatDateFr } from '../rules/calendar.js';
 import { printOnly } from '../print.js';
@@ -315,10 +315,10 @@ function OnlineBulletins(props) {
   useEffect(load, []);
   if (err) return <Card title="Bulletins"><p className="text-sm text-red-800">Les carnets n'ont pas pu être lus ({err}).</p><Button className="mt-3" onClick={load}>Réessayer</Button></Card>;
   if (!data) return <Card title="Bulletins"><p className="text-sm text-slate-600">Chargement des notes des professeurs…</p></Card>;
-  const students = loadImport()?.students ?? [];
+  const students = currentStudents();
   if (!students.length || !data.roster) return <Card title="Bulletins"><p className="text-sm text-slate-700">{!students.length ? 'Aucun élève importé sur cet ordinateur : importez d\'abord le modèle Excel.' : 'Les classes n\'ont pas encore été envoyées aux professeurs (Notes reçues › Envoyer les classes).'}</p></Card>;
   const classes = [...new Set(students.map((s) => s.cls).filter(Boolean))].sort((a, b) => ((ORDER.indexOf(a) + 1) || 99) - ((ORDER.indexOf(b) + 1) || 99))
-    .map((c) => [c, () => buildClassBulletins({ cls: c, students: loadImport()?.students ?? [], roster: data.roster, carnets: data.carnets, absences: absenceTotals })]);
+    .map((c) => [c, () => buildClassBulletins({ cls: c, students: currentStudents(), roster: data.roster, carnets: data.carnets, absences: absenceTotals })]);
   return <BulletinsModuleInner {...props} classes={classes} />;
 }
 

@@ -148,11 +148,11 @@ export const guardianKey = (g) => (g.email?.trim() || g.phone?.replace(/\s/g, ''
  */
 export function accountsFor(profile, logins = null) {
   const own = new Set();
-  const pick = (key, first, last) => logins?.get(key) ?? (() => { const l = loginFor(first, last, own); own.add(l); return l; })();
+  const pick = (key, first, last, usual = '') => logins?.get(key) ?? (() => { const l = loginFor(first, last, own, usual); own.add(l); return l; })();
   const student = {
     role: 'ELEVE',
     name: `${profile.firstName} ${profile.lastName}`,
-    login: pick(studentKeyOf(profile), profile.firstName, profile.lastName),
+    login: pick(studentKeyOf(profile), profile.firstName, profile.lastName, profile.usualName),
     method: 'Identifiant et code',
   };
   const guardians = (profile.guardians ?? []).filter((g) => g.name?.trim()).map((g) => {
@@ -175,9 +175,9 @@ const studentKeyOf = (p) => `e:${p.id ?? `${p.lastName} ${p.firstName} ${p.birth
 /** Identifiants de toute l'école, attribués dans un ordre stable (élèves par classe et nom, puis leurs responsables). */
 export function schoolLogins(profiles = []) {
   const taken = new Set(); const map = new Map();
-  const give = (key, first, last) => { if (map.has(key)) return; const l = loginFor(first, last, taken); taken.add(l); map.set(key, l); };
+  const give = (key, first, last, usual = '') => { if (map.has(key)) return; const l = loginFor(first, last, taken, usual); taken.add(l); map.set(key, l); };
   const sorted = [...profiles].sort((a, b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'fr'));
-  sorted.forEach((p) => give(studentKeyOf(p), p.firstName, p.lastName));
+  sorted.forEach((p) => give(studentKeyOf(p), p.firstName, p.lastName, p.usualName)); // prénom d'usage, comme le compte créé
   sorted.forEach((p) => (p.guardians ?? []).filter((g) => g.name?.trim()).forEach((g) => { const { first, last } = splitGuardianName(g); give(`g:${guardianKey(g)}`, first, last); }));
   return map;
 }

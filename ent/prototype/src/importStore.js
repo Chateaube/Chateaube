@@ -26,3 +26,12 @@ export function clearImport() {
   memory = null;
   try { localStorage.removeItem(KEY); } catch { /* stockage indisponible */ }
 }
+
+/** Élèves à jour : les fiches modifiées dans l'ENT (prénom d'usage, sexe, spécialités…) passent avant l'import. */
+export function currentStudents() {
+  const imp = loadImport();
+  if (!imp?.students?.length) return [];
+  if (!imp.profiles?.length) return imp.students;
+  const byId = new Map(imp.profiles.map((p) => [p.id, p]));
+  return imp.students.map((s) => { const p = byId.get(s.id); return p ? { ...s, ...p, cls: p.cls || s.cls } : s; });
+}

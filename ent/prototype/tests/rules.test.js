@@ -2333,3 +2333,12 @@ test('identifiant : prénom d\'usage composé en entier', async () => {
   assert.equal(loginFor('Ida\'s Fytahiana', 'RAKOTOARIMALALA', new Set(), 'Ida\'s'), 'ra.idas');
   assert.equal(loginFor('Jean Tsiry', 'RAKOTO'), 'ra.jean');
 });
+
+test('identifiants d\'aperçu : prénom d\'usage, comme le compte créé', async () => {
+  const { schoolLogins, accountsFor } = await import('../src/rules/enrollment.js');
+  const p = { id: 'x', lastName: 'RAZAFIMAHEFA', firstName: 'Ny Anjara Hajatiana', usualName: 'Ny Anjara', guardians: [] };
+  const q = { id: 'y', lastName: 'TIANAINA', firstName: 'Mitasoa Dylan', usualName: 'Dylan', guardians: [] };
+  const m = schoolLogins([p, q]);
+  assert.equal(accountsFor(p, m)[0].login, 'ra.nyanjara');
+  assert.equal(accountsFor(q, m)[0].login, 'ti.dylan');
+});
