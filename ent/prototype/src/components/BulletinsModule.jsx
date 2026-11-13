@@ -1,6 +1,6 @@
 import { termGrades, subjectAverage } from '../termGrades.js';
 import { absenceTotals } from '../rules/absenceCarry.js';
-import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Badge, Button, Card, StudentSelect } from './ui.jsx';
 import { BulletinSheet } from './Bulletin.jsx';
 import { TERM, EVALUATIONS, GRADES, CLASS_SUBJECTS, OTHER_AVERAGES, ABSENCES, TEACHER_COMPETENCIES } from '../data/grades.js';
@@ -16,7 +16,10 @@ import { formatDateFr } from '../rules/calendar.js';
 import { printOnly } from '../print.js';
 import { loadTasks, saveTasks } from '../tasksStore.js';
 import BulletinHandover from './BulletinHandover.jsx';
-import { demoOr } from '../demoData.js';
+import { demoOr, realData } from '../demoData.js';
+import { ONLINE } from '../online/client.js';
+import { fetchDocs, fetchDoc } from '../online/docs.js';
+import { buildClassBulletins } from '../rules/onlineBulletins.js';
 import { loadGA } from '../appreciationStore.js';
 import { loadEngagements, loadCatalogue, loadValidation } from '../engagementsStore.js';
 import { engagementLabels, attestationLabels } from '../rules/engagements.js';
@@ -180,10 +183,10 @@ function LayoutPanel({ settings, onChange, labels }) {
   );
 }
 
-function BulletinsModuleInner({ settings, role, go, onChange }) {
+function BulletinsModuleInner({ settings, role, go, onChange, classes }) {
   const [mode, setMode] = useState('print'); // impression ou remise en main propre
   const [readyAsked, setReadyAsked] = useState(false);
-  const [CLASSES] = useState(classesNow);
+  const [CLASSES] = useState(() => classes ?? classesNow());
   const [cls, setCls] = useState(CLASSES[0][0]);
   const [version, setVersion] = useState(0); // spécialités modifiées
   const [showGeneral, setShowGeneral] = useState(false);
@@ -269,7 +272,7 @@ function BulletinsModuleInner({ settings, role, go, onChange }) {
           <strong>Appréciation générale (validée au conseil) :</strong> {generalOf(current.student) || 'pas encore validée au conseil de classe : le bulletin sortirait sans appréciation générale.'}
           {go && <button type="button" onClick={() => go('council')} className="ml-2 font-semibold underline">{generalOf(current.student) ? 'Corriger dans le conseil' : 'Ouvrir le conseil'}</button>}
         </div>
-        {cls === IMPORTED && <p className="mt-2 text-xs text-slate-500">Élèves importés : moyennes et appréciations vides tant que les enseignants n'ont pas saisi leurs notes. La mise en page et les spécialités sont celles du vrai bulletin.</p>}
+        {!classes && cls === IMPORTED && <p className="mt-2 text-xs text-slate-500">Élèves importés : moyennes et appréciations vides tant que les enseignants n'ont pas saisi leurs notes. La mise en page et les spécialités sont celles du vrai bulletin.</p>}
         <div className={`mt-3 rounded-lg px-3 py-2 text-xs ${validated ? 'bg-emerald-50 text-emerald-900' : 'bg-amber-50 text-amber-900'}`}>
           <strong>Engagements et attestations — {current.student} :</strong> {[...engagementLabels(engagements[current.student], current.sex, custom), ...attestationLabels(engagements[current.student], custom)].join(' · ') || 'aucun'}.
           {' '}{validated ? `Validés pour le ${TERM.label} le ${validated.at.split('-').reverse().join('/')}.` : `Pas encore validés pour le ${TERM.label} : à faire dans « Engagements et attestations ».`}
@@ -280,7 +283,7 @@ function BulletinsModuleInner({ settings, role, go, onChange }) {
           <label className="flex items-center gap-1.5"><input type="checkbox" checked={duplex} onChange={(e) => setDuplex(e.target.checked)} />Imprimante en recto-verso (une page blanche après les bulletins d'une page, pour que chaque élève commence sur une nouvelle feuille)</label>
           {tooLong.length > 0 && <Badge tone="red">{tooLong.length} bulletin{tooLong.length > 1 ? 's' : ''} encore trop long{tooLong.length > 1 ? 's' : ''} : raccourcir compétences ou appréciations</Badge>}
         </div>
-        <p className="mt-2 text-xs text-slate-500">Appréciations des matières : celles validées par chaque enseignant (ici, textes de démonstration). Moyenne de classe d'une spécialité : calculée sur les seuls élèves qui la suivent.</p>
+        <p className="mt-2 text-xs text-slate-500">Appréciations des matières : celles écrites par chaque enseignant dans son carnet{realData() ? '' : ' (ici, textes de démonstration)'}. Moyenne de classe d'une spécialité : calculée sur les seuls élèves qui la suivent.</p>
       </Card>
       {cls === IMPORTED && <SpecialtiesPanel onChange={() => setVersion((v) => v + 1)} />}
       {role === 'DIRECTION' && <LayoutPanel settings={settings} onChange={onChange} labels={[...new Set(bulletins.flatMap((b) => b.rows.map((r) => r.label)))]} />}
@@ -304,8 +307,24 @@ function BulletinsModuleInner({ settings, role, go, onChange }) {
   );
 }
 
+// En ligne : toutes les classes importées, construites à partir des carnets des professeurs (serveur)
+const ORDER = ['6e', '5e', '4e', '3e', '2de', '1re STMG', '1re Générale', 'Terminale STMG', 'Terminale Générale'];
+function OnlineBulletins(props) {
+  const [data, setData] = useState(null); const [err, setErr] = useState('');
+  const load = () => { setErr(''); Promise.all([fetchDocs('CARNET'), fetchDoc('roster')]).then(([carnets, roster]) => setData({ carnets: Object.fromEntries(carnets.map((c) => [c.owner, c.value])), roster: roster?.value ?? null }), (e) => setErr(e.message)); };
+  useEffect(load, []);
+  if (err) return <Card title="Bulletins"><p className="text-sm text-red-800">Les carnets n'ont pas pu être lus ({err}).</p><Button className="mt-3" onClick={load}>Réessayer</Button></Card>;
+  if (!data) return <Card title="Bulletins"><p className="text-sm text-slate-600">Chargement des notes des professeurs…</p></Card>;
+  const students = loadImport()?.students ?? [];
+  if (!students.length || !data.roster) return <Card title="Bulletins"><p className="text-sm text-slate-700">{!students.length ? 'Aucun élève importé sur cet ordinateur : importez d\'abord le modèle Excel.' : 'Les classes n\'ont pas encore été envoyées aux professeurs (Notes reçues › Envoyer les classes).'}</p></Card>;
+  const classes = [...new Set(students.map((s) => s.cls).filter(Boolean))].sort((a, b) => ((ORDER.indexOf(a) + 1) || 99) - ((ORDER.indexOf(b) + 1) || 99))
+    .map((c) => [c, () => buildClassBulletins({ cls: c, students: loadImport()?.students ?? [], roster: data.roster, carnets: data.carnets, absences: absenceTotals })]);
+  return <BulletinsModuleInner {...props} classes={classes} />;
+}
+
 export default function BulletinsModule(props) {
   const [ready] = useState(() => classesNow().length > 0);
+  if (ONLINE && realData()) return <OnlineBulletins {...props} />;
   if (!ready) return (
     <Card title="Bulletins">
       <p className="text-sm text-slate-700">Aucun bulletin à préparer pour l'instant. Ils se construisent à partir des notes validées par les professeurs et des matières de chaque classe (ordre, coefficients, professeurs), à paramétrer avant les conseils.</p>

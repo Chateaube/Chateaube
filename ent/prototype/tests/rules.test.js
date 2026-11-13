@@ -2303,3 +2303,26 @@ test('calendrier Parcoursup 2027 : dates des deux Terminales', async () => {
   assert.ok(PARCOURSUP_2027.every((e) => e.classes.includes('Terminale STMG') && e.classes.includes('Terminale Générale') && /Parcoursup/.test(e.title)));
   assert.deepEqual(PARCOURSUP_2027.find((e) => e.id === 'ps27-2').end, '2027-03-11');
 });
+
+test('bulletins en ligne : matières de la classe, spécialités, ES à deux professeurs, moyennes', async () => {
+  const { buildClassBulletins } = await import('../src/rules/onlineBulletins.js');
+  const students = [{ cls: 'Terminale Générale', lastName: 'ALPHA', firstName: 'Ana', specialties: ['MATHS'], birthDate: '2008-03-01', sex: 'F' },
+    { cls: 'Terminale Générale', lastName: 'BETA', firstName: 'Bo', specialties: ['SVT'], sex: 'M' }, { cls: '6e', lastName: 'GAMMA', firstName: 'Gil' }];
+  const roster = { names: { m: 'M. Maths', a: 'Mme ES1', b: 'M. ES2' }, students: students.map(({ cls, lastName, firstName, specialties }) => ({ cls, lastName, firstName, specialties: specialties ?? [] })),
+    services: { m: [{ subject: 'Spécialité Mathématiques', classes: ['Terminale Générale'] }], a: [{ subject: 'Enseignement scientifique', classes: ['Terminale Générale'] }], b: [{ subject: 'Enseignement scientifique', classes: ['Terminale Générale'] }] } };
+  const ev = (k) => ({ evaluations: { [k]: [{ id: 'e', scale: 20, coef: 1 }] } });
+  const carnets = {
+    m: { ...ev('Terminale Générale|Spécialité Mathématiques'), grades: { 'Terminale Générale|Spécialité Mathématiques': { 'ALPHA Ana': { e: '16' } } }, myComps: { 'Terminale Générale|Spécialité Mathématiques': ['Raisonner'] }, comments: { 'Terminale Générale|Spécialité Mathématiques:ALPHA Ana': { text: 'Très bien.', validated: true } } },
+    a: { ...ev('Terminale Générale|Enseignement scientifique'), grades: { 'Terminale Générale|Enseignement scientifique': { 'ALPHA Ana': { e: '10' }, 'BETA Bo': { e: '12' } } } },
+    b: { ...ev('Terminale Générale|Enseignement scientifique'), grades: { 'Terminale Générale|Enseignement scientifique': { 'ALPHA Ana': { e: '14' }, 'BETA Bo': { e: '16' } } } },
+  };
+  const out = buildClassBulletins({ cls: 'Terminale Générale', students, roster, carnets });
+  assert.equal(out.length, 2);
+  const ana = out.find((b) => b.student === 'ALPHA Ana'); const bo = out.find((b) => b.student === 'BETA Bo');
+  assert.deepEqual(ana.rows.map((r) => r.label).sort(), ['Enseignement scientifique', 'Spécialité Mathématiques']);
+  assert.deepEqual(bo.rows.map((r) => r.label), ['Enseignement scientifique']); // pas la spécialité maths
+  const es = ana.rows.find((r) => r.label === 'Enseignement scientifique');
+  assert.equal(es.avg, 12); assert.equal(es.teacher, 'Mme ES1 / M. ES2'); assert.equal(es.classAvg, 13);
+  assert.equal(ana.rows.find((r) => r.label === 'Spécialité Mathématiques').appreciation, 'Très bien.');
+  assert.equal(ana.general, 14); assert.match(ana.birthLine, /Née le/);
+});
