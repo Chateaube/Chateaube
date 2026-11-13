@@ -29,7 +29,8 @@ export function bookToImport(book) {
   });
 
   const staffRows = sheetRows(find(book, 3));
-  const teachers = staffRows.filter((r) => /prof/i.test(r.Fonction ?? 'Professeur'));
+  // professeurs, et toute personne qui a des matières (ex. Direction qui enseigne les arts plastiques)
+  const teachers = staffRows.filter((r) => /prof/i.test(r.Fonction ?? 'Professeur') || String(r['Matière(s)'] ?? '').trim());
   const staffTsv = teachers.length ? toTsv([['Nom', 'Matière', 'Classe'], ...teachers.map((r) => [`${r.Nom} ${r.Prénom ?? ''}`.trim(), r['Matière(s)'] ?? '', r['Classe(s)'] ?? ''])]) : '';
 
   const official = {}; const officialErrors = [];
