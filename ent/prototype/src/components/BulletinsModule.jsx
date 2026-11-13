@@ -311,14 +311,14 @@ function BulletinsModuleInner({ settings, role, go, onChange, classes }) {
 const ORDER = ['6e', '5e', '4e', '3e', '2de', '1re STMG', '1re Générale', 'Terminale STMG', 'Terminale Générale'];
 function OnlineBulletins(props) {
   const [data, setData] = useState(null); const [err, setErr] = useState('');
-  const load = () => { setErr(''); Promise.all([fetchDocs('CARNET'), fetchDoc('roster')]).then(([carnets, roster]) => setData({ carnets: Object.fromEntries(carnets.map((c) => [c.owner, c.value])), roster: roster?.value ?? null }), (e) => setErr(e.message)); };
+  const load = () => { setErr(''); Promise.all([fetchDocs('CARNET'), fetchDoc('roster'), fetchDoc('corrections')]).then(([carnets, roster, corr]) => setData({ carnets: Object.fromEntries(carnets.map((c) => [c.owner, c.value])), roster: roster?.value ?? null, corrections: corr?.value ?? {} }), (e) => setErr(e.message)); };
   useEffect(load, []);
   if (err) return <Card title="Bulletins"><p className="text-sm text-red-800">Les carnets n'ont pas pu être lus ({err}).</p><Button className="mt-3" onClick={load}>Réessayer</Button></Card>;
   if (!data) return <Card title="Bulletins"><p className="text-sm text-slate-600">Chargement des notes des professeurs…</p></Card>;
   const students = currentStudents();
   if (!students.length || !data.roster) return <Card title="Bulletins"><p className="text-sm text-slate-700">{!students.length ? 'Aucun élève importé sur cet ordinateur : importez d\'abord le modèle Excel.' : 'Les classes n\'ont pas encore été envoyées aux professeurs (Notes reçues › Envoyer les classes).'}</p></Card>;
   const classes = [...new Set(students.map((s) => s.cls).filter(Boolean))].sort((a, b) => ((ORDER.indexOf(a) + 1) || 99) - ((ORDER.indexOf(b) + 1) || 99))
-    .map((c) => [c, () => buildClassBulletins({ cls: c, students: currentStudents(), roster: data.roster, carnets: data.carnets, absences: absenceTotals })]);
+    .map((c) => [c, () => buildClassBulletins({ cls: c, students: currentStudents(), roster: data.roster, carnets: data.carnets, corrections: data.corrections, absences: absenceTotals })]);
   return <BulletinsModuleInner {...props} classes={classes} />;
 }
 

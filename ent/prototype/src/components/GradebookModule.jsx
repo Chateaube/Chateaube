@@ -5,7 +5,7 @@ import { ONLINE } from '../online/client.js';
 import GradebookGuide from './GradebookGuide.jsx';
 import { readStored, writeStored } from '../persist.js';
 import { onSync, syncState } from '../online/docs.js';
-import { currentRoster, servicesFor } from '../online/roster.js';
+import { currentRoster, servicesFor, shortName } from '../online/roster.js';
 import { demoOr } from '../demoData.js';
 import { Badge, Button, Card, Icon, StudentSelect } from './ui.jsx';
 import { Annotated, RulePanel, GradeCell } from './gradeUi.jsx';
@@ -21,7 +21,7 @@ import { askConfirm } from './Dialogs.jsx';
 
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
 const fmtDate = (iso) => iso.split('-').reverse().slice(0, 2).join('/');
-const firstName = (full) => full.split(' ').slice(1).join(' ');
+const firstName = (full) => shortName(full).replace(/^\S+\.\s/, ''); // prénom d'usage
 
 /* ---------------- Création d'un devoir ---------------- */
 const TODAY = today();
@@ -212,8 +212,8 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
                   const n = notesCount(evaluations, grades[s]);
                   return (
                     <tr key={s} className="border-b border-slate-100 align-top">
-                      <td className="sticky left-0 bg-white px-4 py-2.5 font-medium text-slate-800">
-                        {s}
+                      <td className="sticky left-0 bg-white px-3 py-2.5 font-medium text-slate-800" title={s}>
+                        {shortName(s)}
                         {n < min && <p className="text-[11px] font-normal text-amber-700">{n} note{n > 1 ? 's' : ''} retenue{n > 1 ? 's' : ''}</p>}
                       </td>
                       {evaluations.map((ev) => (
@@ -427,11 +427,12 @@ function AppreciationsStep({ service, evaluations, grades, validated, settings, 
           label={`${service.cls} — ${service.students.filter((s) => statusOf(s) === 'valid').length} / ${service.students.length} appréciations validées`}
           students={service.students}
           value={student}
+          format={shortName}
           onChange={(s) => { setStudent(s); setAiNote(null); }}
           suffix={(s) => ({ valid: '  ✓ validée', ready: '  · conforme', error: '  ⚠ à corriger', empty: '' }[statusOf(s)])}
         />
       </Card>
-      <Card title={student} subtitle={service.subject}
+      <Card title={shortName(student)} subtitle={`${student} · ${service.subject}`}
         action={go && <Button variant="secondary" className="!py-1 text-xs" onClick={() => { setIntent('messages', { to: `Parents de ${student} (${service.cls})` }); go('messages'); }}><Icon name="bell" />Écrire aux parents</Button>}>
         {appOnly ? (
           <div className="mb-3 space-y-2">
