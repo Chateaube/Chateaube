@@ -4,6 +4,7 @@ import { saveMe, loadMe } from '../identity.js';
 import { loadRoster } from '../online/roster.js';
 import { loadRemoteCarnet } from '../gradebookStore.js';
 import { flushAll } from '../online/docs.js';
+import { loadStudentContext } from '../online/school.js';
 
 // Version en ligne : rien ne s'affiche sans connexion. Identifiant + code ; « code oublié » envoie un lien à
 // l'adresse du compte ; à la première connexion (code provisoire remis par la Direction), on choisit son code.
@@ -86,7 +87,9 @@ export default function OnlineGate({ children }) {
     sessionStorage.removeItem('ent-me-reload');
     // personnel hors Direction : classes publiées par la Direction ; professeur : son carnet de notes.
     // Si le serveur ne répond pas, on n'ouvre pas (sinon un carnet vide pourrait remplacer le vrai).
-    if (acc.profile !== 'DIRECTION') {
+    if (acc.profile === 'ELEVE') {
+      try { await loadStudentContext(acc.id); } catch (e) { setState({ step: 'failed', message: e?.message, sync: true }); return; }
+    } else if (acc.profile !== 'DIRECTION') {
       try {
         await loadRoster();
         if (acc.profile === 'ENSEIGNANT') await loadRemoteCarnet(acc.id);

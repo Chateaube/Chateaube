@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { saveFile } from '../download.js';
 import StageConvention from './StageConvention.jsx';
-import OrientationSheet, { loadSheets } from './OrientationSheet.jsx';
+import OrientationSheet, { loadSheets, setSheetOwner } from './OrientationSheet.jsx';
+import { ONLINE } from '../online/client.js';
+import { fetchDocs } from '../online/docs.js';
 import { currentStep, sheetKind } from '../rules/orientationSheet.js';
 import { Badge, Button, Card, Stat } from './ui.jsx';
 import { CLASSES } from '../data/schoollife.js';
@@ -170,6 +172,12 @@ function OrientationSheets({ role }) {
   const [cls, setCls] = useState(classes[0]);
   const [open, setOpen] = useState(null);
   const [as, setAs] = useState(['DIRECTION', 'BUREAU'].includes(role) ? role : 'CONSULT'); // aperçu : voir comme la famille ou l'élève
+  // en ligne : les fiches remplies par les élèves (serveur) rejoignent celles de cet ordinateur
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!ONLINE) return;
+    fetchDocs('ORIENTATION').then((docs) => { docs.forEach((d) => d.value?.student && setSheetOwner(d.value.student, d.owner, d.value.sheet)); setTick((n) => n + 1); }, () => {});
+  }, []);
   const sheets = loadSheets();
   const kind = sheetKind(cls);
   const WHO = { PARENT: 'famille', ELEVE: 'élève', DIRECTION: 'Direction' };

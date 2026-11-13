@@ -8,7 +8,7 @@ const CORS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
-const ROLES = ['DIRECTION', 'BUREAU', 'VIE_SCOLAIRE', 'PROFESSEUR'];
+const ROLES = ['DIRECTION', 'BUREAU', 'VIE_SCOLAIRE', 'PROFESSEUR', 'ELEVE']; // ELEVE : comptes du portail élève (créés par la Direction)
 const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 const fold = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '');
 // code provisoire lisible : sans 0/O, 1/l/I

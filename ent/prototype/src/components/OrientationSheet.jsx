@@ -3,6 +3,8 @@ import { Badge, Button } from './ui.jsx';
 import { TRACKS_2DE, PROVISIONAL, STEPS_2DE, STEPS_TLE, sheetKind, currentStep, stepErrors, ranksLabel } from '../rules/orientationSheet.js';
 import { printOnly } from '../print.js';
 import { today } from '../clock.js';
+import { ONLINE } from '../online/client.js';
+import { saveDoc } from '../online/docs.js';
 
 // Fiche de dialogue d'orientation, en ligne (modèles de l'école) : 2de et Terminale (post-bac).
 // Les représentants légaux remplissent leurs parties depuis le portail, l'élève de Terminale ses
@@ -11,6 +13,14 @@ import { today } from '../clock.js';
 const KEY = 'ent-fiches-orientation-v1';
 export const loadSheets = () => { try { return JSON.parse(localStorage.getItem(KEY)) ?? {}; } catch { return {}; } };
 const saveSheets = (d) => { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch { /* stockage indisponible */ } };
+// En ligne : chaque fiche est aussi un document du serveur « orientation:<compte de l'élève> » (l'élève l'écrit,
+// la Direction et le secrétariat la lisent ; la Direction y ajoute l'avis du conseil).
+const owners = {}; // élève (« NOM Prénom ») → compte
+export function setSheetOwner(student, owner, sheet) {
+  owners[student] = owner;
+  if (sheet) { const all = loadSheets(); all[student] = sheet; saveSheets(all); }
+}
+const pushSheet = (student, cls, sheet) => { if (ONLINE && owners[student]) saveDoc(`orientation:${owners[student]}`, 'ORIENTATION', owners[student], { student, cls, sheet }); };
 const TODAY = today();
 const dmy = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('/') : '');
 
@@ -243,7 +253,7 @@ export default function OrientationSheet({ student, cls, role, by }) {
   const [all, setAll] = useState(loadSheets);
   if (!kind) return null;
   const sheet = all[student] ?? {};
-  const set = (patch) => { const next = { ...all, [student]: { ...sheet, kind, ...patch } }; setAll(next); saveSheets(next); };
+  const set = (patch) => { const next = { ...all, [student]: { ...sheet, kind, ...patch } }; setAll(next); saveSheets(next); pushSheet(student, cls, next[student]); };
   const step = currentStep(kind, sheet);
   const steps = kind === '2DE' ? STEPS_2DE : STEPS_TLE;
   const printClass = `orient-print-${student.replace(/\W+/g, '-')}`;
