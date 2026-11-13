@@ -69,16 +69,21 @@ export function moveSubject(order, label, dir) {
 
 /**
  * Matière à deux professeurs (Enseignement scientifique, MSGN, Espagnol…) : UNE ligne au bulletin.
- * Moyenne = moyenne des moyennes de chaque professeur (chacun compte pour moitié) ; appréciations
- * l'une sous l'autre, signées ; compétences réunies sans doublon. parts : [{ teacher, average, appreciation, competencies }]
+ * Moyenne pondérée par professeur (poids réglé par la Direction, ex. MSGN 3 pour M. Fortuna, 1 pour Mme Karele ;
+ * 1 et 1 par défaut). Seuls les professeurs « affichés » ont leur nom et leur appréciation sur le bulletin
+ * (signée s'ils sont deux) ; les compétences de tous sont réunies sans doublon.
+ * parts : [{ teacher, average, appreciation, competencies, weight = 1, shown = true }]
  */
 export function combineTeachers(parts = []) {
-  const avgs = parts.map((p) => p.average).filter((a) => typeof a === 'number' && !Number.isNaN(a));
-  const average = avgs.length ? Math.round((avgs.reduce((x, y) => x + y, 0) / avgs.length) * 100) / 100 : null;
+  const ok = parts.filter((p) => typeof p.average === 'number' && !Number.isNaN(p.average) && (p.weight ?? 1) > 0);
+  const w = ok.reduce((n, p) => n + (p.weight ?? 1), 0);
+  const average = w ? Math.round((ok.reduce((n, p) => n + p.average * (p.weight ?? 1), 0) / w) * 100) / 100 : null;
+  const shown = parts.filter((p) => p.shown !== false);
+  const withText = shown.filter((p) => (p.appreciation ?? '').trim());
   return {
-    teachers: parts.map((p) => p.teacher),
+    teachers: shown.map((p) => p.teacher),
     average,
-    appreciation: parts.filter((p) => (p.appreciation ?? '').trim()).map((p) => (parts.length > 1 ? `${p.teacher} : ${p.appreciation.trim()}` : p.appreciation.trim())).join('\n'),
+    appreciation: withText.map((p) => (withText.length > 1 ? `${p.teacher} : ${p.appreciation.trim()}` : p.appreciation.trim())).join('\n'),
     competencies: [...new Set(parts.flatMap((p) => p.competencies ?? []))],
   };
 }

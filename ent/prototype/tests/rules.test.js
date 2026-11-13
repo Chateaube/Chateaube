@@ -2264,3 +2264,17 @@ test('bulletin : ordre de l\'école, matière à deux professeurs, minimum de no
   assert.equal(minEvaluationsFor({ subject: 'Espagnol', shared: true }, 4), 2);
   assert.equal(minEvaluationsFor({ subject: 'Mathématiques' }, 4), 4);
 });
+
+test('matière partagée : poids (heures) et nom sur le bulletin', async () => {
+  const { sharedSubjects, shareOf } = await import('../src/components/NotesReceived.jsx').catch(() => ({}));
+  const { combineTeachers } = await import('../src/rules/bulletin.js');
+  const c = combineTeachers([{ teacher: 'M. F', average: 12, weight: 3, appreciation: 'Bien.' }, { teacher: 'Mme K', average: 16, weight: 1, shown: false, appreciation: 'Non affichée.' }]);
+  assert.equal(c.average, 13); assert.deepEqual(c.teachers, ['M. F']); assert.equal(c.appreciation, 'Bien.');
+  if (sharedSubjects) {
+    const roster = { names: { f: 'M. F', k: 'Mme K' }, services: { f: [{ subject: 'MSGN', classes: ['Terminale STMG'] }], k: [{ subject: 'MSGN', classes: ['Terminale STMG'] }, { subject: 'Compta', classes: ['1re STMG'] }] } };
+    const g = sharedSubjects(roster, { f: { services: [{ subject: 'MSGN', classes: ['Terminale STMG'], hours: '3' }] } });
+    assert.equal(g.length, 1);
+    assert.deepEqual(shareOf({}, g[0].key, 'f', g), { weight: 3, shown: true });
+    assert.deepEqual(shareOf({ [g[0].key]: { k: { shown: false } } }, g[0].key, 'k', g), { weight: 1, shown: false });
+  }
+});
