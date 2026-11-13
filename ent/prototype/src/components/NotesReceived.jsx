@@ -5,6 +5,7 @@ import { fetchDocs, fetchDoc } from '../online/docs.js';
 import { buildRoster, servicesFor, setCurrentRoster, isShareable } from '../online/roster.js';
 import { loadRemoteCarnet } from '../gradebookStore.js';
 import GradebookModule from './GradebookModule.jsx';
+import AbsentAtTests from './AbsentAtTests.jsx';
 import { loadImport } from '../importStore.js';
 import { readStored, writeStored } from '../persist.js';
 import { matchTeacher, refineByTimetable, timetableAssignments } from '../rules/teacherMatch.js';
@@ -184,6 +185,7 @@ export default function NotesReceived({ settings, go }) {
         )}
         <p className="mt-3 text-xs text-slate-500">Conseil : exportez chaque vendredi et gardez le fichier sur votre ordinateur. Vous n'aurez jamais à redemander les notes aux professeurs.</p>
       </Card>
+      <AbsentAtTests embedded />
     </div>
   );
 }

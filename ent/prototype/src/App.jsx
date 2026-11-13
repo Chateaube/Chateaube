@@ -2,10 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import SavedBadge from './components/SavedBadge.jsx';
 import NotesReceived from './components/NotesReceived.jsx';
 import MyGrades from './components/MyGrades.jsx';
+import AbsentAtTests from './components/AbsentAtTests.jsx';
 import ComingSoon from './components/ComingSoon.jsx';
 
 // Rubriques déjà utilisables en ligne par tout le personnel (les autres : « fonction en cours de création »)
-const ONLINE_READY = ['grades']; // carnet de notes en ligne (le reste suit à la bascule de décembre)
+const ONLINE_READY = ['grades', 'absents-devoirs']; // carnet de notes en ligne (le reste suit à la bascule de décembre)
 const COMING_TEXT = {
   grades: 'La saisie des notes en ligne ouvre très prochainement. En attendant, gardez vos notes comme d\'habitude : vous les recopierez ici évaluation par évaluation.',
   'grade-sheets': 'Les grilles de notes arrivent avec la saisie des notes en ligne.',
@@ -169,7 +170,7 @@ const PROFILES = {
       { group: 'Aujourd\'hui', items: [{ id: 'bureau', label: 'À traiter aujourd\'hui', icon: 'home', screen: BureauHome }] },
       { group: 'Accueil et caisse', items: [ACCOUNTING, { ...ELEVES, label: 'Élèves et certificats' }, SIGNATURES, CARE, MANUALS] }, // le guichet
       { group: 'Vie scolaire', items: [VIE_SCOLAIRE, HOURS, TIMETABLE, FOLLOW_UP] },
-      { group: 'Notes et conseils', items: [COUNCIL, MOCK_EXAMS, ...OVERSIGHT] }, // grilles : onglet des conseils ; bulletins : Direction seule
+      { group: 'Notes et conseils', items: [...(ONLINE ? [{ id: 'absents-devoirs', label: 'Absents aux devoirs', icon: 'users', screen: AbsentAtTests }] : []), COUNCIL, MOCK_EXAMS, ...OVERSIGHT] }, // grilles : onglet des conseils ; bulletins : Direction seule
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, AGENDA, RESOURCES] },
       { group: 'Matériel et bibliothèque', items: [LIBRARY, BOOKING, INVENTORY] },
       { group: 'Sauvegarde', items: [IMPORT] },

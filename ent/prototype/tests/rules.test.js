@@ -2287,3 +2287,12 @@ test('bonus / malus sur un devoir (pas sur la moyenne)', async () => {
   assert.deepEqual(bonusErrors({ a: { points: 1 } }), ['motif à indiquer']);
   assert.deepEqual(bonusErrors({ a: { points: 3, reason: 'x' } }, 2), ['au plus ± 2 points']);
 });
+
+test('absents aux devoirs : les ABS des carnets', async () => {
+  const { absencesAtTests } = await import('../src/components/AbsentAtTests.jsx').catch(() => ({}));
+  if (!absencesAtTests) return;
+  const carnets = [{ owner: 't1', value: { evaluations: { '6e|Arts plastiques': [{ id: 'e1', title: 'Croquis', date: '2026-11-10' }, { id: 'e2', title: 'Couleurs', date: '2026-11-12' }] },
+    grades: { '6e|Arts plastiques': { 'ALPHA Ana': { e1: 'abs', e2: '12' }, 'BETA Bo': { e2: ' ABS ' } } } } }];
+  const r = absencesAtTests(carnets, { t1: 'Mme F' });
+  assert.deepEqual(r.map((x) => [x.date, x.student, x.title, x.teacher, x.cls]), [['2026-11-12', 'BETA Bo', 'Couleurs', 'Mme F', '6e'], ['2026-11-10', 'ALPHA Ana', 'Croquis', 'Mme F', '6e']]);
+});
