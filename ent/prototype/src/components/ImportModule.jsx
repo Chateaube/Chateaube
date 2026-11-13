@@ -1,3 +1,4 @@
+import { ONLINE } from '../online/client.js';
 import React, { useMemo, useRef, useState } from 'react';
 import { csvCell } from '../rules/csv.js';
 import { Badge, Button, Card, Stat } from './ui.jsx';
@@ -237,8 +238,8 @@ export default function ImportModule({ role = 'DIRECTION' }) {
         <p className="text-sm text-slate-600">Un seul fichier : le modèle Excel de l'école. Remplissez les onglets que vous avez ; un onglet vide est simplement ignoré. Réimporter plus tard un fichier complété ne double rien : les élèves déjà présents sont mis à jour, les nouveaux sont ajoutés, aucun n'est effacé.</p>
       </div>
       <p className="rounded-2xl bg-amber-50 p-3 text-sm text-amber-900">
-        Confidentialité : les données importées restent <strong>dans ce navigateur</strong> (cet ordinateur ou ce téléphone).
-        Elles ne sont pas publiées et les personnes avec qui vous partagez le lien ne les voient pas.
+        Confidentialité : le fichier importé reste <strong>dans ce navigateur</strong> (cet ordinateur). Il n'est ni publié ni visible par d'autres.
+        {ONLINE && <> Seul le bouton <strong>« Envoyer les classes aux professeurs »</strong> (Notes reçues) transmet au serveur de l'école <strong>le nom, la classe et les spécialités</strong> des élèves, pour que chaque professeur connecté voie ses classes. Rien d'autre ne part (ni dates de naissance, ni téléphones, ni responsables, ni paiements).</>}
       </p>
 
       {current && (
