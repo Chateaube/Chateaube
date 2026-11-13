@@ -3,7 +3,7 @@ import { Badge, Button, Card } from './ui.jsx';
 import { supabase, FN_COMPTES } from '../online/client.js';
 import { fetchDoc } from '../online/docs.js';
 import { buildSchool } from '../online/school.js';
-import { loadImport } from '../importStore.js';
+import { loadImport, currentStudents } from '../importStore.js';
 import { readStored } from '../persist.js';
 import { SCHOOL_EVENTS, seedParcoursup } from '../data/events.js';
 import { loadChanges } from './TimetableChanges.jsx';
@@ -24,7 +24,7 @@ const when = (iso) => (iso ? new Date(iso).toLocaleString('fr-FR', { day: 'numer
 const ORDER = ['6e', '5e', '4e', '3e', '2de', '1re STMG', '1re Générale', 'Terminale STMG', 'Terminale Générale'];
 
 export default function StudentAccounts({ settings }) {
-  const students = loadImport()?.students ?? [];
+  const students = currentStudents();
   const classes = useMemo(() => [...new Set(students.map((s) => s.cls).filter(Boolean))].sort((a, b) => ((ORDER.indexOf(a) + 1) || 99) - ((ORDER.indexOf(b) + 1) || 99)), [students.length]);
   const [cls, setCls] = useState(() => classes.find((c) => /^Terminale/.test(c)) ?? classes[0] ?? '');
   const [accounts, setAccounts] = useState(null); const [school, setSchool] = useState(null);
