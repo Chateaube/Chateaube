@@ -41,12 +41,16 @@ export function servicesFor(roster, accountId) {
       .map((st) => `${st.lastName} ${st.firstName}`.trim()).sort((a, b) => a.localeCompare(b, 'fr'));
     // matière partagée (ES, MSGN, Espagnol…) : un autre professeur a la même matière dans la même classe
     const others = Object.entries(roster?.services ?? {}).filter(([id, list]) => id !== accountId && list.some((o) => o.subject === s.subject && o.classes.includes(cls))).map(([id]) => roster?.names?.[id] ?? '');
-    return { id: `${cls}|${s.subject}`, cls, subject: s.subject, students, ...(others.length ? { shared: true, coTeachers: others, minEvaluations: SHARED_MIN } : {}) };
+    // seul l'Enseignement scientifique se partage (50/50, 2 notes chacun) ; ailleurs, deux professeurs = à corriger
+    const extra = !others.length ? {} : isShareable(s.subject) ? { shared: true, coTeachers: others, minEvaluations: SHARED_MIN } : { conflict: others };
+    return { id: `${cls}|${s.subject}`, cls, subject: s.subject, students, ...extra };
   }));
 }
 
 /** Matière partagée entre deux professeurs : une seule ligne au bulletin, 2 notes minimum pour chacun. */
 export const SHARED_MIN = 2;
+/** Matières qui peuvent avoir deux professeurs dans une classe : l'Enseignement scientifique seulement. */
+export const isShareable = (subject) => /enseignement scientifique/i.test(String(subject ?? '').normalize('NFD').replace(/[̀-ͯ]/g, ''));
 
 let current = null;
 export const currentRoster = () => current;

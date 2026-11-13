@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Badge, Button, Card } from './ui.jsx';
 import { supabase } from '../online/client.js';
 import { fetchDocs, fetchDoc } from '../online/docs.js';
-import { buildRoster, servicesFor, setCurrentRoster } from '../online/roster.js';
+import { buildRoster, servicesFor, setCurrentRoster, isShareable } from '../online/roster.js';
 import { loadRemoteCarnet } from '../gradebookStore.js';
 import GradebookModule from './GradebookModule.jsx';
 import { loadImport } from '../importStore.js';
@@ -50,7 +50,6 @@ export function notesWorkbook(rows) {
   return buildXlsx(sheets.length ? sheets : [{ name: 'Notes', rows: [['Aucune note reçue pour l\'instant.']] }]);
 }
 
-const SHARES_KEY = 'ent-k-matieres-partagees';
 /** Matières partagées d'après la liste envoyée : [{ key, cls, subject, teachers: [{ id, name, hours }] }]. */
 export function sharedSubjects(roster, fiches = {}) {
   const by = {};
@@ -60,11 +59,6 @@ export function sharedSubjects(roster, fiches = {}) {
     (by[key] ??= { key, cls, subject: s.subject, teachers: [] }).teachers.push({ id, name: roster.names?.[id] ?? id, hours });
   })));
   return Object.values(by).filter((g) => g.teachers.length > 1);
-}
-/** Réglage d'un professeur dans une matière partagée : poids (heures de la fiche si connues, sinon 1), affiché. */
-export function shareOf(shares, key, tid, groups = []) {
-  const t = groups.find((g) => g.key === key)?.teachers.find((x) => x.id === tid);
-  return { weight: t?.hours || 1, shown: true, ...(shares?.[key]?.[tid] ?? {}) };
 }
 
 export default function NotesReceived({ settings, go }) {
@@ -111,10 +105,9 @@ export default function NotesReceived({ settings, go }) {
   };
 
   const roster = data?.roster;
-  // matières partagées (même matière, même classe, deux professeurs) : poids et nom sur le bulletin
-  const [shares, setShares] = useState(() => readStored(SHARES_KEY) ?? {});
+  // même matière dans la même classe chez deux professeurs : Enseignement scientifique (normal), sinon à corriger
   const sharedGroups = sharedSubjects(roster, fiches);
-  const setShare = (key, tid, patch) => { const next = { ...shares, [key]: { ...(shares[key] ?? {}), [tid]: { ...shareOf(shares, key, tid, sharedGroups), ...patch } } }; writeStored(SHARES_KEY, next); setShares(next); };
+  const conflicts = sharedGroups.filter((g) => !isShareable(g.subject));
   const rows = teachers.map((t) => ({ ...t, carnet: data?.carnets?.[t.id]?.value ?? null, at: data?.carnets?.[t.id]?.updated_at, services: servicesFor(roster, t.id) }));
   const exportAll = () => saveFile(`notes-recues-${new Date().toISOString().slice(0, 10)}.xlsx`, notesWorkbook(rows.filter((r) => r.carnet)));
 
@@ -150,24 +143,9 @@ export default function NotesReceived({ settings, go }) {
         <Button variant="secondary" className="ml-2 mt-3" disabled={busy || !data} onClick={() => send(true)}>Recalculer toutes les fiches depuis l'import</Button>
       </Card>
 
-      {sharedGroups.length > 0 && (
-        <Card title="Matières partagées entre deux professeurs" subtitle="Une seule ligne au bulletin. La moyenne tient compte du poids de chacun (par exemple le nombre d'heures) ; seuls les noms cochés figurent sur le bulletin.">
-          <ul className="divide-y divide-slate-100 text-sm">
-            {sharedGroups.map((g) => (
-              <li key={g.key} className="py-2">
-                <p className="font-medium text-slate-900">{g.cls} · {g.subject}</p>
-                <div className="mt-1 flex flex-wrap gap-3">
-                  {g.teachers.map((t) => { const v = shareOf(shares, g.key, t.id, sharedGroups); return (
-                    <span key={t.id} className="flex items-center gap-2 rounded-lg bg-slate-50 px-2 py-1">
-                      <span>{t.name}</span>
-                      <label className="flex items-center gap-1 text-xs text-slate-600">poids<input inputMode="numeric" value={v.weight} onChange={(e) => setShare(g.key, t.id, { weight: Number(e.target.value.replace(/[^\d]/g, '')) || 0 })} className="w-10 rounded border border-slate-300 px-1 py-0.5 text-center text-sm" aria-label={`Poids de ${t.name}`} /></label>
-                      <label className="flex items-center gap-1 text-xs text-slate-600"><input type="checkbox" checked={v.shown} onChange={(e) => setShare(g.key, t.id, { shown: e.target.checked })} />sur le bulletin</label>
-                    </span>
-                  ); })}
-                </div>
-              </li>
-            ))}
-          </ul>
+      {conflicts.length > 0 && (
+        <Card title="Deux professeurs pour la même matière" subtitle="Seul l'Enseignement scientifique se partage (moyenne 50/50, 2 notes minimum chacun). Ailleurs, gardez un seul professeur : retirez la matière de la fiche de l'autre (Gestion des agents), puis renvoyez les classes.">
+          <ul className="space-y-1 text-sm text-amber-900">{conflicts.map((g) => <li key={g.key}>⚠ {g.cls} · {g.subject} : {g.teachers.map((t) => t.name).join(' et ')}</li>)}</ul>
         </Card>
       )}
 
@@ -186,7 +164,7 @@ export default function NotesReceived({ settings, go }) {
                       const x = serviceSummary(r.carnet, s);
                       return (
                         <li key={s.id} className="flex flex-wrap items-center gap-2 py-1.5">
-                          <span className="min-w-[12rem] flex-1 text-slate-800">{s.cls} · {s.subject} <span className="text-xs text-slate-500">({s.students.length} élèves)</span>{s.shared && <span className="ml-1"><Badge tone="violet">partagée avec {s.coTeachers.join(', ')} · 2 notes min.</Badge></span>}</span>
+                          <span className="min-w-[12rem] flex-1 text-slate-800">{s.cls} · {s.subject} <span className="text-xs text-slate-500">({s.students.length} élèves)</span>{s.shared && <span className="ml-1"><Badge tone="violet">partagée avec {s.coTeachers.join(', ')} · 50/50 · 2 notes min.</Badge></span>}{s.conflict && <span className="ml-1"><Badge tone="amber">aussi chez {s.conflict.join(', ')} : à corriger</Badge></span>}</span>
                           <span className="text-xs text-slate-600">{x.evaluations} devoir{x.evaluations > 1 ? 's' : ''} · {x.got}/{x.expected} notes</span>
                           <Badge tone={x.competencies ? 'emerald' : 'slate'}>{x.competencies ? 'compétences ✓' : 'compétences —'}</Badge>
                           {x.validated && <Badge tone="emerald">validé</Badge>}
