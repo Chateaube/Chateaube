@@ -2326,3 +2326,10 @@ test('bulletins en ligne : matières de la classe, spécialités, ES à deux pro
   assert.equal(ana.rows.find((r) => r.label === 'Spécialité Mathématiques').appreciation, 'Très bien.');
   assert.equal(ana.general, 14); assert.match(ana.birthLine, /Née le/);
 });
+
+test('identifiant : prénom d\'usage composé en entier', async () => {
+  const { loginFor } = await import('../src/rules/logins.js');
+  assert.equal(loginFor('Ny Anjara Hajatiana', 'RAZAFIMAHEFA', new Set(), 'Ny Anjara'), 'ra.nyanjara');
+  assert.equal(loginFor('Ida\'s Fytahiana', 'RAKOTOARIMALALA', new Set(), 'Ida\'s'), 'ra.idas');
+  assert.equal(loginFor('Jean Tsiry', 'RAKOTO'), 'ra.jean');
+});
