@@ -119,9 +119,10 @@ export function timetableSheet(book) {
 
 /** La matière d'un cours correspond-elle à celle d'un enseignement ? (spécialité ↔ matière, Eco-Droit ↔ Économie ou Droit, ETLV ↔ Anglais) */
 const SUBJECT_KEY = { pc: 'physique chimie', 'p c': 'physique chimie', maths: 'mathematiques', math: 'mathematiques', hg: 'histoire geographie', hge: 'histoire geographie', svt: 'sciences de la vie et de la terre' };
-// STMG : Management, SGN et MSGN sont le même enseignement (1re : Management + SGN ; Tle : MSGN)
-const GESTION = /^(msgn|sgn|management|sciences de gestion et numerique|management sciences de gestion et numerique)$/;
-const subjectKey = (t) => { const n = norm(t).replace(/^(specialite|spe) /, ''); return GESTION.test(n) ? 'gestion' : SUBJECT_KEY[n] ?? n; };
+// STMG : en 1re, Management et SGN sont deux matières distinctes (deux professeurs) ; en Terminale, MSGN
+// (management, sciences de gestion et numérique) est une seule matière, plus la spécialité Mercatique.
+const STMG_KEYS = { sgn: 'sciences de gestion et numerique', msgn: 'management sciences de gestion et numerique' };
+const subjectKey = (t) => { const n = norm(t).replace(/^(specialite|spe) /, ''); return STMG_KEYS[n] ?? SUBJECT_KEY[n] ?? n; };
 // Modules sans enseignant attitré ni note obligatoire (faits quand la classe en a besoin) : pas de contrôle
 const MODULE = /parcours d.?ouverture|vie de classe/i;
 function sameSubject(course, taught) {

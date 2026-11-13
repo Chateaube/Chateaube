@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Badge, Button, Card } from './ui.jsx';
 import { supabase } from '../online/client.js';
 import { fetchDocs, fetchDoc } from '../online/docs.js';
-import { buildRoster, servicesFor } from '../online/roster.js';
+import { buildRoster, servicesFor, setCurrentRoster } from '../online/roster.js';
+import { loadRemoteCarnet } from '../gradebookStore.js';
+import GradebookModule from './GradebookModule.jsx';
 import { loadImport } from '../importStore.js';
 import { readStored, writeStored } from '../persist.js';
 import { matchTeacher } from '../rules/teacherMatch.js';
@@ -48,7 +50,8 @@ export function notesWorkbook(rows) {
   return buildXlsx(sheets.length ? sheets : [{ name: 'Notes', rows: [['Aucune note reçue pour l\'instant.']] }]);
 }
 
-export default function NotesReceived() {
+export default function NotesReceived({ settings, go }) {
+  const [actingFor, setActingFor] = useState(null); // { id, name } : la Direction saisit les notes de ce professeur
   const [data, setData] = useState(null); const [err, setErr] = useState(''); const [busy, setBusy] = useState(false); const [msg, setMsg] = useState('');
   const load = async () => {
     setErr('');
@@ -92,6 +95,21 @@ export default function NotesReceived() {
   const rows = teachers.map((t) => ({ ...t, carnet: data?.carnets?.[t.id]?.value ?? null, at: data?.carnets?.[t.id]?.updated_at, services: servicesFor(roster, t.id) }));
   const exportAll = () => saveFile(`notes-recues-${new Date().toISOString().slice(0, 10)}.xlsx`, notesWorkbook(rows.filter((r) => r.carnet)));
 
+  const actFor = async (r) => {
+    setErr('');
+    try { setCurrentRoster(roster); await loadRemoteCarnet(r.id); setActingFor({ id: r.id, name: r.name }); window.scrollTo(0, 0); }
+    catch (e) { setErr(`Carnet de ${r.name} illisible pour l'instant (${e.message}). Réessayez.`); }
+  };
+  if (actingFor) return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
+        <span>Vous saisissez les notes <strong>à la place de {actingFor.name}</strong> : tout est enregistré dans son carnet, sur le serveur.</span>
+        <Button variant="secondary" className="!py-1 text-xs" onClick={() => { setActingFor(null); load(); }}>← Retour à Notes reçues</Button>
+      </div>
+      <GradebookModule key={actingFor.id} settings={settings} go={go} />
+    </div>
+  );
+
   return (
     <div className="space-y-5">
       <div>
@@ -115,7 +133,8 @@ export default function NotesReceived() {
             {rows.map((r) => (
               <div key={r.id} className="rounded-lg border border-slate-200 p-3">
                 <p className="flex flex-wrap items-center justify-between gap-2 text-sm"><strong className="text-slate-900">{r.name}</strong>
-                  <span className="text-xs text-slate-500">{r.carnet ? `dernière saisie : ${when(r.at)}` : 'pas encore commencé'}</span></p>
+                  <span className="flex items-center gap-2 text-xs text-slate-500">{r.carnet ? `dernière saisie : ${when(r.at)}` : 'pas encore commencé'}
+                    {r.services.length > 0 && roster && <Button variant="secondary" className="!py-0.5 text-xs" onClick={() => actFor(r)}>Saisir à sa place</Button>}</span></p>
                 {r.services.length === 0 ? <p className="mt-1 text-xs text-amber-800">Aucune classe : son nom n'a pas été trouvé dans l'onglet 3 Personnel de l'import. Ajoutez ses enseignements sur sa fiche (Gestion des agents) puis renvoyez les classes.</p> : (
                   <ul className="mt-2 divide-y divide-slate-100 text-sm">
                     {r.services.map((s) => {

@@ -45,6 +45,8 @@ export function servicesFor(roster, accountId) {
 
 let current = null;
 export const currentRoster = () => current;
+/** Direction : utilise la liste envoyée sans remplacer son propre import (saisie à la place d'un professeur). */
+export const setCurrentRoster = (r) => { current = r; };
 
 /** Au démarrage (personnel hors Direction) : charge la liste publiée et la rend disponible aux écrans. */
 export async function loadRoster() {

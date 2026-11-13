@@ -2241,3 +2241,13 @@ test('cours ajouté : exceptionnel (motif, jusqu\'au) ou définitif (chaque sema
   assert.equal(def.length, 5); assert.equal(def[0].status, undefined); // 16/11 → 14/12
   assert.equal(applyChanges(sessions, [{ ...base, id: 'c', reason: 'Rattrapage' }]).length, 2); // ancien format : une date
 });
+
+test('STMG : Management et SGN distincts en 1re, MSGN unique en Terminale, Mercatique', async () => {
+  const { normalizeSubjects } = await import('../src/rules/importer.js');
+  const { checkAgainstAssignments: c } = await import('../src/rules/timetableImport.js');
+  assert.deepEqual(normalizeSubjects('Management, sciences de gestion et numérique, Spé Mercatique'), ['Management, sciences de gestion et numérique', 'Mercatique']);
+  const A = [{ name: 'M. F', subjects: normalizeSubjects('SGN, MSGN'), classes: ['1re STMG', 'Terminale STMG'] }];
+  assert.deepEqual(c([{ teacherId: 'M. F', subject: 'Sciences de gestion et numérique', cls: '1re STMG', line: 1 }, { teacherId: 'M. F', subject: 'Management, sciences de gestion et numérique', cls: 'Terminale STMG', line: 2 }], A), []);
+  assert.equal(c([{ teacherId: 'M. F', subject: 'Management', cls: '1re STMG', line: 3 }], A).length, 1); // autre professeur
+  assert.deepEqual(c([{ teacherId: 'Mme S', subject: 'Parcours d\'ouverture', cls: '2de', line: 4 }], A), []);
+});

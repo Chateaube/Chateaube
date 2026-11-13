@@ -162,9 +162,11 @@ export function analyzeStudents(rows, headers = Object.keys(rows[0] ?? {})) {
 
 // Matières : abréviations courantes ; Économie et Droit sont deux matières distinctes
 const SUBJECT_ALIASES = { maths: 'Mathématiques', math: 'Mathématiques', 'spe mathematiques': 'Spécialité Mathématiques', 'spe maths': 'Spécialité Mathématiques',
-  'spe svt': 'Spécialité SVT', 'spe physique-chimie': 'Spécialité Physique-chimie', eco: 'Économie', economie: 'Économie', droit: 'Droit' };
+  'spe svt': 'Spécialité SVT', 'spe physique-chimie': 'Spécialité Physique-chimie',
+  msgn: 'Management, sciences de gestion et numérique', sgn: 'Sciences de gestion et numérique', 'spe mercatique': 'Mercatique', eco: 'Économie', economie: 'Économie', droit: 'Droit' };
 export function normalizeSubjects(raw) {
-  return String(raw ?? '').split(/,| et /).map((s) => s.trim()).filter(Boolean).flatMap((s) => {
+  // « Management, sciences de gestion et numérique » (MSGN) est UNE matière : on la protège avant de couper aux virgules
+  return String(raw ?? '').replace(/management\s*,\s*sciences de gestion et num[ée]rique/gi, 'MSGN').split(/,| et /).map((s) => s.trim()).filter(Boolean).flatMap((s) => {
     const k = strip(s);
     if (/^eco(nomie)?[\s-]*droit$|^droit[\s-]*eco(nomie)?$/.test(k)) return ['Économie', 'Droit'];
     return [SUBJECT_ALIASES[k] ?? s];
