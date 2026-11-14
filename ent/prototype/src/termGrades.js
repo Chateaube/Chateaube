@@ -6,7 +6,7 @@ import { EXAMS } from './rules/mockExam.js';
 import { SERVICES, EVALUATIONS, GRADES } from './data/grades.js';
 import { loadCarnet, carnetRaw } from './gradebookStore.js';
 import { demoOr } from './demoData.js';
-import { studentAverage } from './rules/grading.js';
+import { studentAverage, BONUS_ENABLED } from './rules/grading.js';
 
 /** Épreuves d'examen blanc que le professeur a choisi de compter dans son carnet (avec son coefficient). */
 export function withMockExams(evaluations, grades) {
@@ -39,5 +39,5 @@ export function termGrades() {
 /** Moyenne d'un élève dans un service, bonus / malus des devoirs compris (grilles, conseil, bulletins). */
 export function subjectAverage(serviceId, name) {
   const t = termGrades();
-  return studentAverage(t.EVALUATIONS[serviceId] ?? [], t.GRADES[serviceId]?.[name], t.BONUS[serviceId]?.[name]);
+  return studentAverage(t.EVALUATIONS[serviceId] ?? [], t.GRADES[serviceId]?.[name], BONUS_ENABLED ? t.BONUS[serviceId]?.[name] : undefined);
 }

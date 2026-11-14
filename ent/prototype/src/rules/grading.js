@@ -205,6 +205,8 @@ export function minEvaluationsFor(service, defaultMin = 4) {
  * Bonus / malus sur UN devoir (pas sur la moyenne) : par demi-point, au plus ± max, motif obligatoire.
  * La note du devoir corrigée reste entre 0 et le barème.
  */
+// Bonus / malus des devoirs : retiré pour l'instant (choix de la Direction) ; remettre à true pour le rouvrir
+export const BONUS_ENABLED = false;
 export const withBonus = (value, b, scale = 20) => (b?.points ? Math.min(scale, Math.max(0, round2(value + b.points))) : value);
 export function bonusErrors(bonus = {}, max = 2) {
   return Object.values(bonus).flatMap((b) => (!b?.points ? [] : [
