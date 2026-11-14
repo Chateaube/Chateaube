@@ -14,7 +14,7 @@ import { THEME_SUGGESTIONS, themeOf, saveTheme } from '../termThemeStore.js';
 import {
   TERM, SERVICES, EVALUATIONS, GRADES, REMARKS, competenciesFor, historyFor, levelOf, TEACHER_COMPETENCIES, COUNCIL_FLAGS, CLASS_SUBJECTS, OTHER_AVERAGES,
 } from '../data/grades.js';
-import { minEvaluationsFor, studentAverage, notesCount, termValidation, classStats, generalAverage, fmtAvg, parentPublishOn, competencyProposals, bonusErrors } from '../rules/grading.js';
+import { BONUS_ENABLED, minEvaluationsFor, studentAverage, notesCount, termValidation, classStats, generalAverage, fmtAvg, parentPublishOn, competencyProposals, bonusErrors } from '../rules/grading.js';
 import { checkAppreciation, autoFix, rephrase } from '../rules/appreciation.js';
 import { today } from '../clock.js';
 import { askConfirm } from './Dialogs.jsx';
@@ -141,8 +141,8 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
   const check = termValidation(evaluations, service.students, grades, min);
   const maxAdj = settings.grading.maxAdjustment ?? 2;
   const steps = Array.from({ length: maxAdj * 4 + 1 }, (_, i) => (i - maxAdj * 2) / 2); // -2 … +2 par demi-point
-  const avgs = service.students.map((s) => studentAverage(evaluations, grades[s], bonus[s]));
-  const adjErrors = service.students.flatMap((s) => [...new Set(bonusErrors(bonus[s], maxAdj))].map((e) => `${s} : ${e}`));
+  const avgs = service.students.map((s) => studentAverage(evaluations, grades[s], BONUS_ENABLED ? bonus[s] : undefined));
+  const adjErrors = BONUS_ENABLED ? service.students.flatMap((s) => [...new Set(bonusErrors(bonus[s], maxAdj))].map((e) => `${s} : ${e}`)) : [];
   const setAdj = (s, ev, v) => { setBonus({ ...bonus, [s]: { ...bonus[s], [ev]: { ...bonus[s]?.[ev], ...v } } }); setValidated(false); };
   const [openBonus, setOpenBonus] = useState(null); // « élève|devoir » dont le bonus / malus est ouvert
   const stats = classStats(avgs);
@@ -220,8 +220,8 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
                         <td key={ev.id} className="px-2 py-2">
                           {validated ? <span className="tabular-nums">{grades[s]?.[ev.id] || '—'}</span>
                             : <GradeCell value={grades[s]?.[ev.id] ?? ''} max={ev.scale} onChange={(v) => setCell(s, ev.id, v)} />}
-                          <BonusControl b={bonus[s]?.[ev.id]} steps={steps} readOnly={validated} open={openBonus === `${s}|${ev.id}`} label={`${s} — ${ev.title || ev.type}`}
-                            onOpen={() => setOpenBonus(openBonus === `${s}|${ev.id}` ? null : `${s}|${ev.id}`)} onChange={(v) => setAdj(s, ev.id, v)} />
+                          {BONUS_ENABLED && <BonusControl b={bonus[s]?.[ev.id]} steps={steps} readOnly={validated} open={openBonus === `${s}|${ev.id}`} label={`${s} — ${ev.title || ev.type}`}
+                            onOpen={() => setOpenBonus(openBonus === `${s}|${ev.id}` ? null : `${s}|${ev.id}`)} onChange={(v) => setAdj(s, ev.id, v)} />}
                           {ev.remarksEnabled && (
                             <input value={remarks[s]?.[ev.id] ?? ''} disabled={validated} aria-label={`Remarque — ${s}`}
                               onChange={(e) => setRemarks({ ...remarks, [s]: { ...remarks[s], [ev.id]: e.target.value } })}
@@ -238,7 +238,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
                 <tr className="bg-slate-50 text-xs text-slate-600">
                   <td className="sticky left-0 z-20 bg-slate-50 px-3 py-2 font-medium shadow-[2px_0_0_#e2e8f0]">Classe</td>
                   {evaluations.map((ev) => {
-                    const st = classStats(service.students.map((s) => studentAverage([ev], grades[s], bonus[s])));
+                    const st = classStats(service.students.map((s) => studentAverage([ev], grades[s], BONUS_ENABLED ? bonus[s] : undefined)));
                     return <td key={ev.id} className="px-2 py-2 tabular-nums">moy. {fmtAvg(st.avg)}<br />{fmtAvg(st.min)} – {fmtAvg(st.max)}</td>;
                   })}
                   <td className="px-3 py-2 text-right font-semibold tabular-nums">{fmtAvg(stats.avg)}</td>
