@@ -1,0 +1,3 @@
+User-agent: *
+Disallow: /Chateaube/ent/
+Sitemap: https://chateaube.github.io/Chateaube/sitemap.xml
