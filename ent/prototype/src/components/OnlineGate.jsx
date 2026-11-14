@@ -22,6 +22,10 @@ function Shell({ title, children }) {
   );
 }
 
+// arrivée depuis l'intranet du site de l'école : « ?espace=eleves » → titre de l'espace (une seule connexion derrière)
+const ESPACES = { administration: 'Espace administration', professeurs: 'Espace professeurs', eleves: 'Espace élèves', parents: 'Espace parents' };
+const espace = (() => { try { return new URLSearchParams(window.location.search).get('espace'); } catch { return null; } })();
+
 function Login({ onDone }) {
   const [login, setLogin] = useState(''); const [code, setCodeValue] = useState('');
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false); const [forgot, setForgot] = useState(false); const [sent, setSent] = useState(false);
@@ -37,7 +41,8 @@ function Login({ onDone }) {
     </Shell>
   );
   return (
-    <Shell title="Connexion">
+    <Shell title={ESPACES[espace] ?? 'Connexion'}>
+      {espace === 'parents' && <p className="mb-3 rounded-lg bg-amber-50 p-2 text-sm text-amber-900">Le portail des familles ouvre le 17 décembre : les identifiants sont remis avec les bulletins.</p>}
       <form onSubmit={async (e) => { e.preventDefault(); setBusy(true); setErr(''); try { await signIn(login, code); onDone(); } catch (x) { setErr(x.message); } setBusy(false); }}>
         <label className="block text-sm font-medium text-slate-700">Identifiant<input value={login} onChange={(e) => setLogin(e.target.value)} autoComplete="username" autoCapitalize="none" autoCorrect="off" className={field} /></label>
         <label className="mt-3 block text-sm font-medium text-slate-700">Code<input type="password" value={code} onChange={(e) => setCodeValue(e.target.value)} autoComplete="current-password" className={field} /></label>
@@ -45,6 +50,7 @@ function Login({ onDone }) {
         <button disabled={!login.trim() || !code || busy} className="mt-4 min-h-[44px] w-full rounded-xl bg-navy-500 font-semibold text-white disabled:bg-slate-300">{busy ? 'Connexion…' : 'Se connecter'}</button>
       </form>
       <button type="button" onClick={() => setForgot(true)} className="mt-3 w-full text-sm text-navy-600 underline">Code oublié ?</button>
+      <a href="../../intranet.html" className="mt-2 block text-center text-xs text-slate-500 underline">← Site de l'école</a>
     </Shell>
   );
 }
