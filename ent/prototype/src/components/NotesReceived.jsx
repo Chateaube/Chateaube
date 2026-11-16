@@ -82,7 +82,7 @@ export default function NotesReceived({ settings, go }) {
   const [fiches, setFiches] = useState(() => readStored('ent-s-fiches-agents') ?? {});
   // le personnel seulement : jamais un compte élève ou parent (un élève prénommé comme un professeur n'est pas un professeur)
   const isStaff = (u) => (u.user_role ?? []).some((r) => !['ELEVE', 'PARENT'].includes(r.role));
-  const staff = (data?.users ?? []).filter((u) => u.is_active && isStaff(u)).map((u) => ({ id: u.id, name: `${u.first_name} ${u.last_name}`.trim(), line: `${u.last_name} ${u.first_name}`.trim(), prof: (u.user_role ?? []).some((r) => r.role === 'PROFESSEUR') }));
+  const staff = (data?.users ?? []).filter((u) => u.is_active && isStaff(u)).map((u) => ({ id: u.id, name: `${u.first_name} ${u.last_name}`.trim(), first: (fiches[u.id]?.usual || String(u.first_name ?? '').trim().split(/\s+/)[0] || '').trim(), line: `${u.last_name} ${u.first_name}`.trim(), prof: (u.user_role ?? []).some((r) => r.role === 'PROFESSEUR') }));
   const teachers = (data?.users ?? []).filter((u) => u.is_active && isStaff(u) && ((u.user_role ?? []).some((r) => r.role === 'PROFESSEUR') || fiches[u.id]?.services?.length))
     .map((u) => ({ id: u.id, name: `${u.first_name} ${u.last_name}`.trim(), line: `${u.last_name} ${u.first_name}`.trim() }));
   const students = currentStudents();

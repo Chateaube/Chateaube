@@ -8,10 +8,11 @@ const fold = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toL
 
 /** Données publiées : élèves (nom, prénom, classe, spécialités) et services par compte professeur. */
 export function buildRoster({ students = [], fiches = {}, teachers = [] }) {
-  const services = {}; const names = {}; const warnings = [];
+  const services = {}; const names = {}; const firsts = {}; const warnings = [];
   const classes = new Set(students.map((s) => s.cls));
   teachers.forEach((t) => {
     names[t.id] = t.name;
+    if (t.first) firsts[t.id] = t.first; // prénom (bulletin)
     const list = (fiches[t.id]?.services ?? []).filter((s) => s.subject && s.classes?.length).map((s) => ({ subject: s.subject, classes: [...s.classes] }));
     services[t.id] = list;
     if (!list.length) warnings.push(`${t.name} : aucune matière ni classe sur sa fiche`);
@@ -19,7 +20,7 @@ export function buildRoster({ students = [], fiches = {}, teachers = [] }) {
   });
   return {
     students: students.filter((s) => s.cls && s.lastName).map((s) => ({ cls: s.cls, lastName: s.lastName, firstName: s.firstName ?? '', usualName: s.usualName ?? '', specialties: s.specialties ?? [] })),
-    services, names, warnings, sentAt: new Date().toISOString(),
+    services, names, firsts, warnings, sentAt: new Date().toISOString(),
   };
 }
 

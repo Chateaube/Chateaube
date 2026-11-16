@@ -2322,7 +2322,7 @@ test('bulletins en ligne : matières de la classe, spécialités, ES à deux pro
   assert.deepEqual(ana.rows.map((r) => r.label).sort(), ['Enseignement scientifique', 'Spécialité Mathématiques']);
   assert.deepEqual(bo.rows.map((r) => r.label), ['Enseignement scientifique']); // pas la spécialité maths
   const es = ana.rows.find((r) => r.label === 'Enseignement scientifique');
-  assert.equal(es.avg, 12); assert.equal(es.teacher, 'Mme ES1 / M. ES2'); assert.equal(es.classAvg, 13);
+  assert.equal(es.avg, 12); assert.equal(es.teacher, 'ES1 / ES2'); // prénom seulement assert.equal(es.classAvg, 13);
   assert.equal(ana.rows.find((r) => r.label === 'Spécialité Mathématiques').appreciation, 'Très bien.');
   assert.equal(ana.general, 14); assert.match(ana.birthLine, /Née le/);
 });
@@ -2494,9 +2494,11 @@ test('Relance de frais de scolarité : montant, mois, avertissement', async () =
 });
 
 
-test('Bulletin en ligne : NOM + prénom d\'usage seulement', async () => {
-  const { buildClassBulletins } = await import('../src/rules/onlineBulletins.js');
-  const b = buildClassBulletins({ cls: '6e', students: [{ cls: '6e', lastName: 'TIANAINA', firstName: 'Mitasoa Dylan', usualName: 'Dylan' }, { cls: '6e', lastName: 'RABE', firstName: 'Aina Soa' }], roster: { services: {}, names: {} } });
-  assert.deepEqual(b.map((x) => x.displayName), ['RABE Aina', 'TIANAINA Dylan']);
-  assert.equal(b[1].student, 'TIANAINA Mitasoa Dylan'); // la clé reste le nom complet
+test('Bulletin en ligne : élève en nom complet, professeur en prénom seulement', async () => {
+  const { buildClassBulletins, teacherFirst } = await import('../src/rules/onlineBulletins.js');
+  const roster = { students: [{ cls: '6e', lastName: 'TIANAINA', firstName: 'Mitasoa Dylan' }], services: { t1: [{ subject: 'Espagnol', classes: ['6e'] }] }, names: { t1: 'Myriam Henriette RANDRIANARIJAONA' }, firsts: { t1: 'Henriette' } };
+  const b = buildClassBulletins({ cls: '6e', students: [{ cls: '6e', lastName: 'TIANAINA', firstName: 'Mitasoa Dylan', usualName: 'Dylan' }], roster });
+  assert.equal(b[0].student, 'TIANAINA Mitasoa Dylan'); assert.equal(b[0].displayName, undefined);
+  assert.equal(b[0].rows[0].teacher, 'Henriette');
+  assert.equal(teacherFirst({ names: { x: 'Hery RAKOTO' } }, 'x'), 'Hery');
 });
