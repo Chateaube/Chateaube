@@ -1,6 +1,8 @@
 // Jeux de société de la salle d'étude (démonstration) : pour que les élèves posent leur téléphone,
 // interdit dans l'établissement (sauf en sortant, après les cours).
-export const GAMES = [
+import { liveArray, demoOr } from '../demoData.js';
+
+const DEMO_GAMES = [
   { id: 'g1', name: 'Échecs', pieces: '32 pièces, 1 plateau', copies: 3, state: 'BON' },
   { id: 'g2', name: 'Uno', pieces: '108 cartes', copies: 2, state: 'BON' },
   { id: 'g3', name: 'Scrabble', pieces: '102 lettres, 4 chevalets, 1 plateau, 1 sac', copies: 1, state: 'USE' },
@@ -10,7 +12,7 @@ export const GAMES = [
   { id: 'g7', name: 'Monopoly', pieces: 'Plateau, billets, cartes, 2 dés, 8 pions, maisons et hôtels', copies: 1, state: 'USE' },
 ];
 // Cahier des jeux : qui prend quel jeu, quand, et s'il revient complet
-export const GAME_LOG = [
+const DEMO_GAME_LOG = [
   { id: 'j1', gameId: 'g1', cls: 'Terminale STMG', who: 'Tojo, Nathan', out: '2026-10-12T12:05', back: '2026-10-12T12:55', complete: true },
   { id: 'j2', gameId: 'g2', cls: '1re STMG', who: 'Mialy, Fanja, Tsiry', out: '2026-10-12T12:10', back: '2026-10-12T12:50', complete: true },
   { id: 'j3', gameId: 'g3', cls: '5e', who: 'Lova, Tiavina', out: '2026-10-12T12:15', back: '2026-10-12T12:55', complete: false, note: 'Il manque la lettre W' },
@@ -19,3 +21,7 @@ export const GAME_LOG = [
   { id: 'j6', gameId: 'g2', cls: 'Terminale Générale', who: 'Mamy, Andry', out: '2026-10-09T12:10', back: '2026-10-09T12:50', complete: true },
   { id: 'j7', gameId: 'g1', cls: '1re STMG', who: 'Hery, Kanto', out: '2026-10-09T12:05', back: '2026-10-09T12:50', complete: true },
 ];
+
+// vraies données : aucun jeu d'exemple, la liste se remplit dans Bibliothèque › Jeux
+export const GAMES = liveArray(() => demoOr(DEMO_GAMES, []));
+export const GAME_LOG = liveArray(() => demoOr(DEMO_GAME_LOG, []));

@@ -9,7 +9,9 @@ import { CONDITIONS, conditionLabel } from '../rules/manuals.js';
 import { loadLibrary, saveLibrary } from '../libraryStore.js';
 import { printOnly } from '../print.js';
 import { usePersistent } from '../persist.js';
-import { today } from '../clock.js';
+import { today, nowTime } from '../clock.js';
+import { askConfirm } from './Dialogs.jsx';
+import { realData } from '../demoData.js';
 
 // Bibliothèque de la salle d'étude / permanence (Tamatave n'a pas de CDI) : romans, annales, documentaires, ouvrages de référence.
 // Élèves : un mois, prolongeable d'un mois en repassant au secrétariat avec le livre.
@@ -202,21 +204,37 @@ function LateTab({ books, loans, setLoans }) {
 
 /* ---------- Jeux de société : le cahier des sorties, en ligne ---------- */
 function GamesTab({ data, setData }) {
-  const games = data.games ?? GAMES;
-  const log = data.gameLog ?? GAME_LOG;
-  const setLog = (next) => setData((d) => ({ ...d, gameLog: next, games: d.games ?? GAMES }));
+  // vraies données : les jeux et sorties d'exemple (g1…g7, j1…j7) éventuellement gardés sont écartés
+  const demoId = (re) => (x) => !(realData() && re.test(x.id));
+  const games = (data.games ?? [...GAMES]).filter(demoId(/^g[1-7]$/));
+  const log = (data.gameLog ?? [...GAME_LOG]).filter(demoId(/^j[1-7]$/));
+  const setLog = (next) => setData((d) => ({ ...d, gameLog: next, games }));
+  const setGames = (next) => setData((d) => ({ ...d, games: next, gameLog: log }));
+  const [adding, setAdding] = useState(null); // { name, pieces, copies }
   const [taking, setTaking] = useState(null); // { gameId, cls, who }
   const [returning, setReturning] = useState(null); // { id, complete, note }
   const [msg, setMsg] = useState(null);
-  const at = `${TODAY}T12:05`;
-  const stats = gameStats(log, games, '2026-10-01', '2026-10-31');
+  const stamp = () => `${TODAY}T${nowTime()}`; // heure réelle de la sortie / du retour
+  const at = stamp();
+  const month = TODAY.slice(0, 7);
+  const stats = gameStats(log, games, `${month}-01`, `${month}-31`);
   const incidents = gameIncidents(log);
   return (
     <div className="space-y-5">
       <p className="text-sm text-slate-500">Les téléphones sont interdits dans l'établissement : les jeux de la salle d'étude occupent les pauses. Ce cahier remplace le cahier papier : qui prend quel jeu, s'il revient complet, et les jeux les plus joués.</p>
       {msg && <p role="status" className="rounded-lg bg-red-50 p-2 text-sm text-red-800">{msg}</p>}
       <div className="grid gap-5 xl:grid-cols-[1fr_340px] xl:items-start">
-        <Card title="Jeux">
+        <Card title="Jeux" action={<Button variant="secondary" className="!px-2 !py-1 text-xs" onClick={() => setAdding({ name: '', pieces: '', copies: 1 })}>＋ Ajouter un jeu</Button>}>
+          {adding && (
+            <div className="mb-3 flex flex-wrap items-end gap-2 rounded-lg bg-slate-50 p-2">
+              <label className="text-xs text-slate-600">Jeu<input value={adding.name} onChange={(e) => setAdding({ ...adding, name: e.target.value })} placeholder="ex. Échecs" className={`mt-1 block ${inputCls}`} /></label>
+              <label className="text-xs text-slate-600">Contenu<input value={adding.pieces} onChange={(e) => setAdding({ ...adding, pieces: e.target.value })} placeholder="ex. 32 pièces, 1 plateau" className={`mt-1 block ${inputCls}`} /></label>
+              <label className="text-xs text-slate-600">Exemplaires<input type="number" min={1} value={adding.copies} onChange={(e) => setAdding({ ...adding, copies: Math.max(1, Number(e.target.value)) })} className={`mt-1 block w-20 ${inputCls}`} /></label>
+              <Button className="!px-2 !py-1 text-xs" disabled={!adding.name.trim()} onClick={() => { setGames([...games, { id: `g${Date.now()}`, name: adding.name.trim(), pieces: adding.pieces.trim(), copies: adding.copies, state: 'BON' }]); setAdding(null); }}>Ajouter</Button>
+              <Button variant="ghost" className="!px-2 !py-1 text-xs" onClick={() => setAdding(null)}>Annuler</Button>
+            </div>
+          )}
+          {games.length === 0 && !adding && <p className="text-sm text-slate-500">Aucun jeu pour l'instant : « Ajouter un jeu ».</p>}
           <ul className="divide-y divide-slate-100">
             {games.map((g) => {
               const out = gamesOut(g.id, log);
@@ -230,7 +248,7 @@ function GamesTab({ data, setData }) {
                             <span className="flex flex-wrap items-center gap-1.5">
                               <label className="flex items-center gap-1 text-slate-700"><input type="checkbox" checked={returning.complete} onChange={(ev) => setReturning({ ...returning, complete: ev.target.checked })} />Complet</label>
                               {!returning.complete && <input value={returning.note} onChange={(ev) => setReturning({ ...returning, note: ev.target.value })} placeholder="Ce qui manque ou est abîmé" className="rounded-md border border-slate-300 px-2 py-0.5 text-xs" />}
-                              <Button className="!px-2 !py-0.5 text-xs" onClick={() => { const r = returnGame(e, { at: `${TODAY}T12:55`, complete: returning.complete, note: returning.note }); if (r.error) { setMsg(r.error); return; } setMsg(null); setLog(log.map((x) => (x.id === e.id ? r.entry : x))); setReturning(null); }}>Valider le retour</Button>
+                              <Button className="!px-2 !py-0.5 text-xs" onClick={() => { const r = returnGame(e, { at: stamp(), complete: returning.complete, note: returning.note }); if (r.error) { setMsg(r.error); return; } setMsg(null); setLog(log.map((x) => (x.id === e.id ? r.entry : x))); setReturning(null); }}>Valider le retour</Button>
                             </span>
                           ) : <Button variant="secondary" className="!px-2 !py-0.5 text-xs" onClick={() => setReturning({ id: e.id, complete: true, note: '' })}>Retour</Button>}
                         </span>
@@ -239,6 +257,7 @@ function GamesTab({ data, setData }) {
                     <span className="flex items-center gap-2">
                       <Badge tone={out.length < g.copies ? 'green' : 'amber'}>{g.copies - out.length} en salle</Badge>
                       {out.length < g.copies && <Button variant="secondary" className="!px-2 !py-1 text-xs" onClick={() => setTaking({ gameId: g.id, cls: '', who: '' })}>Sortir</Button>}
+                      {out.length === 0 && <button type="button" className="text-xs text-slate-500 hover:text-red-700" onClick={async () => { if (await askConfirm(`Retirer « ${g.name} » de la liste des jeux ?`)) setGames(games.filter((x) => x.id !== g.id)); }}>Retirer</button>}
                     </span>
                   </div>
                   {taking?.gameId === g.id && (
