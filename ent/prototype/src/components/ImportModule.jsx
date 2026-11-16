@@ -137,6 +137,7 @@ export default function ImportModule({ role = 'DIRECTION' }) {
   // message laissé avant le rechargement qui suit un import
   const [done, setDone] = useState(() => { try { const f = JSON.parse(sessionStorage.getItem('ent-flash')); if (f?.screen === 'import') { sessionStorage.removeItem('ent-flash'); return f.text; } } catch { /* rien */ } return null; });
   const [renumber, setRenumber] = useState(true);
+  const [showImport, setShowImport] = useState(false);
   const [extras, setExtras] = useState(null);
   const [edu, setEdu] = useState(null); // export EduFinance lu, en attente de « Reprendre la caisse »
   const applyEdu = () => {
@@ -202,6 +203,12 @@ export default function ImportModule({ role = 'DIRECTION' }) {
     // Premier vrai import : ce qui a été saisi pendant la démonstration (absences, punitions, caisse, tâches…) est effacé
     if (!current?.students?.length && data.students.length) resetDemoState();
     const where = saveImport(data);
+    if (extras?.cashMoves?.length) {
+      // versements en banque, remises à la Direction, virements : mouvements de caisse (une reprise précédente est remplacée)
+      const imp = loadImport();
+      saveImport({ ...imp, payments: { paid: imp.payments?.paid ?? {}, movements: [...(imp.payments?.movements ?? []).filter((m) => !String(m.id).startsWith('tpl-')), ...extras.cashMoves].sort((a, b) => a.date.localeCompare(b.date)) } });
+      payNote += ` Sorties d'espèces reprises (versements, remises, virements) : ${extras.cashMoves.length} (${new Intl.NumberFormat('fr-FR').format(extras.cashMoves.reduce((s, x) => s + x.amount, 0))} Ar).`;
+    }
     if (extras?.expenses?.length) {
       writeStored('ent-s-depenses', [...(readStored('ent-s-depenses') ?? []).filter((x) => !String(x.id).startsWith('tpl-')), ...extras.expenses]);
       payNote += ` Dépenses reprises : ${extras.expenses.length} (${new Intl.NumberFormat('fr-FR').format(extras.expenses.reduce((s, x) => s + x.amount, 0))} Ar).${extras.expenseErrors.length ? ` ${extras.expenseErrors.length} ligne(s) de dépenses à corriger, non reprises.` : ''}`;
@@ -235,21 +242,41 @@ export default function ImportModule({ role = 'DIRECTION' }) {
     saveFile('eleves-a-completer.csv', `﻿${lines.map((l) => l.map((v) => cell(String(v ?? ''))).join(';')).join('\r\n')}\r\n`);
   };
 
+  // En ligne, une fois l'école en place : la sauvegarde d'abord ; l'import ne sert plus qu'en début d'année
+  // (nouvelle liste d'élèves, nouvel emploi du temps) ou pour reprendre un fichier complété — Direction seule.
+  if (ONLINE && current?.students?.length && !showImport) return (
+    <div className="space-y-5">
+      <div>
+        <p className="text-sm font-semibold text-navy-500">Données de l'école · année 2026-2027</p>
+        <h1 className="text-2xl font-semibold text-navy-900">Sauvegarder</h1>
+        <p className="text-sm text-slate-600">Les données sont partagées en ligne entre la Direction, le secrétariat et la vie scolaire, et enregistrées sur le serveur de l'école. Une sauvegarde mensuelle reste conseillée.</p>
+      </div>
+      {done && <p className="rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-800">{done}</p>}
+      <BackupCard role={role} />
+      {role === 'DIRECTION' && (
+        <Card title="Importer un fichier" subtitle="Début d'année, nouvelle liste d'élèves, nouvel emploi du temps, reprise de paiements ou de dépenses">
+          <p className="text-sm text-slate-600">{current.students.length} élèves · {current.assignments.length} professeurs (importés le {new Date(current.importedAt).toLocaleDateString('fr-FR')}). Un réimport met à jour les élèves (même matricule), en ajoute, n'en efface aucun.</p>
+          <Button variant="secondary" className="mt-3" onClick={() => setShowImport(true)}>Importer le modèle Excel…</Button>
+        </Card>
+      )}
+    </div>
+  );
   return (
     <div className="space-y-5">
+      {ONLINE && current?.students?.length > 0 && <Button variant="ghost" onClick={() => setShowImport(false)}>‹ Retour à la sauvegarde</Button>}
       <div>
         <p className="text-sm font-semibold text-navy-500">Reprise des données existantes · année 2026-2027</p>
         <h1 className="text-2xl font-semibold text-navy-900">Importer et sauvegarder</h1>
         <p className="text-sm text-slate-600">Un seul fichier : le modèle Excel de l'école. Remplissez les onglets que vous avez ; un onglet vide est simplement ignoré. Réimporter plus tard un fichier complété ne double rien : les élèves déjà présents sont mis à jour, les nouveaux sont ajoutés, aucun n'est effacé.</p>
       </div>
       <p className="rounded-2xl bg-amber-50 p-3 text-sm text-amber-900">
-        Confidentialité : le fichier importé reste <strong>dans ce navigateur</strong> (cet ordinateur). Il n'est ni publié ni visible par d'autres.
-        {ONLINE && <> Seul le bouton <strong>« Envoyer les classes aux professeurs »</strong> (Notes reçues) transmet au serveur de l'école <strong>le nom, la classe et les spécialités</strong> des élèves, pour que chaque professeur connecté voie ses classes. Rien d'autre ne part (ni dates de naissance, ni téléphones, ni responsables, ni paiements).</>}
+        {ONLINE ? <>Confidentialité : les données importées sont partagées sur le serveur de l'école avec <strong>la Direction, le secrétariat et la vie scolaire</strong> (les paiements : Direction et secrétariat seulement). Les professeurs ne reçoivent que <strong>le nom, la classe et les spécialités</strong> de leurs élèves (« Envoyer les classes aux professeurs »). Rien n'est public.</>
+          : <>Confidentialité : le fichier importé reste <strong>dans ce navigateur</strong> (cet ordinateur). Il n'est ni publié ni visible par d'autres.</>}
       </p>
 
       {current && (
         <Card title="Données actuellement importées" subtitle={`Le ${new Date(current.importedAt).toLocaleString('fr-FR')}`}
-          action={<Button variant="secondary" className="!py-1 text-xs" onClick={async () => { if (!(await askConfirm('Effacer les données importées et ce qui a été saisi depuis, puis revenir aux exemples fictifs ?'))) return; clearImport(); resetDemoState(); window.location.reload(); }}>Effacer et revenir aux données fictives</Button>}>
+          action={!ONLINE && <Button variant="secondary" className="!py-1 text-xs" onClick={async () => { if (!(await askConfirm('Effacer les données importées et ce qui a été saisi depuis, puis revenir aux exemples fictifs ?'))) return; clearImport(); resetDemoState(); window.location.reload(); }}>Effacer et revenir aux données fictives</Button>}>
           <p className="text-sm text-slate-700">{current.students.length} élèves · {current.assignments.length} professeurs</p>
         </Card>
       )}

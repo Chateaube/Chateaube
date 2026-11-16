@@ -8,6 +8,8 @@ import { parsePayments, readDate, readAmount } from './paymentsImport.js';
 import { expenseCategory } from './eduFinanceImport.js';
 import { EXPENSE_CATEGORIES } from '../data/treasury.js';
 
+/** Catégories de l'onglet 11 qui sont des mouvements d'espèces, pas des dépenses. */
+export const CASH_OUT = [['Versement en banque', 'Dépôt en banque'], ['Remise à la Direction', 'Remise à la Direction'], ['Prélèvement Direction', 'Prélèvement Direction'], ['Virement famille', 'Paiement reçu par virement']];
 export const SHEET_NAMES = ['1 Élèves', '2 Responsables', '3 Personnel', '4 Emploi du temps', '5 Notes', '6 Notes officielles 1re', '7 Paiements', '8 Manuels', '9 Prêts de manuels', '10 Inventaire', '11 Dépenses'];
 const find = (book, n) => book[Object.keys(book).find((k) => k.trim().startsWith(`${n} `)) ?? ''] ?? [];
 const toTsv = (rows) => rows.map((r) => r.map((c) => String(c ?? '').replace(/[\t\n]/g, ' ')).join('\t')).join('\n');
@@ -55,7 +57,7 @@ export function bookToImport(book) {
   const payments = parsePayments(sheetRows(find(book, 7)), studentKey, known.size ? known : null);
 
   // dépenses déjà payées (onglet 11) : rejoignent la trésorerie ; une reprise précédente est remplacée
-  const expenseErrors = [];
+  const expenseErrors = []; const cashMoves = [];
   const expenses = sheetRows(find(book, 11)).flatMap((r) => {
     const date = readDate(r.Date); const amount = readAmount(r['Montant (Ar)']); const label = String(r.Libellé ?? '').trim();
     const pb = [!date && `date « ${r.Date ?? ''} » illisible`, !amount && `montant « ${r['Montant (Ar)'] ?? ''} » illisible`, !label && 'libellé manquant'].filter(Boolean);
@@ -63,6 +65,9 @@ export function bookToImport(book) {
     const asked = EXPENSE_CATEGORIES.find((c) => key(c) === key(r.Catégorie));
     const guess = expenseCategory(label);
     const mode = String(r.Mode ?? '').toLowerCase();
+    // sortie de caisse qui n'est pas une dépense : versement en banque, remise à la Direction, paiement reçu par virement
+    const move = CASH_OUT.find(([c]) => key(c) === key(r.Catégorie))?.[1] ?? (!asked && guess === 'TRANSFERT' ? 'Dépôt en banque' : null);
+    if (move) { cashMoves.push({ id: `tpl-${r['N° de pièce'] || r.line}`, date, time: '12:00', agent: 'Reprise de l\'existant', dir: 'OUT', nature: move, journal: 'ECOLAGE', label: r['N° de pièce'] ? `${label} (${r['N° de pièce']})` : label, method: /ch[eè]q/.test(mode) ? 'Chèque' : 'Espèces', amount }); return []; }
     return [{ id: `tpl-${r['N° de pièce'] || r.line}`, supplierId: null, category: asked ?? (guess === 'TRANSFERT' ? 'Autre' : guess), label, amount, date, due: date, status: 'PAYE',
       method: /ch[eè]q/.test(mode) ? 'CHEQUE' : /vir/.test(mode) ? 'VIREMENT' : 'ESPECES', ref: r['N° de pièce'] ?? '', imported: true }];
   });
@@ -72,7 +77,7 @@ export function bookToImport(book) {
   const timetable = ttRows.length ? parseTimetable(ttRows) : null;
   const counts = Object.fromEntries(SHEET_NAMES.map((n, i) => [n, sheetRows(find(book, i + 1)).length]));
   if (timetable) counts['4 Emploi du temps'] = timetable.slots.length + timetable.errors.length;
-  return { studentsTsv: students.length > 1 ? toTsv(students) : '', staffTsv, guardians, extrasOf, official, officialErrors, inventory, payments, expenses, expenseErrors, timetable, counts };
+  return { studentsTsv: students.length > 1 ? toTsv(students) : '', staffTsv, guardians, extrasOf, official, officialErrors, inventory, payments, expenses, expenseErrors, cashMoves, timetable, counts };
 }
 
 /** Complète les élèves analysés : responsables, prénom d'usage, sexe, santé. */

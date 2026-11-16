@@ -71,3 +71,11 @@ calendrier Parcoursup. Les notes s'ouvrent le 17 décembre ; les autres rubrique
 3. Décision et appréciation générale : le secrétariat les tape et les envoie, la Direction valide. Tout est sur le
    serveur (une fiche par élève) : chacune travaille depuis son poste. Les appréciations validées vont sur le bulletin ;
    la moyenne générale reste sur la grille, jamais sur le bulletin.
+
+## 9. Mise à jour 6 — données partagées entre les bureaux (une seule fois)
+1. SQL Editor › New query → coller `60_partage.sql` → Run (en bas : 13 règles).
+2. Se connecter d'abord sur **l'ordinateur de la Direction qui contient l'import** : au premier démarrage, tout ce
+   qu'il contient (élèves, caisse, paiements repris, vie scolaire, réglages…) part sur le serveur. Ensuite le
+   secrétariat et la CPE se connectent : ils reçoivent les données, et chaque saisie est partagée en quelques secondes.
+3. Accès : caisse, salaires, inscriptions, paiements → Direction et secrétariat ; élèves, vie scolaire, agenda,
+   annonces, réglages → Direction, secrétariat et CPE. Rien pour les professeurs, les élèves et les parents.

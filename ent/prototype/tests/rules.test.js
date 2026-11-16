@@ -2437,3 +2437,26 @@ test('Caisse : correction par ligne inverse (Direction, motif) ; duplicata sur a
   assert.equal(c.canPrintDuplicate(ok, 'BUREAU'), true);
   assert.equal(c.canPrintDuplicate(c.afterDuplicatePrint(ok, 'BUREAU'), 'BUREAU'), false); // une seule fois
 });
+
+test('Partage en ligne : groupes et fusion sans écrasement', async () => {
+  globalThis.window ??= {}; // client.js lu hors navigateur
+  const { merge3, groupOf } = await import('../src/online/shared.js');
+  assert.equal(groupOf('ent-s-recus'), 'gestion'); assert.equal(groupOf('ent-s-comptes-tamatave'), 'gestion');
+  assert.equal(groupOf('ent-s-sanctions'), 'equipe'); assert.equal(groupOf('ent-import-v1'), 'equipe');
+  assert.equal(groupOf('ent-auth'), null); assert.equal(groupOf('ent-k-moi'), null); assert.equal(groupOf('ent-pending-carnet:1'), null);
+  // deux postes ajoutent chacun un reçu : les deux sont gardés
+  const base = [{ number: 'R1', total: 1 }];
+  const here = [...base, { number: 'R2', total: 2 }];
+  const there = [...base, { number: 'R3', total: 3 }];
+  assert.deepEqual(merge3(base, here, there).map((r) => r.number).sort(), ['R1', 'R2', 'R3']);
+  // statut changé ailleurs, rien ici : on prend celui d'ailleurs
+  assert.equal(merge3(base, base, [{ number: 'R1', total: 1, status: 'ANNULE' }])[0].status, 'ANNULE');
+  // supprimé ici, inchangé ailleurs : supprimé ; supprimé ici mais modifié ailleurs : gardé
+  assert.deepEqual(merge3(base, [], base), []);
+  assert.equal(merge3(base, [], [{ number: 'R1', total: 9 }]).length, 1);
+  // premier démarrage (pas de base) : union
+  assert.equal(merge3(undefined, [{ id: 'a' }], [{ id: 'b' }]).length, 2);
+  // objets : chaque clé fusionnée
+  assert.deepEqual(merge3({ a: 1, b: 1 }, { a: 2, b: 1 }, { a: 1, b: 3 }), { a: 2, b: 3 });
+  assert.deepEqual(merge3(undefined, { a: 1 }, undefined), { a: 1 });
+});

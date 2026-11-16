@@ -18,7 +18,7 @@ export function mapClass(name) {
 /** Catégorie d'une dépense d'après son motif ; 'TRANSFERT' pour un versement en banque (ce n'est pas une dépense). */
 export function expenseCategory(motif) {
   const t = fold(motif).toLowerCase();
-  if (/salaire|avance|gardien|\bprof|main d.?oeuvre/.test(t)) return 'Salaires et avances';
+  if (/salaire|avance|gardien|portier|dejeuner|dejueuner|maitre|\bprof|main d.?oeuvre/.test(t)) return 'Salaires et avances';
   if (/deplacement|transport|taxi/.test(t)) return 'Transport'; // « Déplacement versement » : le trajet est une dépense
   if (/versement|depot|banque|remise en banque/.test(t)) return 'TRANSFERT';
   if (/jirama|electricite|\beau\b/.test(t)) return 'Électricité et eau';

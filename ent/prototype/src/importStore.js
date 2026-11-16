@@ -22,6 +22,8 @@ export function saveImport(data) {
 }
 /** Version en ligne (personnel hors Direction) : classes publiées par la Direction, gardées en mémoire seulement. */
 export function setRemoteImport(data) { memory = data; importStorage = 'MEMORY'; }
+/** Élèves partagés en ligne (Direction, secrétariat, vie scolaire) : l'import complet reçu du serveur passe avant la liste publiée. */
+export function preferLocalImport() { try { if (localStorage.getItem(KEY)) { memory = null; importStorage = 'LOCAL'; } } catch { /* rien */ } }
 export function clearImport() {
   memory = null;
   try { localStorage.removeItem(KEY); } catch { /* stockage indisponible */ }

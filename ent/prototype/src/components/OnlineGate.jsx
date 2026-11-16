@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { supabase, signIn, forgotCode, loadAccount, setCode, signOut, codeErrors } from '../online/client.js';
 import { saveMe, loadMe } from '../identity.js';
 import { loadRoster } from '../online/roster.js';
+import { startShared, GROUPS_OF } from '../online/shared.js';
+import { preferLocalImport } from '../importStore.js';
 import { loadRemoteCarnet } from '../gradebookStore.js';
 import { flushAll } from '../online/docs.js';
 import { loadStudentContext, loadSchoolForStaff } from '../online/school.js';
@@ -102,6 +104,9 @@ export default function OnlineGate({ children }) {
         if (acc.profile === 'ENSEIGNANT') await loadRemoteCarnet(acc.id);
       } catch (e) { setState({ step: 'failed', message: e?.message, sync: true }); return; }
     }
+    // Direction, secrétariat, vie scolaire : données partagées (caisse, élèves, vie scolaire…) reçues avant l'ouverture.
+    // Sans réseau, on ouvre quand même avec ce que l'appareil contient : tout repartira au retour du réseau.
+    if (GROUPS_OF[acc.profile]) { try { await startShared(acc.profile); } catch { /* hors ligne : données de l'appareil */ } preferLocalImport(); }
     flushAll();
     setState({ step: 'in', acc });
   };
