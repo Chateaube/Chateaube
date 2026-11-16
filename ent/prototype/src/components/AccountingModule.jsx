@@ -454,6 +454,8 @@ export default function AccountingModule({ settings, role, account }) {
   const [movements, setMovementsState] = useState(loadMovements);
   const setMovements = (m) => setMovementsState((prev) => { const next = typeof m === 'function' ? m(prev) : m; saveMovements(next); return next; });
   const [accounts, setAccounts] = usePersistent(accountsKey(), () => [...CASH_ACCOUNTS]);
+  // après un nouvel import : nouveaux élèves et paiements repris ajoutés, sans rien perdre de ce qui a été saisi
+  useEffect(() => { const m = [...CASH_ACCOUNTS]; if (JSON.stringify(m) !== JSON.stringify(accounts)) setAccounts(m); }, []);
   const [receipts, setReceipts] = usePersistent('ent-s-recus', () => [...RECEIPTS_TODAY]);
   const [audit, setAudit] = usePersistent('ent-s-journal-caisse', () => [...CASH_AUDIT]);
   const [closings, setClosings] = usePersistent('ent-s-clotures', () => [...CASH_CLOSINGS]);

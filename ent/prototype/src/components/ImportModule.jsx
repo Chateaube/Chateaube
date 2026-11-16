@@ -178,6 +178,10 @@ export default function ImportModule({ role = 'DIRECTION' }) {
     if (newTimetable && role !== 'DIRECTION') newTimetable = false;
     else if (newTimetable && current?.timetable?.length && !(await askConfirm(`Remplacer l'emploi du temps actuel (${current.timetable.length} cours) par celui du fichier (${extras.timetable.slots.length} cours) ?`))) newTimetable = false;
     const data = {
+      // le reste de l'import actuel est gardé (fiches modifiées dans l'ENT, etc.)
+      ...(current ?? {}),
+      // même date d'import qu'avant : les comptes de la caisse (réductions, encaissements, droits d'examen) sont gardés
+      importedAt: current?.importedAt,
       // Réimport : fusion, jamais d'effacement — un élève déjà importé (même nom, même date de naissance) est
       // mis à jour, un nouveau est ajouté, ceux qui ne figurent pas dans ce fichier sont gardés.
       students: analysis ? mergeStudents(current?.students ?? [], withExtras(analysis.students.map((s) => (renumber && s.student.suggestedNumber ? { ...s.student, number: s.student.suggestedNumber } : s.student)), extras ?? {})) : current?.students ?? [],

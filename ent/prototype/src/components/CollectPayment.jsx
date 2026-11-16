@@ -69,8 +69,21 @@ const currentAccounts = () => {
   if (key !== accountsCache.key) accountsCache = { key, value: importedAccounts() ?? demoAccounts() };
   return accountsCache.value;
 };
-// comptes enregistrés (encaissements faits depuis) ou comptes de départ
-export const CASH_ACCOUNTS = liveArray(() => readStored(accountsKey()) ?? currentAccounts());
+/**
+ * Comptes enregistrés complétés par l'import actuel : un élève ajouté par un nouvel import a son compte ; un élève
+ * déjà là garde tout ce qui a été fait depuis (encaissements, réduction, droits d'examen…) et reçoit les paiements
+ * repris (onglet 7) ; nom, classe et spécialités suivent la fiche. Un élève parti garde son compte.
+ */
+export function mergeAccounts(stored, fresh) {
+  if (!stored?.length) return fresh ?? [];
+  if (!fresh?.length) return stored;
+  const byId = new Map(stored.map((a) => [a.id, a]));
+  const out = fresh.map((f) => { const s0 = byId.get(f.id); return s0 ? { ...f, ...s0, name: f.name, cls: f.cls, specialties: f.specialties, paid: [...new Set([...(s0.paid ?? []), ...(f.paid ?? [])])] } : f; });
+  stored.forEach((s0) => { if (!fresh.some((f) => f.id === s0.id)) out.push(s0); });
+  return out;
+}
+// comptes enregistrés (encaissements faits depuis), complétés par l'import ; sinon comptes de départ
+export const CASH_ACCOUNTS = liveArray(() => { const st = readStored(accountsKey()); return st ? mergeAccounts(st, importedAccounts()) : currentAccounts(); });
 /** Clé d'enregistrement des comptes (paiements encaissés) : une par import, pour repartir des paiements repris. */
 export const accountsKey = () => `ent-s-comptes-${loadImport()?.importedAt ?? 'demo'}`;
 
