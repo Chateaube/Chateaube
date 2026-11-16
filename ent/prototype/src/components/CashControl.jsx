@@ -4,7 +4,7 @@ import ReceiptTicket from './ReceiptTicket.jsx';
 import { JOURNALS, BANKS } from '../data/accounting.js';
 import { PAYMENT_METHODS } from '../rules/billing.js';
 import { formatAr } from '../rules/finance.js';
-import { DENOMINATIONS, expectedCash, countTotal, closingCheck, requestCancel, decideCancel, depositAlert, validateDeposit, depositReminder, salaryWindow } from '../rules/cashControl.js';
+import { DENOMINATIONS, expectedCash, countTotal, closingCheck, requestCancel, decideCancel, requestDuplicate, decideDuplicate, canPrintDuplicate, afterDuplicatePrint, depositAlert, validateDeposit, depositReminder, salaryWindow } from '../rules/cashControl.js';
 import { printOnly } from '../print.js';
 import { today } from '../clock.js';
 
@@ -26,13 +26,13 @@ export const methodText = (r) => {
   return `${m.label}${r.ref ? ` n° ${r.ref}` : ''}${r.bank ? ` (${r.bank})` : ''}`;
 };
 
-function CancelForm({ onSubmit, onClose }) {
+function CancelForm({ onSubmit, onClose, label = 'Motif de l\'annulation (validé ensuite par la Direction)', placeholder = 'Ex. erreur d\'élève : payé pour le frère, reçu refait au bon nom' }) {
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
   return (
     <div className="mt-2 rounded-lg bg-amber-50 p-2">
-      <label className="block text-xs text-amber-900">Motif de l'annulation (validé ensuite par la Direction)
-        <textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} className={`mt-1 w-full ${inputCls}`} placeholder="Ex. erreur d'élève : payé pour le frère, reçu refait au bon nom" />
+      <label className="block text-xs text-amber-900">{label}
+        <textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} className={`mt-1 w-full ${inputCls}`} placeholder={placeholder} />
       </label>
       {error && <p className="text-xs text-red-700">{error}</p>}
       <div className="mt-1 flex gap-2">
@@ -65,6 +65,8 @@ export default function CashControl({ role, actor, receipts, setReceipts, audit,
   const isDirection = role === 'DIRECTION';
   const [cancelling, setCancelling] = useState(null);
   const [duplicate, setDuplicate] = useState(null);
+  const [askingDup, setAskingDup] = useState(null);
+  const updateReceipt = (res) => { if (res.error) return res.error; setReceipts(receipts.map((x) => (x.number === res.receipt.number ? res.receipt : x))); log(res.log); return null; };
   const [counts, setCounts] = useState({});
   const [total, setTotal] = useState(''); // montant compté saisi directement (le détail par billet est facultatif)
   const [explanation, setExplanation] = useState('');
@@ -194,9 +196,18 @@ export default function CashControl({ role, actor, receipts, setReceipts, audit,
                   </td>
                   <td className="px-4 py-2">
                     <div className="flex flex-wrap justify-end gap-1">
-                      <Button variant="secondary" className="!px-2 !py-1 text-xs" onClick={() => setDuplicate(r)}>Duplicata</Button>
+                      {canPrintDuplicate(r, role) ? <Button variant="secondary" className="!px-2 !py-1 text-xs" onClick={() => setDuplicate(r)}>{isDirection ? 'Duplicata' : 'Imprimer le duplicata autorisé'}</Button>
+                        : r.dup?.status === 'DEMANDE' ? <span className="self-center text-[11px] text-amber-700">Duplicata demandé à la Direction</span>
+                          : <Button variant="secondary" className="!px-2 !py-1 text-xs" onClick={() => setAskingDup(r.number)}>Demander un duplicata</Button>}
+                      {isDirection && r.dup?.status === 'DEMANDE' && (<>
+                        <Button className="!px-2 !py-1 text-xs" onClick={() => updateReceipt(decideDuplicate(r, { by: actor, role, approve: true, at: now() }))}>Autoriser le duplicata</Button>
+                        <Button variant="ghost" className="!px-2 !py-1 text-xs" onClick={() => updateReceipt(decideDuplicate(r, { by: actor, role, approve: false, at: now() }))}>Refuser</Button>
+                      </>)}
                       {r.status === 'VALIDE' && !todayClosing && <Button variant="ghost" className="!px-2 !py-1 text-xs" onClick={() => setCancelling(r.number)}>Demander l'annulation</Button>}
                     </div>
+                    {isDirection && r.dup?.status === 'DEMANDE' && <p className="mt-1 text-right text-[11px] text-amber-700">Duplicata demandé par {r.dup.by} : {r.dup.reason}</p>}
+                    {r.dup?.status === 'REFUSE' && !isDirection && <p className="mt-1 text-right text-[11px] text-red-700">Duplicata refusé par la Direction</p>}
+                    {askingDup === r.number && <CancelForm label="Motif du duplicata (autorisé ensuite par la Direction)" placeholder="Ex. reçu perdu par la famille" onSubmit={(reason) => { const e = updateReceipt(requestDuplicate(r, { by: actor, reason, at: now() })); if (!e) setAskingDup(null); return e; }} onClose={() => setAskingDup(null)} />}
                     {cancelling === r.number && <CancelForm onSubmit={(reason) => ask(r, reason)} onClose={() => setCancelling(null)} />}
                     {!isDirection && r.status === 'ANNULATION_DEMANDEE' && <p className="mt-1 text-right text-[11px] text-amber-700">En attente de la Direction</p>}
                   </td>
@@ -205,7 +216,7 @@ export default function CashControl({ role, actor, receipts, setReceipts, audit,
             </tbody>
           </table>
         </div>
-        <p className="mt-3 text-xs text-slate-500">Un reçu n'est jamais effacé : annulé, il reste dans le journal avec son motif, la personne qui l'a demandé et celle qui l'a validé. Le remboursement sort de la caisse et les échéances redeviennent dues.</p>
+        <p className="mt-3 text-xs text-slate-500">Un reçu n'est jamais effacé : annulé, il reste dans le journal avec son motif, la personne qui l'a demandé et celle qui l'a validé. Le remboursement sort de la caisse et les échéances redeviennent dues. Un duplicata : la Direction l'imprime ; le secrétariat le demande, la Direction l'autorise, puis il s'imprime une seule fois (« DUPLICATA » sur le ticket).</p>
       </Card>
 
       <div className="grid gap-5 xl:grid-cols-2">
@@ -299,7 +310,11 @@ export default function CashControl({ role, actor, receipts, setReceipts, audit,
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 p-4" role="dialog" aria-label="Duplicata" onClick={() => setDuplicate(null)}>
           <div className="mx-auto w-fit space-y-3" onClick={(e) => e.stopPropagation()}>
             <div className="flex gap-2">
-              <Button onClick={() => { printOnly('.dup-print', 'size: 80mm 200mm; margin: 2mm;'); log({ at: now(), by: actor, action: 'Duplicata imprimé', receipt: duplicate.number, detail: duplicate.student }); }}>Imprimer le duplicata</Button>
+              <Button onClick={() => {
+                printOnly('.dup-print', 'size: 80mm 200mm; margin: 2mm;'); log({ at: now(), by: actor, action: 'Duplicata imprimé', receipt: duplicate.number, detail: duplicate.student });
+                // secrétariat : une impression par autorisation
+                if (!isDirection) { const next = afterDuplicatePrint(duplicate, role); setReceipts(receipts.map((x) => (x.number === next.number ? next : x))); setDuplicate(null); }
+              }}>Imprimer le duplicata</Button>
               <Button variant="secondary" onClick={() => setDuplicate(null)}>Fermer</Button>
             </div>
             <div className="dup-print"><ReceiptTicket duplicate receipt={duplicate} student={{ name: duplicate.student, cls: duplicate.cls }} payer={duplicate.bearer} cashier={duplicate.cashier} at={duplicate.at} /></div>

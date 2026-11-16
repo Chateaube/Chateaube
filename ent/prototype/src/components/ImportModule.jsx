@@ -117,9 +117,14 @@ const ORDER = ['6e', '5e', '4e', '3e', '2de', '1re Générale', '1re STMG', 'Ter
 
 const studentId = (x) => `${x.lastName} ${x.firstName} ${x.birthDate ?? ''}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
 /** Fusion d'un réimport : les fiches du fichier remplacent les mêmes élèves, les autres sont gardées. */
+// Même matricule = même élève, même si le nom a été corrigé (ex. JUSTIN → MAURICE) ; sinon : nom + date de naissance.
 export function mergeStudents(previous, incoming) {
   const byId = new Map(previous.map((x) => [studentId(x), x]));
-  incoming.forEach((x) => byId.set(studentId(x), { ...byId.get(studentId(x)), ...x }));
+  const byNumber = new Map(previous.filter((x) => x.number).map((x) => [x.number, studentId(x)]));
+  incoming.forEach((x) => {
+    const k = (x.number && byNumber.get(x.number)) ?? studentId(x);
+    byId.set(k, { ...byId.get(k), ...x });
+  });
   return [...byId.values()];
 }
 
@@ -340,7 +345,7 @@ export default function ImportModule({ role = 'DIRECTION' }) {
         </div>
       )}
 
-      <BackupCard />
+      <BackupCard role={role} />
     </div>
   );
 }

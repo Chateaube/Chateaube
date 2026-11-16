@@ -2406,3 +2406,34 @@ test('Conseil en ligne : grille à partir des carnets, ES 50/50, avis, saisies',
   assert.equal(councilKey('Terminale STMG', 'RABE Aina'), 'conseil:Terminale STMG|RABE Aina');
   assert.deepEqual(rosterClasses(roster), ['6e', 'Terminale STMG']);
 });
+
+test('Sauvegarde complète : restauration, sans la session ni les envois en attente', async () => {
+  const { readLocalData, restoreLocalData } = await import('../src/rules/backup.js');
+  const mem = () => { const m = new Map(); return { get length() { return m.size; }, key: (i) => [...m.keys()][i], getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) }; };
+  const a = mem(); a.setItem('ent-import-v1', JSON.stringify({ students: [1] })); a.setItem('ent-auth', '"x"'); a.setItem('ent-pending-carnet:1', '{}');
+  const saved = Object.fromEntries(readLocalData(a));
+  assert.deepEqual(Object.keys(saved), ['ent-import-v1']);
+  const b = mem(); b.setItem('ent-s-old', '1'); b.setItem('ent-auth', '"session"');
+  assert.equal(restoreLocalData(saved, b), 1);
+  assert.equal(b.getItem('ent-s-old'), null); assert.equal(b.getItem('ent-auth'), '"session"');
+  assert.deepEqual(JSON.parse(b.getItem('ent-import-v1')), { students: [1] });
+  assert.throws(() => restoreLocalData({ foo: 1 }, b));
+});
+
+test('Caisse : correction par ligne inverse (Direction, motif) ; duplicata sur autorisation', async () => {
+  const c = await import('../src/rules/cashControl.js');
+  const m = { id: 'c1', dir: 'IN', journal: 'ECOLAGE', label: 'Écolage', method: 'Espèces', amount: 370000 };
+  assert.ok(c.reverseMovement(m, [m], { by: 'S', role: 'BUREAU', reason: 'erreur de montant saisi', date: 'd', time: 't' }).error);
+  assert.ok(c.reverseMovement(m, [m], { by: 'D', role: 'DIRECTION', reason: 'court', date: 'd', time: 't' }).error);
+  const r = c.reverseMovement(m, [m], { by: 'D', role: 'DIRECTION', reason: 'erreur de montant saisi', date: 'd', time: 't' });
+  assert.equal(r.movement.dir, 'OUT'); assert.equal(r.movement.amount, 370000); assert.equal(r.movement.reverses, 'c1');
+  assert.ok(c.reverseMovement(m, [m, r.movement], { by: 'D', role: 'DIRECTION', reason: 'erreur de montant saisi', date: 'd', time: 't' }).error); // déjà corrigée
+  assert.ok(c.reverseMovement(r.movement, [m, r.movement], { by: 'D', role: 'DIRECTION', reason: 'erreur de montant saisi', date: 'd', time: 't' }).error);
+  const rec = { number: 'R1', status: 'VALIDE' };
+  assert.equal(c.canPrintDuplicate(rec, 'BUREAU'), false); assert.equal(c.canPrintDuplicate(rec, 'DIRECTION'), true);
+  const asked = c.requestDuplicate(rec, { by: 'S', reason: 'reçu perdu', at: 'x' }).receipt;
+  assert.ok(c.decideDuplicate(asked, { by: 'S', role: 'BUREAU', approve: true, at: 'x' }).error);
+  const ok = c.decideDuplicate(asked, { by: 'D', role: 'DIRECTION', approve: true, at: 'x' }).receipt;
+  assert.equal(c.canPrintDuplicate(ok, 'BUREAU'), true);
+  assert.equal(c.canPrintDuplicate(c.afterDuplicatePrint(ok, 'BUREAU'), 'BUREAU'), false); // une seule fois
+});
