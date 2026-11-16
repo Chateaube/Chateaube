@@ -82,7 +82,7 @@ export default function StudentList({ role, onOpen, embedded = false, rowAction 
                 return (
                   <tr key={p.id} className="border-b border-slate-100 last:border-0">
                     <td className="px-4 py-2"><span className="flex items-center gap-2"><Avatar name={`${p.firstName} ${p.lastName}`} photo={p.photo} className="h-8 w-8 text-[10px]" />
-                      <span>{onOpen ? <button type="button" onClick={() => onOpen(p)} className="text-left font-medium text-navy-800 underline decoration-dotted underline-offset-2 hover:text-navy-500">{p.lastName} {usualFirstName(p)}</button> : <span className="font-medium text-slate-900">{p.lastName} {usualFirstName(p)}</span>}{p.firstName !== usualFirstName(p) && <span className="block text-xs text-slate-500">{p.firstName}</span>}</span></span></td>
+                      <span>{onOpen ? <button type="button" onClick={() => onOpen(p)} className="text-left font-medium text-navy-800 hover:text-navy-500 hover:underline">{p.lastName} {usualFirstName(p)}</button> : <span className="font-medium text-slate-900">{p.lastName} {usualFirstName(p)}</span>}</span></span></td>
                     <td className="px-2">{p.cls}</td>
                     <td className="px-2 tabular-nums">{fmt(p.birthDate)}</td>
                     <td className="px-2">{nationalityLabels(p.nationalities ?? [], p.otherNationality).join(', ') || '—'}</td>
