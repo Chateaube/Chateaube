@@ -13,8 +13,15 @@ const TERMS = [['T1', '1er trimestre'], ['T2', '2e trimestre'], ['T3', '3e trime
 const DEMO_CLASS = '1re STMG';
 
 import { realData } from '../demoData.js';
+import { ONLINE } from '../online/client.js';
+import OnlineCouncil from './OnlineCouncil.jsx';
 
 export default function CouncilScreen(props) {
+  if (ONLINE && realData()) return <OnlineCouncil {...props} />;
+  return <DemoCouncil {...props} />;
+}
+
+function DemoCouncil(props) {
   const [cls, setCls] = useState(DEMO_CLASS);
   const [term, setTerm] = useState(TERM.id);
   const field = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';

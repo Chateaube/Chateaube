@@ -14,7 +14,8 @@ import { THEME_SUGGESTIONS, themeOf, saveTheme } from '../termThemeStore.js';
 import {
   TERM, SERVICES, EVALUATIONS, GRADES, REMARKS, competenciesFor, historyFor, levelOf, TEACHER_COMPETENCIES, COUNCIL_FLAGS, CLASS_SUBJECTS, OTHER_AVERAGES,
 } from '../data/grades.js';
-import { BONUS_ENABLED, minEvaluationsFor, studentAverage, notesCount, termValidation, classStats, generalAverage, fmtAvg, parentPublishOn, competencyProposals, bonusErrors } from '../rules/grading.js';
+import { NOTICE_GENERAL, NOTICE_EPS, minimumNoticeDue } from '../data/minimumNotice.js';
+import { BONUS_ENABLED, isEps, minEvaluationsFor, studentAverage, notesCount, termValidation, classStats, generalAverage, fmtAvg, parentPublishOn, competencyProposals, bonusErrors } from '../rules/grading.js';
 import { checkAppreciation, autoFix, rephrase } from '../rules/appreciation.js';
 import { today } from '../clock.js';
 import { askConfirm } from './Dialogs.jsx';
@@ -158,6 +159,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
           <Button variant="secondary" disabled={validated} onClick={() => setDraft(blank)}><span aria-hidden>＋</span> Nouveau devoir</Button>
         </span>}
       >
+        {minimumNoticeDue({ count: evaluations.length, min, validated, date: TODAY, stop: TERM.stop }) && <MinimumNotice eps={isEps(service)} />}
         {draft && (
           <EvaluationForm draft={draft} setDraft={setDraft} settings={settings} competencies={competencies} onCancel={() => setDraft(null)}
             onCreate={() => {
@@ -386,6 +388,22 @@ function ThemePicker({ serviceId, fallback }) {
       </label>
       <div className="mt-1.5 flex flex-wrap gap-1">{THEME_SUGGESTIONS.map((t) => <button key={t} type="button" onClick={() => set(t)} className={`rounded-full px-2 py-0.5 text-xs ring-1 ${theme === t ? 'bg-violet-600 text-white ring-violet-600' : 'bg-white text-violet-900 ring-violet-200'}`}>{t}</button>)}</div>
     </div>
+  );
+}
+
+function MinimumNotice({ eps }) {
+  const n = eps ? NOTICE_EPS : NOTICE_GENERAL;
+  return (
+    <details open className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+      <summary className="cursor-pointer font-semibold">Message de l'administration : {eps ? '3 notes minimum en EPS' : '4 notes minimum'}</summary>
+      <div className="mt-2 space-y-2 leading-relaxed">
+        <p>Chères collègues, chers collègues,</p>
+        {n.intro.split('\n').map((p) => <p key={p}>{p}</p>)}
+        <ul className="list-disc space-y-1 pl-5">{n.points.map(([t, d]) => <li key={t}><strong>{t}</strong> : {d}</li>)}</ul>
+        {n.outro.map((p) => <p key={p}>{p}</p>)}
+        <p>{n.closing}<br />L'Administration</p>
+      </div>
+    </details>
   );
 }
 

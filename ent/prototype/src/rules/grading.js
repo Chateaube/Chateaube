@@ -191,15 +191,19 @@ export function adjustmentErrors(adj, max = 2) {
 }
 
 /**
- * Nombre minimum de notes par trimestre : 4 en général (Paramètres) ; 2 pour l'EMC (peu d'heures) et pour
- * chaque professeur d'une matière partagée à deux (ES, MSGN, Espagnol…).
+ * Nombre minimum de notes par trimestre : 4 en général (Paramètres) ; 3 en EPS ; 2 pour l'EMC (peu d'heures)
+ * et pour chaque professeur de l'Enseignement scientifique (partagé à deux).
  */
 export const LIGHT_SUBJECTS = /^(emc|enseignement moral et civique|education morale et civique)$/i;
+export const EPS_SUBJECT = /^(eps|education physique( et sportive)?)$/i;
 export function minEvaluationsFor(service, defaultMin = 4) {
   const label = String(service?.subject ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
   if (service?.shared || LIGHT_SUBJECTS.test(label)) return Math.min(2, defaultMin);
+  if (EPS_SUBJECT.test(label)) return Math.min(3, defaultMin);
   return defaultMin;
 }
+/** Matière d'EPS (message de l'administration adapté). */
+export const isEps = (service) => EPS_SUBJECT.test(String(service?.subject ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim());
 
 /**
  * Bonus / malus sur UN devoir (pas sur la moyenne) : par demi-point, au plus ± max, motif obligatoire.

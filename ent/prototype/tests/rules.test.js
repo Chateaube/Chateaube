@@ -2362,3 +2362,47 @@ test('dates clés Parcoursup : rappel avant et pendant la période', async () =>
   assert.deepEqual(keyDateAlerts(ev, '2027-02-01', { cls: '6e' }), []);
   assert.deepEqual(keyDateAlerts(ev, '2026-11-13'), []);
 });
+
+test('EPS : 3 notes minimum ; message de l\'administration avant l\'arrêt des notes', async () => {
+  const { minEvaluationsFor, isEps } = await import('../src/rules/grading.js');
+  const { minimumNoticeDue } = await import('../src/data/minimumNotice.js');
+  assert.equal(minEvaluationsFor({ subject: 'EPS' }, 4), 3);
+  assert.equal(minEvaluationsFor({ subject: 'Éducation physique et sportive' }, 4), 3);
+  assert.ok(isEps({ subject: 'EPS' })); assert.ok(!isEps({ subject: 'Espagnol' }));
+  const base = { min: 4, validated: false, stop: '2026-11-27' };
+  assert.equal(minimumNoticeDue({ ...base, count: 2, date: '2026-11-16' }), true);
+  assert.equal(minimumNoticeDue({ ...base, count: 4, date: '2026-11-16' }), false);
+  assert.equal(minimumNoticeDue({ ...base, count: 2, date: '2026-11-01' }), false); // trop tôt
+  assert.equal(minimumNoticeDue({ ...base, count: 2, date: '2026-11-16', validated: true }), false);
+  assert.equal(minimumNoticeDue({ ...base, min: 2, count: 1, date: '2026-11-16' }), false); // EMC / ES : pas ce message
+  assert.equal(minimumNoticeDue({ ...base, min: 3, count: 2, date: '2026-11-20' }), true); // EPS
+});
+
+test('Conseil en ligne : grille à partir des carnets, ES 50/50, avis, saisies', async () => {
+  const { buildCouncil, councilKey, rosterClasses } = await import('../src/rules/onlineCouncil.js');
+  const roster = {
+    students: [{ cls: 'Terminale STMG', lastName: 'RABE', firstName: 'Aina' }, { cls: 'Terminale STMG', lastName: 'ZAFY', firstName: 'Lova' }, { cls: '6e', lastName: 'X', firstName: 'Y' }],
+    services: { t1: [{ subject: 'Mathématiques', classes: ['Terminale STMG'] }], t2: [{ subject: 'Enseignement scientifique', classes: ['Terminale STMG'] }], t3: [{ subject: 'Enseignement scientifique', classes: ['Terminale STMG'] }], t4: [{ subject: 'EPS', classes: ['Terminale STMG'] }] },
+    names: { t1: 'M. A', t2: 'Mme B', t3: 'M. C', t4: 'M. D' },
+  };
+  const ev = (id) => [{ id, scale: 20, coef: 1, normalize: true }];
+  const carnets = {
+    t1: { evaluations: { 'Terminale STMG|Mathématiques': ev('e1') }, grades: { 'Terminale STMG|Mathématiques': { 'RABE Aina': { e1: '12' }, 'ZAFY Lova': { e1: '8' } } }, validated: { 'Terminale STMG|Mathématiques': true },
+      flags: { 'Terminale STMG|Mathématiques:ZAFY Lova': { ids: ['BAVARD'], note: '' } } },
+    t2: { evaluations: { 'Terminale STMG|Enseignement scientifique': ev('e2') }, grades: { 'Terminale STMG|Enseignement scientifique': { 'RABE Aina': { e2: '10' } } } },
+    t3: { evaluations: { 'Terminale STMG|Enseignement scientifique': ev('e3') }, grades: { 'Terminale STMG|Enseignement scientifique': { 'RABE Aina': { e3: '14' } } } },
+  };
+  const c = buildCouncil({ cls: 'Terminale STMG', roster, carnets });
+  assert.deepEqual(c.students, ['RABE Aina', 'ZAFY Lova']);
+  const aina = c.rows.find((r) => r.name === 'RABE Aina');
+  assert.equal(aina.avgs['Enseignement scientifique'], 12); // 50/50
+  assert.equal(aina.avgs['Mathématiques'], 12);
+  assert.equal(aina.general, 12);
+  assert.deepEqual(c.rows.find((r) => r.name === 'ZAFY Lova').flags.map((f) => f.flag), ['BAVARD']);
+  const eps = c.entries.find((e) => e.subject === 'EPS');
+  assert.equal(eps.min, 3); assert.equal(eps.opened, false);
+  assert.equal(c.entries.find((e) => e.subject === 'Mathématiques').validated, true);
+  assert.equal(c.entries.filter((e) => e.subject === 'Enseignement scientifique').length, 2);
+  assert.equal(councilKey('Terminale STMG', 'RABE Aina'), 'conseil:Terminale STMG|RABE Aina');
+  assert.deepEqual(rosterClasses(roster), ['6e', 'Terminale STMG']);
+});
