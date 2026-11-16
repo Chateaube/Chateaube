@@ -2484,3 +2484,11 @@ test('Manuels : remise annulée (erreur de clic) et perte annulée', async () =>
   const back = cancelLoss(lost);
   assert.equal(back.stateIn, undefined); assert.equal(back.charge, undefined); assert.equal(back.returnedOn, undefined);
 });
+
+test('Relance de frais de scolarité : montant, mois, avertissement', async () => {
+  const { relanceText } = await import('../src/rules/finance.js');
+  const c = { student: 'RABE Aina', cls: '6e', overdue: 740_000, months: ['Octobre 2026', 'Novembre 2026'] };
+  const t = relanceText(c, 'RELANCE');
+  assert.match(t, /740 000 Ar/); assert.match(t, /Octobre 2026, Novembre 2026/); assert.doesNotMatch(t, /suspendre/);
+  assert.match(relanceText(c, 'AVERTISSEMENT'), /suspendre/);
+});

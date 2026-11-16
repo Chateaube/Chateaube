@@ -61,3 +61,17 @@ export function amountInWords(n) {
   if (rest) parts.push(below1000(rest));
   return `${parts.join(' ')} ariary`;
 }
+
+/** Texte de la relance (lettre ou message à copier) : montant, mois dus, et l'étape (relance, avertissement). */
+export function relanceText(c, stage, settings) {
+  const fmt = (n) => new Intl.NumberFormat('fr-FR').format(n).replace(/[\u202f\u00a0]/g, ' ');
+  const months = c.months?.length ? ` (${c.months.join(', ')})` : '';
+  const lines = [
+    'Madame, Monsieur,',
+    `Sauf erreur de notre part, les frais de scolarité de ${c.student} (${c.cls})${months} restent dus, pour un montant de ${fmt(c.overdue)} Ar.`,
+    'Nous vous remercions de bien vouloir régulariser cette situation au secrétariat dans les meilleurs délais.',
+  ];
+  if (stage === 'AVERTISSEMENT' || stage === 'A_VALIDER') lines.push('Sans règlement de votre part, nous serons contraints de suspendre l\'accueil de votre enfant, conformément au règlement financier de l\'établissement.');
+  lines.push('Si le paiement a déjà été effectué, merci de ne pas tenir compte de ce courrier.', 'Nous restons à votre disposition pour en parler.', 'Cordialement,', 'La Direction');
+  return lines.join('\n');
+}
