@@ -1,10 +1,10 @@
-// Version installable (application web progressive) : copie le fichier construit dans ent/app/
+// Version installable (application web progressive) : copie le fichier construit dans ent/ (adresse …/ent/)
 // avec le manifeste, les icônes et le service worker qui le garde disponible hors ligne.
 // Le service worker est versionné à chaque construction : l'application se met à jour
 // d'elle-même dès qu'elle retrouve la connexion.
 import { readFileSync, writeFileSync } from 'node:fs';
 
-const out = new URL('../../app/', import.meta.url);
+const out = new URL('../../', import.meta.url); // ent/ : l'ENT est à l'adresse …/ent/
 const version = new Date().toISOString().replace(/\D/g, '').slice(0, 14);
 let html = readFileSync(new URL('../dist/index.html', import.meta.url), 'utf8');
 const head = `
@@ -72,4 +72,4 @@ self.addEventListener('notificationclick', (e) => {
   e.waitUntil(self.clients.matchAll({ type: 'window' }).then((list) => (list[0] ? list[0].focus() : self.clients.openWindow('./'))));
 });
 `);
-console.log(`Application installable écrite dans ent/app (version ${version})`);
+console.log(`Application installable écrite dans ent/ (version ${version})`);

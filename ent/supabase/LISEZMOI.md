@@ -40,7 +40,7 @@ Tests locaux : `fake_supabase.sql` puis `installation.sql` puis `test_supabase.s
    **Deploy**. (La fonction utilise la clé secrète du projet, qui reste sur le serveur de Supabase.)
 3. **Authentication › Sign In / Providers** : désactiver « Allow new users to sign up » (seule la Direction crée les comptes).
 4. **Authentication › URL Configuration** : *Site URL* = adresse de l'application
-   (`https://chateaube.github.io/Chateaube/ent/app/`), pour les liens « code oublié ».
+   (`https://chateaube.github.io/Chateaube/ent/`), pour les liens « code oublié ».
 
 ## Application
 La version installable (`npm run build:app`, mode `app`, réglages dans `ent/prototype/.env.app`) demande la
