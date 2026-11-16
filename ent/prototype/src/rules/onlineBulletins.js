@@ -7,9 +7,10 @@ import { combineTeachers, classLine } from './bulletin.js';
 import { servicesFor } from '../online/roster.js';
 import { formatDateFr } from './calendar.js';
 import { accord } from './documents.js';
-import { usualFirstName } from './names.js';
 
 const longDate = (iso) => (iso ? formatDateFr(iso).replace(/^\S+ /, '') : '');
+/** Professeur sur le bulletin : son prénom seulement (prénom d'usage de sa fiche, sinon premier prénom). */
+export const teacherFirst = (roster, tid) => roster?.firsts?.[tid] || String(roster?.names?.[tid] ?? '').trim().split(/\s+/).filter((w) => !/^(m\.?|mme|mlle|mr)$/i.test(w))[0] || '';
 const nameOf = (s) => `${s.lastName} ${s.firstName}`.trim();
 const textOf = (c) => (c?.validated || c?.text ? (c.text ?? '').trim() : '');
 /** Corrections de la Direction (relecture) : clé compte|service:élève. */
@@ -29,7 +30,7 @@ export function buildClassBulletins({ cls, students = [], roster, carnets = {}, 
   // matières de la classe : chaque professeur qui l'a dans ses services
   const bySubject = {};
   Object.keys(roster?.services ?? {}).forEach((tid) => servicesFor(roster, tid).filter((s) => s.cls === cls).forEach((s) => {
-    (bySubject[s.subject] ??= []).push({ tid, teacher: roster.names?.[tid] ?? '', service: s, carnet: carnets[tid] ?? null });
+    (bySubject[s.subject] ??= []).push({ tid, teacher: teacherFirst(roster, tid), service: s, carnet: carnets[tid] ?? null });
   }));
   const subjects = Object.keys(bySubject);
   const rowFor = (subject, name) => {
@@ -47,8 +48,8 @@ export function buildClassBulletins({ cls, students = [], roster, carnets = {}, 
   const generals = perStudent.map((p) => generalAverage(p.rows.map((r) => ({ inAverage: true, coef: 1, avg: r.avg }))));
   const classGeneral = classStats(generals.filter((g) => g != null)).avg ?? null;
   return perStudent.map(({ st, rows }, i) => ({
-    // nom imprimé : NOM + prénom d'usage seulement (le nom complet reste la clé des notes et du conseil)
-    term, year, student: nameOf(st), displayName: `${st.lastName} ${usualFirstName(st)}`.trim(), sex: st.sex,
+    // élève : nom complet (nom juridique) ; professeurs : prénom seulement
+    term, year, student: nameOf(st), sex: st.sex,
     birthLine: st.birthDate ? `${accord(st.sex, 'Né', 'Née')} le ${longDate(st.birthDate)}` : '',
     classLine: classLine(cls, st.specialties ?? []),
     rows: rows.map((r) => ({ ...r, classAvg: classAvg[r.label] })),
