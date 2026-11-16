@@ -15,10 +15,10 @@ const field = 'mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-b
 // Écran d'accueil de l'ENT (chateaubriand.pro) : à gauche l'école et les quatre espaces, à droite la connexion.
 // Un seul écran, sans défilement sur ordinateur ; sur téléphone, la connexion vient en premier.
 const SPACES = [
-  ['Administration', 'Caisse, inscriptions, vie scolaire, conseils de classe', '#ffcf2e', 'M4 10 12 5l8 5zM6 11v7M10 11v7M14 11v7M18 11v7M4 20h16'],
-  ['Professeurs', 'Carnet de notes, appréciations, compétences, agenda', '#f25c5c', 'M4 5h16v11H4zM8 9h8M8 12h5M10 20h4'],
-  ['Élèves', 'Emploi du temps du jour, agenda, orientation et Parcoursup', '#6cb8f0', 'M2 9l10-5 10 5-10 5zM6 11v5c0 1.5 3 3 6 3s6-1.5 6-3v-5'],
-  ['Parents', 'Notes, assiduité, bulletins, documents · ouverture le 17 décembre', '#a99cf2', 'M8 7a3 3 0 1 0 0 .1M17 9a2.5 2.5 0 1 0 0 .1M2 20c0-3.3 2.7-6 6-6s6 2.7 6 6M14 20c0-2.5 1.5-4.5 3.5-4.5S21 17.5 21 20'],
+  ['Administration', '', '#ffcf2e', 'M4 10 12 5l8 5zM6 11v7M10 11v7M14 11v7M18 11v7M4 20h16'],
+  ['Professeurs', '', '#f25c5c', 'M4 5h16v11H4zM8 9h8M8 12h5M10 20h4'],
+  ['Élèves', 'Emploi du temps, agenda, vie scolaire, orientation', '#6cb8f0', 'M2 9l10-5 10 5-10 5zM6 11v5c0 1.5 3 3 6 3s6-1.5 6-3v-5'],
+  ['Parents', 'Notes, assiduité, documents · ouverture le 17 décembre', '#a99cf2', 'M8 7a3 3 0 1 0 0 .1M17 9a2.5 2.5 0 1 0 0 .1M2 20c0-3.3 2.7-6 6-6s6 2.7 6 6M14 20c0-2.5 1.5-4.5 3.5-4.5S21 17.5 21 20'],
 ];
 function Shell({ title, children }) {
   return (
@@ -38,7 +38,7 @@ function Shell({ title, children }) {
                   <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={icon} /></svg>
                 </span>
                 <p className="mt-2 font-display text-base font-bold lg:text-lg">{t}</p>
-                <p className="text-xs leading-snug text-[#6d5fc7]">{d}</p>
+                {d && <p className="text-xs leading-snug text-[#6d5fc7]">{d}</p>}
               </li>
             ))}
           </ul>
