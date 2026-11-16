@@ -50,7 +50,7 @@ import { pickupStatus, familyMessage } from '../rules/bulletinPickup.js';
 import { loadManuals } from '../manualsStore.js';
 import { nextClass } from '../rules/enrollment.js';
 import { menuFor } from '../rules/familyMenu.js';
-import { FicheForm, FICHE_YEAR } from './FicheSignaletique.jsx';
+import { FicheForm, FICHE_YEAR, FICHE_PAPER } from './FicheSignaletique.jsx';
 import SignaturePad from './SignaturePad.jsx';
 import { ficheOf, referenceOf, setReference } from '../ficheStore.js';
 import { loadLibrary } from '../libraryStore.js';
@@ -182,7 +182,7 @@ function Home({ child, isParent, openFiche, openReenrol, settings, onSeen, openS
     ...(sheetKind(child.cls) && currentStep(sheetKind(child.cls), loadSheets()[fullName(child)] ?? {})?.who === 'PARENT' ? [{ id: 'orient', text: 'Fiche d\'orientation : votre réponse est attendue', detail: currentStep(sheetKind(child.cls), loadSheets()[fullName(child)] ?? {}).label, tone: 'navy', to: 'orientation', action: 'Ouvrir la fiche' }] : []),
     ...(authPending(child).length ? [{ id: 'auth', text: `${authPending(child).length} autorisation${authPending(child).length > 1 ? 's' : ''} à donner`, detail: authPending(child).map((a) => a.label).join(' · '), tone: 'amber', to: 'documents', action: 'Répondre' }] : []),
     ...(pending ? [{ id: 'acks', text: `${pending} information${pending > 1 ? 's' : ''} de vie scolaire à confirmer`, tone: 'amber', to: 'life', action: 'Voir' }] : []),
-    ...(!ficheOf(fullName(child))?.signedAt ? [{ id: 'fiche', text: `Fiche signalétique ${FICHE_YEAR} à signer`, detail: 'Déjà pré-remplie : vérifier, compléter, signer.', tone: 'navy', to: 'fiche', action: 'Remplir et signer' }] : []),
+    ...(!FICHE_PAPER && !ficheOf(fullName(child))?.signedAt ? [{ id: 'fiche', text: `Fiche signalétique ${FICHE_YEAR} à signer`, detail: 'Déjà pré-remplie : vérifier, compléter, signer.', tone: 'navy', to: 'fiche', action: 'Remplir et signer' }] : []),
   ] : [];
   return (
     <>
@@ -746,7 +746,7 @@ export default function FamilyPortal({ settings, audience = 'PARENT', ambiance }
   const view = menu[screen] === false ? 'home' : screen;
   const unread = view === 'messages' ? 0 : unreadCount(audience);
   const go = (t) => setScreen(t);
-  const badges = { life: pendingAcks, messages: unread, fiche: isParent && !ficheOf(fullName(child))?.signedAt ? 1 : 0 };
+  const badges = { life: pendingAcks, messages: unread, fiche: isParent && !FICHE_PAPER && !ficheOf(fullName(child))?.signedAt ? 1 : 0 };
   const moreBadge = unread + badges.fiche;
   const isTab = TABS.some(([id]) => id === view);
   // mandats de l'élève connecté (jamais côté parent) : délégué de sa classe, BDE de son site

@@ -530,9 +530,9 @@ test('inscriptions : pré-inscription, fiche élève, comptes', () => {
   assert.equal(acc[0].login, 'ra.elea'); // identifiant court : 2 lettres du nom + prénom, sans e-mail
   assert.equal(acc[1].email, 'voahangy@gmail.com'); // l'e-mail ne sert qu'en cas de code oublié
   assert.ok(acc.every((a) => a.login && !a.login.includes('@')));
-  assert.equal(missingDocuments({ cls: '5e', documents: ['PHOTOS'] }, 'REINSCRIPTION').length, 1); // vaccins
-  assert.deepEqual(missingDocuments({ cls: 'Terminale STMG', documents: ['PHOTOS'] }, 'REINSCRIPTION').map((d) => d.id), ['ACTE', 'VACCINS']);
-  assert.deepEqual(missingDocuments({ cls: '6e', documents: [] }, 'INSCRIPTION').map((d) => d.id), ['ACTE', 'PHOTOS', 'BULLETINS', 'VACCINS']);
+  assert.equal(missingDocuments({ cls: '5e', documents: ['PHOTOS'] }, 'REINSCRIPTION').length, 0); // plus de carnet de vaccination (collège et lycée)
+  assert.deepEqual(missingDocuments({ cls: 'Terminale STMG', documents: ['PHOTOS'] }, 'REINSCRIPTION').map((d) => d.id), ['ACTE']);
+  assert.deepEqual(missingDocuments({ cls: '6e', documents: [] }, 'INSCRIPTION').map((d) => d.id), ['ACTE', 'PHOTOS', 'BULLETINS']);
 });
 
 import { parseTable, normalizeClass, normalizePhones, analyzeStudents, parseAssignments, nationalityCode } from '../src/rules/importer.js';

@@ -34,7 +34,6 @@ export const REQUIRED_DOCUMENTS = [
   { id: 'ACTE', label: 'Acte de naissance', detail: 'en français, de moins de 3 mois', examOrNew: true },
   { id: 'PHOTOS', label: '2 photos d\'identité récentes', detail: 'aux normes internationales : fond clair et uni, de face, visage dégagé, sans lunettes ni couvre-chef' },
   { id: 'BULLETINS', label: 'Bulletins de l\'année précédente', newOnly: true },
-  { id: 'VACCINS', label: 'Carnet de vaccination' },
   { id: 'RELEVE_DNB', label: 'Relevé de notes du brevet (DNB)', detail: 'ou l\'attestation de réussite', when: ({ isNew, level, dnb }) => isNew && level === '2de' && dnb === 'OBTENU' },
   { id: 'RELEVE_ANTICIPEES', label: 'Relevé des épreuves anticipées du bac (notes de 1re)', detail: 'français, mathématiques et épreuves de fin de 1re : elles comptent déjà pour le bac', when: ({ isNew, level }) => isNew && level === 'Terminale' },
   { id: 'RELEVES_REDOUBLANT', label: 'Relevés de notes de l\'examen de l\'an dernier', detail: 'redoublement : relevés du bac ou des épreuves de 1re', when: ({ level, repeating }) => repeating && ['1re', 'Terminale'].includes(level) },

@@ -20,7 +20,7 @@ export const STUDENT_PROFILES = [
     ],
     health: { allergies: 'Aucune', emergency: 'Mme Rakotoarisoa Hanta — +261 34 11 223 12' },
     authorizations: { image: true, exit: 'Code rouge — Mon enfant ne sort qu\'en fin de journée, après son dernier cours de l\'après-midi.' },
-    documents: ['ACTE', 'PHOTOS', 'BULLETINS', 'VACCINS'],
+    documents: ['ACTE', 'PHOTOS', 'BULLETINS'],
   },
   {
     id: 'f2', lastName: 'RAKOTOARISOA', firstName: 'Toky', sex: 'M', birthDate: '2014-06-03', birthPlace: 'Toamasina', nationalities: ['MG'],
@@ -40,7 +40,7 @@ export const STUDENT_PROFILES = [
     ],
     health: { allergies: 'Aucune', emergency: 'M. Randria Feno — +261 32 44 900 48' },
     authorizations: { image: false, exit: 'Code bleu — Mon enfant peut partir après son dernier cours de la demi-journée. En cas d\'absence imprévue d\'un professeur, je l\'autorise à quitter l\'établissement.' },
-    documents: ['ACTE', 'PHOTOS', 'BULLETINS', 'VACCINS'],
+    documents: ['ACTE', 'PHOTOS', 'BULLETINS'],
   },
 ];
 
