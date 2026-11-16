@@ -12,20 +12,50 @@ import { loadStudentContext, loadSchoolForStaff } from '../online/school.js';
 // l'adresse du compte ; à la première connexion (code provisoire remis par la Direction), on choisit son code.
 const field = 'mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base';
 
+// Écran d'accueil de l'ENT (chateaubriand.pro) : à gauche l'école et les quatre espaces, à droite la connexion.
+// Un seul écran, sans défilement sur ordinateur ; sur téléphone, la connexion vient en premier.
+const SPACES = [
+  ['Administration', 'Direction, secrétariat, vie scolaire', '#ffcf2e', 'M4 10 12 5l8 5zM6 11v7M10 11v7M14 11v7M18 11v7M4 20h16'],
+  ['Professeurs', 'Notes, appréciations, agenda', '#f25c5c', 'M4 5h16v11H4zM8 9h8M8 12h5M10 20h4'],
+  ['Élèves', 'Emploi du temps, agenda, orientation', '#6cb8f0', 'M2 9l10-5 10 5-10 5zM6 11v5c0 1.5 3 3 6 3s6-1.5 6-3v-5'],
+  ['Parents', 'Notes, bulletins · ouverture le 17 décembre', '#a99cf2', 'M8 7a3 3 0 1 0 0 .1M17 9a2.5 2.5 0 1 0 0 .1M2 20c0-3.3 2.7-6 6-6s6 2.7 6 6M14 20c0-2.5 1.5-4.5 3.5-4.5S21 17.5 21 20'],
+];
 function Shell({ title, children }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-navy-900 to-navy-700 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-        <p className="text-xs font-semibold uppercase tracking-wide text-navy-500">ENT Chateaubriand</p>
-        <h1 className="mb-4 font-display text-xl font-semibold text-navy-900">{title}</h1>
-        {children}
-      </div>
+    <div className="grid min-h-screen bg-white lg:h-screen lg:grid-cols-[1.15fr_1fr]">
+      <section className="order-2 flex flex-col justify-between gap-6 bg-[#eeebfb] px-6 py-8 lg:order-1 lg:px-14 lg:py-10" aria-label="L'école">
+        <div className="flex items-center gap-3">
+          <img src="icon-192.png" alt="" className="h-10 w-10 rounded-xl" />
+          <div><p className="font-display text-xl font-bold leading-none text-[#2b1a8f]">Chateaubriand</p><p className="text-xs font-semibold text-[#6d5fc7]">École · Collège · Lycée — Tamatave</p></div>
+        </div>
+        <div>
+          <h2 className="font-display text-3xl font-bold leading-tight text-[#2b1a8f] lg:text-5xl">Accédez à votre espace</h2>
+          <p className="mt-3 max-w-md text-[#6d5fc7]">Un seul identifiant et un seul code, remis par l'école : chacun arrive dans son espace.</p>
+          <ul className="mt-6 grid max-w-xl grid-cols-2 gap-3">
+            {SPACES.map(([t, d, bg, icon]) => (
+              <li key={t} className="rounded-xl p-3 text-[#2b1a8f] lg:p-4" style={{ background: bg }}>
+                <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={icon} /></svg>
+                <p className="mt-1.5 font-display text-base font-bold lg:text-lg">{t}</p>
+                <p className="text-xs leading-snug opacity-85">{d}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <p className="text-xs text-[#6d5fc7]">27 Rue Nationale, Toamasina · <a href="tel:+261345122778" className="underline">+261 34 51 227 78</a> · chateaubetamatave@gmail.com</p>
+      </section>
+      <section className="order-1 flex items-center justify-center px-4 py-10 lg:order-2" aria-label="Connexion">
+        <div className="w-full max-w-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#6d5fc7]">ENT Chateaubriand</p>
+          <h1 className="mb-5 font-display text-2xl font-bold text-[#2b1a8f]">{title}</h1>
+          {children}
+        </div>
+      </section>
     </div>
   );
 }
 
 // arrivée depuis l'intranet du site de l'école : « ?espace=eleves » → titre de l'espace (une seule connexion derrière)
-const ESPACES = { administration: 'Espace administration', professeurs: 'Espace professeurs', eleves: 'Espace élèves', parents: 'Espace parents' };
+const ESPACES = { administration: 'Espace administration', professeurs: 'Espace professeurs', eleves: 'Espace élèves', parents: 'Espace parents' }; // anciens liens
 const espace = (() => { try { return new URLSearchParams(window.location.search).get('espace'); } catch { return null; } })();
 
 function Login({ onDone }) {
@@ -52,7 +82,7 @@ function Login({ onDone }) {
         <button disabled={!login.trim() || !code || busy} className="mt-4 min-h-[44px] w-full rounded-xl bg-navy-500 font-semibold text-white disabled:bg-slate-300">{busy ? 'Connexion…' : 'Se connecter'}</button>
       </form>
       <button type="button" onClick={() => setForgot(true)} className="mt-3 w-full text-sm text-navy-600 underline">Code oublié ?</button>
-      <a href="../" className="mt-2 block text-center text-xs text-slate-500 underline">← Choisir un autre espace</a>
+      <p className="mt-2 text-center text-xs text-slate-500">Identifiant ou code perdu ? Adressez-vous à la Direction.</p>
     </Shell>
   );
 }
