@@ -2492,3 +2492,4 @@ test('Relance de frais de scolarité : montant, mois, avertissement', async () =
   assert.match(t, /740 000 Ar/); assert.match(t, /Octobre 2026, Novembre 2026/); assert.doesNotMatch(t, /suspendre/);
   assert.match(relanceText(c, 'AVERTISSEMENT'), /suspendre/);
 });
+
