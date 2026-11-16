@@ -19,7 +19,7 @@ export function BulletinSheet({ b }) {
         <div className="text-right">
           <p className="text-[14px] font-bold">Bulletin du {b.term}</p>
           <p className="font-bold">Année Scolaire {b.year}</p>
-          <p className="mt-3 text-[12px] font-bold">{b.student}</p>
+          <p className="mt-3 text-[12px] font-bold">{b.displayName ?? b.student}</p>
           <p>{b.birthLine}</p>
           <p>{b.classLine}</p>
         </div>
