@@ -82,6 +82,6 @@ calendrier Parcoursup. Les notes s'ouvrent le 17 décembre ; les autres rubrique
 
 ## 10. Mise à jour 7 — classes en commun (une seule fois)
 1. SQL Editor › New query → coller `70_classes_communes.sql` → Run (en bas : 16 règles).
-2. Classe en commun (même matière, deux professeurs) : le premier qui saisit une note la prend ; elle disparaît chez
-   l'autre, prévenu dans son carnet. Enseignement scientifique : notes à 50/50, et le premier qui écrit une
-   appréciation l'écrit pour les deux. La Direction peut changer ce choix dans Notes reçues.
+2. Classe commune (même matière, deux professeurs) : chacun saisit ses devoirs et voit l'avancement commun
+   (« 3 / 4 notes : vous 2, Hery 1 ») ; une seule moyenne sur tous les devoirs. Enseignement scientifique : 50/50.
+   Une seule appréciation au bulletin : le premier qui l'écrit (ou le professeur choisi dans Notes reçues).

@@ -143,7 +143,7 @@ export default function NotesReceived({ settings, go }) {
   // même matière dans la même classe chez deux professeurs : Enseignement scientifique (normal), sinon à corriger
   const sharedGroups = sharedSubjects(roster, fiches);
   const conflicts = sharedGroups.filter((g) => !isShareable(g.subject));
-  const sharedOk = sharedGroups.filter((g) => isShareable(g.subject)); // ES : qui écrit l'appréciation ?
+  const sharedOk = sharedGroups; // ES et classes communes : qui écrit l'appréciation ?
   const rows = teachers.map((t) => ({ ...t, carnet: data?.carnets?.[t.id]?.value ?? null, at: data?.carnets?.[t.id]?.updated_at, services: servicesFor(roster, t.id) }));
   const exportAll = () => saveFile(`notes-recues-${new Date().toISOString().slice(0, 10)}.xlsx`, notesWorkbook(rows.filter((r) => r.carnet)));
 
@@ -203,33 +203,32 @@ export default function NotesReceived({ settings, go }) {
       </Card>
 
       {conflicts.length > 0 && (
-        <Card title="Deux professeurs pour la même matière" subtitle="Seul l'Enseignement scientifique se partage (moyenne 50/50, 2 notes minimum chacun). Ailleurs, un seul professeur saisit les notes : choisissez-le ci-dessous.">
+        <Card title="Classes communes (deux professeurs, même matière)" subtitle="Chacun saisit ses devoirs ; une seule moyenne sur tous les devoirs, et le minimum se compte à deux. Vous pouvez aussi confier la classe à un seul professeur.">
           <ul className="space-y-2 text-sm text-amber-900">{conflicts.map((g) => (
             <li key={g.key} className="rounded-lg bg-amber-50 px-3 py-2">
               <p>⚠ <strong>{g.cls} · {g.subject}</strong> : {g.teachers.map((t) => t.name).join(' et ')}</p>
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                <span className="text-xs">Qui saisit les notes de cette classe ?</span>
+                <span className="text-xs">Confier à un seul professeur (facultatif) :</span>
                 {g.teachers.map((t) => {
-                  const asked = roster?.claims?.[t.id]?.[g.key]?.kind === 'NOTES';
-                  const notes = (data?.carnets?.[t.id]?.value?.evaluations?.[g.key] ?? []).length;
-                  return <Button key={t.id} variant={asked ? undefined : 'secondary'} className="!px-2 !py-1 text-xs" disabled={busy} onClick={() => entrust(g, t)}>{t.name}{asked ? ' (a commencé)' : ''}{notes ? ` · ${notes} devoir${notes > 1 ? 's' : ''}` : ''}</Button>;
+                                    const notes = (data?.carnets?.[t.id]?.value?.evaluations?.[g.key] ?? []).length;
+                  return <Button key={t.id} variant="secondary" className="!px-2 !py-1 text-xs" disabled={busy} onClick={() => entrust(g, t)}>{t.name} seul·e{notes ? ` · ${notes} devoir${notes > 1 ? 's' : ''}` : ''}</Button>;
                 })}
               </div>
             </li>
           ))}</ul>
-          <p className="mt-2 text-xs text-slate-600">La classe disparaît alors chez l'autre professeur et un seul nom va sur le bulletin. Sinon, c'est automatique : le premier professeur qui saisit une note prend la classe.</p>
+          <p className="mt-2 text-xs text-slate-600">La classe disparaît alors chez l'autre professeur et un seul nom va sur le bulletin. Sans choix, la classe reste commune aux deux.</p>
         </Card>
       )}
 
       {sharedOk.length > 0 && (
-        <Card title="Matières partagées : qui écrit l'appréciation ?" subtitle="Notes à 50/50 (2 minimum chacun) ; une seule appréciation sur le bulletin, écrite par le professeur choisi">
+        <Card title="Classes à deux professeurs : qui écrit l'appréciation ?" subtitle="Une seule appréciation sur le bulletin : le premier qui l'écrit, ou le professeur choisi ici">
           <ul className="space-y-2 text-sm">{sharedOk.map((g) => {
             const w = writerOf(roster, g.key);
             return (
               <li key={g.key} className="rounded-lg bg-violet-50 px-3 py-2 text-violet-950">
                 <p><strong>{g.cls} · {g.subject}</strong> : {g.teachers.map((t) => t.name).join(' et ')}{w ? <> — appréciation : <strong>{g.teachers.find((t) => t.id === w)?.name ?? '?'}</strong></> : <span className="text-amber-800"> — à choisir</span>}</p>
                 <div className="mt-1.5 flex flex-wrap gap-2">{g.teachers.map((t) => {
-                  const asked = roster?.claims?.[t.id]?.[g.key]?.kind === 'APP';
+                  const asked = Boolean(roster?.claims?.[t.id]?.[`app:${g.key}`]);
                   return <Button key={t.id} variant={w === t.id || asked ? undefined : 'secondary'} className="!px-2 !py-1 text-xs" disabled={busy || w === t.id} onClick={() => chooseWriter(g, t)}>{t.name}{w === t.id ? ' ✓' : asked ? ' (a commencé)' : ''}</Button>;
                 })}</div>
               </li>

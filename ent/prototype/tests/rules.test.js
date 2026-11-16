@@ -2273,7 +2273,7 @@ test('matière partagée : seul l\'Enseignement scientifique (50/50, 2 notes cha
     f: [{ subject: 'MSGN', classes: ['Terminale STMG'] }], k: [{ subject: 'MSGN', classes: ['Terminale STMG'] }],
     a: [{ subject: 'Enseignement scientifique', classes: ['1re Générale'] }], b: [{ subject: 'Enseignement scientifique', classes: ['1re Générale'] }] } };
   const msgn = servicesFor(roster, 'f')[0]; const es = servicesFor(roster, 'a')[0];
-  assert.deepEqual(msgn.conflict, ['Mme K']); assert.equal(minEvaluationsFor(msgn, 4), 4);
+  assert.deepEqual(msgn.coTeachers, ['Mme K']); assert.equal(msgn.common, true); assert.equal(minEvaluationsFor(msgn, 4), 4);
   assert.ok(es.shared); assert.equal(minEvaluationsFor(es, 4), 2);
 });
 
@@ -2516,13 +2516,20 @@ test('Matière partagée : un seul professeur écrit l\'appréciation, notes tou
   assert.equal(row.avg, 12); assert.equal(row.appreciation, 'Texte A');
 });
 
-test('Classes en commun : le premier qui saisit prend la classe ; la Direction peut changer', async () => {
+test('Classe commune : les deux gardent la classe, minimum compté à deux, une seule moyenne sur tous les devoirs', async () => {
   const { servicesFor, takenFrom } = await import('../src/online/roster.js');
+  const { buildClassBulletins } = await import('../src/rules/onlineBulletins.js');
+  const k = '6e|Espagnol';
   const roster = { students: [{ cls: '6e', lastName: 'A', firstName: 'B' }], services: { h: [{ subject: 'Espagnol', classes: ['6e'] }], y: [{ subject: 'Espagnol', classes: ['6e'] }] }, names: { h: 'Henriette', y: 'Hery' },
-    claims: { y: { '6e|Espagnol': { kind: 'NOTES', at: '2026-11-17T08:00:00Z' } }, h: { '6e|Espagnol': { kind: 'NOTES', at: '2026-11-17T09:00:00Z' } } } };
-  assert.equal(servicesFor(roster, 'h').length, 0); // Hery a commencé avant
-  assert.equal(servicesFor(roster, 'y')[0].conflict, undefined);
-  assert.deepEqual(takenFrom(roster, 'h').map((x) => x.byName), ['Hery']);
-  const chosen = { ...roster, owners: { '6e|Espagnol': 'h' } }; // choix de la Direction
-  assert.equal(servicesFor(chosen, 'y').length, 0); assert.equal(servicesFor(chosen, 'h').length, 1);
+    claims: { y: { [`n:${k}`]: { count: 1 }, [`app:${k}`]: { at: '2026-11-17T08:00:00Z' } }, h: { [`n:${k}`]: { count: 2 } } } };
+  const sh = servicesFor(roster, 'h')[0];
+  assert.equal(sh.common, true); assert.equal(sh.otherCount, 1); assert.equal(sh.noAppreciation, true); assert.equal(sh.writer, 'y');
+  assert.equal(takenFrom(roster, 'h').length, 0);
+  const ev = (ids) => ({ [k]: ids.map((id) => ({ id, scale: 20, coef: 1, normalize: true })) });
+  const carnets = { h: { evaluations: ev(['a', 'b']), grades: { [k]: { 'A B': { a: '10', b: '10' } } } }, y: { evaluations: ev(['a']), grades: { [k]: { 'A B': { a: '16' } } }, comments: { [`${k}:A B`]: { text: 'Bien', validated: true } } } };
+  const row = buildClassBulletins({ cls: '6e', students: [{ cls: '6e', lastName: 'A', firstName: 'B' }], roster, carnets })[0].rows[0];
+  assert.equal(row.avg, 12); // (10 + 10 + 16) / 3, pas 50/50
+  assert.equal(row.appreciation, 'Bien');
+  const chosen = { ...roster, owners: { [k]: 'h' } }; // la Direction confie à une seule personne
+  assert.equal(servicesFor(chosen, 'y').length, 0);
 });
