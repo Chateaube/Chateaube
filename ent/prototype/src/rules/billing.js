@@ -30,8 +30,9 @@ export function studentDues(student, fees, settings, today) {
     student.isNew
       ? { key: 'INSCRIPTION', label: 'Inscription', amount: fees.inscription, journal: 'FRAIS_ANNEXES', due: firstDue }
       : { key: 'REINSCRIPTION', label: 'Réinscription', amount: fees.reinscription, journal: 'FRAIS_ANNEXES', due: firstDue },
-    { key: 'FASCICULE', label: 'Fascicule', amount: fees.fascicule, journal: 'FRAIS_ANNEXES', due: firstDue },
-    { key: 'LOCATION', label: fees.locationLabel ?? 'Location des manuels', amount: fees.location, journal: 'FRAIS_ANNEXES', due: firstDue },
+    ...(fees.fascicule > 0 ? [{ key: 'FASCICULE', label: 'Fascicule', amount: fees.fascicule, journal: 'FRAIS_ANNEXES', due: firstDue }] : []),
+    // location : seulement si le lot de manuels de la classe est connu
+    ...(fees.location > 0 ? [{ key: 'LOCATION', label: fees.locationLabel ?? 'Location des manuels', amount: fees.location, journal: 'FRAIS_ANNEXES', due: firstDue }] : []),
     // cahiers d'activité gardés par l'élève (vendus avec le lot de la classe)
     ...(fees.cahiers > 0 ? [{ key: 'CAHIERS', label: fees.cahiersLabel ?? 'Cahiers d\'activités', amount: fees.cahiers, journal: 'FRAIS_ANNEXES', due: firstDue }] : []),
     ...planMonths(plan)

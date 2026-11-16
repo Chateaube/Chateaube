@@ -11,7 +11,8 @@ import { seniority } from '../rules/documents.js';
 import { CLASSES } from '../data/schoollife.js';
 import { DEMO_SPECIALTIES } from '../data/manuals.js';
 import { kitFor, kitTotals } from '../rules/manuals.js';
-import { loadManuals } from '../manualsStore.js';
+import { loadManuals, manualsDefined } from '../manualsStore.js';
+import { realData } from '../demoData.js';
 import { useOnline } from '../online.js';
 import { liveArray } from '../demoData.js';
 import { usePersistent, readStored } from '../persist.js';
@@ -24,6 +25,8 @@ import { today } from '../clock.js';
 export function feesFor(account, manuals = loadManuals().manuals) {
   const row = CLASS_FEES.find((f) => f.cls === account.cls);
   if (!row) return null;
+  // vraies données sans liste de manuels saisie : ni location ni cahiers (les prix d'exemple ne sont pas facturés)
+  if (realData() && !manualsDefined()) return { ...row, location: 0, cahiers: 0, manualsUnknown: true };
   const items = kitFor(account.cls, account.specialties ?? [], manuals);
   if (!items.length) return row;
   const t = kitTotals(items);
