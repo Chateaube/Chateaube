@@ -47,6 +47,7 @@ function Slip({ slip, onClose }) {
 
 export default function AccountsModule({ embedded = false, settings }) {
   const [list, setList] = useState(null); const [err, setErr] = useState('');
+  const [loginEdit, setLoginEdit] = useState(null); // { id, value } : identifiant modifié à la main
   // filtre : l'équipe (sans les élèves), l'administration, les professeurs ou les élèves
   const [who, setWho] = useState('EQUIPE');
   const rolesOf = (u) => (u.user_role ?? []).map((r) => r.role);
@@ -145,7 +146,24 @@ export default function AccountsModule({ embedded = false, settings }) {
                 <li key={u.id} className={`py-2.5 text-sm ${u.is_active ? '' : 'opacity-60'}`}>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="font-medium text-slate-900">{u.last_name} {u.first_name} <span className="font-mono text-xs font-normal text-slate-500">· {u.login}</span></p>
+                      <p className="font-medium text-slate-900">{u.last_name} {u.first_name} <span className="font-mono text-xs font-normal text-slate-500">· {u.login}</span>
+                        {!(u.user_role ?? []).some((r) => r.role === 'DIRECTION') && <button type="button" className="ml-2 text-xs font-normal text-navy-700 underline" onClick={() => setLoginEdit(loginEdit?.id === u.id ? null : { id: u.id, value: u.login ?? '' })}>Modifier l'identifiant</button>}</p>
+                      {loginEdit?.id === u.id && (
+                        <form className="mt-1 flex flex-wrap items-center gap-2" onSubmit={async (e) => {
+                          e.preventDefault();
+                          const want = loginEdit.value.trim().toLowerCase();
+                          if (!/^[a-z0-9]+(\.[a-z0-9]+)*$/.test(want)) { setErr('Identifiant : lettres sans accent, chiffres et points seulement (ex. ki.christophe).'); return; }
+                          if ((list ?? []).some((x) => x.id !== u.id && x.login === want)) { setErr(`L'identifiant « ${want} » est déjà pris.`); return; }
+                          if (want === u.login) { setLoginEdit(null); return; }
+                          if (!(await askConfirm(`Identifiant de ${u.first_name} ${u.last_name} : « ${u.login} » → « ${want} » ? Le code ne change pas ; prévenez la personne.`))) return;
+                          setLoginEdit(null);
+                          run(async () => { const { error } = await supabase.from('app_user').update({ login: want }).eq('id', u.id); if (error) throw new Error(/duplicate|unique/i.test(error.message) ? `L'identifiant « ${want} » est déjà pris.` : error.message); });
+                        }}>
+                          <input value={loginEdit.value} onChange={(e) => setLoginEdit({ ...loginEdit, value: e.target.value })} aria-label="Nouvel identifiant" autoCapitalize="none" className="rounded-md border border-slate-300 px-2 py-1 font-mono text-xs" />
+                          <Button type="submit" className="!px-2 !py-1 text-xs" disabled={busy}>Enregistrer</Button>
+                          <span className="text-[11px] text-slate-500">Même code ; la personne se connecte ensuite avec le nouvel identifiant.</span>
+                        </form>
+                      )}
                       {(() => {
                         // nom corrigé : l'identifiant peut suivre (la personne se connecte ensuite avec le nouveau, même code)
                         const want = loginFor(u.first_name, u.last_name, new Set((list ?? []).filter((x) => x.id !== u.id).map((x) => x.login)), f.usual);
