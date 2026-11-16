@@ -153,7 +153,11 @@ export default function AccountsModule({ embedded = false, settings }) {
                       <AgentForm value={edit.value} onChange={(value) => setEdit({ ...edit, value })} withAccount={false} />
                       <p className="mt-2 text-xs text-slate-500">Le nom et la fonction dans l'ENT ne changent pas ici (compte de connexion) ; le reste de la fiche, oui.</p>
                       <div className="mt-3 flex gap-2">
-                        <Button onClick={() => { const { email, ...rest } = edit.value; setFiches({ ...fiches, [u.id]: rest }); setEdit(null); }}>Enregistrer la fiche</Button>
+                        <Button onClick={() => { const { email, ...rest } = edit.value; setFiches({ ...fiches, [u.id]: rest }); setEdit(null);
+                          // nom ou prénom corrigé dans la fiche : le compte (listes, notes, bulletins) prend le même nom
+                          const first = (rest.first ?? '').trim(); const last = (rest.last ?? '').trim();
+                          if (first && last && (first !== u.first_name || last !== u.last_name)) run(async () => { const { error } = await supabase.from('app_user').update({ first_name: first, last_name: last }).eq('id', u.id); if (error) throw new Error(error.message); });
+                        }}>Enregistrer la fiche</Button>
                         <Button variant="secondary" onClick={() => setEdit(null)}>Annuler</Button>
                       </div>
                     </div>
