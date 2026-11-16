@@ -101,3 +101,39 @@ export function salaryWindow(today, calendar, { paid = false } = {}) {
   const monthEnd = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
   return { start, lastSchoolDay: last, monthEnd, active: !paid && today >= start && today <= monthEnd, inWindow: (d) => !paid && d >= start && d <= monthEnd };
 }
+
+/**
+ * Correction d'une écriture de caisse (comme en comptabilité) : rien ne se modifie ni ne se supprime. La
+ * Direction seule passe une ligne inverse (contre-passation), avec un motif obligatoire ; on ressaisit ensuite
+ * la bonne écriture si besoin. L'écriture d'origine reste visible, marquée « corrigée ».
+ */
+export function reverseMovement(m, all, { by, role, reason, date, time }) {
+  if (role !== 'DIRECTION') return { error: 'Seule la Direction peut corriger une écriture.' };
+  if (String(reason ?? '').trim().length < 10) return { error: 'Motif obligatoire (10 caractères au moins).' };
+  if (m.reverses) return { error: 'Une ligne de correction ne se corrige pas : ressaisissez la bonne écriture.' };
+  if (all.some((x) => x.reverses === m.id)) return { error: 'Cette écriture a déjà été corrigée.' };
+  return { movement: {
+    id: `r-${m.id}`, date, time, dir: m.dir === 'IN' ? 'OUT' : 'IN', nature: 'Correction (contre-passation)', journal: m.journal,
+    label: `Correction de « ${m.label} » — ${reason.trim()}`, method: m.method, amount: m.amount, agent: by, reverses: m.id, reason: reason.trim(),
+  } };
+}
+
+/**
+ * Duplicata d'un reçu : la Direction l'imprime directement ; le secrétariat le demande (motif obligatoire), la
+ * Direction l'autorise, puis le secrétariat l'imprime une seule fois.
+ */
+export function requestDuplicate(receipt, { by, reason, at }) {
+  if (String(reason ?? '').trim().length < 5) return { error: 'Motif obligatoire (ex. reçu perdu par la famille).' };
+  if (receipt.dup?.status === 'DEMANDE') return { error: 'Demande déjà envoyée à la Direction.' };
+  return { receipt: { ...receipt, dup: { status: 'DEMANDE', reason: reason.trim(), by, at } }, log: { at, by, action: 'Demande de duplicata', receipt: receipt.number, detail: reason.trim() } };
+}
+export function decideDuplicate(receipt, { by, role, approve, at }) {
+  if (role !== 'DIRECTION') return { error: 'Seule la Direction autorise un duplicata.' };
+  if (receipt.dup?.status !== 'DEMANDE') return { error: 'Aucune demande de duplicata en attente.' };
+  return { receipt: { ...receipt, dup: { ...receipt.dup, status: approve ? 'AUTORISE' : 'REFUSE', decidedBy: by, decidedAt: at } },
+    log: { at, by, action: approve ? 'Duplicata autorisé' : 'Duplicata refusé', receipt: receipt.number, detail: receipt.dup.reason } };
+}
+/** Peut-on imprimer le duplicata maintenant ? Direction : toujours ; secrétariat : une fois, après autorisation. */
+export const canPrintDuplicate = (receipt, role) => role === 'DIRECTION' || receipt.dup?.status === 'AUTORISE';
+/** Après impression par le secrétariat, l'autorisation est consommée. */
+export const afterDuplicatePrint = (receipt, role) => (role === 'DIRECTION' ? receipt : { ...receipt, dup: { ...receipt.dup, status: 'IMPRIME' } });

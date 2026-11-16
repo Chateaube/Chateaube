@@ -31,6 +31,7 @@ import { takeIntent } from '../navIntent.js';
 import { nowTime, today } from '../clock.js';
 import { meLabel } from '../identity.js';
 import { askConfirm } from './Dialogs.jsx';
+import { reverseMovement } from '../rules/cashControl.js';
 
 const TODAY = today();
 const fmtDate = (iso) => iso.split('-').reverse().join('/');
@@ -261,6 +262,14 @@ function CashTab({ movements, setMovements, role, account }) {
   const isWithdrawal = draft.dir === 'OUT' && draft.nature === 'Prélèvement Direction';
   const ok = draft.label.trim() && draft.amount > 0 && (draft.dir === 'IN' || (balance[draft.journal] ?? 0) >= draft.amount);
   const decide = (m, status) => setMovements(movements.map((x) => (x.id === m.id ? { ...x, status, decidedAt: new Date().toISOString().slice(0, 16) } : x)));
+  // correction d'une écriture (Direction) : ligne inverse avec motif, rien n'est modifié ni effacé
+  const [fixing, setFixing] = useState(null); const [reason, setReason] = useState(''); const [fixErr, setFixErr] = useState('');
+  const reverse = (m) => {
+    const res = reverseMovement(m, movements, { by: agent, role, reason, date: TODAY, time: nowTime() });
+    if (res.error) { setFixErr(res.error); return; }
+    setMovements([...movements, res.movement]); setFixing(null); setReason(''); setFixErr('');
+  };
+  const reversed = new Set(movements.filter((x) => x.reverses).map((x) => x.reverses));
   return (
     <div className="space-y-5">
       <p className="rounded-lg bg-navy-50 px-3 py-2 text-sm text-navy-900">Ici, seulement ce qui n'est ni un paiement de famille (onglet <strong>Encaisser</strong>, avec reçu) ni un achat (onglet <strong>Dépenses & fournisseurs</strong>, avec facture) : fond de caisse, retrait ou dépôt en banque, remboursement, reversement au centre d'examen. Le tableau reprend tous les mouvements du jour.</p>
@@ -276,6 +285,7 @@ function CashTab({ movements, setMovements, role, account }) {
               <tr className="border-y border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
                 <th className="px-4 py-2 font-medium">Heure</th><th className="px-2 font-medium">Sens</th><th className="px-2 font-medium">Libellé</th>
                 <th className="px-2 font-medium">Journal</th><th className="px-2 font-medium">Mode</th><th className="px-2 font-medium">Agent</th><th className="px-4 text-right font-medium">Montant</th>
+                {role === 'DIRECTION' && <th className="px-2" />}
               </tr>
             </thead>
             <tbody>
@@ -287,11 +297,23 @@ function CashTab({ movements, setMovements, role, account }) {
                     {m.status === 'A_VALIDER' && (role === 'DIRECTION' && account?.name === m.withdrawnBy
                       ? <span className="mt-1 flex gap-1"><Button className="!px-2 !py-0.5 text-xs" onClick={() => decide(m, 'VALIDE')}>Je confirme</Button><Button variant="secondary" className="!px-2 !py-0.5 text-xs" onClick={() => decide(m, 'REFUSE')}>Ce n'est pas moi</Button></span>
                       : <Badge tone="amber">À confirmer par {m.withdrawnBy} — pas encore compté</Badge>)}
-                    {m.status === 'REFUSE' && <Badge tone="red">Refusé par {m.withdrawnBy} — non compté</Badge>}</td>
+                    {m.status === 'REFUSE' && <Badge tone="red">Refusé par {m.withdrawnBy} — non compté</Badge>}
+                    {reversed.has(m.id) && <Badge tone="amber">Corrigée (ligne inverse)</Badge>}
+                    {fixing === m.id && (
+                      <div className="mt-2 rounded-lg bg-amber-50 p-2">
+                        <label className="block text-xs text-amber-900">Motif de la correction (obligatoire)
+                          <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ex. montant saisi 370 000 au lieu de 37 000" className={`mt-1 w-full bg-white ${inputCls}`} />
+                        </label>
+                        {fixErr && <p className="text-xs text-red-700">{fixErr}</p>}
+                        <p className="mt-1 text-[11px] text-amber-900">Une ligne inverse du même montant est ajoutée ; ressaisissez ensuite la bonne écriture si besoin.</p>
+                        <span className="mt-1 flex gap-2"><Button className="!px-2 !py-0.5 text-xs" onClick={() => reverse(m)}>Passer la correction</Button><Button variant="ghost" className="!px-2 !py-0.5 text-xs" onClick={() => { setFixing(null); setFixErr(''); }}>Annuler</Button></span>
+                      </div>
+                    )}</td>
                   <td className="px-2"><JournalBadge j={m.journal} /></td>
                   <td className="px-2 text-slate-600">{m.method}</td>
                   <td className="px-2 text-slate-600">{m.agent}</td>
                   <td className={`whitespace-nowrap px-4 text-right font-medium tabular-nums ${m.dir === 'IN' ? 'text-emerald-700' : 'text-red-700'}`}>{m.dir === 'IN' ? '+' : '−'} {formatAr(m.amount)}</td>
+                  {role === 'DIRECTION' && <td className="px-2">{!m.reverses && !reversed.has(m.id) && fixing !== m.id && <Button variant="ghost" className="!px-2 !py-0.5 text-xs" onClick={() => { setFixing(m.id); setReason(''); setFixErr(''); }}>Corriger</Button>}</td>}
                 </tr>
               ))}
             </tbody>
@@ -335,7 +357,7 @@ function CashTab({ movements, setMovements, role, account }) {
           <p className="mt-2 text-sm text-red-700">Solde insuffisant dans la caisse « {JOURNALS[draft.journal].label} ».</p>
         )}
         {isWithdrawal && <p className="mt-2 text-xs text-navy-900">{withdrawalStatus({ role, accountName: account?.name, who: draft.withdrawnBy }) === 'VALIDE' ? 'Vous saisissez votre propre prélèvement : il est compté tout de suite.' : `${draft.withdrawnBy} recevra une demande de confirmation ; le prélèvement ne sera compté qu'après sa confirmation.`}</p>}
-        <p className="mt-2 text-xs text-slate-500">Chaque mouvement est attribué à l'agent connecté et horodaté ; une sortie ne peut pas dépasser le solde de son journal.</p>
+        <p className="mt-2 text-xs text-slate-500">Chaque mouvement est attribué à l'agent connecté et horodaté ; une sortie ne peut pas dépasser le solde de son journal. Aucune écriture ne se modifie ni ne s'efface : la Direction la corrige par une ligne inverse, avec un motif.</p>
       </Card>
       <MonthlyCashExport movements={movements} />
     </div>

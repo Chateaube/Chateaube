@@ -41,12 +41,31 @@ export function backupSheets(entries, at) {
   return [{ name: 'Sommaire', rows: summary, widths: [34, 18] }, ...sheets];
 }
 
+// Jamais dans une sauvegarde : la session de connexion (ent-auth) ni les envois en attente vers le serveur.
+const keepKey = (k) => k !== 'ent-auth' && !k.startsWith('ent-pending-');
+
+/**
+ * Restaure une sauvegarde complète (fichier .json de « Sauvegarde complète ») : remplace les données de ce
+ * navigateur par celles du fichier. Renvoie le nombre de types de données repris ; lève une erreur si le fichier
+ * n'est pas une sauvegarde de l'ENT.
+ */
+export function restoreLocalData(data, storage = localStorage) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Ce fichier n\'est pas une sauvegarde de l\'ENT.');
+  const entries = Object.entries(data).filter(([k]) => k.startsWith('ent-') && keepKey(k));
+  if (!entries.length) throw new Error('Ce fichier n\'est pas une sauvegarde de l\'ENT.');
+  const old = [];
+  for (let i = 0; i < storage.length; i += 1) { const k = storage.key(i); if (k?.startsWith('ent-') && keepKey(k)) old.push(k); }
+  old.forEach((k) => storage.removeItem(k));
+  entries.forEach(([k, v]) => storage.setItem(k, JSON.stringify(v))); // valeurs lues par JSON.parse à la sauvegarde
+  return entries.length;
+}
+
 /** Lit toutes les données de l'ENT gardées dans ce navigateur. */
 export function readLocalData(storage = localStorage) {
   const out = [];
   for (let i = 0; i < storage.length; i += 1) {
     const k = storage.key(i);
-    if (!k?.startsWith('ent-')) continue;
+    if (!k?.startsWith('ent-') || !keepKey(k)) continue;
     try { out.push([k, JSON.parse(storage.getItem(k))]); } catch { out.push([k, storage.getItem(k)]); }
   }
   return out.sort(([a], [b]) => a.localeCompare(b));
