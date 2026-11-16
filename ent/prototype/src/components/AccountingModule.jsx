@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { saveFile } from '../download.js';
 import { Badge, Button, Card, Icon, Stat } from './ui.jsx';
 import {
-  JOURNALS, CLASS_FEES, FEE_COLUMNS, ARTICLES, CASH_MOVEMENTS, FAMILIES, CASH_NATURES, CASH_OPENING, CASH_HISTORY, CASH_YEAR_OPENING,
+  JOURNALS, CLASS_FEES, FEE_COLUMNS, examOf, examKind, ARTICLES, CASH_MOVEMENTS, FAMILIES, CASH_NATURES, CASH_OPENING, CASH_HISTORY, CASH_YEAR_OPENING,
   RECEIPTS_TODAY, CASH_AUDIT, CASH_SAFE, CASH_CLOSINGS, REDUCTION_TYPES, PAYROLL, HOURLY_RATES,
 } from '../data/accounting.js';
 import CashControl, { methodText } from './CashControl.jsx';
@@ -53,6 +53,64 @@ function AmountInput({ value, onChange, className = '' }) {
 }
 
 /* ---------- Classes & tarifs ---------- */
+
+/**
+ * Droits d'examen déjà réglés (reprise) : la Direction coche les élèves de 3e, 1re et Terminale qui ont payé ;
+ * chacun est marqué « réglé » et l'encaissement entre dans le journal Droits d'examen. Les autres restent dus
+ * (Impayés & relances). Aucune écriture n'est effacée : un oubli se corrige ensuite élève par élève.
+ */
+const DIRECT = 'Payé directement au centre d\'examen';
+function ExamCatchUp({ fees, accounts, setAccounts, setMovements, actor }) {
+  const rows = accounts.map((a) => ({ a, exam: examOf(a.cls, fees.find((f) => f.cls === a.cls)) })).filter((x) => x.exam && !(x.a.paid ?? []).includes('EXAMEN'))
+    .sort((x, y) => x.a.cls.localeCompare(y.a.cls, 'fr') || x.a.name.localeCompare(y.a.name, 'fr'));
+  const [unpaid, setUnpaid] = useState([]); // élèves qui n'ont PAS payé (tous les autres oui)
+  const [date, setDate] = useState(TODAY);
+  const [method, setMethod] = useState('Espèces');
+  const [done, setDone] = useState('');
+  const missing = fees.filter((f) => examKind(f.cls) && !(f.examen > 0)).map((f) => f.cls);
+  const payers = rows.filter((x) => !unpaid.includes(x.a.id));
+  const save = async () => {
+    if (!(await askConfirm(`Marquer ${payers.length} élève${payers.length > 1 ? 's' : ''} comme ayant payé ses droits d'examen (${formatAr(payers.reduce((n, x) => n + x.exam.amount, 0))}) ?`))) return;
+    const ids = new Set(payers.map((x) => x.a.id));
+    setAccounts(accounts.map((a) => (ids.has(a.id) ? { ...a, paid: [...new Set([...(a.paid ?? []), 'EXAMEN'])] } : a)));
+    // payé directement au centre d'examen : rien n'entre dans la caisse de l'école
+    if (method !== DIRECT) setMovements((prev) => [...prev, ...payers.map((x, i) => ({
+      id: `exa-${x.a.id}-${Date.now()}-${i}`, date, time: '08:00', dir: 'IN', nature: 'Encaissement famille', journal: 'DROITS_EXAMEN',
+      label: `${x.exam.label} — ${x.a.name}`, method, amount: x.exam.amount, agent: `${actor} (reprise)`, student: x.a.name,
+    }))]);
+    setDone(`${payers.length} élève${payers.length > 1 ? 's' : ''} marqué${payers.length > 1 ? 's' : ''} « réglé ». ${unpaid.length ? `Restent dus : ${rows.filter((x) => unpaid.includes(x.a.id)).map((x) => x.a.name).join(', ')}.` : ''}`);
+    setUnpaid([]);
+  };
+  return (
+    <Card title="Droits d'examen déjà payés" subtitle="DNB (3e), épreuves anticipées (1re), Bac (Terminale) : décochez seulement ceux qui n'ont pas payé">
+      {missing.length > 0 && <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">Montant des droits d'examen à saisir d'abord dans le tableau ci-dessus (colonne « Droits d'examen ») pour : {missing.join(', ')}.</p>}
+      {done && <p className="mb-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{done}</p>}
+      {rows.length === 0 ? <p className="text-sm text-slate-600">Aucun droit d'examen en attente.</p> : (<>
+        <div className="max-h-96 overflow-y-auto rounded-lg border border-slate-200">
+          {[...new Set(rows.map((x) => x.a.cls))].map((cls) => (
+            <div key={cls}>
+              <p className="sticky top-0 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600">{cls} · {rows.find((x) => x.a.cls === cls).exam.label} · {formatAr(rows.find((x) => x.a.cls === cls).exam.amount)}</p>
+              {rows.filter((x) => x.a.cls === cls).map(({ a }) => (
+                <label key={a.id} className="flex items-center gap-2 border-t border-slate-100 px-3 py-1.5 text-sm">
+                  <input type="checkbox" className="h-5 w-5" checked={!unpaid.includes(a.id)} onChange={(e) => setUnpaid(e.target.checked ? unpaid.filter((x) => x !== a.id) : [...unpaid, a.id])} />
+                  <span className={unpaid.includes(a.id) ? 'text-red-700' : 'text-slate-800'}>{a.name}</span>
+                  {unpaid.includes(a.id) && <span className="text-xs text-red-700">n'a pas payé</span>}
+                </label>
+              ))}
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 flex flex-wrap items-end gap-3">
+          <label className="text-xs text-slate-600">Date du paiement<input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`mt-1 block ${inputCls}`} /></label>
+          <label className="text-xs text-slate-600">Mode<select value={method} onChange={(e) => setMethod(e.target.value)} className={`mt-1 block ${inputCls}`}>{['Espèces', 'Chèque', 'Virement', DIRECT].map((m) => <option key={m}>{m}</option>)}</select></label>
+          <Button disabled={!payers.length} onClick={save}>Marquer {payers.length} élève{payers.length > 1 ? 's' : ''} comme réglé{payers.length > 1 ? 's' : ''}</Button>
+        </div>
+        <p className="mt-2 text-xs text-slate-500">Chaque paiement entre dans le journal « Droits d'examen ». Ceux qui ne sont pas cochés restent dus et apparaissent dans « Impayés & relances ».</p>
+      </>)}
+    </Card>
+  );
+}
+
 function FeesTab({ fees, setFees, settings, canEdit }) {
   const manuals = useMemo(() => loadManuals().manuals, []);
   const [newStudent, setNewStudent] = useState(false);
@@ -466,7 +524,7 @@ export default function AccountingModule({ settings, role, account }) {
         </div>
       )}
       {tab === 'reductions' && <Reductions canEdit={canEdit} actor={actor} types={reductionTypes} setTypes={setReductionTypes} accounts={accounts} setAccounts={setAccounts} />}
-      {tab === 'fees' && <FeesTab fees={fees} setFees={setFees} settings={settings} canEdit={canEdit} />}
+      {tab === 'fees' && <><FeesTab fees={fees} setFees={setFees} settings={settings} canEdit={canEdit} />{role === 'DIRECTION' && <ExamCatchUp fees={fees} accounts={accounts} setAccounts={setAccounts} setMovements={setMovements} actor={actor} />}</>}
       {tab === 'articles' && <ArticlesTab articles={articles} setArticles={setArticles} canEdit={canEdit} />}
       {tab === 'cash' && <CashTab movements={movements} setMovements={setMovements} role={role} account={account} />}
       {tab === 'expenses' && <ExpensesTab expenses={expenses} setExpenses={setExpenses} suppliers={suppliers} setSuppliers={setSuppliers} onCashOut={cashOut} today={TODAY} canBackdate={role === 'DIRECTION'} />}

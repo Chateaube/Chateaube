@@ -29,7 +29,22 @@ export const FEE_COLUMNS = [
   { key: 'fascicule', label: 'Fascicule', hint: 'Une fois par an' },
   { key: 'location', label: 'Location manuels', hint: 'Calculée : 25 000 Ar par manuel à rendre du lot de la classe', computed: true },
   { key: 'cahiers', label: 'Cahiers d\'activités', hint: 'Calculé : cahiers gardés par l\'élève, au prix fixé dans Manuels scolaires', computed: true },
+  { key: 'examen', label: 'Droits d\'examen', hint: '3e : DNB · 1re : épreuves anticipées (EA) · Terminale : Bac — journal Droits d\'examen, hors coût annuel' },
 ];
+
+/** Examen de la classe (3e : DNB, 1re : épreuves anticipées, Terminale : Bac), ou null. */
+export function examKind(cls) {
+  const c = String(cls ?? '');
+  if (/^3e/.test(c)) return 'Droits DNB';
+  if (/^1re/.test(c)) return 'Droits des épreuves anticipées (EA)';
+  if (/^Terminale/.test(c)) return 'Droits du Bac';
+  return null;
+}
+/** Droits d'examen dus par un élève d'après la grille « Classes & tarifs » (null si pas d'examen ou montant à 0). */
+export function examOf(cls, fees) {
+  const label = examKind(cls);
+  return label && fees?.examen > 0 ? { label, amount: fees.examen, due: '2026-10-31' } : null;
+}
 
 // Catalogue « Articles & services » (facturés à la demande)
 const DEFAULT_ARTICLES = [
