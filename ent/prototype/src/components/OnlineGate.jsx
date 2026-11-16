@@ -15,10 +15,10 @@ const field = 'mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-b
 // Écran d'accueil de l'ENT (chateaubriand.pro) : à gauche l'école et les quatre espaces, à droite la connexion.
 // Un seul écran, sans défilement sur ordinateur ; sur téléphone, la connexion vient en premier.
 const SPACES = [
-  ['Administration', 'Direction, secrétariat, vie scolaire', '#ffcf2e', 'M4 10 12 5l8 5zM6 11v7M10 11v7M14 11v7M18 11v7M4 20h16'],
-  ['Professeurs', 'Notes, appréciations, agenda', '#f25c5c', 'M4 5h16v11H4zM8 9h8M8 12h5M10 20h4'],
-  ['Élèves', 'Emploi du temps, agenda, orientation', '#6cb8f0', 'M2 9l10-5 10 5-10 5zM6 11v5c0 1.5 3 3 6 3s6-1.5 6-3v-5'],
-  ['Parents', 'Notes, bulletins · ouverture le 17 décembre', '#a99cf2', 'M8 7a3 3 0 1 0 0 .1M17 9a2.5 2.5 0 1 0 0 .1M2 20c0-3.3 2.7-6 6-6s6 2.7 6 6M14 20c0-2.5 1.5-4.5 3.5-4.5S21 17.5 21 20'],
+  ['Administration', 'Caisse, inscriptions, vie scolaire, conseils de classe', '#ffcf2e', 'M4 10 12 5l8 5zM6 11v7M10 11v7M14 11v7M18 11v7M4 20h16'],
+  ['Professeurs', 'Carnet de notes, appréciations, compétences, agenda', '#f25c5c', 'M4 5h16v11H4zM8 9h8M8 12h5M10 20h4'],
+  ['Élèves', 'Emploi du temps du jour, agenda, orientation et Parcoursup', '#6cb8f0', 'M2 9l10-5 10 5-10 5zM6 11v5c0 1.5 3 3 6 3s6-1.5 6-3v-5'],
+  ['Parents', 'Notes, assiduité, bulletins, documents · ouverture le 17 décembre', '#a99cf2', 'M8 7a3 3 0 1 0 0 .1M17 9a2.5 2.5 0 1 0 0 .1M2 20c0-3.3 2.7-6 6-6s6 2.7 6 6M14 20c0-2.5 1.5-4.5 3.5-4.5S21 17.5 21 20'],
 ];
 function Shell({ title, children }) {
   return (
@@ -33,10 +33,12 @@ function Shell({ title, children }) {
           <p className="mt-3 max-w-md text-[#6d5fc7]">Un seul identifiant et un seul code, remis par l'école : chacun arrive dans son espace.</p>
           <ul className="mt-6 grid max-w-xl grid-cols-2 gap-3">
             {SPACES.map(([t, d, bg, icon]) => (
-              <li key={t} className="rounded-xl p-3 text-[#2b1a8f] lg:p-4" style={{ background: bg }}>
-                <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={icon} /></svg>
-                <p className="mt-1.5 font-display text-base font-bold lg:text-lg">{t}</p>
-                <p className="text-xs leading-snug opacity-85">{d}</p>
+              <li key={t} className="rounded-xl border-t-4 bg-white p-3 text-[#2b1a8f] shadow-sm lg:p-4" style={{ borderColor: bg }}>
+                <span className="flex h-10 w-10 items-center justify-center rounded-full" style={{ background: bg }}>
+                  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={icon} /></svg>
+                </span>
+                <p className="mt-2 font-display text-base font-bold lg:text-lg">{t}</p>
+                <p className="text-xs leading-snug text-[#6d5fc7]">{d}</p>
               </li>
             ))}
           </ul>
