@@ -36,7 +36,7 @@ export function buildClassBulletins({ cls, students = [], roster, carnets = {}, 
   const rowFor = (subject, name) => {
     const parts = bySubject[subject].filter((p) => p.service.students.includes(name)).map((p) => {
       const c = p.carnet ?? {}; const sid = p.service.id;
-      return { teacher: p.teacher, average: studentAverage(c.evaluations?.[sid] ?? [], c.grades?.[sid]?.[name], BONUS_ENABLED ? c.bonus?.[sid]?.[name] : undefined), appreciation: finalText(textOf(c.comments?.[`${sid}:${name}`]), corrections[correctionKey(p.tid, sid, name)]).trim(), competencies: c.myComps?.[sid] ?? [] };
+      return { teacher: p.teacher, average: studentAverage(c.evaluations?.[sid] ?? [], c.grades?.[sid]?.[name], BONUS_ENABLED ? c.bonus?.[sid]?.[name] : undefined), appreciation: (p.service.writer && p.service.writer !== p.tid) ? '' : finalText(textOf(c.comments?.[`${sid}:${name}`]), corrections[correctionKey(p.tid, sid, name)]).trim(), competencies: c.myComps?.[sid] ?? [] };
     });
     if (!parts.length) return null; // matière que l'élève ne suit pas (spécialité)
     const x = combineTeachers(parts);

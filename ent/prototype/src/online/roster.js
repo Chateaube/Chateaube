@@ -1,7 +1,7 @@
 // « Envoi des classes » : ce que la Direction publie pour les professeurs, à partir de son import (élèves) et
 // des fiches des agents (matières × classes de chaque professeur). Seuls les noms des élèves, leur classe et
 // leurs spécialités partent : aucune autre donnée personnelle.
-import { fetchDoc } from './docs.js';
+import { fetchDoc, fetchDocs, saveDoc } from './docs.js';
 import { setRemoteImport, currentStudents } from '../importStore.js';
 
 const fold = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
@@ -38,7 +38,7 @@ export function servicesFor(roster, accountId) {
   (roster?.students ?? []).forEach((s) => (byClass[s.cls] ??= []).push(s));
   return (roster?.services?.[accountId] ?? []).flatMap((s) => s.classes.map((cls) => {
     // classe confiée à un seul professeur par la Direction (même matière chez deux professeurs) : masquée chez l'autre
-    const owner = roster?.owners?.[`${cls}|${s.subject}`];
+    const owner = ownerOf(roster, `${cls}|${s.subject}`);
     if (owner && owner !== accountId) return null;
     const spe = specialtyOf(s.subject, cls);
     const students = (byClass[cls] ?? []).filter((st) => !spe || !st.specialties?.length || st.specialties.includes(spe))
@@ -46,9 +46,41 @@ export function servicesFor(roster, accountId) {
     // matière partagée (ES, MSGN, Espagnol…) : un autre professeur a la même matière dans la même classe
     const others = Object.entries(roster?.services ?? {}).filter(([id, list]) => id !== accountId && list.some((o) => o.subject === s.subject && o.classes.includes(cls))).map(([id]) => roster?.names?.[id] ?? '');
     // seul l'Enseignement scientifique se partage (50/50, 2 notes chacun) ; ailleurs, deux professeurs = à corriger
-    const extra = !others.length || owner === accountId ? {} : isShareable(s.subject) ? { shared: true, coTeachers: others, minEvaluations: SHARED_MIN } : { conflict: others };
+    // matière partagée (ES) : un seul professeur écrit l'appréciation (roster.writers), l'autre n'en écrit pas
+    const writer = writerOf(roster, `${cls}|${s.subject}`);
+    const extra = !others.length || owner === accountId ? {} : isShareable(s.subject)
+      ? { shared: true, coTeachers: others, minEvaluations: SHARED_MIN, ...(writer ? { writer, noAppreciation: writer !== accountId, writerName: roster?.names?.[writer] ?? '' } : {}) }
+      : { conflict: others };
     return { id: `${cls}|${s.subject}`, cls, subject: s.subject, students, ...extra };
   })).filter(Boolean);
+}
+
+/**
+ * Classes en commun : la Direction peut choisir (roster.owners / roster.writers) ; sinon le premier professeur qui a
+ * commencé (fiche « prise:<id> », roster.claims) — notes pour une classe en commun, appréciation pour l'ES.
+ */
+const firstClaim = (roster, key, kind) => Object.entries(roster?.claims ?? {})
+  .filter(([, v]) => v?.[key]?.kind === kind).sort(([, a], [, b]) => String(a[key].at).localeCompare(String(b[key].at)))[0]?.[0] ?? null;
+export const ownerOf = (roster, key) => roster?.owners?.[key] ?? firstClaim(roster, key, 'NOTES');
+export const writerOf = (roster, key) => roster?.writers?.[key] ?? firstClaim(roster, key, 'APP');
+/** Classes que ce professeur avait et qu'un collègue a prises (notes) : pour le prévenir. */
+export function takenFrom(roster, accountId) {
+  return (roster?.services?.[accountId] ?? []).flatMap((s) => s.classes.map((cls) => ({ cls, subject: s.subject, by: ownerOf(roster, `${cls}|${s.subject}`) })))
+    .filter((x) => x.by && x.by !== accountId).map((x) => ({ ...x, byName: roster?.names?.[x.by] ?? '' }));
+}
+/** Le professeur commence la saisie d'une classe en commun : sa fiche « prise » est mise à jour (premier arrivé). */
+export function claimClass(accountId, key, kind) {
+  if (!current || !accountId) return;
+  const mine = current.claims?.[accountId] ?? {};
+  if (mine[key]) return;
+  const next = { ...mine, [key]: { kind, at: new Date().toISOString() } };
+  current = { ...current, claims: { ...(current.claims ?? {}), [accountId]: next } };
+  saveDoc(`prise:${accountId}`, 'PRISE', accountId, next, { delay: 0 });
+}
+/** La liste envoyée aux professeurs, avec les fiches « prise » de chacun (classes en commun). */
+export async function fetchRoster() {
+  const [doc, claims] = await Promise.all([fetchDoc('roster'), fetchDocs('PRISE').catch(() => [])]);
+  return doc ? { ...doc, value: { ...doc.value, claims: Object.fromEntries(claims.map((c) => [c.owner, c.value])) } } : null;
 }
 
 /** Matière partagée entre deux professeurs : une seule ligne au bulletin, 2 notes minimum pour chacun. */
@@ -75,7 +107,7 @@ export const setCurrentRoster = (r) => { current = r; nameMap = null; };
 
 /** Au démarrage (personnel hors Direction) : charge la liste publiée et la rend disponible aux écrans. */
 export async function loadRoster() {
-  const doc = await fetchDoc('roster');
+  const doc = await fetchRoster();
   current = doc?.value ?? null; nameMap = null;
   if (current) setRemoteImport({ students: current.students, importedAt: current.sentAt });
   return current;
