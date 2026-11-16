@@ -21,7 +21,7 @@ import StudentList from './StudentList.jsx';
 import StudentTimeline from './StudentTimeline.jsx';
 import FollowUpsModule from './FollowUpsModule.jsx';
 import { takeIntent } from '../navIntent.js';
-import { FicheView, SignatureCompare, FICHE_YEAR } from './FicheSignaletique.jsx';
+import { FicheView, SignatureCompare, FICHE_YEAR, FICHE_PAPER } from './FicheSignaletique.jsx';
 import { ficheOf, saveFiche } from '../ficheStore.js';
 import { today } from '../clock.js';
 import { askConfirm, tell } from './Dialogs.jsx';
@@ -318,11 +318,11 @@ function FicheSection({ p }) {
     <div className="mt-4 rounded-xl border border-slate-200 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm"><span className="font-semibold text-slate-800">Fiche signalétique {FICHE_YEAR}</span>{' '}
-          {fiche?.signedAt ? <Badge tone="green">signée en ligne le {fmt(fiche.signedAt.slice(0, 10))}</Badge> : <Badge tone="amber">en attente du parent</Badge>}
+          {fiche?.signedAt ? <Badge tone="green">signée en ligne le {fmt(fiche.signedAt.slice(0, 10))}</Badge> : FICHE_PAPER ? <Badge tone="slate">fiche papier (début d'année)</Badge> : <Badge tone="amber">en attente du parent</Badge>}
           {fiche?.validatedAt && <> <Badge tone="navy">validée</Badge></>}</p>
         <Button variant="secondary" className="!py-1 text-xs" onClick={() => setOpen(!open)}>{open ? 'Fermer' : fiche?.signedAt ? 'Voir la fiche et les signatures' : 'Comparer une signature'}</Button>
       </div>
-      {!fiche?.signedAt && !open && <p className="mt-1 text-xs text-slate-500">Le parent la remplit et la signe depuis son compte (Plus → Fiche signalétique). Plus de saisie à la main.</p>}
+      {!fiche?.signedAt && !open && <p className="mt-1 text-xs text-slate-500">{FICHE_PAPER ? 'Cette année, la fiche a été remplie à la main en début d\'année : l\'établissement reporte ses informations (responsables, contacts, santé, autorisations) dans la fiche de l\'élève ci-dessus.' : 'Le parent la remplit et la signe depuis son compte (Plus → Fiche signalétique). Plus de saisie à la main.'}</p>}
       {open && (
         <div className="mt-3 space-y-4">
           {fiche?.signedAt && <FicheView fiche={fiche} />}

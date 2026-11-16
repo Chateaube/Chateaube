@@ -8,6 +8,9 @@ import { referenceOf, setReference, ficheOf, saveFiche } from '../ficheStore.js'
 // ensuite au secrétariat pour comparer une signature en cas de doute (mot d'absence, autorisation…).
 
 export const FICHE_YEAR = '2026-2027';
+// 2026-2027 : fiche remplie à la main en début d'année ; l'établissement reporte les informations dans la fiche
+// élève. Les parents n'ont rien à remplir en ligne cette année (pas de rappel, pas de pastille).
+export const FICHE_PAPER = true;
 const LINKS = ['Mère', 'Père', 'Tuteur / tutrice'];
 const ENGAGEMENTS = [
   'Nous déclarons avoir pris connaissance et acceptons sans réserve le projet éducatif, les normes pédagogiques, le règlement intérieur avec ses règles de discipline, ainsi que l\'ensemble des dispositions financières de l\'établissement.',
