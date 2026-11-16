@@ -148,6 +148,17 @@ export default function AccountsModule({ embedded = false, settings }) {
                     <div className="min-w-0">
                       <p className="font-medium text-slate-900">{u.last_name} {u.first_name} <span className="font-mono text-xs font-normal text-slate-500">· {u.login}</span>
                         {!(u.user_role ?? []).some((r) => r.role === 'DIRECTION') && <button type="button" className="ml-2 text-xs font-normal text-navy-700 underline" onClick={() => setLoginEdit(loginEdit?.id === u.id ? null : { id: u.id, value: u.login ?? '' })}>Modifier l'identifiant</button>}</p>
+                      {(() => {
+                        // nom du compte différent de la fiche (corrigé dans la fiche, ou « (Mme Lanto) » resté dans le nom) : un clic l'aligne
+                        const fic = fiches[u.id];
+                        const clean = (t) => String(t ?? '').replace(/\s*\([^)]*\)\s*/g, ' ').replace(/\s+/g, ' ').trim();
+                        const first = clean(fic?.first || u.first_name); const last = clean(fic?.last || u.last_name).toUpperCase();
+                        if (!first || !last || (first === u.first_name && last === u.last_name)) return null;
+                        return <button type="button" disabled={busy} className="mt-0.5 block text-xs font-medium text-navy-700 underline" onClick={() => run(async () => {
+                          const { error } = await supabase.from('app_user').update({ first_name: first, last_name: last }).eq('id', u.id); if (error) throw new Error(error.message);
+                          if (fic) setFiches({ ...fiches, [u.id]: { ...fic, first, last } });
+                        })}>Nom du compte à mettre à jour : « {last} {first} »</button>;
+                      })()}
                       {loginEdit?.id === u.id && (
                         <form className="mt-1 flex flex-wrap items-center gap-2" onSubmit={async (e) => {
                           e.preventDefault();
