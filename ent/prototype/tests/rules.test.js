@@ -2471,3 +2471,16 @@ test('Tarifs réels 2026-2027 : mise à jour sans perdre les droits d\'examen ; 
   assert.equal(arts.find((a) => a.id === 'a5').price, 10_000); assert.equal(arts.find((a) => a.id === 'a7').price, 20_000);
   assert.ok(arts.some((a) => a.id === 'r-test' && a.price === 125_000)); assert.ok(arts.some((a) => a.id === 'r-dossier' && a.price === 100_000));
 });
+
+test('Manuels : remise annulée (erreur de clic) et perte annulée', async () => {
+  const { lend, giveBack, cancelLend, cancelLoss } = await import('../src/rules/manuals.js');
+  const m = { id: 'm1', title: 'Maths', returnable: true, stock: { BON: 2 } };
+  const r = lend(m, [], { student: 'A', cls: '6e', state: 'BON', on: '2026-11-16', dueBack: '2027-06-30' });
+  assert.equal(r.manual.stock.BON, 1);
+  const c = cancelLend(r.manual, [r.loan], r.loan);
+  assert.equal(c.manual.stock.BON, 2); assert.equal(c.loans.length, 0);
+  const lost = giveBack(r.manual, r.loan, { state: 'PERDU', on: '2026-11-16' }).loan;
+  assert.equal(lost.charge, 'A_REGLER');
+  const back = cancelLoss(lost);
+  assert.equal(back.stateIn, undefined); assert.equal(back.charge, undefined); assert.equal(back.returnedOn, undefined);
+});

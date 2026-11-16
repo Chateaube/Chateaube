@@ -77,6 +77,13 @@ export function giveBack(manual, loan, { state, on }) {
   };
 }
 
+/** Remise annulée (clic par erreur) : l'exemplaire revient en stock dans l'état où il était sorti, le prêt disparaît. */
+export function cancelLend(manual, loans, loan) {
+  return { manual: { ...manual, stock: { ...manual.stock, [loan.stateOut]: (manual.stock[loan.stateOut] ?? 0) + 1 } }, loans: loans.filter((l) => l.id !== loan.id) };
+}
+/** Perte déclarée par erreur : l'élève a toujours le manuel, plus rien à régler. */
+export const cancelLoss = (loan) => { const { stateIn, declaredOn, charge, ...rest } = loan; return { ...rest, returnedOn: undefined }; };
+
 /** À facturer : manuel perdu, ou rendu déchiré alors qu'il n'était pas déchiré au départ. */
 export const needsCharge = (stateOut, stateIn) => stateIn === 'PERDU' || (stateIn === 'DECHIRE' && stateOut !== 'DECHIRE');
 
