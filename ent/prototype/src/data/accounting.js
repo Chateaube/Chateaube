@@ -26,7 +26,7 @@ export const realFeesUpdate = (stored) => REAL_FEES.map((r) => { const o = (stor
 /** Articles réels : test et dossier d'inscription, tee-shirt, natation (les autres articles sont gardés). */
 export const REAL_ARTICLES = [
   { id: 'r-test', group: 'Inscription', label: 'Test d\'inscription (tous niveaux)', unit: 'par élève', price: 125_000, journal: 'FRAIS_ANNEXES', active: true },
-  { id: 'r-dossier', group: 'Inscription', label: 'Dossier d\'inscription', unit: 'par élève', price: 100_000, journal: 'FRAIS_ANNEXES', active: true },
+  { id: 'r-dossier', group: 'Inscription', label: 'Dossier d\'inscription (nouvel élève)', unit: 'par nouvel élève', price: 100_000, journal: 'FRAIS_ANNEXES', active: true },
 ];
 export function realArticlesUpdate(stored) {
   const list = (stored ?? []).map((a) => (/natation/i.test(a.label) && /s[ée]ance/i.test(a.label) ? { ...a, price: 10_000 } : /tee-?shirt/i.test(a.label) ? { ...a, price: 20_000 } : a));
