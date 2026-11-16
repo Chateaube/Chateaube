@@ -70,3 +70,6 @@
 @media print {
   .amb-band, .amb-note, .amb-effects { display: none !important; }
 }
+
+/* Thème « lavande » (couleurs de l'écran d'accueil) : barre du haut indigo, même pendant une ambiance */
+:root[data-theme="lavande"][class*="ambiance--"] .amb-topbar { background: linear-gradient(100deg, #2b1a8f 0%, #3626a6 70%, #4a38c4 100%) !important; }

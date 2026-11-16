@@ -85,6 +85,24 @@
   --hero: linear-gradient(120deg, #003366, #00427f 60%, #b08d2e);
 }
 
+:root[data-theme="lavande"] {
+  /* Couleurs de l'écran d'accueil (chateaubriand.pro) : indigo, lavande, touches jaune / corail / ciel / lilas */
+  --color-navy-50: #f0edfc;
+  --color-navy-100: #e0daf8;
+  --color-navy-200: #c3b9f0;
+  --color-navy-500: #4a38c4;
+  --color-navy-700: #3626a6;
+  --color-navy-900: #2b1a8f;
+  --color-coral-500: #f25c5c;
+  --color-paper: #f7f6fd;
+  --topbar: #2b1a8f;
+  --topbar-muted: #c3b9f0;
+  --page: #f7f6fd;
+  --h1: #2b1a8f;
+  --hero: linear-gradient(120deg, #2b1a8f, #4a38c4 60%, #6cb8f0);
+  --shadow-soft: 0 1px 2px rgb(43 26 143 / 0.05), 0 10px 30px -14px rgb(43 26 143 / 0.18);
+}
+
 body {
   @apply text-slate-800 antialiased;
   background: var(--page);
@@ -99,6 +117,7 @@ h1 {
   letter-spacing: -0.01em;
 }
 main h1 { color: #003366; }
+:root[data-theme="lavande"] main h1 { color: #2b1a8f; }
 :root[data-theme="ocean"] main h1, :root[data-theme="aurore"] main h1 {
   background-image: var(--h1);
   -webkit-background-clip: text;
