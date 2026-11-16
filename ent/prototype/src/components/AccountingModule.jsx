@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { saveFile } from '../download.js';
 import { Badge, Button, Card, Icon, Stat } from './ui.jsx';
 import {
-  JOURNALS, CLASS_FEES, FEE_COLUMNS, examOf, examKind, ARTICLES, CASH_MOVEMENTS, FAMILIES, CASH_NATURES, CASH_OPENING, CASH_HISTORY, CASH_YEAR_OPENING,
+  JOURNALS, CLASS_FEES, FEE_COLUMNS, examOf, examKind, realFeesUpdate, realArticlesUpdate, ARTICLES, CASH_MOVEMENTS, FAMILIES, CASH_NATURES, CASH_OPENING, CASH_HISTORY, CASH_YEAR_OPENING,
   RECEIPTS_TODAY, CASH_AUDIT, CASH_SAFE, CASH_CLOSINGS, REDUCTION_TYPES, PAYROLL, HOURLY_RATES,
 } from '../data/accounting.js';
 import CashControl, { methodText } from './CashControl.jsx';
@@ -13,7 +13,7 @@ import { printOnly } from '../print.js';
 import { planMonths, monthName } from '../rules/calendar.js';
 import { formatAr } from '../rules/finance.js';
 import CollectPayment, { CASH_ACCOUNTS, feesFor, duesStatus, accountsKey } from './CollectPayment.jsx';
-import { usePersistent } from '../persist.js';
+import { usePersistent, readStored, writeStored } from '../persist.js';
 import { loadManuals } from '../manualsStore.js';
 import { kitFor } from '../rules/manuals.js';
 import { EXPENSES, SUPPLIERS } from '../data/treasury.js';
@@ -42,7 +42,7 @@ function AmountInput({ value, onChange, className = '' }) {
   return (
     <input
       inputMode="numeric"
-      value={value === null ? '' : new Intl.NumberFormat('fr-FR').format(value).replace(/ | /g, ' ')}
+      value={value == null || Number.isNaN(value) ? '' : new Intl.NumberFormat('fr-FR').format(value).replace(/ | /g, ' ')}
       onChange={(e) => {
         const digits = e.target.value.replace(/\D/g, '');
         onChange(digits === '' ? null : Number(digits));
@@ -102,7 +102,7 @@ function ExamCatchUp({ fees, accounts, setAccounts, setMovements, actor }) {
         </div>
         <div className="mt-3 flex flex-wrap items-end gap-3">
           <label className="text-xs text-slate-600">Date du paiement<input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`mt-1 block ${inputCls}`} /></label>
-          <label className="text-xs text-slate-600">Mode<select value={method} onChange={(e) => setMethod(e.target.value)} className={`mt-1 block ${inputCls}`}>{['Espèces', 'Chèque', 'Virement', DIRECT].map((m) => <option key={m}>{m}</option>)}</select></label>
+          <label className="text-xs text-slate-600">Mode<select value={method} onChange={(e) => setMethod(e.target.value)} className={`mt-1 block ${inputCls}`}>{['Espèces', 'Chèque', 'Virement', 'Mode à préciser (chèque ou espèces)', DIRECT].map((m) => <option key={m}>{m}</option>)}</select></label>
           <Button disabled={!payers.length} onClick={save}>Marquer {payers.length} élève{payers.length > 1 ? 's' : ''} comme réglé{payers.length > 1 ? 's' : ''}</Button>
         </div>
         <p className="mt-2 text-xs text-slate-500">Chaque paiement entre dans le journal « Droits d'examen ». Ceux qui ne sont pas cochés restent dus et apparaissent dans « Impayés & relances ».</p>
@@ -147,7 +147,7 @@ function FeesTab({ fees, setFees, settings, canEdit }) {
                 <td className="px-4 py-2 font-medium text-slate-800">{r.cls}</td>
                 {FEE_COLUMNS.map((c) => (
                   <td key={c.key} className="px-2 py-1.5 text-right">
-                    {c.computed ? <span className="tabular-nums text-slate-600" title={c.hint}>{formatAr(r[c.key] ?? 0)}{c.key === 'location' && spe.length > 0 && <span className="block text-[11px] text-slate-500">+ {formatAr(spe[0].price)} par spécialité</span>}</span>
+                    {c.computed && r.manualsUnknown ? <span className="text-xs text-slate-500" title="Saisir le lot de manuels et de cahiers de la classe dans Manuels scolaires">à définir</span> : c.computed ? <span className="tabular-nums text-slate-600" title={c.hint}>{formatAr(r[c.key] ?? 0)}{c.key === 'location' && spe.length > 0 && <span className="block text-[11px] text-slate-500">+ {formatAr(spe[0].price)} par spécialité</span>}</span>
                       : canEdit ? <AmountInput value={r[c.key]} onChange={(v) => update(i, c.key, v)} /> : <span className="tabular-nums">{formatAr(r[c.key])}</span>}
                   </td>
                 ))}
@@ -443,6 +443,14 @@ export default function AccountingModule({ settings, role, account }) {
   const [tab, setTab] = useState(() => takeIntent('accounting')?.tab ?? 'collect');
   const [fees, setFees] = usePersistent('ent-k-tarifs', () => [...CLASS_FEES]);
   const [articles, setArticles] = usePersistent('ent-k-articles', () => [...ARTICLES]);
+  // grille réelle 2026-2027 (inscription, réinscription, scolarité, fascicule ; test et dossier d'inscription,
+  // tee-shirt, natation) : appliquée une seule fois, partagée entre les postes ; les droits d'examen saisis sont gardés
+  useEffect(() => {
+    if (!realData() || readStored('ent-k-tarifs-reels-v1')) return;
+    setFees((f) => realFeesUpdate(f));
+    setArticles((l) => realArticlesUpdate(l));
+    writeStored('ent-k-tarifs-reels-v1', new Date().toISOString());
+  }, []);
   const [movements, setMovementsState] = useState(loadMovements);
   const setMovements = (m) => setMovementsState((prev) => { const next = typeof m === 'function' ? m(prev) : m; saveMovements(next); return next; });
   const [accounts, setAccounts] = usePersistent(accountsKey(), () => [...CASH_ACCOUNTS]);

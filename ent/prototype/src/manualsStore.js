@@ -11,6 +11,8 @@ export function loadManuals() {
   } catch { /* stockage indisponible */ }
   return { manuals: MANUALS, loans: demoOr(LOANS, []) }; // les titres et les prix restent, les prêts fictifs non
 }
+/** La liste des manuels de l'école a-t-elle été saisie (ou importée, onglet 8) ? Sinon, les prix d'exemple ne sont pas facturés. */
+export function manualsDefined() { try { return Boolean(JSON.parse(localStorage.getItem(KEY))?.manuals?.length); } catch { return false; } }
 export function saveManuals(data) {
   try { localStorage.setItem(KEY, JSON.stringify(data)); } catch { /* stockage indisponible */ }
 }

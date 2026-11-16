@@ -11,7 +11,7 @@ import { supabase } from './client.js';
 const GESTION = ['ent-s-depenses', 'ent-k-tarifs', 'ent-s-recus', 'ent-s-journal-caisse', 'ent-s-clotures', 'ent-caisse-mouvements-v1', 'ent-k-reductions',
   'ent-k-articles', 'ent-s-fournisseurs', 'ent-s-comptes-', 'ent-s-relances-envoyees', 'ent-s-relances-decisions', 'ent-tarifs-verrou-v1', 'ent-s-taux',
   'ent-s-salaires-payes', 'ent-s-paie', 'ent-s-paie-validee', 'ent-s-personnel', 'ent-s-fiches-agents', 'ent-s-pieces-demandees', 'ent-s-pieces-a-recevoir',
-  'ent-s-documents-recus', 'ent-s-documents-envoyes', 'ent-campagne-v1', 'ent-remise-v1', 'ent-bulletin-dispo-v1'];
+  'ent-s-documents-recus', 'ent-s-documents-envoyes', 'ent-campagne-v1', 'ent-remise-v1', 'ent-bulletin-dispo-v1', 'ent-k-tarifs-reels-v1'];
 const EQUIPE = ['ent-import-v1', 'ent-profiles-v2', 'ent-fiche-v1', 'ent-chateaubriand-settings-v3', 'ent-s-sanctions', 'ent-s-autorisations', 'ent-sorties-v1',
   'ent-absences-eleves-v1', 'ent-appel-v1', 'ent-passeport-v3', 'ent-objets-v1', 'ent-passages-v1', 'ent-suivis-v1', 'ent-surveillance-colles-v1',
   'ent-absences-prof-v1', 'ent-retards-prof-v1', 'ent-remplacements-v1', 'ent-changements-edt-v1', 'ent-s-reprise-absences', 'ent-demandes-v1',

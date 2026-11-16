@@ -10,17 +10,28 @@ export const JOURNALS = {
 };
 
 // Grille « Classes & tarifs » (Tamatave, 2026-2027)
-const DEFAULT_CLASS_FEES = [
-  { cls: '6e', plan: 0, inscription: 250_000, reinscription: 150_000, ecolage: 330_000, fascicule: 60_000, location: 80_000 },
-  { cls: '5e', plan: 0, inscription: 250_000, reinscription: 150_000, ecolage: 340_000, fascicule: 60_000, location: 80_000 },
-  { cls: '4e', plan: 0, inscription: 250_000, reinscription: 150_000, ecolage: 350_000, fascicule: 65_000, location: 85_000 },
-  { cls: '3e', plan: 0, inscription: 250_000, reinscription: 150_000, ecolage: 380_000, fascicule: 70_000, location: 90_000 },
-  { cls: '2de', plan: 1, inscription: 300_000, reinscription: 180_000, ecolage: 400_000, fascicule: 75_000, location: 100_000 },
-  { cls: '1re Générale', plan: 2, inscription: 300_000, reinscription: 180_000, ecolage: 420_000, fascicule: 80_000, location: 110_000 },
-  { cls: '1re STMG', plan: 2, inscription: 300_000, reinscription: 180_000, ecolage: 420_000, fascicule: 80_000, location: 110_000 },
-  { cls: 'Terminale Générale', plan: 3, inscription: 300_000, reinscription: 180_000, ecolage: 450_000, fascicule: 90_000, location: 120_000 },
-  { cls: 'Terminale STMG', plan: 3, inscription: 300_000, reinscription: 180_000, ecolage: 450_000, fascicule: 90_000, location: 120_000 },
+// Tarifs 2026-2027 (grille de l'école) : collège 6e-3e, seconde, première, terminale. Location : 25 000 Ar par manuel
+// (lot de la classe dans Manuels scolaires). Droits d'examen : saisis par la Direction dans « Classes & tarifs ».
+const COL = { inscription: 600_000, reinscription: 550_000, ecolage: 370_000, fascicule: 100_000, location: 0 };
+const LYC = { inscription: 800_000, reinscription: 750_000, fascicule: 120_000, location: 0 };
+export const REAL_FEES = [
+  { cls: '6e', plan: 0, ...COL, examen: 0 }, { cls: '5e', plan: 0, ...COL, examen: 0 }, { cls: '4e', plan: 0, ...COL, examen: 0 }, { cls: '3e', plan: 0, ...COL, examen: 0 },
+  { cls: '2de', plan: 1, ...LYC, ecolage: 475_000, examen: 0 },
+  { cls: '1re Générale', plan: 2, ...LYC, ecolage: 585_000, examen: 0 }, { cls: '1re STMG', plan: 2, ...LYC, ecolage: 585_000, examen: 0 },
+  { cls: 'Terminale Générale', plan: 3, ...LYC, ecolage: 700_000, examen: 0 }, { cls: 'Terminale STMG', plan: 3, ...LYC, ecolage: 700_000, examen: 0 },
 ];
+const DEFAULT_CLASS_FEES = REAL_FEES;
+/** Mise à jour unique des tarifs enregistrés vers la grille réelle (garde le plan et les droits d'examen saisis). */
+export const realFeesUpdate = (stored) => REAL_FEES.map((r) => { const o = (stored ?? []).find((x) => x.cls === r.cls); return o ? { ...o, inscription: r.inscription, reinscription: r.reinscription, ecolage: r.ecolage, fascicule: r.fascicule, examen: o.examen ?? 0 } : r; });
+/** Articles réels : test et dossier d'inscription, tee-shirt, natation (les autres articles sont gardés). */
+export const REAL_ARTICLES = [
+  { id: 'r-test', group: 'Inscription', label: 'Test d\'inscription (tous niveaux)', unit: 'par élève', price: 125_000, journal: 'FRAIS_ANNEXES', active: true },
+  { id: 'r-dossier', group: 'Inscription', label: 'Dossier d\'inscription', unit: 'par élève', price: 100_000, journal: 'FRAIS_ANNEXES', active: true },
+];
+export function realArticlesUpdate(stored) {
+  const list = (stored ?? []).map((a) => (/natation/i.test(a.label) && /s[ée]ance/i.test(a.label) ? { ...a, price: 10_000 } : /tee-?shirt/i.test(a.label) ? { ...a, price: 20_000 } : a));
+  return [...REAL_ARTICLES.filter((r) => !list.some((a) => a.id === r.id)), ...list];
+}
 
 export const FEE_COLUMNS = [
   { key: 'inscription', label: 'Inscription', hint: 'Nouvel élève, une fois' },
@@ -52,9 +63,9 @@ const DEFAULT_ARTICLES = [
   { id: 'a2', group: 'Manuel scolaire', label: 'Autre (manuel complémentaire)', unit: 'par manuel', price: 35_000, journal: 'FRAIS_ANNEXES', active: true },
   { id: 'a3', group: 'Passeport de Vie Scolaire', label: 'Passeport de Vie Scolaire', unit: 'par élève', price: 15_000, journal: 'FRAIS_ANNEXES', active: true },
   { id: 'a4', group: 'Passeport de Vie Scolaire', label: 'Passeport perdu ou endommagé', unit: 'remplacement', price: 20_000, journal: 'FRAIS_ANNEXES', active: true },
-  { id: 'a5', group: 'Séances de natation', label: 'Séance de natation', unit: 'par séance', price: 15_000, journal: 'FRAIS_ANNEXES', active: true },
+  { id: 'a5', group: 'Séances de natation', label: 'Séance de natation', unit: 'par séance', price: 10_000, journal: 'FRAIS_ANNEXES', active: true },
   { id: 'a6', group: 'Séances de natation', label: 'Forfait natation trimestriel', unit: 'par trimestre', price: 120_000, journal: 'FRAIS_ANNEXES', active: true },
-  { id: 'a7', group: 'Tee-shirt scolaire', label: 'Tee-shirt scolaire', unit: 'par unité', price: 35_000, journal: 'FRAIS_ANNEXES', active: true },
+  { id: 'a7', group: 'Tee-shirt scolaire', label: 'Tee-shirt scolaire', unit: 'par unité', price: 20_000, journal: 'FRAIS_ANNEXES', active: true },
 ];
 
 // Familles et état de compte (débit = facturé, crédit = payé)
@@ -242,7 +253,7 @@ export const CASH_AUDIT = storedArray('ent-s-journal-caisse', () => demoOr(DEMO_
 export const CASH_SAFE = liveObject(() => demoOr(DEMO_CASH_SAFE, { ...DEMO_CASH_SAFE, morning: 0, lastDeposit: '2026-09-01' }));
 export const STUDENT_ACCOUNTS = liveArray(() => demoOr(DEMO_STUDENT_ACCOUNTS, []));
 export const CLASS_FEES = storedArray('ent-k-tarifs', () => DEFAULT_CLASS_FEES); // réglage de l'école, modifié dans Caisse
-export const ARTICLES = storedArray('ent-k-articles', () => DEFAULT_ARTICLES); // réglage de l'école, modifié dans Caisse
+export const ARTICLES = storedArray('ent-k-articles', () => [...REAL_ARTICLES, ...DEFAULT_ARTICLES]); // réglage de l'école, modifié dans Caisse
 export const REDUCTION_TYPES = storedArray('ent-k-reductions', () => DEFAULT_REDUCTION_TYPES); // réglage de l'école, modifié dans Caisse
 export const HOURLY_RATES = liveArray(() => demoOr(DEMO_HOURLY_RATES, [])); // exemples ; vide en ligne ou avec les vraies données
 export const PAYROLL = liveArray(() => demoOr(DEMO_PAYROLL, [])); // exemples ; vide en ligne ou avec les vraies données

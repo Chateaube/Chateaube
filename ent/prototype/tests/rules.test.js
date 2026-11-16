@@ -227,9 +227,9 @@ test('état de compte : soldes séparés par journal', () => {
 test('coût annuel : 9 mois de frais de scolarité pour la Terminale, 10 pour la 6e', () => {
   const plans = DEFAULT_SETTINGS.tuition.plans;
   const tle = CLASS_FEES.find((r) => r.cls === 'Terminale STMG');
-  assert.equal(annualCost(tle, plans), 180_000 + 450_000 * 9 + 90_000 + 120_000);
+  assert.equal(annualCost(tle, plans), 750_000 + 700_000 * 9 + 120_000); // grille 2026-2027 (location : lot de manuels à définir)
   const six = CLASS_FEES.find((r) => r.cls === '6e');
-  assert.equal(annualCost(six, plans, { newStudent: true }), 250_000 + 330_000 * 10 + 60_000 + 80_000);
+  assert.equal(annualCost(six, plans, { newStudent: true }), 600_000 + 370_000 * 10 + 100_000);
 });
 
 test('caisse : entrées et sorties par journal', () => {
@@ -265,7 +265,7 @@ test('nouvel élève en octobre : le compte commence en octobre', () => {
   assert.equal(months.length, 9);                       // octobre → juin
   assert.ok(items.some((i) => i.key === 'INSCRIPTION')); // inscription, pas réinscription
   assert.equal(months[0].due, '2026-10-12');            // dû à la date d'arrivée, pas le 5
-  assert.deepEqual(defaultSelection(items), ['INSCRIPTION', 'FASCICULE', 'LOCATION', 'ECO-10']);
+  assert.deepEqual(defaultSelection(items), ['INSCRIPTION', 'FASCICULE', 'ECO-10']); // pas de location tant que le lot de manuels n'est pas défini
 });
 
 test('Terminale : 9 mois, droits d\'examen dans un journal séparé', () => {
@@ -288,7 +288,7 @@ test('un reçu par journal', () => {
   const items = studentDues(fy, feesOf('4e'), DEFAULT_SETTINGS, '2026-10-13');
   let n = 100;
   const receipts = buildReceipts(items, ['INSCRIPTION', 'FASCICULE', 'ECO-10', 'ECO-11'], { method: 'CHEQUE', ref: '4410275', bank: 'BNI Madagascar' }, () => n++);
-  assert.deepEqual(receipts.map((r) => [r.journal, r.total]), [['FRAIS_ANNEXES', 315_000], ['ECOLAGE', 700_000]]);
+  assert.deepEqual(receipts.map((r) => [r.journal, r.total]), [['FRAIS_ANNEXES', 700_000], ['ECOLAGE', 740_000]]);
   assert.ok(receipts.every((r) => r.ref === '4410275'));
 });
 
@@ -2459,4 +2459,15 @@ test('Partage en ligne : groupes et fusion sans écrasement', async () => {
   // objets : chaque clé fusionnée
   assert.deepEqual(merge3({ a: 1, b: 1 }, { a: 2, b: 1 }, { a: 1, b: 3 }), { a: 2, b: 3 });
   assert.deepEqual(merge3(undefined, { a: 1 }, undefined), { a: 1 });
+});
+
+test('Tarifs réels 2026-2027 : mise à jour sans perdre les droits d\'examen ; articles', async () => {
+  const { realFeesUpdate, realArticlesUpdate } = await import('../src/data/accounting.js');
+  const up = realFeesUpdate([{ cls: '3e', plan: 0, inscription: 1, reinscription: 1, ecolage: 1, fascicule: 1, location: 5, examen: 2_440_000 }]);
+  const e3 = up.find((r) => r.cls === '3e');
+  assert.equal(e3.ecolage, 370_000); assert.equal(e3.inscription, 600_000); assert.equal(e3.examen, 2_440_000);
+  assert.equal(up.find((r) => r.cls === 'Terminale STMG').ecolage, 700_000);
+  const arts = realArticlesUpdate([{ id: 'a5', label: 'Séance de natation', price: 15_000 }, { id: 'a7', label: 'Tee-shirt scolaire', price: 35_000 }]);
+  assert.equal(arts.find((a) => a.id === 'a5').price, 10_000); assert.equal(arts.find((a) => a.id === 'a7').price, 20_000);
+  assert.ok(arts.some((a) => a.id === 'r-test' && a.price === 125_000)); assert.ok(arts.some((a) => a.id === 'r-dossier' && a.price === 100_000));
 });
