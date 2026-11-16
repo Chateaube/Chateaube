@@ -30,6 +30,8 @@ const TABS = [['kit', 'Qui a quoi'], ['stock', 'Titres, stock et prix'], ['loans
 
 // Spécialités : élèves importés (fiche) sinon démonstration
 const importedSpecialties = () => Object.fromEntries((loadImport()?.students ?? []).map((s) => [`${s.lastName} ${s.firstName}`, s.specialties ?? []]));
+const TYPES = { MANUEL_RENDU: ['Manuel à rendre', 'MANUEL', true], CAHIER_RENDU: ['Cahier à rendre', 'CAHIER', true], CAHIER_GARDE: ['Cahier gardé (vendu)', 'CAHIER', false], MANUEL_GARDE: ['Manuel gardé (vendu)', 'MANUEL', false] };
+const typeOf = (m) => (m.returnable ? (m.category === 'CAHIER' ? 'CAHIER_RENDU' : 'MANUEL_RENDU') : (m.category === 'MANUEL' ? 'MANUEL_GARDE' : 'CAHIER_GARDE'));
 const kindLabel = (m) => (m.returnable ? (m.category === 'CAHIER' ? 'Cahier à rendre' : 'Manuel à rendre') : 'Cahier gardé (vendu)');
 /** « Foucher · programme 2019 » */
 export const editionLabel = (m) => [m.editor, m.programYear && `programme ${m.programYear}`].filter(Boolean).join(' · ');
@@ -183,6 +185,13 @@ function StockTab({ manuals, setManuals, loans, canEdit }) {
   const [stockError, setStockError] = useState('');
   const shown = manuals.filter((m) => !cls || m.levels.includes(cls));
   const update = (id, patch) => setManuals(manuals.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+  // type d'un titre (manuel ou cahier, à rendre ou gardé) : modifiable tant qu'aucun exemplaire n'a été remis
+  const setType = (m, t) => {
+    if (loans.some((l) => l.manualId === m.id)) { setStockError(`« ${m.title} » a déjà été remis à des élèves : son type ne peut plus changer (annulez d'abord les remises dans « Qui a quoi »).`); return; }
+    const [, category, returnable] = TYPES[t];
+    update(m.id, { category, returnable, price: m.price ?? (returnable ? RENTAL_PRICE : null), replacementPrice: returnable ? m.replacementPrice : null });
+    setStockError('');
+  };
   const [editing, setEditing] = useState(null); // { id, title, levels }
   const remove = async (m) => {
     if (loans.some((l) => l.manualId === m.id)) { setStockError(`« ${m.title} » a déjà été remis à des élèves : il ne peut plus être supprimé (sa réforme se fait par « Mouvement de stock »).`); return; }
@@ -235,7 +244,11 @@ function StockTab({ manuals, setManuals, loans, canEdit }) {
               {shown.map((m) => (
                 <tr key={m.id} className="border-b border-slate-100 last:border-0">
                   <td className="px-4 py-2"><p className="font-medium text-slate-800">{m.title}</p><p className="text-xs text-slate-500">{m.levels.join(', ')}{m.specialty ? ` · spécialité ${SPECIALTIES[m.specialty]}` : ''}{editionLabel(m) ? ` · ${editionLabel(m)}` : ''}</p></td>
-                  <td className="px-2"><Badge tone={m.returnable ? 'navy' : 'green'}>{kindLabel(m)}</Badge><p className="mt-0.5 text-[11px] text-slate-500">{m.kind === 'PHOTOCOPIE' ? `Photocopie · ${BINDINGS[m.binding] ?? ''}${m.print ? ` · ${PRINTS[m.print]}` : ''}` : 'Original'}{isObsolete(m) && <Badge tone="red" className="ml-1">programme obsolète</Badge>}</p></td>
+                  <td className="px-2">{canEdit ? (
+                    <select value={typeOf(m)} aria-label={`Type — ${m.title}`} onChange={(e) => setType(m, e.target.value)} className="rounded-md border border-slate-300 px-1.5 py-1 text-xs">
+                      {Object.entries(TYPES).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}
+                    </select>
+                  ) : <Badge tone={m.returnable ? 'navy' : 'green'}>{kindLabel(m)}</Badge>}<p className="mt-0.5 text-[11px] text-slate-500">{m.kind === 'PHOTOCOPIE' ? `Photocopie · ${BINDINGS[m.binding] ?? ''}${m.print ? ` · ${PRINTS[m.print]}` : ''}` : 'Original'}{isObsolete(m) && <Badge tone="red" className="ml-1">programme obsolète</Badge>}</p></td>
                   <td className="px-2 text-right"><Price canEdit={canEdit} value={m.price} onChange={(v) => update(m.id, { price: v ?? 0 })} label={`Prix — ${m.title}`} />{m.returnable && <span className="block text-[10px] text-slate-500">location / an</span>}</td>
                   <td className="px-2 text-right">{m.returnable ? <Price canEdit={canEdit} value={m.replacementPrice} onChange={(v) => update(m.id, { replacementPrice: v })} label={`Prix si perdu — ${m.title}`} /> : <span className="text-xs text-slate-400">gardé</span>}</td>
                   {CONDITIONS.map((c) => <td key={c.id} className={`px-2 text-right tabular-nums ${c.id === 'DECHIRE' && m.stock.DECHIRE ? 'text-red-700' : ''}`}>{canEdit

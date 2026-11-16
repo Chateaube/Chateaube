@@ -46,6 +46,14 @@ function Slip({ slip, onClose }) {
 
 export default function AccountsModule({ embedded = false, settings }) {
   const [list, setList] = useState(null); const [err, setErr] = useState('');
+  // filtre : l'équipe (sans les élèves), l'administration, les professeurs ou les élèves
+  const [who, setWho] = useState('EQUIPE');
+  const rolesOf = (u) => (u.user_role ?? []).map((r) => r.role);
+  const WHO = { EQUIPE: ['Équipe', (u) => !rolesOf(u).every((r) => ['ELEVE', 'PARENT'].includes(r)) || !rolesOf(u).length],
+    ADMIN: ['Administration', (u) => rolesOf(u).some((r) => ['DIRECTION', 'BUREAU', 'VIE_SCOLAIRE'].includes(r))],
+    PROFS: ['Professeurs', (u) => rolesOf(u).includes('PROFESSEUR')],
+    ELEVES: ['Élèves', (u) => rolesOf(u).includes('ELEVE')] };
+  const shownList = (list ?? []).filter(WHO[who][1]);
   const [d, setD] = useState(null); // nouvel agent : fiche complète
   const [busy, setBusy] = useState(false); const [slip, setSlip] = useState(null);
   // fiche de chaque agent (contrat, identité, enseignements, taux) : sur l'appareil de la Direction
@@ -123,10 +131,14 @@ export default function AccountsModule({ embedded = false, settings }) {
           <Button variant="ghost" onClick={() => setBulk(false)}>Fermer la création groupée</Button>
         </>
       )}
-      <Card title={`Agents (${list?.length ?? '…'})`}>
+      <Card title={`Agents (${list ? shownList.length : '…'})`}
+        action={list && <div role="group" aria-label="Filtrer" className="flex flex-wrap gap-1">{Object.entries(WHO).map(([k, [l, f]]) => (
+          <button key={k} type="button" aria-pressed={who === k} onClick={() => setWho(k)} className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${who === k ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-700 ring-slate-300'}`}>{l} ({list.filter(f).length})</button>
+        ))}</div>}>
         {!list ? <p className="text-sm text-slate-500">Chargement…</p> : (
           <ul className="divide-y divide-slate-100">
-            {list.map((u) => {
+            {shownList.length === 0 && <li className="py-2 text-sm text-slate-500">Personne dans cette catégorie.</li>}
+            {shownList.map((u) => {
               const f = ficheOf(u); const gone = f.exit && f.exit < today();
               return (
                 <li key={u.id} className={`py-2.5 text-sm ${u.is_active ? '' : 'opacity-60'}`}>
