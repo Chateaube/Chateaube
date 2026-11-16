@@ -52,7 +52,7 @@ function Login({ onDone }) {
         <button disabled={!login.trim() || !code || busy} className="mt-4 min-h-[44px] w-full rounded-xl bg-navy-500 font-semibold text-white disabled:bg-slate-300">{busy ? 'Connexion…' : 'Se connecter'}</button>
       </form>
       <button type="button" onClick={() => setForgot(true)} className="mt-3 w-full text-sm text-navy-600 underline">Code oublié ?</button>
-      <a href="../../intranet.html" className="mt-2 block text-center text-xs text-slate-500 underline">← Site de l'école</a>
+      <a href="../../" className="mt-2 block text-center text-xs text-slate-500 underline">← Choisir un autre espace</a>
     </Shell>
   );
 }
