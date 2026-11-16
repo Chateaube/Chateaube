@@ -1,3 +1,4 @@
+import { examOf } from '../data/accounting.js';
 // Encaissement : ce que doit un élève, mois par mois, d'après la grille tarifaire.
 // Le caissier sélectionne l'élève, coche les échéances à régler (les échéances
 // échues sont proposées d'office), choisit le mode de paiement et édite un reçu
@@ -46,8 +47,9 @@ export function studentDues(student, fees, settings, today) {
         month: m,
       })),
   ];
-  if (student.exam) {
-    items.push({ key: 'EXAMEN', label: student.exam.label, amount: student.exam.amount, journal: 'DROITS_EXAMEN', due: student.exam.due });
+  const exam = student.exam ?? examOf(student.cls, fees); // montant fixé dans « Classes & tarifs »
+  if (exam) {
+    items.push({ key: 'EXAMEN', label: exam.label, amount: exam.amount, journal: 'DROITS_EXAMEN', due: exam.due });
   }
   // Réduction accordée par la Direction : un taux pour les frais de scolarité mensuels et un pour
   // l'inscription (ou la réinscription) ; les autres frais restent dus à 100 %. Arrondi à 100 Ar.
