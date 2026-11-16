@@ -1,3 +1,4 @@
+import { fetchRoster } from '../online/roster.js';
 import React, { useEffect, useState } from 'react';
 import { Card, Button } from './ui.jsx';
 import GradebookModule from './GradebookModule.jsx';
@@ -14,7 +15,7 @@ export default function MyGrades({ settings, go }) {
     setState({ step: 'loading' });
     try {
       const me = loadMe();
-      const roster = (await fetchDoc('roster'))?.value ?? null;
+      const roster = (await fetchRoster())?.value ?? null;
       setCurrentRoster(roster);
       if (!roster || !servicesFor(roster, me?.id).length) { setState({ step: 'none' }); return; }
       await loadRemoteCarnet(me.id);

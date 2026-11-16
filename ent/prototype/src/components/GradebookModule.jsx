@@ -5,7 +5,7 @@ import { ONLINE } from '../online/client.js';
 import GradebookGuide from './GradebookGuide.jsx';
 import { readStored, writeStored } from '../persist.js';
 import { onSync, syncState } from '../online/docs.js';
-import { currentRoster, servicesFor, shortName } from '../online/roster.js';
+import { currentRoster, servicesFor, shortName, claimClass, takenFrom } from '../online/roster.js';
 import { demoOr } from '../demoData.js';
 import { Badge, Button, Card, Icon, StudentSelect } from './ui.jsx';
 import { Annotated, RulePanel, GradeCell } from './gradeUi.jsx';
@@ -559,7 +559,6 @@ export default function GradebookModule({ settings, go, role }) {
   const [validated, setValidated] = useState(saved?.validated ?? {});
   const [comments, setComments] = useState(saved?.comments ?? {});
   const [adjust] = useState(saved?.adjust ?? {}); // ancien bonus sur la moyenne (n'est plus utilisé, gardé tel quel)
-  const [claims, setClaims] = useState(saved?.claims ?? {}); // « c'est moi qui saisis les notes » (classe en commun)
   const [unlinked, setUnlinked] = useState(saved?.unlinked ?? {}); // compétences propres à une classe (sinon partagées 1re STMG / 1re G…)
   const [bonus, setBonus] = useState(saved?.bonus ?? {}); // bonus / malus par devoir : service → élève → devoir
   const [flags, setFlags] = useState(saved?.flags ?? demoOr({ 's1:RAJAONARIVELO Tsiry': { ids: ['BAVARD'], note: '' } }, {}));
@@ -568,10 +567,16 @@ export default function GradebookModule({ settings, go, role }) {
   const first = useRef(true);
   useEffect(() => {
     if (first.current) { first.current = false; return; }
-    setSavedOk(saveCarnet({ evaluations, grades, remarks, myComps, validated, comments, flags, adjust, bonus, unlinked, claims }));
-  }, [evaluations, grades, remarks, myComps, validated, comments, flags, adjust, bonus, unlinked, claims]);
+    setSavedOk(saveCarnet({ evaluations, grades, remarks, myComps, validated, comments, flags, adjust, bonus, unlinked }));
+    // classe en commun : le premier qui saisit prend la classe (notes) ou l'appréciation (ES)
+    if (ONLINE) SERVICES.forEach((sv) => {
+      if (sv.conflict && (evaluations[sv.id] ?? []).length) claimClass(remoteCarnetId(), sv.id, 'NOTES');
+      if (sv.shared && !sv.writer && sv.students.some((st) => (comments[`${sv.id}:${st}`]?.text ?? '').trim())) claimClass(remoteCarnetId(), sv.id, 'APP');
+    });
+  }, [evaluations, grades, remarks, myComps, validated, comments, flags, adjust, bonus, unlinked]);
 
   const service = SERVICES.find((s) => s.id === serviceId);
+  const taken = ONLINE ? takenFrom(currentRoster(), remoteCarnetId()) : [];
   if (!service) return (
     <div className="space-y-5">
       <h1 className="text-2xl font-semibold text-navy-900">Notes et appréciations</h1>
@@ -582,7 +587,9 @@ export default function GradebookModule({ settings, go, role }) {
   // même matière, même année (Tle STMG et Tle Générale, 1re STMG et 1re Générale) : mêmes compétences
   const yearOf = (cls) => levelOf(cls).split(' ')[0];
   const siblings = SERVICES.filter((x) => x.id !== service.id && x.subject === service.subject && yearOf(x.cls) === yearOf(service.cls));
-  const currentStep = appOnly ? 'appreciations' : step;
+  // matière partagée dont l'appréciation est écrite par l'autre professeur : pas d'étape « Appréciations »
+  const noApp = Boolean(service.noAppreciation);
+  const currentStep = appOnly ? 'appreciations' : noApp && step === 'appreciations' ? 'notes' : step;
   const props = {
     service, settings,
     evaluations: evaluations[serviceId] ?? [], setEvaluations: (v) => setEvaluations({ ...evaluations, [serviceId]: v }),
@@ -594,7 +601,7 @@ export default function GradebookModule({ settings, go, role }) {
   const stepDone = {
     notes: Boolean(validated[serviceId]),
     competences: (myComps[serviceId]?.length ?? 0) > 0,
-    appreciations: service.students.every((s) => comments[`${serviceId}:${s}`]?.validated),
+    appreciations: noApp || service.students.every((s) => comments[`${serviceId}:${s}`]?.validated),
   };
 
   return (
@@ -622,17 +629,24 @@ export default function GradebookModule({ settings, go, role }) {
           );
         })}
       </div>
-      {service.conflict && (
+      {taken.length > 0 && (
         <div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
-          <p><strong>{service.conflict.join(', ')}</strong> a aussi {service.subject} en {service.cls}. Une seule personne saisit les notes de cette classe, et un seul nom va sur le bulletin.</p>
-          {claims[serviceId]
-            ? <p className="mt-1.5 font-medium">✓ Vous avez indiqué que vous saisissez les notes : la Direction valide, puis la classe disparaît chez {service.conflict.join(', ')}. <button type="button" className="ml-1 text-xs font-normal underline" onClick={() => { const { [serviceId]: _, ...rest } = claims; setClaims(rest); }}>Annuler</button></p>
-            : <Button className="mt-2 !py-1 text-xs" onClick={() => setClaims({ ...claims, [serviceId]: true })}>C'est moi qui saisis les notes de cette classe</Button>}
+          {taken.map((x) => <p key={`${x.cls}|${x.subject}`}>ℹ {x.cls} · {x.subject} : <strong>{x.byName}</strong> a commencé la saisie des notes. Cette classe ne figure plus dans votre carnet (un seul professeur par classe).</p>)}
         </div>
+      )}
+      {service.shared && (
+        <div className="rounded-xl bg-violet-50 p-3 text-sm text-violet-900">
+          {service.writer
+            ? <p>{service.noAppreciation ? <>Matière partagée avec {service.coTeachers.join(', ')} : l'appréciation du bulletin est écrite par <strong>{service.writerName}</strong>. Vous saisissez vos notes (2 minimum) et les compétences.</> : <>Matière partagée avec {service.coTeachers.join(', ')} : <strong>c'est vous qui écrivez l'appréciation</strong> du bulletin, pour les deux parties.</>}</p>
+            : <p>Matière partagée avec <strong>{service.coTeachers.join(', ')}</strong> : moyenne 50/50 et une seule appréciation sur le bulletin. Le premier qui écrit une appréciation l'écrit pour les deux.</p>}
+        </div>
+      )}
+      {service.conflict && (
+        <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900"><strong>{service.conflict.join(', ')}</strong> a aussi {service.subject} en {service.cls}. Un seul professeur par classe : le premier qui saisit une note la prend, et elle disparaît chez l'autre.</p>
       )}
       {!appOnly && (
         <div className="flex gap-1 rounded-lg bg-slate-100 p-1" role="tablist">
-          {STEPS.map(([id, label]) => (
+          {STEPS.filter(([id]) => !(noApp && id === 'appreciations')).map(([id, label]) => (
             <button key={id} role="tab" aria-selected={step === id} onClick={() => setStep(id)}
               className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium ${step === id ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>
               {stepDone[id] && <Icon name="check" className="h-3.5 w-3.5 text-emerald-600" />}{label}

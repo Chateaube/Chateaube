@@ -1,3 +1,4 @@
+import { fetchRoster } from '../online/roster.js';
 import { termGrades, subjectAverage } from '../termGrades.js';
 import { absenceTotals } from '../rules/absenceCarry.js';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -313,7 +314,7 @@ function BulletinsModuleInner({ settings, role, go, onChange, classes, councilGa
 const ORDER = ['6e', '5e', '4e', '3e', '2de', '1re STMG', '1re Générale', 'Terminale STMG', 'Terminale Générale'];
 function OnlineBulletins(props) {
   const [data, setData] = useState(null); const [err, setErr] = useState('');
-  const load = () => { setErr(''); Promise.all([fetchDocs('CARNET'), fetchDoc('roster'), fetchDoc('corrections'), fetchDocs('CONSEIL').catch(() => [])]).then(([carnets, roster, corr, conseil]) => setData({ carnets: Object.fromEntries(carnets.map((c) => [c.owner, c.value])), roster: roster?.value ?? null, corrections: corr?.value ?? {}, ga: Object.fromEntries(conseil.map((d) => [d.key, d.value])) }), (e) => setErr(e.message)); };
+  const load = () => { setErr(''); Promise.all([fetchDocs('CARNET'), fetchRoster(), fetchDoc('corrections'), fetchDocs('CONSEIL').catch(() => [])]).then(([carnets, roster, corr, conseil]) => setData({ carnets: Object.fromEntries(carnets.map((c) => [c.owner, c.value])), roster: roster?.value ?? null, corrections: corr?.value ?? {}, ga: Object.fromEntries(conseil.map((d) => [d.key, d.value])) }), (e) => setErr(e.message)); };
   useEffect(load, []);
   if (err) return <Card title="Bulletins"><p className="text-sm text-red-800">Les carnets n'ont pas pu être lus ({err}).</p><Button className="mt-3" onClick={load}>Réessayer</Button></Card>;
   if (!data) return <Card title="Bulletins"><p className="text-sm text-slate-600">Chargement des notes des professeurs…</p></Card>;

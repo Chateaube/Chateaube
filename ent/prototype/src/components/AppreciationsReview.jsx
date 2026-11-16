@@ -1,3 +1,4 @@
+import { fetchRoster } from '../online/roster.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Badge, Button, Card } from './ui.jsx';
 import { supabase } from '../online/client.js';
@@ -22,7 +23,7 @@ export default function AppreciationsReview() {
   const load = async () => {
     setErr('');
     try {
-      const [carnets, roster, corr] = await Promise.all([fetchDocs('CARNET'), fetchDoc('roster'), fetchDoc('corrections')]);
+      const [carnets, roster, corr] = await Promise.all([fetchDocs('CARNET'), fetchRoster(), fetchDoc('corrections')]);
       setCurrentRoster(roster?.value ?? null);
       setData({ carnets: Object.fromEntries(carnets.map((c) => [c.owner, c.value])), roster: roster?.value ?? null, corrections: corr?.value ?? {} });
     } catch (e) { setErr(`Lecture impossible (${e.message}).`); }
@@ -33,7 +34,7 @@ export default function AppreciationsReview() {
   const theClass = cls || classes[0] || '';
   const rows = useMemo(() => {
     if (!data?.roster) return [];
-    return Object.keys(data.roster.services ?? {}).flatMap((tid) => servicesFor(data.roster, tid).filter((s) => s.cls === theClass).flatMap((s) => s.students.map((st) => {
+    return Object.keys(data.roster.services ?? {}).flatMap((tid) => servicesFor(data.roster, tid).filter((s) => s.cls === theClass && !s.noAppreciation).flatMap((s) => s.students.map((st) => {
       const original = data.carnets[tid]?.comments?.[`${s.id}:${st}`]?.text ?? '';
       const key = correctionKey(tid, s.id, st); const corr = data.corrections[key];
       return { key, tid, sid: s.id, student: st, subject: s.subject, teacher: data.roster.names?.[tid] ?? '', original, corr, stale: corr && (corr.original ?? '') !== original };

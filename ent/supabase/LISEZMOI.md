@@ -79,3 +79,9 @@ calendrier Parcoursup. Les notes s'ouvrent le 17 décembre ; les autres rubrique
    secrétariat et la CPE se connectent : ils reçoivent les données, et chaque saisie est partagée en quelques secondes.
 3. Accès : caisse, salaires, inscriptions, paiements → Direction et secrétariat ; élèves, vie scolaire, agenda,
    annonces, réglages → Direction, secrétariat et CPE. Rien pour les professeurs, les élèves et les parents.
+
+## 10. Mise à jour 7 — classes en commun (une seule fois)
+1. SQL Editor › New query → coller `70_classes_communes.sql` → Run (en bas : 16 règles).
+2. Classe en commun (même matière, deux professeurs) : le premier qui saisit une note la prend ; elle disparaît chez
+   l'autre, prévenu dans son carnet. Enseignement scientifique : notes à 50/50, et le premier qui écrit une
+   appréciation l'écrit pour les deux. La Direction peut changer ce choix dans Notes reçues.

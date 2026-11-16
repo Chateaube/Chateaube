@@ -2502,3 +2502,27 @@ test('Bulletin en ligne : élève en nom complet, professeur en prénom seulemen
   assert.equal(b[0].rows[0].teacher, 'Henriette');
   assert.equal(teacherFirst({ names: { x: 'Hery RAKOTO' } }, 'x'), 'Hery');
 });
+
+test('Matière partagée : un seul professeur écrit l\'appréciation, notes toujours à 50/50', async () => {
+  const { servicesFor } = await import('../src/online/roster.js');
+  const { buildClassBulletins } = await import('../src/rules/onlineBulletins.js');
+  const roster = { students: [{ cls: '1re Générale', lastName: 'RABE', firstName: 'Aina' }], services: { a: [{ subject: 'Enseignement scientifique', classes: ['1re Générale'] }], b: [{ subject: 'Enseignement scientifique', classes: ['1re Générale'] }] },
+    names: { a: 'Henriette R', b: 'Hery H' }, writers: { '1re Générale|Enseignement scientifique': 'a' } };
+  assert.equal(servicesFor(roster, 'b')[0].noAppreciation, true); assert.equal(servicesFor(roster, 'a')[0].noAppreciation, false);
+  const k = '1re Générale|Enseignement scientifique'; const ev = (id) => ({ [k]: [{ id, scale: 20, coef: 1, normalize: true }] });
+  const carnets = { a: { evaluations: ev('x'), grades: { [k]: { 'RABE Aina': { x: '10' } } }, comments: { [`${k}:RABE Aina`]: { text: 'Texte A', validated: true } } },
+    b: { evaluations: ev('y'), grades: { [k]: { 'RABE Aina': { y: '14' } } }, comments: { [`${k}:RABE Aina`]: { text: 'Texte B', validated: true } } } };
+  const row = buildClassBulletins({ cls: '1re Générale', students: [{ cls: '1re Générale', lastName: 'RABE', firstName: 'Aina' }], roster, carnets })[0].rows[0];
+  assert.equal(row.avg, 12); assert.equal(row.appreciation, 'Texte A');
+});
+
+test('Classes en commun : le premier qui saisit prend la classe ; la Direction peut changer', async () => {
+  const { servicesFor, takenFrom } = await import('../src/online/roster.js');
+  const roster = { students: [{ cls: '6e', lastName: 'A', firstName: 'B' }], services: { h: [{ subject: 'Espagnol', classes: ['6e'] }], y: [{ subject: 'Espagnol', classes: ['6e'] }] }, names: { h: 'Henriette', y: 'Hery' },
+    claims: { y: { '6e|Espagnol': { kind: 'NOTES', at: '2026-11-17T08:00:00Z' } }, h: { '6e|Espagnol': { kind: 'NOTES', at: '2026-11-17T09:00:00Z' } } } };
+  assert.equal(servicesFor(roster, 'h').length, 0); // Hery a commencé avant
+  assert.equal(servicesFor(roster, 'y')[0].conflict, undefined);
+  assert.deepEqual(takenFrom(roster, 'h').map((x) => x.byName), ['Hery']);
+  const chosen = { ...roster, owners: { '6e|Espagnol': 'h' } }; // choix de la Direction
+  assert.equal(servicesFor(chosen, 'y').length, 0); assert.equal(servicesFor(chosen, 'h').length, 1);
+});

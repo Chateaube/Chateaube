@@ -1,3 +1,4 @@
+import { fetchRoster } from '../online/roster.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Badge, Button, Card, Stat, StudentSelect } from './ui.jsx';
 import { RulePanel } from './gradeUi.jsx';
@@ -33,7 +34,7 @@ export default function OnlineCouncil({ settings, role, go }) {
   const [sync, setSync] = useState(null);
   const load = () => {
     setErr('');
-    Promise.all([fetchDocs('CARNET'), fetchDoc('roster'), fetchDocs('CONSEIL'), fetchDocs('ORIENTATION').catch(() => [])]).then(([carnets, roster, conseil, orientation]) => {
+    Promise.all([fetchDocs('CARNET'), fetchRoster(), fetchDocs('CONSEIL'), fetchDocs('ORIENTATION').catch(() => [])]).then(([carnets, roster, conseil, orientation]) => {
       // fiches d'orientation remplies par les élèves (2de, Terminale) : reprises pour la séance
       orientation.forEach((d) => d.value?.student && setSheetOwner(d.value.student, d.owner, d.value.sheet));
       const r = roster?.value ?? null;

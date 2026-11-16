@@ -1,3 +1,4 @@
+import { fetchRoster } from '../online/roster.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button, Card } from './ui.jsx';
 import { fetchDoc, fetchDocs } from '../online/docs.js';
@@ -22,7 +23,7 @@ export default function AbsentAtTests({ embedded = false }) {
   const [rows, setRows] = useState(null); const [err, setErr] = useState(''); const [cls, setCls] = useState('');
   const load = async () => {
     setErr('');
-    try { const [carnets, roster] = await Promise.all([fetchDocs('CARNET'), fetchDoc('roster')]); setRows(absencesAtTests(carnets, roster?.value?.names ?? {})); }
+    try { const [carnets, roster] = await Promise.all([fetchDocs('CARNET'), fetchRoster()]); setRows(absencesAtTests(carnets, roster?.value?.names ?? {})); }
     catch (e) { setErr(`Lecture impossible pour l'instant (${e.message}).`); }
   };
   useEffect(() => { load(); }, []);

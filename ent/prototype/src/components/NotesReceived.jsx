@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Badge, Button, Card } from './ui.jsx';
 import { supabase } from '../online/client.js';
 import { fetchDocs, fetchDoc } from '../online/docs.js';
-import { buildRoster, servicesFor, setCurrentRoster, isShareable } from '../online/roster.js';
+import { buildRoster, servicesFor, setCurrentRoster, isShareable, fetchRoster, ownerOf, writerOf } from '../online/roster.js';
 import { loadRemoteCarnet } from '../gradebookStore.js';
 import GradebookModule from './GradebookModule.jsx';
 import AbsentAtTests from './AbsentAtTests.jsx';
@@ -53,6 +53,12 @@ export function notesWorkbook(rows) {
 }
 
 /** Matières partagées d'après la liste envoyée : [{ key, cls, subject, teachers: [{ id, name, hours }] }]. */
+/** Professeur sur le bulletin : civilité + prénom d'usage (« Mme Mirana »), d'après sa fiche. */
+export function teacherLabel(fiche, u) {
+  const civ = { Madame: 'Mme', Monsieur: 'M.', Mademoiselle: 'Mlle' }[fiche?.civility] ?? '';
+  const first = (fiche?.usual || String(fiche?.first || u?.first_name || '').trim().split(/\s+/)[0] || '').trim();
+  return `${civ} ${first}`.trim();
+}
 export function sharedSubjects(roster, fiches = {}) {
   const by = {};
   Object.entries(roster?.services ?? {}).forEach(([id, list]) => list.forEach((s) => s.classes.forEach((cls) => {
@@ -61,7 +67,7 @@ export function sharedSubjects(roster, fiches = {}) {
     (by[key] ??= { key, cls, subject: s.subject, teachers: [] }).teachers.push({ id, name: roster.names?.[id] ?? id, hours });
   })));
   // classe déjà confiée à un seul professeur (roster.owners) : plus de conflit
-  return Object.values(by).filter((g) => g.teachers.length > 1 && !roster?.owners?.[g.key]);
+  return Object.values(by).filter((g) => g.teachers.length > 1 && !ownerOf(roster, g.key));
 }
 
 export default function NotesReceived({ settings, go }) {
@@ -71,7 +77,7 @@ export default function NotesReceived({ settings, go }) {
     setErr('');
     try {
       const [carnets, roster, users] = await Promise.all([
-        fetchDocs('CARNET'), fetchDoc('roster'),
+        fetchDocs('CARNET'), fetchRoster(),
         supabase.from('app_user').select('id, first_name, last_name, is_active, user_role(role)').order('last_name').then(({ data: d, error }) => { if (error) throw new Error(error.message); return d; }),
       ]);
       setData({ carnets: Object.fromEntries(carnets.map((c) => [c.owner, c])), roster: roster?.value ?? null, users });
@@ -82,7 +88,7 @@ export default function NotesReceived({ settings, go }) {
   const [fiches, setFiches] = useState(() => readStored('ent-s-fiches-agents') ?? {});
   // le personnel seulement : jamais un compte élève ou parent (un élève prénommé comme un professeur n'est pas un professeur)
   const isStaff = (u) => (u.user_role ?? []).some((r) => !['ELEVE', 'PARENT'].includes(r.role));
-  const staff = (data?.users ?? []).filter((u) => u.is_active && isStaff(u)).map((u) => ({ id: u.id, name: `${u.first_name} ${u.last_name}`.trim(), first: (fiches[u.id]?.usual || String(u.first_name ?? '').trim().split(/\s+/)[0] || '').trim(), line: `${u.last_name} ${u.first_name}`.trim(), prof: (u.user_role ?? []).some((r) => r.role === 'PROFESSEUR') }));
+  const staff = (data?.users ?? []).filter((u) => u.is_active && isStaff(u)).map((u) => ({ id: u.id, name: `${u.first_name} ${u.last_name}`.trim(), first: teacherLabel(fiches[u.id], u), line: `${u.last_name} ${u.first_name}`.trim(), prof: (u.user_role ?? []).some((r) => r.role === 'PROFESSEUR') }));
   const teachers = (data?.users ?? []).filter((u) => u.is_active && isStaff(u) && ((u.user_role ?? []).some((r) => r.role === 'PROFESSEUR') || fiches[u.id]?.services?.length))
     .map((u) => ({ id: u.id, name: `${u.first_name} ${u.last_name}`.trim(), line: `${u.last_name} ${u.first_name}`.trim() }));
   const students = currentStudents();
@@ -123,7 +129,7 @@ export default function NotesReceived({ settings, go }) {
     if (Object.keys(auto).length) { writeStored('ent-s-fiches-agents', merged); setFiches(merged); }
     const sendTo = staff.filter((t) => t.prof || merged[t.id]?.services?.length);
     // les classes déjà confiées à un seul professeur restent confiées
-    const roster = { ...buildRoster({ students, fiches: merged, teachers: sendTo }), owners: data?.roster?.owners ?? {} };
+    const roster = { ...buildRoster({ students, fiches: merged, teachers: sendTo }), owners: data?.roster?.owners ?? {}, writers: data?.roster?.writers ?? {} };
     if (!(await askConfirm(`Envoyer aux professeurs les ${roster.students.length} élèves et les classes de ${sendTo.length} professeur(s) ?${roster.warnings.length ? ` Attention : ${roster.warnings.length} point(s) à vérifier (affichés ensuite).` : ''}`))) return;
     setBusy(true); setMsg(''); setErr('');
     const { error } = await supabase.from('ent_doc').upsert({ key: 'roster', kind: 'ROSTER', owner: null, value: roster });
@@ -137,9 +143,21 @@ export default function NotesReceived({ settings, go }) {
   // même matière dans la même classe chez deux professeurs : Enseignement scientifique (normal), sinon à corriger
   const sharedGroups = sharedSubjects(roster, fiches);
   const conflicts = sharedGroups.filter((g) => !isShareable(g.subject));
+  const sharedOk = sharedGroups.filter((g) => isShareable(g.subject)); // ES : qui écrit l'appréciation ?
   const rows = teachers.map((t) => ({ ...t, carnet: data?.carnets?.[t.id]?.value ?? null, at: data?.carnets?.[t.id]?.updated_at, services: servicesFor(roster, t.id) }));
   const exportAll = () => saveFile(`notes-recues-${new Date().toISOString().slice(0, 10)}.xlsx`, notesWorkbook(rows.filter((r) => r.carnet)));
 
+  // matière partagée : un seul professeur écrit l'appréciation du bulletin
+  const chooseWriter = async (g, t) => {
+    if (!(await askConfirm(`${g.cls} · ${g.subject} : l'appréciation du bulletin sera écrite par ${t.name} seulement ? Les notes restent partagées (50/50).`))) return;
+    setBusy(true); setErr('');
+    const latest = (await fetchDoc('roster'))?.value ?? roster;
+    const { error } = await supabase.from('ent_doc').upsert({ key: 'roster', kind: 'ROSTER', owner: null, value: { ...latest, writers: { ...(latest.writers ?? {}), [g.key]: t.id } } });
+    setBusy(false);
+    if (error) { setErr(`Enregistrement impossible : ${error.message}`); return; }
+    setMsg(`${g.cls} · ${g.subject} : appréciation écrite par ${t.name}.`);
+    load();
+  };
   // confier la classe à un seul professeur (même matière chez deux professeurs)
   const entrust = async (g, t) => {
     const others = g.teachers.filter((x) => x.id !== t.id).map((x) => x.name).join(', ');
@@ -192,14 +210,31 @@ export default function NotesReceived({ settings, go }) {
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
                 <span className="text-xs">Qui saisit les notes de cette classe ?</span>
                 {g.teachers.map((t) => {
-                  const asked = Boolean(data?.carnets?.[t.id]?.value?.claims?.[g.key]);
+                  const asked = roster?.claims?.[t.id]?.[g.key]?.kind === 'NOTES';
                   const notes = (data?.carnets?.[t.id]?.value?.evaluations?.[g.key] ?? []).length;
-                  return <Button key={t.id} variant={asked ? undefined : 'secondary'} className="!px-2 !py-1 text-xs" disabled={busy} onClick={() => entrust(g, t)}>{t.name}{asked ? ' (le demande)' : ''}{notes ? ` · ${notes} devoir${notes > 1 ? 's' : ''}` : ''}</Button>;
+                  return <Button key={t.id} variant={asked ? undefined : 'secondary'} className="!px-2 !py-1 text-xs" disabled={busy} onClick={() => entrust(g, t)}>{t.name}{asked ? ' (a commencé)' : ''}{notes ? ` · ${notes} devoir${notes > 1 ? 's' : ''}` : ''}</Button>;
                 })}
               </div>
             </li>
           ))}</ul>
-          <p className="mt-2 text-xs text-slate-600">La classe disparaît alors chez l'autre professeur et un seul nom va sur le bulletin. Un professeur peut aussi le demander depuis son carnet (« C'est moi qui saisis les notes »).</p>
+          <p className="mt-2 text-xs text-slate-600">La classe disparaît alors chez l'autre professeur et un seul nom va sur le bulletin. Sinon, c'est automatique : le premier professeur qui saisit une note prend la classe.</p>
+        </Card>
+      )}
+
+      {sharedOk.length > 0 && (
+        <Card title="Matières partagées : qui écrit l'appréciation ?" subtitle="Notes à 50/50 (2 minimum chacun) ; une seule appréciation sur le bulletin, écrite par le professeur choisi">
+          <ul className="space-y-2 text-sm">{sharedOk.map((g) => {
+            const w = writerOf(roster, g.key);
+            return (
+              <li key={g.key} className="rounded-lg bg-violet-50 px-3 py-2 text-violet-950">
+                <p><strong>{g.cls} · {g.subject}</strong> : {g.teachers.map((t) => t.name).join(' et ')}{w ? <> — appréciation : <strong>{g.teachers.find((t) => t.id === w)?.name ?? '?'}</strong></> : <span className="text-amber-800"> — à choisir</span>}</p>
+                <div className="mt-1.5 flex flex-wrap gap-2">{g.teachers.map((t) => {
+                  const asked = roster?.claims?.[t.id]?.[g.key]?.kind === 'APP';
+                  return <Button key={t.id} variant={w === t.id || asked ? undefined : 'secondary'} className="!px-2 !py-1 text-xs" disabled={busy || w === t.id} onClick={() => chooseWriter(g, t)}>{t.name}{w === t.id ? ' ✓' : asked ? ' (a commencé)' : ''}</Button>;
+                })}</div>
+              </li>
+            );
+          })}</ul>
         </Card>
       )}
 
