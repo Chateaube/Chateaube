@@ -4,7 +4,7 @@ import { CLASSES } from '../data/schoollife.js';
 import { DEMO_SPECIALTIES, RENTAL_PRICE } from '../data/manuals.js';
 import { SPECIALTIES } from '../rules/bulletin.js';
 import {
-  CONDITIONS, KINDS, BINDINGS, PRINTS, PROGRAM_YEARS, MANUAL_SUBJECTS, manualDraftErrors, manualTitle, isObsolete, CATEGORIES, conditionLabel, lentCount, totalCopies, lend, giveBack, manualBlocks, eligible, kitFor, kitTotals,
+  CONDITIONS, KINDS, BINDINGS, PRINTS, PROGRAM_YEARS, MANUAL_SUBJECTS, manualDraftErrors, manualTitle, isObsolete, CATEGORIES, conditionLabel, lentCount, totalCopies, lend, giveBack, cancelLend, cancelLoss, manualBlocks, eligible, kitFor, kitTotals,
 } from '../rules/manuals.js';
 import { formatAr } from '../rules/finance.js';
 import { loadManuals, saveManuals } from '../manualsStore.js';
@@ -54,6 +54,15 @@ function KitTab({ manuals, setManuals, loans, setLoans, specialtiesOf }) {
   const spe = items.filter((m) => m.specialty);
   const has = (student, m) => loans.find((l) => l.manualId === m.id && l.student === student && (l.sold || !l.returnedOn));
 
+  // corriger une case : remise annulée (erreur), rendu, perdu, perte annulée
+  const [menu, setMenu] = useState(null);
+  const change = (l, what) => {
+    const m = manuals.find((x) => x.id === l.manualId);
+    if (what === 'CANCEL') { const r = cancelLend(m, loans, l); setManuals(manuals.map((x) => (x.id === m.id ? r.manual : x))); setLoans(r.loans); }
+    else if (what === 'UNLOSE') setLoans(loans.map((x) => (x.id === l.id ? cancelLoss(l) : x)));
+    else { const r = giveBack(m, l, { state: what === 'LOST' ? 'PERDU' : l.stateOut, on: TODAY }); setManuals(manuals.map((x) => (x.id === m.id ? r.manual : x))); setLoans(loans.map((x) => (x.id === l.id ? r.loan : x))); }
+    setMenu(null); setError('');
+  };
   // remettre un titre à un élève, le jour où il le prend
   const giveOne = (student, m0) => {
     const m = manuals.find((x) => x.id === m0.id);
@@ -115,7 +124,7 @@ function KitTab({ manuals, setManuals, loans, setLoans, specialtiesOf }) {
       </Card>
 
       {students.length > 0 && items.length > 0 && (
-        <Card title={`Qui a quoi — ${cls}`} subtitle="Cliquez sur « – » le jour où l'élève prend le manuel · ✓ remis · ✕ perdu · gris : non concerné (spécialité)"
+        <Card title={`Qui a quoi — ${cls}`} subtitle="Cliquez sur « – » le jour où l'élève prend le manuel · ✓ remis · ✕ perdu (cliquer dessus pour corriger : erreur, rendu, perdu) · gris : non concerné (spécialité)"
           action={<Button variant="secondary" onClick={distribute}>Tout remettre à la classe (début d'année)</Button>}>
           {error && <p className="mb-3 rounded-lg bg-red-50 p-2 text-sm text-red-800">{error}</p>}
           <div className="-mx-5 overflow-x-auto">
@@ -134,7 +143,25 @@ function KitTab({ manuals, setManuals, loans, setLoans, specialtiesOf }) {
                       if (!eligible(m, specialtiesOf(s))) return <td key={m.id} className="bg-slate-50 text-center text-slate-300">·</td>;
                       const l = loans.find((x) => x.manualId === m.id && x.student === s && (x.sold || !x.returnedOn));
                       if (!l) return <td key={m.id} className="text-center"><button type="button" onClick={() => giveOne(s, m)} aria-label={`Remettre « ${m.title} » à ${s}`} title="Remettre ce manuel à cet élève aujourd'hui" className="h-7 w-7 rounded-md text-slate-500 ring-1 ring-slate-200 hover:bg-navy-50 hover:text-navy-900">–</button></td>;
-                      return <td key={m.id} className={`text-center text-sm ${l.stateIn === 'PERDU' ? 'text-red-600' : 'text-emerald-600'}`} title={`${l.sold ? 'Remis' : 'Prêté'} le ${fmt(l.issuedOn)} (${conditionLabel(l.stateOut)})`}>{l.stateIn === 'PERDU' ? '✕' : '✓'}</td>;
+                      const lost = l.stateIn === 'PERDU'; const isOpen = menu === l.id;
+                      return (
+                        <td key={m.id} className="relative text-center">
+                          <button type="button" onClick={() => setMenu(isOpen ? null : l.id)} aria-expanded={isOpen} aria-label={`${lost ? 'Perdu' : 'Remis'} : « ${m.title} » — ${s} (modifier)`}
+                            title={`${l.sold ? 'Remis' : 'Prêté'} le ${fmt(l.issuedOn)} (${conditionLabel(l.stateOut)}) — cliquer pour modifier`}
+                            className={`h-7 w-7 rounded-md text-sm ring-1 ${lost ? 'text-red-600 ring-red-200 hover:bg-red-50' : 'text-emerald-600 ring-emerald-200 hover:bg-emerald-50'}`}>{lost ? '✕' : '✓'}</button>
+                          {isOpen && (
+                            <div className="absolute left-1/2 top-8 z-20 w-56 -translate-x-1/2 rounded-lg bg-white p-1 text-left text-xs shadow-lg ring-1 ring-slate-200">
+                              <p className="px-2 py-1 text-[11px] text-slate-500">{m.title} — {s}</p>
+                              {lost ? <button type="button" className="block w-full rounded px-2 py-1.5 text-left hover:bg-slate-50" onClick={() => change(l, 'UNLOSE')}>Annuler la perte (déclarée par erreur)</button> : (<>
+                                <button type="button" className="block w-full rounded px-2 py-1.5 text-left hover:bg-slate-50" onClick={() => change(l, 'CANCEL')}>Annuler la remise (clic par erreur)</button>
+                                {!l.sold && <button type="button" className="block w-full rounded px-2 py-1.5 text-left hover:bg-slate-50" onClick={() => change(l, 'BACK')}>Rendu (même état)</button>}
+                                {!l.sold && <button type="button" className="block w-full rounded px-2 py-1.5 text-left text-red-700 hover:bg-red-50" onClick={() => change(l, 'LOST')}>Perdu (à régler à la caisse)</button>}
+                              </>)}
+                              <button type="button" className="block w-full rounded px-2 py-1.5 text-left text-slate-500 hover:bg-slate-50" onClick={() => setMenu(null)}>Fermer</button>
+                            </div>
+                          )}
+                        </td>
+                      );
                     })}
                   </tr>
                 ))}
