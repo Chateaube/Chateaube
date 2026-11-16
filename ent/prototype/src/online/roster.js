@@ -36,15 +36,18 @@ export function servicesFor(roster, accountId) {
   const byClass = {};
   (roster?.students ?? []).forEach((s) => (byClass[s.cls] ??= []).push(s));
   return (roster?.services?.[accountId] ?? []).flatMap((s) => s.classes.map((cls) => {
+    // classe confiée à un seul professeur par la Direction (même matière chez deux professeurs) : masquée chez l'autre
+    const owner = roster?.owners?.[`${cls}|${s.subject}`];
+    if (owner && owner !== accountId) return null;
     const spe = specialtyOf(s.subject, cls);
     const students = (byClass[cls] ?? []).filter((st) => !spe || !st.specialties?.length || st.specialties.includes(spe))
       .map((st) => `${st.lastName} ${st.firstName}`.trim()).sort((a, b) => a.localeCompare(b, 'fr'));
     // matière partagée (ES, MSGN, Espagnol…) : un autre professeur a la même matière dans la même classe
     const others = Object.entries(roster?.services ?? {}).filter(([id, list]) => id !== accountId && list.some((o) => o.subject === s.subject && o.classes.includes(cls))).map(([id]) => roster?.names?.[id] ?? '');
     // seul l'Enseignement scientifique se partage (50/50, 2 notes chacun) ; ailleurs, deux professeurs = à corriger
-    const extra = !others.length ? {} : isShareable(s.subject) ? { shared: true, coTeachers: others, minEvaluations: SHARED_MIN } : { conflict: others };
+    const extra = !others.length || owner === accountId ? {} : isShareable(s.subject) ? { shared: true, coTeachers: others, minEvaluations: SHARED_MIN } : { conflict: others };
     return { id: `${cls}|${s.subject}`, cls, subject: s.subject, students, ...extra };
-  }));
+  })).filter(Boolean);
 }
 
 /** Matière partagée entre deux professeurs : une seule ligne au bulletin, 2 notes minimum pour chacun. */

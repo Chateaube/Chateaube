@@ -60,7 +60,8 @@ export function sharedSubjects(roster, fiches = {}) {
     const hours = Number((fiches[id]?.services ?? []).find((x) => x.subject === s.subject && x.classes?.includes(cls))?.hours) || 0;
     (by[key] ??= { key, cls, subject: s.subject, teachers: [] }).teachers.push({ id, name: roster.names?.[id] ?? id, hours });
   })));
-  return Object.values(by).filter((g) => g.teachers.length > 1);
+  // classe déjà confiée à un seul professeur (roster.owners) : plus de conflit
+  return Object.values(by).filter((g) => g.teachers.length > 1 && !roster?.owners?.[g.key]);
 }
 
 export default function NotesReceived({ settings, go }) {
@@ -119,7 +120,8 @@ export default function NotesReceived({ settings, go }) {
     const merged = { ...fiches, ...auto };
     if (Object.keys(auto).length) { writeStored('ent-s-fiches-agents', merged); setFiches(merged); }
     const sendTo = staff.filter((t) => t.prof || merged[t.id]?.services?.length);
-    const roster = buildRoster({ students, fiches: merged, teachers: sendTo });
+    // les classes déjà confiées à un seul professeur restent confiées
+    const roster = { ...buildRoster({ students, fiches: merged, teachers: sendTo }), owners: data?.roster?.owners ?? {} };
     if (!(await askConfirm(`Envoyer aux professeurs les ${roster.students.length} élèves et les classes de ${sendTo.length} professeur(s) ?${roster.warnings.length ? ` Attention : ${roster.warnings.length} point(s) à vérifier (affichés ensuite).` : ''}`))) return;
     setBusy(true); setMsg(''); setErr('');
     const { error } = await supabase.from('ent_doc').upsert({ key: 'roster', kind: 'ROSTER', owner: null, value: roster });
@@ -136,6 +138,18 @@ export default function NotesReceived({ settings, go }) {
   const rows = teachers.map((t) => ({ ...t, carnet: data?.carnets?.[t.id]?.value ?? null, at: data?.carnets?.[t.id]?.updated_at, services: servicesFor(roster, t.id) }));
   const exportAll = () => saveFile(`notes-recues-${new Date().toISOString().slice(0, 10)}.xlsx`, notesWorkbook(rows.filter((r) => r.carnet)));
 
+  // confier la classe à un seul professeur (même matière chez deux professeurs)
+  const entrust = async (g, t) => {
+    const others = g.teachers.filter((x) => x.id !== t.id).map((x) => x.name).join(', ');
+    if (!(await askConfirm(`${g.cls} · ${g.subject} : confier la saisie des notes à ${t.name} ? La classe disparaîtra chez ${others}, et seul ${t.name} sera sur le bulletin.`))) return;
+    setBusy(true); setErr('');
+    const latest = (await fetchDoc('roster'))?.value ?? roster;
+    const { error } = await supabase.from('ent_doc').upsert({ key: 'roster', kind: 'ROSTER', owner: null, value: { ...latest, owners: { ...(latest.owners ?? {}), [g.key]: t.id } } });
+    setBusy(false);
+    if (error) { setErr(`Enregistrement impossible : ${error.message}`); return; }
+    setMsg(`${g.cls} · ${g.subject} : confiée à ${t.name}.`);
+    load();
+  };
   const actFor = async (r) => {
     setErr('');
     try { setCurrentRoster(roster); await loadRemoteCarnet(r.id); setActingFor({ id: r.id, name: r.name }); window.scrollTo(0, 0); }
@@ -169,8 +183,21 @@ export default function NotesReceived({ settings, go }) {
       </Card>
 
       {conflicts.length > 0 && (
-        <Card title="Deux professeurs pour la même matière" subtitle="Seul l'Enseignement scientifique se partage (moyenne 50/50, 2 notes minimum chacun). Ailleurs, gardez un seul professeur : retirez la matière de la fiche de l'autre (Gestion des agents), puis renvoyez les classes.">
-          <ul className="space-y-1 text-sm text-amber-900">{conflicts.map((g) => <li key={g.key}>⚠ {g.cls} · {g.subject} : {g.teachers.map((t) => t.name).join(' et ')}</li>)}</ul>
+        <Card title="Deux professeurs pour la même matière" subtitle="Seul l'Enseignement scientifique se partage (moyenne 50/50, 2 notes minimum chacun). Ailleurs, un seul professeur saisit les notes : choisissez-le ci-dessous.">
+          <ul className="space-y-2 text-sm text-amber-900">{conflicts.map((g) => (
+            <li key={g.key} className="rounded-lg bg-amber-50 px-3 py-2">
+              <p>⚠ <strong>{g.cls} · {g.subject}</strong> : {g.teachers.map((t) => t.name).join(' et ')}</p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                <span className="text-xs">Qui saisit les notes de cette classe ?</span>
+                {g.teachers.map((t) => {
+                  const asked = Boolean(data?.carnets?.[t.id]?.value?.claims?.[g.key]);
+                  const notes = (data?.carnets?.[t.id]?.value?.evaluations?.[g.key] ?? []).length;
+                  return <Button key={t.id} variant={asked ? undefined : 'secondary'} className="!px-2 !py-1 text-xs" disabled={busy} onClick={() => entrust(g, t)}>{t.name}{asked ? ' (le demande)' : ''}{notes ? ` · ${notes} devoir${notes > 1 ? 's' : ''}` : ''}</Button>;
+                })}
+              </div>
+            </li>
+          ))}</ul>
+          <p className="mt-2 text-xs text-slate-600">La classe disparaît alors chez l'autre professeur et un seul nom va sur le bulletin. Un professeur peut aussi le demander depuis son carnet (« C'est moi qui saisis les notes »).</p>
         </Card>
       )}
 
