@@ -10,6 +10,7 @@ import AppreciationsReview from './components/AppreciationsReview.jsx';
 import ComingSoon from './components/ComingSoon.jsx';
 
 // Rubriques déjà utilisables en ligne par tout le personnel (les autres : « fonction en cours de création »)
+const STAFF_LATER = ['messages', 'oversight-grades', 'oversight-homework'];
 const ONLINE_READY = ['grades', 'absents-devoirs', 'agenda']; // carnet de notes en ligne (le reste suit à la bascule de décembre)
 const COMING_TEXT = {
   grades: 'La saisie des notes en ligne ouvre très prochainement. En attendant, gardez vos notes comme d\'habitude : vous les recopierez ici évaluation par évaluation.',
@@ -274,7 +275,10 @@ export default function App() {
   const NAV = applyAccess({ profile, person: PERSON_OF[profile], baseNav: PROFILES[profile].nav, catalogue: catalogue(), access: settings.access }).map((g) => ({ ...g, items: g.items.filter((it) => featureVisible(settings, it.feature, profile)) })).filter((g) => g.items.length);
   // En ligne, pour le personnel (hors Direction) : les rubriques pas encore ouvertes restent visibles mais
   // affichent « Fonction en cours de création » (leurs données ne sont pas encore partagées en ligne).
-  const notYet = (it) => ONLINE && profile !== 'DIRECTION' && it.id !== PROFILES[profile].home && !ONLINE_READY.includes(it.id) && !(it.id === 'council' && profile === 'BUREAU');
+  // secrétariat et vie scolaire : leurs données sont partagées en ligne (online/shared.js) ; restent à venir les
+  // rubriques qui dépendent des professeurs ou des familles (messages, cahiers de textes, suivi des professeurs)
+  const notYet = (it) => ONLINE && profile !== 'DIRECTION' && it.id !== PROFILES[profile].home && !ONLINE_READY.includes(it.id)
+    && (['BUREAU', 'VIE_SCOLAIRE'].includes(profile) ? STAFF_LATER.includes(it.id) : true);
   const screenOf = (it) => (notYet(it) ? () => <ComingSoon title={it.label} text={COMING_TEXT[it.id] ?? COMING_TEXT.default} /> : it.screen);
   const Current = screenOf(NAV.flatMap((g) => g.items).find((i) => i.id === screen) ?? NAV[0].items[0]);
   const switchProfile = (p) => { setProfile(p); setScreen(PROFILES[p].home); };
