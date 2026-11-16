@@ -8,7 +8,7 @@ import { demoOr } from '../demoData.js';
 // Élèves d'un service : la liste fictive en démonstration, la classe importée avec les vraies données
 const svc = (s, demo) => Object.defineProperty(s, 'students', { get: () => demoOr(demo, CLASSES[s.cls] ?? []), enumerable: true });
 
-export const TERM = { id: 'T1', label: '1er trimestre', council: 'jeudi 10 décembre 2026' };
+export const TERM = { id: 'T1', label: '1er trimestre', council: 'jeudi 10 décembre 2026', stop: '2026-11-27' }; // stop : arrêt des notes (toutes les classes)
 
 const TLE_STMG = ['ANDRIANARIVO Tojo', 'RABEMANANJARA Lina', 'RAKOTONDRABE Fanilo', 'RAMANANTSOA Nathan', 'RANDRIANASOLO Ony', 'RAZANAMPARANY Sarobidy'];
 const PREMIERE_G = ['ANDRIAMANANTENA Ravo', 'RABARY Tiavina', 'RAHERIMALALA Anja', 'RAKOTOMANGA Hasina', 'RALAMBO Mendrika', 'RATSIMBA Kevin', 'RAZAFINDRAKOTO Ny Aina'];

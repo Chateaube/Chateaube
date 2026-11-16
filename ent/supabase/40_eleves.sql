@@ -24,5 +24,5 @@ CREATE POLICY doc_orientation_update ON ent_doc FOR UPDATE TO authenticated
   USING (kind = 'ORIENTATION' AND owner = ent_me())
   WITH CHECK (kind = 'ORIENTATION' AND owner = ent_me() AND key = 'orientation:' || ent_me()::text);
 
--- Vérification : doit afficher 9 règles (ROSTER, CARNET, ECOLE, ELEVE, ORIENTATION…)
+-- Vérification : doit afficher 10 règles (ROSTER, CARNET, ECOLE, ELEVE, ORIENTATION…)
 SELECT count(*) AS regles FROM pg_policies WHERE tablename = 'ent_doc';

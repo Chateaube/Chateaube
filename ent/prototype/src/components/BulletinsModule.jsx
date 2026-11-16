@@ -19,6 +19,7 @@ import BulletinHandover from './BulletinHandover.jsx';
 import { demoOr, realData } from '../demoData.js';
 import { ONLINE } from '../online/client.js';
 import { fetchDocs, fetchDoc } from '../online/docs.js';
+import { councilKey } from '../rules/onlineCouncil.js';
 import { buildClassBulletins } from '../rules/onlineBulletins.js';
 import { loadGA } from '../appreciationStore.js';
 import { loadEngagements, loadCatalogue, loadValidation } from '../engagementsStore.js';
@@ -183,16 +184,18 @@ function LayoutPanel({ settings, onChange, labels }) {
   );
 }
 
-function BulletinsModuleInner({ settings, role, go, onChange, classes }) {
+function BulletinsModuleInner({ settings, role, go, onChange, classes, councilGa }) {
   const [mode, setMode] = useState('print'); // impression ou remise en main propre
   const [readyAsked, setReadyAsked] = useState(false);
   const [CLASSES] = useState(() => classes ?? classesNow());
   const [cls, setCls] = useState(CLASSES[0][0]);
   const [version, setVersion] = useState(0); // spécialités modifiées
-  const [showGeneral, setShowGeneral] = useState(false);
+  const showGeneral = false; // moyenne générale : jamais sur le bulletin (seulement sur la grille du conseil)
   // appréciation générale : une seule saisie, au conseil de classe ; le bulletin reprend celle validée
   const [ga] = useState(loadGA);
-  const generalOf = (name) => (ga[name]?.status === 'VALIDEE' ? ga[name].text ?? '' : '');
+  // en ligne : appréciations générales du conseil, enregistrées sur le serveur (conseil:<classe>|<élève>)
+  const gaEntry = (name) => (councilGa ? councilGa[councilKey(cls, name)] : ga[name]);
+  const generalOf = (name) => (gaEntry(name)?.status === 'VALIDEE' ? gaEntry(name).text ?? '' : '');
   const bulletins = useMemo(() => CLASSES.find(([c]) => c === cls)[1](settings).map((b) => ({ ...b, rows: orderSubjects(b.rows, settings.bulletin?.subjectOrder) })), [cls, settings, version]);
   const margin = marginOf(settings);
   const [student, setStudent] = useState(bulletins[0].student);
@@ -266,7 +269,6 @@ function BulletinsModuleInner({ settings, role, go, onChange, classes }) {
             </select>
           </label>
           <StudentSelect students={bulletins.map((x) => x.student)} value={current.student} onChange={setStudent} />
-          <label className="flex items-center gap-1.5 pb-2 text-xs text-slate-600"><input type="checkbox" checked={showGeneral} onChange={(e) => setShowGeneral(e.target.checked)} />Afficher la moyenne générale</label>
         </div>
         <div className={`mt-3 rounded-lg px-3 py-2 text-xs ${generalOf(current.student) ? 'bg-slate-50 text-slate-800' : 'bg-amber-50 text-amber-900'}`}>
           <strong>Appréciation générale (validée au conseil) :</strong> {generalOf(current.student) || 'pas encore validée au conseil de classe : le bulletin sortirait sans appréciation générale.'}
@@ -311,7 +313,7 @@ function BulletinsModuleInner({ settings, role, go, onChange, classes }) {
 const ORDER = ['6e', '5e', '4e', '3e', '2de', '1re STMG', '1re Générale', 'Terminale STMG', 'Terminale Générale'];
 function OnlineBulletins(props) {
   const [data, setData] = useState(null); const [err, setErr] = useState('');
-  const load = () => { setErr(''); Promise.all([fetchDocs('CARNET'), fetchDoc('roster'), fetchDoc('corrections')]).then(([carnets, roster, corr]) => setData({ carnets: Object.fromEntries(carnets.map((c) => [c.owner, c.value])), roster: roster?.value ?? null, corrections: corr?.value ?? {} }), (e) => setErr(e.message)); };
+  const load = () => { setErr(''); Promise.all([fetchDocs('CARNET'), fetchDoc('roster'), fetchDoc('corrections'), fetchDocs('CONSEIL').catch(() => [])]).then(([carnets, roster, corr, conseil]) => setData({ carnets: Object.fromEntries(carnets.map((c) => [c.owner, c.value])), roster: roster?.value ?? null, corrections: corr?.value ?? {}, ga: Object.fromEntries(conseil.map((d) => [d.key, d.value])) }), (e) => setErr(e.message)); };
   useEffect(load, []);
   if (err) return <Card title="Bulletins"><p className="text-sm text-red-800">Les carnets n'ont pas pu être lus ({err}).</p><Button className="mt-3" onClick={load}>Réessayer</Button></Card>;
   if (!data) return <Card title="Bulletins"><p className="text-sm text-slate-600">Chargement des notes des professeurs…</p></Card>;
@@ -319,7 +321,7 @@ function OnlineBulletins(props) {
   if (!students.length || !data.roster) return <Card title="Bulletins"><p className="text-sm text-slate-700">{!students.length ? 'Aucun élève importé sur cet ordinateur : importez d\'abord le modèle Excel.' : 'Les classes n\'ont pas encore été envoyées aux professeurs (Notes reçues › Envoyer les classes).'}</p></Card>;
   const classes = [...new Set(students.map((s) => s.cls).filter(Boolean))].sort((a, b) => ((ORDER.indexOf(a) + 1) || 99) - ((ORDER.indexOf(b) + 1) || 99))
     .map((c) => [c, () => buildClassBulletins({ cls: c, students: currentStudents(), roster: data.roster, carnets: data.carnets, corrections: data.corrections, absences: absenceTotals })]);
-  return <BulletinsModuleInner {...props} classes={classes} />;
+  return <BulletinsModuleInner {...props} classes={classes} councilGa={data.ga} />;
 }
 
 export default function BulletinsModule(props) {

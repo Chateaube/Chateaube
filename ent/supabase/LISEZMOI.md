@@ -57,9 +57,17 @@ hors ligne, avec ses exemples. La Direction crée les comptes dans Réglages ›
    versions précédentes de chaque carnet (une toutes les 10 minutes au plus), lisible par la Direction seule.
 
 ## 7. Mise à jour 4 — portail des élèves (une seule fois)
-1. SQL Editor › New query → coller `40_eleves.sql` → Run (en bas : 9 règles).
+1. SQL Editor › New query → coller `40_eleves.sql` → Run (en bas : 10 règles).
 2. Edge Functions › fonction des comptes › Code : remplacer par `functions/comptes/index.ts` (rôle ELEVE ajouté) → Deploy.
 3. Dans l'ENT (Direction) : Élèves › Portail des élèves (comptes) → « Envoyer aux élèves » (emploi du temps, calendrier),
    puis choisir une classe → « Créer les comptes » → imprimer les fiches.
 Les élèves voient : emploi du temps du jour, agenda, règlement et chartes, fiche d'orientation (2de, Terminale) et
 calendrier Parcoursup. Les notes s'ouvrent le 17 décembre ; les autres rubriques sont « en cours de création ».
+
+## 8. Mise à jour 5 — conseils de classe en ligne (une seule fois)
+1. SQL Editor › New query → coller `50_conseils.sql` → Run (en bas : 11 règles).
+2. Dans l'ENT : **Pédagogie › Conseils de classe** (Direction) ou **Notes et conseils › Conseils de classe**
+   (secrétariat). La grille se remplit avec les notes des carnets des professeurs (« Actualiser les notes »).
+3. Décision et appréciation générale : le secrétariat les tape et les envoie, la Direction valide. Tout est sur le
+   serveur (une fiche par élève) : chacune travaille depuis son poste. Les appréciations validées vont sur le bulletin ;
+   la moyenne générale reste sur la grille, jamais sur le bulletin.

@@ -274,7 +274,7 @@ export default function App() {
   const NAV = applyAccess({ profile, person: PERSON_OF[profile], baseNav: PROFILES[profile].nav, catalogue: catalogue(), access: settings.access }).map((g) => ({ ...g, items: g.items.filter((it) => featureVisible(settings, it.feature, profile)) })).filter((g) => g.items.length);
   // En ligne, pour le personnel (hors Direction) : les rubriques pas encore ouvertes restent visibles mais
   // affichent « Fonction en cours de création » (leurs données ne sont pas encore partagées en ligne).
-  const notYet = (it) => ONLINE && profile !== 'DIRECTION' && it.id !== PROFILES[profile].home && !ONLINE_READY.includes(it.id);
+  const notYet = (it) => ONLINE && profile !== 'DIRECTION' && it.id !== PROFILES[profile].home && !ONLINE_READY.includes(it.id) && !(it.id === 'council' && profile === 'BUREAU');
   const screenOf = (it) => (notYet(it) ? () => <ComingSoon title={it.label} text={COMING_TEXT[it.id] ?? COMING_TEXT.default} /> : it.screen);
   const Current = screenOf(NAV.flatMap((g) => g.items).find((i) => i.id === screen) ?? NAV[0].items[0]);
   const switchProfile = (p) => { setProfile(p); setScreen(PROFILES[p].home); };
