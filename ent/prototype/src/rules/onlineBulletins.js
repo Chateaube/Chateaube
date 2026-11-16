@@ -7,6 +7,7 @@ import { combineTeachers, classLine } from './bulletin.js';
 import { servicesFor } from '../online/roster.js';
 import { formatDateFr } from './calendar.js';
 import { accord } from './documents.js';
+import { usualFirstName } from './names.js';
 
 const longDate = (iso) => (iso ? formatDateFr(iso).replace(/^\S+ /, '') : '');
 const nameOf = (s) => `${s.lastName} ${s.firstName}`.trim();
@@ -46,7 +47,8 @@ export function buildClassBulletins({ cls, students = [], roster, carnets = {}, 
   const generals = perStudent.map((p) => generalAverage(p.rows.map((r) => ({ inAverage: true, coef: 1, avg: r.avg }))));
   const classGeneral = classStats(generals.filter((g) => g != null)).avg ?? null;
   return perStudent.map(({ st, rows }, i) => ({
-    term, year, student: nameOf(st), sex: st.sex,
+    // nom imprimé : NOM + prénom d'usage seulement (le nom complet reste la clé des notes et du conseil)
+    term, year, student: nameOf(st), displayName: `${st.lastName} ${usualFirstName(st)}`.trim(), sex: st.sex,
     birthLine: st.birthDate ? `${accord(st.sex, 'Né', 'Née')} le ${longDate(st.birthDate)}` : '',
     classLine: classLine(cls, st.specialties ?? []),
     rows: rows.map((r) => ({ ...r, classAvg: classAvg[r.label] })),

@@ -3,6 +3,7 @@ import { Badge, Button, Card, Icon } from './ui.jsx';
 import { DUNNING_CASES, EXAM_FEES, SITE_KPIS, TODAY } from '../data/demo.js';
 import { realData } from '../demoData.js';
 import { CASH_ACCOUNTS, duesStatus } from './CollectPayment.jsx';
+import { CLASS_FEES, examOf, examKind } from '../data/accounting.js';
 import { dunningStages, splitExamFee, formatAr } from '../rules/finance.js';
 import { dunningSchedule, stageOn, formatDateFr, monthOf, monthName } from '../rules/calendar.js';
 import { usePersistent } from '../persist.js';
@@ -182,7 +183,19 @@ export function SeparateJournals({ site = 'TMV', settings }) {
   const kpi = real
     ? duesStatus(CASH_ACCOUNTS, settings, TODAY, 'ECOLAGE').reduce((acc, x) => ({ due: acc.due + x.due, paid: acc.paid + x.paid }), { due: 0, paid: 0 })
     : ids.reduce((acc, id) => { const k = SITE_KPIS[id]; acc.due += k.tuitionDue; acc.paid += k.tuitionPaid; return acc; }, { due: 0, paid: 0 });
-  const exams = (realData() ? [] : EXAM_FEES).filter((e) => inSite(e.site)).map((e) => { const collected = e.unit * e.paid; return { ...e, collected, ...splitExamFee(collected, 40_000 * e.paid) }; });
+  // vraies données : candidats = élèves de 3e (DNB), 1re (épreuves anticipées), Terminale (Bac) ; réglés = droits cochés
+  // payés sur leur compte (Caisse › Classes & tarifs › « Droits d'examen déjà payés », ou encaissement)
+  const realExams = () => {
+    const by = {};
+    CASH_ACCOUNTS.forEach((a) => {
+      const exam = examOf(a.cls, CLASS_FEES.find((f) => f.cls === a.cls)); const kind = examKind(a.cls);
+      if (!kind) return;
+      const e = (by[kind] ??= { exam: kind.replace(/^Droits (du |des |)/, ''), level: '', classes: new Set(), site: 'TMV', center: '—', unit: exam?.amount ?? 0, paid: 0, candidates: 0 });
+      e.classes.add(a.cls); e.candidates += 1; if ((a.paid ?? []).includes('EXAMEN')) e.paid += 1;
+    });
+    return Object.values(by).map((e) => ({ ...e, level: [...e.classes].join(', ') }));
+  };
+  const exams = (realData() ? realExams() : EXAM_FEES).filter((e) => inSite(e.site)).map((e) => { const collected = e.unit * e.paid; return { ...e, collected, ...splitExamFee(collected, 40_000 * e.paid) }; });
   const examTotals = exams.reduce((t, e) => ({ collected: t.collected + e.collected, retained: t.retained + e.retained, toRemit: t.toRemit + e.toRemit, paid: t.paid + e.paid, candidates: t.candidates + e.candidates }), { collected: 0, retained: 0, toRemit: 0, paid: 0, candidates: 0 });
   return (
       <Card title="Comptabilité séparée" subtitle="Deux journaux étanches : aucun flux commun entre frais de scolarité et droits d'examen">

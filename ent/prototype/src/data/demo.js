@@ -83,6 +83,7 @@ export const RESOURCES = [
 
 export const RESOURCE_TYPES = [
   { id: 'ALL', label: 'Tout' },
+  { id: 'AUTRE', label: 'Autre matériel' },
   { id: 'VIDEOPROJECTEUR', label: 'Vidéoprojecteurs' },
   { id: 'ENCEINTE', label: 'Enceintes' },
   { id: 'TV', label: 'TV' },

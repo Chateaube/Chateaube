@@ -2493,3 +2493,10 @@ test('Relance de frais de scolarité : montant, mois, avertissement', async () =
   assert.match(relanceText(c, 'AVERTISSEMENT'), /suspendre/);
 });
 
+
+test('Bulletin en ligne : NOM + prénom d\'usage seulement', async () => {
+  const { buildClassBulletins } = await import('../src/rules/onlineBulletins.js');
+  const b = buildClassBulletins({ cls: '6e', students: [{ cls: '6e', lastName: 'TSIMBA', firstName: 'Fanilo Dylan', usualName: 'Dylan' }, { cls: '6e', lastName: 'RABE', firstName: 'Aina Soa' }], roster: { services: {}, names: {} } });
+  assert.deepEqual(b.map((x) => x.displayName), ['RABE Aina', 'TSIMBA Dylan']);
+  assert.equal(b[1].student, 'TSIMBA Fanilo Dylan'); // la clé reste le nom complet
+});

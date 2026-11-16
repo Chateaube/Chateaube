@@ -1,6 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, Icon } from './ui.jsx';
-import { RESOURCES, RESOURCE_TYPES, INITIAL_BOOKINGS, SITES, MY_SESSIONS } from '../data/demo.js';
+import { RESOURCES as DEMO_RESOURCES, RESOURCE_TYPES, INITIAL_BOOKINGS, SITES, MY_SESSIONS as DEMO_SESSIONS } from '../data/demo.js';
+import { loadInventory } from '../careStore.js';
+import { realData } from '../demoData.js';
+
+// Vraies données : le matériel réservable vient de l'inventaire (articles cochés « réservable ») ; pas de séances d'exemple
+const typeOf = (name) => { const n = String(name).toLowerCase(); return /projecteur/.test(n) ? 'VIDEOPROJECTEUR' : /enceinte|sono|micro/.test(n) ? 'ENCEINTE' : /\btv\b|t[ée]l[ée]/.test(n) ? 'TV' : /ordinateur|tablette|pc\b|informatique/.test(n) ? 'INFORMATIQUE' : /salle|labo/.test(n) ? 'SALLE_SPECIALISEE' : 'AUTRE'; };
+const resourcesNow = () => (realData() ? loadInventory().filter((i) => i.bookable).map((i) => ({ id: i.id, siteId: 'TMV', type: typeOf(i.name), label: i.name })) : DEMO_RESOURCES);
 import {
   SCHOOL_HOURS, RECESS, toMin, weekdayOf, validateSlot, findConflicts, suggestAlternatives,
 } from '../rules/booking.js';
@@ -86,14 +92,16 @@ function Timeline({ resources, bookings, date, onPick, draft }) {
 }
 
 export default function BookingModule({ role }) {
+  const RESOURCES = useMemo(resourcesNow, []);
+  const MY_SESSIONS = realData() ? [] : DEMO_SESSIONS;
   const readOnly = role === 'VIE_SCOLAIRE'; // la CPE consulte le planning
   const [siteId, setSiteId] = useState('TMV');
   const [type, setType] = useState('ALL');
   const [date, setDate] = useState(today);
   const [bookings, setBookings] = usePersistent('ent-s-reservations', () => demoOr(INITIAL_BOOKINGS, []));
-  const [form, setForm] = useState({ resourceId: 'tmv-vp1', start: '10:30', end: '11:30', cls: '1re STMG', purpose: 'Management — présentation orale' });
+  const [form, setForm] = useState(() => (realData() ? { resourceId: RESOURCES[0]?.id ?? '', start: '10:00', end: '11:00', cls: '', purpose: '' } : { resourceId: 'tmv-vp1', start: '10:30', end: '11:30', cls: '1re STMG', purpose: 'Management — présentation orale' }));
   const [confirmation, setConfirmation] = useState(null);
-  const [link, setLink] = useState({ mode: 'SEANCE', sessionId: 'se4' }); // séance de cours ou date / heure particulière
+  const [link, setLink] = useState(() => (realData() ? { mode: 'LIBRE', sessionId: null } : { mode: 'SEANCE', sessionId: 'se4' })); // séance de cours ou date / heure particulière
   const linkSession = (id) => {
     const se = MY_SESSIONS.find((x) => x.id === id);
     setLink({ mode: 'SEANCE', sessionId: id });
@@ -114,7 +122,7 @@ export default function BookingModule({ role }) {
 
   const changeSite = (id) => {
     setSiteId(id);
-    set({ resourceId: RESOURCES.find((r) => r.siteId === id).id });
+    set({ resourceId: RESOURCES.find((r) => r.siteId === id)?.id ?? '' });
   };
 
   const pick = (resourceId, minute) => {
@@ -198,7 +206,7 @@ export default function BookingModule({ role }) {
               <legend className="text-xs font-medium text-slate-600">Quand ?</legend>
               <div className="mt-1 grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1">
                 {[['SEANCE', 'Une de mes séances'], ['LIBRE', 'Date et heure au choix']].map(([m, l]) => (
-                  <button key={m} type="button" aria-pressed={link.mode === m} onClick={() => (m === 'SEANCE' ? linkSession(link.sessionId ?? MY_SESSIONS[0].id) : setLink({ mode: 'LIBRE', sessionId: null }))}
+                  <button key={m} type="button" aria-pressed={link.mode === m} disabled={m === 'SEANCE' && !MY_SESSIONS.length} onClick={() => (m === 'SEANCE' ? linkSession(link.sessionId ?? MY_SESSIONS[0].id) : setLink({ mode: 'LIBRE', sessionId: null }))}
                     className={`rounded-md py-1 text-xs font-medium ${link.mode === m ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>{l}</button>
                 ))}
               </div>

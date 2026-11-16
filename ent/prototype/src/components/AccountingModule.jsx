@@ -37,6 +37,8 @@ const TODAY = today();
 const fmtDate = (iso) => iso.split('-').reverse().join('/');
 const JournalBadge = ({ j }) => <Badge tone={JOURNALS[j].tone}>{JOURNALS[j].label}</Badge>;
 const inputCls = 'rounded-md border border-slate-300 px-2 py-1.5 text-sm';
+// mois de l'année scolaire, de septembre au mois en cours (tableau de trésorerie)
+const schoolMonthsTo = (iso) => { const out = []; let y = Number(iso.slice(0, 4)) - (Number(iso.slice(5, 7)) < 9 ? 1 : 0); let m = 9; while (`${y}-${String(m).padStart(2, '0')}` <= iso.slice(0, 7)) { out.push(`${y}-${String(m).padStart(2, '0')}`); m += 1; if (m > 12) { m = 1; y += 1; } } return out; };
 
 function AmountInput({ value, onChange, className = '' }) {
   return (
@@ -539,7 +541,7 @@ export default function AccountingModule({ settings, role, account }) {
       {tab === 'cash' && <CashTab movements={movements} setMovements={setMovements} role={role} account={account} />}
       {tab === 'expenses' && <ExpensesTab expenses={expenses} setExpenses={setExpenses} suppliers={suppliers} setSuppliers={setSuppliers} onCashOut={cashOut} today={TODAY} canBackdate={role === 'DIRECTION'} />}
       {tab === 'dunning' && <DunningAlerts settings={settings} />}
-      {tab === 'treasury' && role === 'DIRECTION' && <div className="space-y-5"><TreasuryDashboard tx={tx} opening={realData() ? 0 : Object.values(CASH_YEAR_OPENING).reduce((a, b) => a + b, 0)} months={['2026-09', '2026-10']} /><SeparateJournals settings={settings} /></div>}
+      {tab === 'treasury' && role === 'DIRECTION' && <div className="space-y-5"><TreasuryDashboard tx={tx} opening={realData() ? 0 : Object.values(CASH_YEAR_OPENING).reduce((a, b) => a + b, 0)} months={schoolMonthsTo(TODAY)} /><SeparateJournals settings={settings} /></div>}
     </div>
   );
 }
