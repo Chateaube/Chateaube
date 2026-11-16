@@ -85,7 +85,7 @@ export function duesStatus(accounts, settings, today, journal) {
     if (!fees) return null;
     const items = studentDues(a, fees, settings, today).filter((i) => (!journal || i.journal === journal) && i.due <= today && i.status !== 'EXONERE');
     const late = items.filter((i) => i.status === 'ECHU');
-    return { account: a, due: sum(items), paid: sum(items.filter((i) => i.status === 'PAYE')), overdue: sum(late), firstDue: late.map((i) => i.due).sort()[0] ?? null };
+    return { account: a, due: sum(items), paid: sum(items.filter((i) => i.status === 'PAYE')), overdue: sum(late), firstDue: late.map((i) => i.due).sort()[0] ?? null, lateItems: late.map((i) => i.short ?? i.label) };
   }).filter(Boolean);
 }
 const cashClasses = () => CLASS_FEES.map((f) => f.cls).filter((c) => CASH_ACCOUNTS.some((a) => a.cls === c));

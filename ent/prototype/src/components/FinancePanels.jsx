@@ -6,6 +6,9 @@ import { CASH_ACCOUNTS, duesStatus } from './CollectPayment.jsx';
 import { dunningStages, splitExamFee, formatAr } from '../rules/finance.js';
 import { dunningSchedule, stageOn, formatDateFr, monthOf, monthName } from '../rules/calendar.js';
 import { usePersistent } from '../persist.js';
+import { currentStudents } from '../importStore.js';
+import { printOnly } from '../print.js';
+import { relanceText } from '../rules/finance.js';
 
 // Finances (Caisse et comptabilité) : alertes de frais de scolarité (relances, avertissement, mise à pied)
 // et les deux journaux séparés (frais de scolarité / droits d'examen). Retirés de l'accueil de la Direction.
@@ -41,7 +44,13 @@ export function DunningAlerts({ settings, site = 'TMV' }) {
   // vraies données : les élèves dont des frais de scolarité sont en retard (comptes et paiements repris)
   const source = useMemo(() => (realData()
     ? duesStatus(CASH_ACCOUNTS, settings, TODAY, 'ECOLAGE').filter((x) => x.overdue > 0)
-      .map((x) => ({ id: x.account.id, student: x.account.name, cls: x.account.cls, site: 'TMV', overdue: x.overdue, due: x.firstDue, guardian: x.account.family }))
+      .map((x) => {
+        // responsables : onglet 2 du modèle (nom et téléphone), sinon « Famille NOM »
+        const st = currentStudents().find((s) => s.id === x.account.id);
+        const g = (st?.guardians ?? [])[0];
+        return { id: x.account.id, student: x.account.name, cls: x.account.cls, site: 'TMV', overdue: x.overdue, due: x.firstDue, months: x.lateItems,
+          guardian: g ? `${g.firstName} ${g.lastName}`.trim() || x.account.family : x.account.family, phone: g?.phone ?? '' };
+      })
     : DUNNING_CASES), [settings]);
   const cases = useMemo(() => source.map((c) => {
     const schedule = dunningSchedule(c.due, settings);
@@ -51,6 +60,8 @@ export function DunningAlerts({ settings, site = 'TMV' }) {
   const stages = dunningStages(settings);
   const frozen = !settings.dunning.activeMonths.includes(monthOf(refDate));
   const visibleCases = cases.filter((c) => site === 'ALL' || c.site === site);
+  const [printing, setPrinting] = useState([]);
+  const mark = (c, how) => setNotified((n) => ({ ...n, [c.id]: { how, on: TODAY } }));
   const act = (id, decision, message) => {
     if (decision) setDecisions((d) => ({ ...d, [id]: decision }));
     else setNotified((n) => ({ ...n, [id]: true }));
@@ -108,7 +119,9 @@ export function DunningAlerts({ settings, site = 'TMV' }) {
                     <td className="px-2">
                       <Badge tone={STAGE_UI[c.stage].tone}>{STAGE_UI[c.stage].label}</Badge>
                       <p className="mt-0.5 text-[11px] text-slate-500">Échéance du {shortDate(c.due)}</p>
-                      {notified[c.id] && <p className="text-[11px] text-slate-500">Message envoyé au parent</p>}
+                      {c.months?.length > 0 && <p className="text-[11px] text-slate-600">{c.months.join(', ')}</p>}
+                      {c.phone && <p className="text-[11px] text-slate-500">{c.phone}</p>}
+                      {notified[c.id] && <p className="text-[11px] text-emerald-700">Relance : {typeof notified[c.id] === 'object' ? `${notified[c.id].how} le ${shortDate(notified[c.id].on)}` : 'faite'}</p>}
                     </td>
                     <td className="px-2 text-xs text-slate-600">{nextStep(c.stage, c.schedule)}</td>
                     <td className="px-4 text-right">
@@ -122,15 +135,34 @@ export function DunningAlerts({ settings, site = 'TMV' }) {
                           </Button>
                         </div>
                       ) : (
-                        <Button variant="ghost" onClick={() => act(c.id, null, `Message envoyé à ${c.guardian}.`)}>
-                          <Icon name="bell" /> Envoyer la relance
-                        </Button>
+                        <div className="flex flex-wrap justify-end gap-1.5">
+                          <Button variant="secondary" className="!px-2 !py-1 text-xs" onClick={() => { setPrinting([c]); setTimeout(() => printOnly('.relance-print', 'size: A4 portrait;', `Relance — ${c.student}`), 50); mark(c, 'lettre imprimée'); }}>Imprimer la lettre</Button>
+                          <Button variant="ghost" className="!px-2 !py-1 text-xs" onClick={() => { try { navigator.clipboard.writeText(relanceText(c, c.stage, settings)); } catch { /* copie impossible */ } mark(c, 'message copié'); setToast(`Message copié : collez-le dans votre messagerie${c.phone ? ` (${c.phone})` : ''}.`); }}>Copier le message</Button>
+                        </div>
                       )}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+          {visibleCases.length > 0 && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Button variant="secondary" onClick={() => { const list = visibleCases.filter((c) => !['DANS_LES_DELAIS', 'DELAI'].includes(c.stage)); setPrinting(list); setTimeout(() => printOnly('.relance-print', 'size: A4 portrait;', 'Relances'), 50); list.forEach((c) => mark(c, 'lettre imprimée')); }}>Imprimer toutes les lettres de relance</Button>
+              <span className="text-xs text-slate-500">Une lettre par élève, à remettre à l'élève ou aux parents. L'ENT n'envoie ni SMS ni WhatsApp ; à partir du 17 décembre, les parents verront aussi le montant dû dans leur portail.</span>
+            </div>
+          )}
+          <div className="relance-print hidden">
+            {printing.map((c) => (
+              <div key={c.id} style={{ breakAfter: 'page', fontSize: '12pt', lineHeight: 1.5, padding: '10mm' }}>
+                <p style={{ fontWeight: 700 }}>École Collège Lycée Chateaubriand — Tamatave</p>
+                <p style={{ fontSize: '10pt' }}>27 Rue Nationale, 501 Toamasina · +261 34 51 227 78</p>
+                <p style={{ marginTop: '12mm', textAlign: 'right' }}>Toamasina, le {formatDateFr(TODAY)}</p>
+                <p style={{ marginTop: '8mm' }}>À l'attention de {c.guardian}</p>
+                <p style={{ marginTop: '8mm', fontWeight: 700 }}>Objet : frais de scolarité — {c.student} ({c.cls})</p>
+                {relanceText(c, c.stage, settings).split('\n').map((l, i) => <p key={i} style={{ marginTop: '4mm' }}>{l}</p>)}
+              </div>
+            ))}
           </div>
           {toast && (
             <p role="status" className="mt-3 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
