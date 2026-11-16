@@ -11,6 +11,16 @@ import { accord } from './documents.js';
 const longDate = (iso) => (iso ? formatDateFr(iso).replace(/^\S+ /, '') : '');
 /** Professeur sur le bulletin : son prénom seulement (prénom d'usage de sa fiche, sinon premier prénom). */
 export const teacherFirst = (roster, tid) => roster?.firsts?.[tid] || String(roster?.names?.[tid] ?? '').trim().split(/\s+/).filter((w) => !/^(m\.?|mme|mlle|mr)$/i.test(w))[0] || '';
+/**
+ * Classe commune (même matière, deux professeurs, hors ES) : une seule moyenne calculée sur TOUS les devoirs des
+ * deux professeurs (comme un seul carnet). parts : [{ carnet, service, tid }].
+ */
+export function commonAverage(parts, name) {
+  const evs = []; const marks = {};
+  parts.forEach((p) => { const sid = p.service.id; const c = p.carnet ?? {};
+    (c.evaluations?.[sid] ?? []).forEach((e) => { const id = `${p.tid}~${e.id}`; evs.push({ ...e, id }); const g = c.grades?.[sid]?.[name]?.[e.id]; if (g !== undefined) marks[id] = g; }); });
+  return studentAverage(evs, marks);
+}
 const nameOf = (s) => `${s.lastName} ${s.firstName}`.trim();
 const textOf = (c) => (c?.validated || c?.text ? (c.text ?? '').trim() : '');
 /** Corrections de la Direction (relecture) : clé compte|service:élève. */
@@ -40,6 +50,8 @@ export function buildClassBulletins({ cls, students = [], roster, carnets = {}, 
     });
     if (!parts.length) return null; // matière que l'élève ne suit pas (spécialité)
     const x = combineTeachers(parts);
+    const raw = bySubject[subject].filter((p) => p.service.students.includes(name));
+    if (raw.length > 1 && raw.some((p) => p.service.common)) x.average = commonAverage(raw, name);
     return { label: subject, teacher: x.teachers.join(' / '), avg: x.average, appreciation: x.appreciation, competencies: x.competencies.slice(0, 6) };
   };
   const perStudent = inClass.map((st) => ({ st, rows: subjects.map((sub) => rowFor(sub, nameOf(st))).filter(Boolean) }));

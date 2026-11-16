@@ -4,6 +4,7 @@
 import { studentAverage, generalAverage, classStats, councilProposal, minEvaluationsFor } from './grading.js';
 import { combineTeachers, orderSubjects } from './bulletin.js';
 import { servicesFor } from '../online/roster.js';
+import { commonAverage } from './onlineBulletins.js';
 
 const nameOf = (s) => `${s.lastName} ${s.firstName}`.trim();
 /** Clé du document du conseil d'un élève (décision + appréciation générale). */
@@ -43,6 +44,7 @@ export function buildCouncil({ cls, roster, carnets = {}, defaultMin = 4, subjec
         if (f?.note?.trim()) flags.push({ subject: sub, teacher: p.teacher, note: f.note.trim() });
         return { teacher: p.teacher, average: studentAverage(c.evaluations?.[sid] ?? [], c.grades?.[sid]?.[name]) };
       })).average;
+      if (parts.length > 1 && parts.some((p) => p.service.common)) avgs[sub] = commonAverage(parts, name); // classe commune
     });
     const general = generalAverage(subjects.map((sub) => ({ inAverage: true, coef: 1, avg: avgs[sub] })));
     return { name, avgs, general, flags, proposal: councilProposal(general, flags.filter((f) => f.flag).map((f) => f.flag)) };

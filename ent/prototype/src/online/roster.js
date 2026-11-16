@@ -43,14 +43,18 @@ export function servicesFor(roster, accountId) {
     const spe = specialtyOf(s.subject, cls);
     const students = (byClass[cls] ?? []).filter((st) => !spe || !st.specialties?.length || st.specialties.includes(spe))
       .map((st) => `${st.lastName} ${st.firstName}`.trim()).sort((a, b) => a.localeCompare(b, 'fr'));
-    // matière partagée (ES, MSGN, Espagnol…) : un autre professeur a la même matière dans la même classe
-    const others = Object.entries(roster?.services ?? {}).filter(([id, list]) => id !== accountId && list.some((o) => o.subject === s.subject && o.classes.includes(cls))).map(([id]) => roster?.names?.[id] ?? '');
-    // seul l'Enseignement scientifique se partage (50/50, 2 notes chacun) ; ailleurs, deux professeurs = à corriger
-    // matière partagée (ES) : un seul professeur écrit l'appréciation (roster.writers), l'autre n'en écrit pas
-    const writer = writerOf(roster, `${cls}|${s.subject}`);
+    // même matière, même classe, deux professeurs :
+    //  - Enseignement scientifique : partagée (moyenne 50/50, 2 notes minimum chacun) ;
+    //  - ailleurs : classe commune (chacun saisit ses devoirs, une seule moyenne sur tous les devoirs, minimum commun).
+    // Dans les deux cas, une seule appréciation au bulletin : celle du premier qui l'écrit (ou du professeur choisi).
+    const otherIds = Object.entries(roster?.services ?? {}).filter(([id, list]) => id !== accountId && list.some((o) => o.subject === s.subject && o.classes.includes(cls))).map(([id]) => id);
+    const others = otherIds.map((id) => roster?.names?.[id] ?? '');
+    const key = `${cls}|${s.subject}`;
+    const writer = writerOf(roster, key);
+    const app = writer ? { writer, noAppreciation: writer !== accountId, writerName: roster?.names?.[writer] ?? '' } : {};
     const extra = !others.length || owner === accountId ? {} : isShareable(s.subject)
-      ? { shared: true, coTeachers: others, minEvaluations: SHARED_MIN, ...(writer ? { writer, noAppreciation: writer !== accountId, writerName: roster?.names?.[writer] ?? '' } : {}) }
-      : { conflict: others };
+      ? { shared: true, coTeachers: others, minEvaluations: SHARED_MIN, ...app }
+      : { common: true, coTeachers: others, coIds: otherIds, otherCount: otherIds.reduce((n, id) => n + (Number(roster?.claims?.[id]?.[`n:${key}`]?.count) || 0), 0), ...app };
     return { id: `${cls}|${s.subject}`, cls, subject: s.subject, students, ...extra };
   })).filter(Boolean);
 }
@@ -59,21 +63,27 @@ export function servicesFor(roster, accountId) {
  * Classes en commun : la Direction peut choisir (roster.owners / roster.writers) ; sinon le premier professeur qui a
  * commencé (fiche « prise:<id> », roster.claims) — notes pour une classe en commun, appréciation pour l'ES.
  */
-const firstClaim = (roster, key, kind) => Object.entries(roster?.claims ?? {})
-  .filter(([, v]) => v?.[key]?.kind === kind).sort(([, a], [, b]) => String(a[key].at).localeCompare(String(b[key].at)))[0]?.[0] ?? null;
-export const ownerOf = (roster, key) => roster?.owners?.[key] ?? firstClaim(roster, key, 'NOTES');
-export const writerOf = (roster, key) => roster?.writers?.[key] ?? firstClaim(roster, key, 'APP');
+const firstClaim = (roster, k) => Object.entries(roster?.claims ?? {})
+  .filter(([, v]) => v?.[k]).sort(([, a], [, b]) => String(a[k].at).localeCompare(String(b[k].at)))[0]?.[0] ?? null;
+/** Classe confiée à un seul professeur : seulement si la Direction l'a choisi (sinon classe commune). */
+export const ownerOf = (roster, key) => roster?.owners?.[key] ?? null;
+/** Qui écrit l'appréciation d'une classe à deux professeurs : choix de la Direction, sinon le premier qui l'écrit. */
+export const writerOf = (roster, key) => roster?.writers?.[key] ?? firstClaim(roster, `app:${key}`);
 /** Classes que ce professeur avait et qu'un collègue a prises (notes) : pour le prévenir. */
 export function takenFrom(roster, accountId) {
   return (roster?.services?.[accountId] ?? []).flatMap((s) => s.classes.map((cls) => ({ cls, subject: s.subject, by: ownerOf(roster, `${cls}|${s.subject}`) })))
     .filter((x) => x.by && x.by !== accountId).map((x) => ({ ...x, byName: roster?.names?.[x.by] ?? '' }));
 }
-/** Le professeur commence la saisie d'une classe en commun : sa fiche « prise » est mise à jour (premier arrivé). */
-export function claimClass(accountId, key, kind) {
+/**
+ * Fiche « prise » du professeur (lue par ses collègues) : « app:<classe|matière> » quand il écrit le premier
+ * l'appréciation ; « n:<classe|matière> » le nombre de devoirs qu'il a saisis dans une classe commune.
+ */
+export function claimClass(accountId, key, kind, count) {
   if (!current || !accountId) return;
   const mine = current.claims?.[accountId] ?? {};
-  if (mine[key]) return;
-  const next = { ...mine, [key]: { kind, at: new Date().toISOString() } };
+  const k = kind === 'APP' ? `app:${key}` : `n:${key}`;
+  if (kind === 'APP' ? mine[k] : mine[k]?.count === count) return;
+  const next = { ...mine, [k]: kind === 'APP' ? { at: new Date().toISOString() } : { count, at: new Date().toISOString() } };
   current = { ...current, claims: { ...(current.claims ?? {}), [accountId]: next } };
   saveDoc(`prise:${accountId}`, 'PRISE', accountId, next, { delay: 0 });
 }

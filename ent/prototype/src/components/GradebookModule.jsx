@@ -139,7 +139,9 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
     scale: settings.grading.defaultScale, coef: settings.grading.defaultCoef, normalize: true, comment: '', themesText: '', competencies: [],
   };
   const [draft, setDraft] = useState(null);
-  const check = termValidation(evaluations, service.students, grades, min);
+  // classe commune : le minimum se compte sur les devoirs des deux professeurs
+  const other = service.common ? (service.otherCount ?? 0) : 0;
+  const check = termValidation(evaluations, service.students, grades, Math.max(0, min - other));
   const maxAdj = settings.grading.maxAdjustment ?? 2;
   const steps = Array.from({ length: maxAdj * 4 + 1 }, (_, i) => (i - maxAdj * 2) / 2); // -2 … +2 par demi-point
   const avgs = service.students.map((s) => studentAverage(evaluations, grades[s], BONUS_ENABLED ? bonus[s] : undefined));
@@ -159,7 +161,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
           <Button variant="secondary" disabled={validated} onClick={() => setDraft(blank)}><span aria-hidden>＋</span> Nouveau devoir</Button>
         </span>}
       >
-        {minimumNoticeDue({ count: evaluations.length, min, validated, date: TODAY, stop: TERM.stop }) && <MinimumNotice eps={isEps(service)} />}
+        {minimumNoticeDue({ count: evaluations.length + other, min, validated, date: TODAY, stop: TERM.stop }) && <MinimumNotice eps={isEps(service)} />}
         {draft && (
           <EvaluationForm draft={draft} setDraft={setDraft} settings={settings} competencies={competencies} onCancel={() => setDraft(null)}
             onCreate={() => {
@@ -256,7 +258,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
         <ul className="space-y-2 text-sm">
           <li className={`flex gap-2 ${check.missing ? 'text-red-800' : 'text-emerald-800'}`}>
             <Icon name={check.missing ? 'x' : 'check'} className="mt-0.5 h-4 w-4 shrink-0" />
-            {evaluations.length} / {min} évaluations minimum{check.missing ? ` — il en manque ${check.missing}` : ''}
+            {evaluations.length + other} / {min} évaluations minimum{other ? ` (dont ${other} chez ${service.coTeachers.join(', ')})` : ''}{check.missing ? ` — il en manque ${check.missing}` : ''}
           </li>
           <li className={`flex gap-2 ${check.pending.length ? 'text-red-800' : 'text-emerald-800'}`}>
             <Icon name={check.pending.length ? 'x' : 'check'} className="mt-0.5 h-4 w-4 shrink-0" />
@@ -568,10 +570,10 @@ export default function GradebookModule({ settings, go, role }) {
   useEffect(() => {
     if (first.current) { first.current = false; return; }
     setSavedOk(saveCarnet({ evaluations, grades, remarks, myComps, validated, comments, flags, adjust, bonus, unlinked }));
-    // classe en commun : le premier qui saisit prend la classe (notes) ou l'appréciation (ES)
+    // classes à deux professeurs : nombre de devoirs (classe commune) et premier qui écrit l'appréciation, lus par l'autre
     if (ONLINE) SERVICES.forEach((sv) => {
-      if (sv.conflict && (evaluations[sv.id] ?? []).length) claimClass(remoteCarnetId(), sv.id, 'NOTES');
-      if (sv.shared && !sv.writer && sv.students.some((st) => (comments[`${sv.id}:${st}`]?.text ?? '').trim())) claimClass(remoteCarnetId(), sv.id, 'APP');
+      if (sv.common) claimClass(remoteCarnetId(), sv.id, 'COUNT', (evaluations[sv.id] ?? []).length);
+      if ((sv.shared || sv.common) && !sv.writer && sv.students.some((st) => (comments[`${sv.id}:${st}`]?.text ?? '').trim())) claimClass(remoteCarnetId(), sv.id, 'APP');
     });
   }, [evaluations, grades, remarks, myComps, validated, comments, flags, adjust, bonus, unlinked]);
 
@@ -641,9 +643,17 @@ export default function GradebookModule({ settings, go, role }) {
             : <p>Matière partagée avec <strong>{service.coTeachers.join(', ')}</strong> : moyenne 50/50 et une seule appréciation sur le bulletin. Le premier qui écrit une appréciation l'écrit pour les deux.</p>}
         </div>
       )}
-      {service.conflict && (
-        <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900"><strong>{service.conflict.join(', ')}</strong> a aussi {service.subject} en {service.cls}. Un seul professeur par classe : le premier qui saisit une note la prend, et elle disparaît chez l'autre.</p>
-      )}
+      {service.common && (() => {
+        const mine = (evaluations[serviceId] ?? []).length; const total = mine + (service.otherCount ?? 0);
+        const need = minEvaluationsFor(service, settings.grading.minEvaluations); const left = Math.max(0, need - total);
+        return (
+          <div className="rounded-xl bg-violet-50 p-3 text-sm text-violet-900">
+            <p><strong>Classe commune avec {service.coTeachers.join(', ')}</strong> : chacun saisit ses devoirs ; une seule moyenne sur le bulletin, calculée sur tous les devoirs.</p>
+            <p className="mt-1 font-medium">{total} / {need} notes : vous {mine}, {service.coTeachers.join(', ')} {service.otherCount ?? 0}{left ? ` — il manque encore ${left} note${left > 1 ? 's' : ''}` : ' — minimum atteint ✓'}</p>
+            <p className="mt-1 text-xs">{service.writer ? (service.noAppreciation ? `Appréciation du bulletin : écrite par ${service.writerName}.` : 'Appréciation du bulletin : c\'est vous qui l\'écrivez, pour les deux.') : 'Une seule appréciation sur le bulletin : le premier qui l\'écrit l\'écrit pour les deux.'}</p>
+          </div>
+        );
+      })()}
       {!appOnly && (
         <div className="flex gap-1 rounded-lg bg-slate-100 p-1" role="tablist">
           {STEPS.filter(([id]) => !(noApp && id === 'appreciations')).map(([id, label]) => (
