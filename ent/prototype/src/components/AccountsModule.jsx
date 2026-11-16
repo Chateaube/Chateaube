@@ -8,6 +8,7 @@ import AgentForm, { EMPTY_AGENT, serviceText } from './AgentForm.jsx';
 import { StaffDocumentsButtons } from './StaffDocuments.jsx';
 import BulkTeachers from './BulkTeachers.jsx';
 import { schoolYearOf } from '../rules/documents.js';
+import { loginFor } from '../rules/logins.js';
 import { today } from '../clock.js';
 
 const fr = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
@@ -145,6 +146,18 @@ export default function AccountsModule({ embedded = false, settings }) {
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="min-w-0">
                       <p className="font-medium text-slate-900">{u.last_name} {u.first_name} <span className="font-mono text-xs font-normal text-slate-500">· {u.login}</span></p>
+                      {(() => {
+                        // nom corrigé : l'identifiant peut suivre (la personne se connecte ensuite avec le nouveau, même code)
+                        const want = loginFor(u.first_name, u.last_name, new Set((list ?? []).filter((x) => x.id !== u.id).map((x) => x.login)), f.usual);
+                        // proposé seulement si l'identifiant ne correspond plus au nom de famille (nom / prénom inversés, nom corrigé)
+                        const fold = (t) => String(t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '');
+                        const head = String(u.login ?? '').split('.')[0];
+                        if (!u.login?.includes('.') || (u.user_role ?? []).some((r) => r.role === 'DIRECTION') || want === u.login || fold(u.last_name).startsWith(head)) return null; // identifiants choisis (« adjointe ») et Direction : jamais touchés
+                        return <button type="button" disabled={busy} className="mt-0.5 text-xs font-medium text-navy-700 underline" onClick={async () => {
+                          if (!(await askConfirm(`Changer l'identifiant de ${u.first_name} ${u.last_name} : « ${u.login} » → « ${want} » ? Le code ne change pas ; prévenez la personne qu'elle se connecte désormais avec « ${want} ».`))) return;
+                          run(async () => { const { error } = await supabase.from('app_user').update({ login: want }).eq('id', u.id); if (error) throw new Error(/duplicate|unique/i.test(error.message) ? `L'identifiant « ${want} » est déjà pris.` : error.message); });
+                        }}>Identifiant d'après le nom : passer à « {want} »</button>;
+                      })()}
                       <p className="text-xs text-slate-600">{(u.user_role ?? []).map((r) => r.title || LABEL[r.role] || r.role).join(', ')}{fiches[u.id]?.contract ? ` · ${fiches[u.id].contract}` : ''}{f.entry ? ` · entré·e le ${fr(f.entry)}` : ''}{f.exit ? (gone ? ` · sorti·e le ${fr(f.exit)}` : ` · fin prévue le ${fr(f.exit)}`) : ''}
                         {gone && u.is_active && <span className="ml-1 font-medium text-red-700">— compte encore actif : à désactiver</span>}</p>
                       {serviceText(f.services) && <p className="text-xs text-slate-500">{serviceText(f.services)}</p>}

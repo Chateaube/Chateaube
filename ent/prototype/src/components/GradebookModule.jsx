@@ -559,6 +559,7 @@ export default function GradebookModule({ settings, go, role }) {
   const [validated, setValidated] = useState(saved?.validated ?? {});
   const [comments, setComments] = useState(saved?.comments ?? {});
   const [adjust] = useState(saved?.adjust ?? {}); // ancien bonus sur la moyenne (n'est plus utilisé, gardé tel quel)
+  const [claims, setClaims] = useState(saved?.claims ?? {}); // « c'est moi qui saisis les notes » (classe en commun)
   const [unlinked, setUnlinked] = useState(saved?.unlinked ?? {}); // compétences propres à une classe (sinon partagées 1re STMG / 1re G…)
   const [bonus, setBonus] = useState(saved?.bonus ?? {}); // bonus / malus par devoir : service → élève → devoir
   const [flags, setFlags] = useState(saved?.flags ?? demoOr({ 's1:RAJAONARIVELO Tsiry': { ids: ['BAVARD'], note: '' } }, {}));
@@ -567,8 +568,8 @@ export default function GradebookModule({ settings, go, role }) {
   const first = useRef(true);
   useEffect(() => {
     if (first.current) { first.current = false; return; }
-    setSavedOk(saveCarnet({ evaluations, grades, remarks, myComps, validated, comments, flags, adjust, bonus, unlinked }));
-  }, [evaluations, grades, remarks, myComps, validated, comments, flags, adjust, bonus, unlinked]);
+    setSavedOk(saveCarnet({ evaluations, grades, remarks, myComps, validated, comments, flags, adjust, bonus, unlinked, claims }));
+  }, [evaluations, grades, remarks, myComps, validated, comments, flags, adjust, bonus, unlinked, claims]);
 
   const service = SERVICES.find((s) => s.id === serviceId);
   if (!service) return (
@@ -621,6 +622,14 @@ export default function GradebookModule({ settings, go, role }) {
           );
         })}
       </div>
+      {service.conflict && (
+        <div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
+          <p><strong>{service.conflict.join(', ')}</strong> a aussi {service.subject} en {service.cls}. Une seule personne saisit les notes de cette classe, et un seul nom va sur le bulletin.</p>
+          {claims[serviceId]
+            ? <p className="mt-1.5 font-medium">✓ Vous avez indiqué que vous saisissez les notes : la Direction valide, puis la classe disparaît chez {service.conflict.join(', ')}. <button type="button" className="ml-1 text-xs font-normal underline" onClick={() => { const { [serviceId]: _, ...rest } = claims; setClaims(rest); }}>Annuler</button></p>
+            : <Button className="mt-2 !py-1 text-xs" onClick={() => setClaims({ ...claims, [serviceId]: true })}>C'est moi qui saisis les notes de cette classe</Button>}
+        </div>
+      )}
       {!appOnly && (
         <div className="flex gap-1 rounded-lg bg-slate-100 p-1" role="tablist">
           {STEPS.map(([id, label]) => (
