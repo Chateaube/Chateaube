@@ -9,7 +9,8 @@ import { FAMILY_SECTIONS } from '../rules/navigation.js';
 import { AmbianceHomeCard } from './AmbianceNote.jsx';
 import StudentMandates from './StudentMandates.jsx';
 import { mandatesOf } from '../rules/mandates.js';
-import { loadEngagements } from '../engagementsStore.js';
+import { loadEngagements, labelsFor } from '../engagementsStore.js';
+import EngagementsCard from './EngagementsCard.jsx';
 import { Badge, Button, Icon } from './ui.jsx';
 import Messenger, { unreadCount } from './Messenger.jsx';
 import { PARENT, STAFF } from '../data/people.js';
@@ -229,6 +230,7 @@ function Home({ child, isParent, openFiche, openReenrol, settings, onSeen, openS
           <Button className="mt-2 text-sm" onClick={openReenrol}>Réinscrire {child.name} pour 2027-2028</Button>
         </div>
       )}
+      <EngagementsCard {...labelsFor(fullName(child), profileOf(child)?.sex)} isParent={isParent} name={child.name} />
       <SchoolLifePreview open={openSchoolLife} social={settings?.social} />
       <AmbianceHomeCard key={ambiance?.id} ambiance={ambiance} />
       {isParent && <PhoneAlerts items={phoneItems()} nowHm={NOW.slice(11, 16)} />}

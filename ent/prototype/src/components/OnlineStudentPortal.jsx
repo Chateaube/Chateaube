@@ -5,6 +5,7 @@ import OrientationSheet from './OrientationSheet.jsx';
 import { FamilyDocuments, TermsGate } from './InternalResources.jsx';
 import { currentStudent, currentSchool, currentNews } from '../online/school.js';
 import { newsFor } from '../online/schoolNews.js';
+import EngagementsCard from './EngagementsCard.jsx';
 import { loadTimetable } from '../timetableStore.js';
 import { loadChanges } from './TimetableChanges.jsx';
 import { dayCourses, nowNext, shortSubject, subjectColor as courseColor } from '../rules/timetableGrid.js';
@@ -167,6 +168,7 @@ export default function OnlineStudentPortal({ settings }) {
                 <span><span className="block font-semibold text-amber-900">Orientation{/^Terminale/.test(me.cls) ? ' et Parcoursup' : ''}</span><span className="text-sm text-amber-800">Ta fiche d'orientation et le calendrier</span></span><span aria-hidden="true">›</span>
               </button>
             )}
+            <EngagementsCard engagements={me.engagements} attestations={me.attestations} />
             <Box title="Mes notes"><p className="text-sm text-slate-600">Tes notes et tes moyennes seront visibles ici à partir du <strong>17 décembre</strong>.</p></Box>
           </>)}
           {view === 'school' && <SchoolNews me={me} />}

@@ -1,6 +1,7 @@
 // Engagements de l'année (délégués, suppléants, BDE…) : portés sur le bulletin et source des mandats
 // d'élèves (rules/mandates.js). Prototype : gardés dans ce navigateur ; en base : student_engagement.
 import { demoOr } from './demoData.js';
+import { engagementLabels, attestationLabels } from './rules/engagements.js';
 const KEY = 'ent-engagements-v1';
 export const DEMO_ENGAGEMENTS = {
   'RAKOTOARISOA Aina': ['DELEGUE', 'BDE'], 'RAZAFY Kanto': ['SUPPLEANT'], 'RAMAROSON Fitia': ['ECO_DELEGUE'],
@@ -19,3 +20,10 @@ export const saveValidation = (v) => { try { localStorage.setItem(VKEY, JSON.str
 const CKEY = 'ent-engagements-catalogue-v1';
 export const loadCatalogue = () => { try { return JSON.parse(localStorage.getItem(CKEY)) ?? []; } catch { return []; } };
 export const saveCatalogue = (c) => { try { localStorage.setItem(CKEY, JSON.stringify(c)); } catch { /* stockage indisponible */ } };
+
+/** Engagements et attestations d'un élève (« NOM Prénoms »), en libellés accordés : portail élève et parents. */
+export function labelsFor(student, sex) {
+  const ids = loadEngagements()[student] ?? []; const custom = loadCatalogue();
+  sex = /^f/i.test(sex ?? '') ? 'F' : /^(m|g|h)/i.test(sex ?? '') ? 'M' : '';
+  return { engagements: engagementLabels(ids, sex, custom), attestations: attestationLabels(ids, custom) };
+}
