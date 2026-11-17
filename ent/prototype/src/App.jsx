@@ -11,6 +11,8 @@ import ComingSoon from './components/ComingSoon.jsx';
 
 // Rubriques déjà utilisables en ligne par tout le personnel (les autres : « fonction en cours de création »)
 const STAFF_LATER = ['messages', 'oversight-grades', 'oversight-homework'];
+// professeurs : rubriques ouvertes en ligne en plus du carnet (données partagées : online/shared.js, groupes classe / ecole)
+const TEACHER_READY = ['discipline', 'student-file', 'mock-exams', 'grade-sheets', 'school-life'];
 const ONLINE_READY = ['grades', 'absents-devoirs', 'agenda']; // carnet de notes en ligne (le reste suit à la bascule de décembre)
 const COMING_TEXT = {
   grades: 'La saisie des notes en ligne ouvre très prochainement. En attendant, gardez vos notes comme d\'habitude : vous les recopierez ici évaluation par évaluation.',
@@ -278,7 +280,9 @@ export default function App() {
   // secrétariat et vie scolaire : leurs données sont partagées en ligne (online/shared.js) ; restent à venir les
   // rubriques qui dépendent des professeurs ou des familles (messages, cahiers de textes, suivi des professeurs)
   const notYet = (it) => ONLINE && profile !== 'DIRECTION' && it.id !== PROFILES[profile].home && !ONLINE_READY.includes(it.id)
-    && (['BUREAU', 'VIE_SCOLAIRE'].includes(profile) ? STAFF_LATER.includes(it.id) : true);
+    && (['BUREAU', 'VIE_SCOLAIRE'].includes(profile) ? STAFF_LATER.includes(it.id) : profile === 'ENSEIGNANT' ? !TEACHER_READY.includes(it.id) : true);
+  // rubriques pas encore ouvertes : masquées du menu (plutôt qu'un écran vide « en cours de création »)
+  const NAV_SHOWN = NAV.map((g) => ({ ...g, items: g.items.filter((it) => !notYet(it)) })).filter((g) => g.items.length);
   const screenOf = (it) => (notYet(it) ? () => <ComingSoon title={it.label} text={COMING_TEXT[it.id] ?? COMING_TEXT.default} /> : it.screen);
   const Current = screenOf(NAV.flatMap((g) => g.items).find((i) => i.id === screen) ?? NAV[0].items[0]);
   const switchProfile = (p) => { setProfile(p); setScreen(PROFILES[p].home); };
@@ -369,7 +373,7 @@ export default function App() {
       </div>
     );
   };
-  const favItems = favorites.map((id) => NAV.flatMap((g) => g.items).find((i) => i.id === id && i.screen)).filter(Boolean);
+  const favItems = favorites.map((id) => NAV_SHOWN.flatMap((g) => g.items).find((i) => i.id === id && i.screen)).filter(Boolean);
   const sidebar = (
     <div className="space-y-3">
       {favItems.length > 0 && (
@@ -378,7 +382,7 @@ export default function App() {
           <div className="space-y-0.5">{favItems.map((it) => navItem(it, true))}</div>
         </div>
       )}
-      {NAV.map((g) => {
+      {NAV_SHOWN.map((g) => {
         const isOpen = !(collapsed[g.group] ?? false) || g.group === activeGroup;
         const n = g.items.reduce((t, it) => t + (counts[it.id] ?? 0), 0);
         return (
@@ -448,7 +452,7 @@ export default function App() {
 
           <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
             <SavedBadge />
-            {staffProfile && <GlobalSearch profile={profile} nav={NAV.map((g) => ({ ...g, items: g.items.filter((it) => !notYet(it)) })).filter((g) => g.items.length)} go={goTo} />}
+            {staffProfile && <GlobalSearch profile={profile} nav={NAV_SHOWN} go={goTo} />}
             {QUICK.length > 0 && (
               <div className="relative" onClick={(e) => e.stopPropagation()}>
                 <button ref={quickRef} onClick={() => { setQuickOpen(!quickOpen); setBellOpen(false); }} aria-expanded={quickOpen}

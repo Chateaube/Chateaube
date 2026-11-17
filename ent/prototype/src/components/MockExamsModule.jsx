@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import logo from '../assets/logo-tamatave.png';
 import { Badge, Button, Card, Stat } from './ui.jsx';
 import { CLASSES } from '../data/schoollife.js';
-import { SERVICES, EVALUATIONS } from '../data/grades.js';
+import { termGrades } from '../termGrades.js';
+import { myServices } from '../gradebookStore.js';
 import { specialtiesOf } from '../data/mockExams.js';
 import { loadMockExams, saveMockExams } from '../mockExamStore.js';
 import { EXAMS, examsForClass, bacKindOf, isBac, examResult, partMark, keptSubs, bacProjection, mention, decision, validMark, suggestedCoef, fullBacTranscript, importOfficial, officialHeaders } from '../rules/mockExam.js';
@@ -34,9 +35,11 @@ const partLabel = (p, kind, student) => {
   return spe ? `Spécialité — ${spe}` : p.label;
 };
 // Démonstration : l'enseignante connectée (Mme Ranaivo) et ses matières / classes
-const MY_SUBJECTS = [...new Set(SERVICES.map((x) => x.subject))];
-const MY_CLASSES = [...new Set(SERVICES.map((x) => x.cls))];
-const canEnter = (role, p) => role !== 'ENSEIGNANT' || MY_SUBJECTS.includes(p.subject);
+// matières et classes du professeur connecté (en ligne : celles envoyées par la Direction)
+const foldS = (t) => String(t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+const mySubjects = () => [...new Set(myServices().map((x) => foldS(x.subject)))];
+const myClasses = () => [...new Set(myServices().map((x) => x.cls))];
+const canEnter = (role, p) => role !== 'ENSEIGNANT' || mySubjects().includes(foldS(p.subject));
 // intitulés longs abrégés dans les grilles (le nom complet au survol)
 const abbr = (l) => (l.length <= 22 ? l : `${l.split(/ — |, | \(/)[0].slice(0, 20)}…`);
 const cells = (p) => (p.subs ? p.subs.map((x) => ({ id: x.id, label: x.label, part: p })) : [{ id: p.id, label: p.label, part: p }]);
@@ -139,7 +142,7 @@ function ProjectionBlock({ p }) {
 
 function EntryTab({ data, setData, role }) {
   const isTeacher = role === 'ENSEIGNANT';
-  const sessions = isTeacher ? data.sessions.filter((x) => MY_CLASSES.includes(x.cls)) : data.sessions;
+  const sessions = isTeacher ? data.sessions.filter((x) => myClasses().includes(x.cls)) : data.sessions;
   const [id, setId] = useState(sessions[0]?.id);
   const [draft, setDraft] = useState(null);
   const [text, setText] = useState({});
@@ -162,7 +165,7 @@ function EntryTab({ data, setData, role }) {
   const results = students.map((st) => examResult(exam?.parts ?? [], s?.marks[st], skip));
   const done = results.filter((r) => r.complete);
   const myParts = exam ? exam.parts.filter((p) => isTeacher && canEnter(role, p)) : [];
-  const service = s && SERVICES.find((x) => x.cls === s.cls && myParts.some((p) => p.subject === x.subject));
+  const service = s && myServices().find((x) => x.cls === s.cls && myParts.some((p) => foldS(p.subject) === foldS(x.subject)));
   return (
     <div className="space-y-4">
       <Card>
@@ -204,7 +207,7 @@ function EntryTab({ data, setData, role }) {
           )}
           {isTeacher && myParts.map((p) => {
             const c = s.counts?.[p.id];
-            const proposed = suggestedCoef(EVALUATIONS[service?.id] ?? []);
+            const proposed = suggestedCoef(termGrades().EVALUATIONS[service?.id] ?? []);
             return (
               <div key={p.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-navy-50 p-3 text-sm text-navy-900">
                 <span className="font-medium">{p.label} : compter cette note dans le bulletin</span>

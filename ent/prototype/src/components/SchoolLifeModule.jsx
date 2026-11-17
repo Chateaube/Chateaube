@@ -1,3 +1,4 @@
+import { ONLINE } from '../online/client.js';
 import React, { useRef, useState } from 'react';
 import { Badge, Button, Card } from './ui.jsx';
 import { imageToDataUrl } from '../image.js';
@@ -87,7 +88,8 @@ export default function SchoolLifeModule({ role = 'DIRECTION', settings, compact
   const [open, setOpen] = useState(null);
   const [decide, setDecide] = useState({}); // id → { checked, reason, err }
   const [msg, setMsg] = useState('');
-  const canPropose = role !== 'PARENT';
+  // en ligne, les professeurs lisent la vie de l'école (les propositions arriveront plus tard)
+  const canPropose = role !== 'PARENT' && !(ONLINE && role === 'ENSEIGNANT');
   const isModerator = canPublish(role);
   const update = (l) => { setPosts(l); savePosts(l); };
   const list = visiblePosts(posts, { role, author });

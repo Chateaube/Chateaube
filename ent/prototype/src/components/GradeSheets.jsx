@@ -2,7 +2,8 @@ import { termGrades, subjectAverage } from '../termGrades.js';
 import { takeIntent } from '../navIntent.js';
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card } from './ui.jsx';
-import { TERM, SERVICES, EVALUATIONS, GRADES, CLASS_SUBJECTS, OTHER_AVERAGES } from '../data/grades.js';
+import { TERM, GRADES, CLASS_SUBJECTS, OTHER_AVERAGES } from '../data/grades.js';
+import { myServices } from '../gradebookStore.js';
 import { CLASS_LIST } from '../data/people.js';
 import { TLE_G_SUBJECTS, TLE_G_STUDENTS } from '../data/bulletins.js';
 import { studentAverage, fmtAvg } from '../rules/grading.js';
@@ -142,7 +143,9 @@ const CLASSES = ['1re STMG', 'Terminale Générale', 'Terminale STMG', '1re Gén
 export default function GradeSheets({ settings, role }) {
   // un enseignant ne voit que les grilles de ses propres matières (détail des évaluations)
   const isTeacher = role === 'ENSEIGNANT';
-  const classes = isTeacher ? CLASSES.filter((c) => SERVICES.some((s) => s.cls === c && EVALUATIONS[s.id]?.length)) : CLASSES;
+  // classes et devoirs du professeur (en ligne : ses classes et son carnet sur le serveur)
+  const SERVICES = myServices(); const EVALUATIONS = termGrades().EVALUATIONS;
+  const classes = isTeacher ? [...new Set(SERVICES.filter((s) => EVALUATIONS[s.id]?.length).map((s) => s.cls))] : CLASSES;
   const [intent] = useState(() => takeIntent('grade-sheets')); // ouvert depuis le carnet de notes
   const [cls, setCls] = useState(classes.includes(intent?.cls) ? intent.cls : classes[0]);
   const averages = useMemo(() => (isTeacher ? null : classAverages(cls, settings.grading.excludedSubjects)), [cls, settings, isTeacher]);

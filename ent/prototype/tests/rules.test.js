@@ -2442,7 +2442,7 @@ test('Partage en ligne : groupes et fusion sans écrasement', async () => {
   globalThis.window ??= {}; // client.js lu hors navigateur
   const { merge3, groupOf } = await import('../src/online/shared.js');
   assert.equal(groupOf('ent-s-recus'), 'gestion'); assert.equal(groupOf('ent-s-comptes-tamatave'), 'gestion');
-  assert.equal(groupOf('ent-s-sanctions'), 'equipe'); assert.equal(groupOf('ent-import-v1'), 'equipe');
+  assert.equal(groupOf('ent-s-sanctions'), 'classe'); assert.equal(groupOf('ent-import-v1'), 'equipe'); assert.equal(groupOf('ent-vie-ecole-v2'), 'ecole'); assert.equal(groupOf('ent-passages-v1'), 'equipe'); // soins : jamais chez les professeurs
   assert.equal(groupOf('ent-auth'), null); assert.equal(groupOf('ent-k-moi'), null); assert.equal(groupOf('ent-pending-carnet:1'), null);
   // deux postes ajoutent chacun un reçu : les deux sont gardés
   const base = [{ number: 'R1', total: 1 }];

@@ -4,6 +4,8 @@
 // sont recalculées depuis les examens blancs (termGrades.js).
 import { ONLINE } from './online/client.js';
 import { fetchDoc, saveDoc, pendingOf } from './online/docs.js';
+import { servicesFor, currentRoster } from './online/roster.js';
+import { SERVICES as DEMO_SERVICES } from './data/grades.js';
 
 const KEY = 'ent-carnet-v1';
 let remote = { loaded: false, id: null, value: null }; // en ligne : carnet lu sur le serveur au démarrage
@@ -46,3 +48,6 @@ export function saveCarnet(data) {
   }
   try { localStorage.setItem(KEY, JSON.stringify(value)); return true; } catch { return false; }
 }
+
+/** Classes × matières du professeur : en ligne, celles envoyées par la Direction ; sinon celles de la démonstration. */
+export const myServices = () => (ONLINE ? servicesFor(currentRoster(), remote.id) : DEMO_SERVICES);
