@@ -19,7 +19,14 @@ export function toggleFavorite(profile, id) {
   return next;
 }
 
-export default function GlobalSearch({ nav, go }) {
+// exemple affiché dans la case, selon le profil (jamais « encaisser » chez un professeur)
+const HINTS = {
+  DIRECTION: 'Un élève, un écran, une action (ex. certificat, encaisser, bulletin)',
+  BUREAU: 'Un élève, un écran, une action (ex. certificat, encaisser, absence)',
+  VIE_SCOLAIRE: 'Un élève, un écran, une action (ex. retard, colle, soins)',
+  ENSEIGNANT: 'Un écran (ex. notes, agenda)',
+};
+export default function GlobalSearch({ nav, go, profile }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const [sel, setSel] = useState(0);
@@ -43,7 +50,7 @@ export default function GlobalSearch({ nav, go }) {
       {open && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/40 p-4 pt-[12vh]" onClick={(e) => { e.stopPropagation(); close(); }}>
           <div role="dialog" aria-modal="true" aria-label="Recherche" onClick={(e) => e.stopPropagation()} className="w-full max-w-lg rounded-2xl bg-white p-3 text-slate-800 shadow-2xl">
-            <input autoFocus value={q} placeholder="Un élève, un écran, une action (ex. certificat, Fitia, encaisser)" aria-label="Rechercher"
+            <input autoFocus value={q} placeholder={HINTS[profile] ?? 'Un écran'} aria-label="Rechercher"
               onChange={(e) => { setQ(e.target.value); setSel(0); }}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') close();

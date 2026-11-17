@@ -448,7 +448,7 @@ export default function App() {
 
           <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
             <SavedBadge />
-            {staffProfile && <GlobalSearch nav={NAV} go={goTo} />}
+            {staffProfile && <GlobalSearch profile={profile} nav={NAV.map((g) => ({ ...g, items: g.items.filter((it) => !notYet(it)) })).filter((g) => g.items.length)} go={goTo} />}
             {QUICK.length > 0 && (
               <div className="relative" onClick={(e) => e.stopPropagation()}>
                 <button ref={quickRef} onClick={() => { setQuickOpen(!quickOpen); setBellOpen(false); }} aria-expanded={quickOpen}
@@ -502,7 +502,7 @@ export default function App() {
                   {/* Direction seule : vider cet ordinateur (import, fiches) ; jamais chez un professeur (notes en attente d'envoi) ni chez un élève */}
                   {profile === 'DIRECTION' && <button type="button" onClick={wipe} className="mt-3 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-left text-sm text-red-700 hover:bg-red-50">Effacer les données de cet ordinateur</button>}
                   {profile !== 'VISITEUR' && <div className="mt-3 border-t border-slate-100 pt-2"><FeedbackButton variant="menu" profile={profile} who={persona.detail ?? persona.name} screen={screenLabel} /></div>}
-                  <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-600"><span className="flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-navy-900 ring-1 ring-slate-200">G</span>Connexion Google · même compte sur ordinateur et téléphone</p>
+                  <p className="mt-3 text-xs text-slate-600">{ONLINE ? <>Connecté·e avec l'identifiant <strong className="font-mono">{myself?.login ?? '—'}</strong> · le même sur ordinateur et téléphone</> : 'Démonstration · données fictives'}</p>
                 </div>
               )}
             </div>
