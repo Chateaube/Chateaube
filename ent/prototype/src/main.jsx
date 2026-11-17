@@ -1,3 +1,4 @@
+import './polyfills.js'; // en premier : anciens navigateurs
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { watchTables } from './tableCards.js';
