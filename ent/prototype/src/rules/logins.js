@@ -23,3 +23,14 @@ export function splitGuardianName(g) {
   const words = String(g.name ?? '').trim().split(/\s+/).filter((w) => !CIVILITY.test(w));
   return { last: words[0] ?? '', first: words.slice(1).join(' ') || words[0] || '' };
 }
+
+/** Message de bienvenue par défaut, joint aux accès (modifiable par la Direction). */
+export const DEFAULT_WELCOME = 'Bienvenue sur l\'ENT de l\'École Chateaubriand ! Vous y trouverez dès aujourd\'hui la saisie des notes ; les autres rubriques ouvriront petit à petit. Si quelque chose ne fonctionne pas ou vous pose question, n\'hésitez pas à nous le dire.';
+/** Message des accès (e-mail ou WhatsApp) : bonjour + bienvenue + adresse, identifiant, code provisoire. */
+export function accessMessage({ name, login, code, first }, url, welcome = DEFAULT_WELCOME) {
+  const hello = first ? `Bonjour ${first},` : 'Bonjour,';
+  return [hello, '', welcome.trim(), '', 'ENT Chateaubriand — vos accès', `Adresse : ${url}`, `Identifiant : ${login}`, `Code provisoire : ${code}`, '',
+    'À la première connexion, choisissez votre propre code (8 caractères, lettres et chiffres). Ne le communiquez à personne.', '', 'Bien cordialement,', 'La Direction'].join('\n');
+}
+/** Lien « mailto: » : ouvre la messagerie avec l'e-mail déjà rédigé (rien ne part sans cliquer sur Envoyer). */
+export const accessMailto = (to, message) => `mailto:${encodeURIComponent(to ?? '')}?subject=${encodeURIComponent('Vos accès à l\'ENT Chateaubriand')}&body=${encodeURIComponent(message)}`;

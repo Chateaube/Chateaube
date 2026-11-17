@@ -2533,3 +2533,11 @@ test('Classe commune : les deux gardent la classe, minimum compté à deux, une 
   const chosen = { ...roster, owners: { [k]: 'h' } }; // la Direction confie à une seule personne
   assert.equal(servicesFor(chosen, 'y').length, 0);
 });
+
+test('Accès : message de bienvenue et e-mail prérempli', async () => {
+  const { accessMessage, accessMailto } = await import('../src/rules/logins.js');
+  const m = accessMessage({ name: 'Patricia Karèle ZAFIANTENAINA', first: 'Karèle', login: 'za.karele', code: 'dqqeb56x' }, 'https://chateaubriand.pro/ent/', 'Bienvenue !');
+  assert.match(m, /^Bonjour Karèle,/); assert.match(m, /Bienvenue !/); assert.match(m, /Identifiant : za\.karele/); assert.match(m, /Code provisoire : dqqeb56x/);
+  const link = accessMailto('k@x.mg', m);
+  assert.ok(link.startsWith('mailto:k%40x.mg?subject=')); assert.match(decodeURIComponent(link), /Code provisoire : dqqeb56x/);
+});
