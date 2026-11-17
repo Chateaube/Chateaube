@@ -3,8 +3,10 @@
 // sans réseau) et une copie part sur le serveur ; les autres postes la reçoivent. Deux postes qui écrivent en même
 // temps ne s'écrasent pas : les listes sont fusionnées élément par élément (reçus, mouvements, absences…).
 //   « gestion » : Direction et secrétariat (caisse, salaires, inscriptions, paiements) ;
-//   « equipe »  : Direction, secrétariat et vie scolaire (élèves, vie scolaire, agenda, réglages…).
-// Les professeurs, les élèves et les parents n'y ont pas accès (règles du serveur : 60_partage.sql).
+//   « equipe »  : Direction, secrétariat et vie scolaire (élèves, agenda, réglages…) ;
+//   « classe »  : les mêmes + les professeurs (punitions, colles, passeport, objets, absences, examens blancs) ;
+//   « ecole »   : écrit par Direction, secrétariat, vie scolaire ; lu aussi par les professeurs (vie de l'école, annonces).
+// Les élèves et les parents n'y ont pas accès (règles du serveur : 60_partage.sql, 80_partage_professeurs.sql).
 // Un effacement sur un appareil (expiration, « Effacer les données ») reste local : il n'efface rien sur le serveur.
 import { supabase } from './client.js';
 
@@ -12,21 +14,26 @@ const GESTION = ['ent-s-depenses', 'ent-k-tarifs', 'ent-s-recus', 'ent-s-journal
   'ent-k-articles', 'ent-s-fournisseurs', 'ent-s-comptes-', 'ent-s-relances-envoyees', 'ent-s-relances-decisions', 'ent-tarifs-verrou-v1', 'ent-s-taux',
   'ent-s-salaires-payes', 'ent-s-paie', 'ent-s-paie-validee', 'ent-s-personnel', 'ent-s-fiches-agents', 'ent-s-pieces-demandees', 'ent-s-pieces-a-recevoir',
   'ent-s-documents-recus', 'ent-s-documents-envoyes', 'ent-campagne-v1', 'ent-remise-v1', 'ent-bulletin-dispo-v1', 'ent-k-tarifs-reels-v1', 'ent-k-message-acces'];
-const EQUIPE = ['ent-import-v1', 'ent-profiles-v2', 'ent-fiche-v1', 'ent-chateaubriand-settings-v3', 'ent-s-sanctions', 'ent-s-autorisations', 'ent-sorties-v1',
-  'ent-absences-eleves-v1', 'ent-appel-v1', 'ent-passeport-v3', 'ent-objets-v1', 'ent-passages-v1', 'ent-suivis-v1', 'ent-surveillance-colles-v1',
-  'ent-absences-prof-v1', 'ent-retards-prof-v1', 'ent-remplacements-v1', 'ent-changements-edt-v1', 'ent-s-reprise-absences', 'ent-demandes-v1',
-  'ent-signatures-v1', 'ent-taches-v1', 'ent-annonces-v2', 'ent-vie-ecole-v2', 'ent-s-evenements', 'ent-evenements-proposes-v1', 'ent-engagements-v1',
+const EQUIPE = ['ent-import-v1', 'ent-profiles-v2', 'ent-fiche-v1', 'ent-chateaubriand-settings-v3', 'ent-s-autorisations', 'ent-sorties-v1',
+  'ent-appel-v1', 'ent-passages-v1', 'ent-suivis-v1', 'ent-absences-prof-v1', 'ent-retards-prof-v1', 'ent-remplacements-v1', 'ent-changements-edt-v1', 'ent-s-reprise-absences', 'ent-demandes-v1',
+  'ent-signatures-v1', 'ent-taches-v1', 'ent-s-evenements', 'ent-evenements-proposes-v1', 'ent-engagements-v1',
   'ent-engagements-valides-v1', 'ent-engagements-catalogue-v1', 'ent-fiches-orientation-v1', 'ent-manuels-v2', 'ent-inventaire-v2', 'ent-cdi-v1',
-  'ent-s-cdi-rappels', 'ent-s-reservations', 'ent-examens-blancs-v3', 'ent-k-reprise-vie-scolaire', 'ent-journal-v1', 'ent-suggestions-v1',
-  'ent-ressources-v3', 'ent-remontees-conseil-v1', 'ent-s-terminales-', 'ent-s-stages-', 'ent-s-conseil-passage', 'ent-themes-parcours-v1',
+  'ent-s-cdi-rappels', 'ent-s-reservations', 'ent-k-reprise-vie-scolaire', 'ent-journal-v1', 'ent-suggestions-v1',
+  'ent-remontees-conseil-v1', 'ent-s-terminales-', 'ent-s-stages-', 'ent-s-conseil-passage', 'ent-themes-parcours-v1',
   'ent-k-parcoursup-2027-ajoute', 'ent-avis-v1'];
+// partagés avec les professeurs : vie de classe (punitions, colles, passeport, objets, absences) et examens blancs
+const CLASSE = ['ent-s-sanctions', 'ent-passeport-v3', 'ent-objets-v1', 'ent-absences-eleves-v1', 'ent-surveillance-colles-v1', 'ent-examens-blancs-v3'];
+// lus par les professeurs, écrits par la Direction, le secrétariat et la vie scolaire : vie de l'école, annonces, ressources
+const ECOLE = ['ent-vie-ecole-v2', 'ent-annonces-v2', 'ent-ressources-v3'];
 const IMPORT = 'ent-import-v1';
 const PAY = '#paiements'; // les paiements de l'import : réservés à la gestion (pas à la vie scolaire)
-export const GROUPS_OF = { DIRECTION: ['gestion', 'equipe'], BUREAU: ['gestion', 'equipe'], VIE_SCOLAIRE: ['equipe'] };
+export const GROUPS_OF = { DIRECTION: ['gestion', 'equipe', 'classe', 'ecole'], BUREAU: ['gestion', 'equipe', 'classe', 'ecole'], VIE_SCOLAIRE: ['equipe', 'classe', 'ecole'], ENSEIGNANT: ['classe', 'ecole'] };
+// groupes reçus mais jamais envoyés (lecture seule) pour ce profil
+const READ_ONLY = { ENSEIGNANT: ['ecole'] };
 
 const inList = (list, k) => list.some((p) => (p.endsWith('-') ? k.startsWith(p) : k === p));
 /** Groupe d'une donnée de l'appareil (null : reste sur l'appareil). */
-export const groupOf = (k) => (inList(GESTION, k) ? 'gestion' : inList(EQUIPE, k) ? 'equipe' : null);
+export const groupOf = (k) => (inList(GESTION, k) ? 'gestion' : inList(EQUIPE, k) ? 'equipe' : inList(CLASSE, k) ? 'classe' : inList(ECOLE, k) ? 'ecole' : null);
 const docKey = (group, k) => `partage:${group}:${k}`;
 
 /* ---------------- Fusion à trois (base commune, appareil, serveur) ---------------- */
@@ -74,7 +81,7 @@ export function merge3(base, local, server) {
 }
 
 /* ---------------- Synchronisation ---------------- */
-let groups = []; let active = false; let applying = false;
+let groups = []; let readOnly = []; let active = false; let applying = false;
 const base = {}; // dernière version commune connue, par clé (en mémoire)
 const DIRTY = 'ent-sync-dirty';
 const readDirty = () => { try { return new Set(JSON.parse(localStorage.getItem(DIRTY)) ?? []); } catch { return new Set(); } };
@@ -95,6 +102,7 @@ function writeLocal(k, v) {
   try { window.dispatchEvent(new StorageEvent('storage', { key: k, newValue: raw })); } catch { /* hors navigateur */ }
 }
 const allowed = (k) => groups.includes(groupOf(k));
+const writable = (k) => allowed(k) && !readOnly.includes(groupOf(k));
 
 // Serveur : clé du document → { value, at } (at = updated_at, sert de numéro de version)
 const val = (map, key) => map.get(key)?.value;
@@ -134,6 +142,7 @@ export function pullShared() {
     const dirty = readDirty();
     new Set([...serverKeys(map), ...localKeys(), ...dirty]).forEach((k) => {
       const srv = fromServer(map, k); const local = readLocal(k);
+      if (!writable(k)) { if (srv !== undefined && !same(local, srv)) writeLocal(k, srv); base[k] = srv; dirty.delete(k); return; } // lecture seule : le serveur fait foi
       if (dirty.has(k) || srv === undefined) {
         if (local !== undefined) dirty.add(k); // modifié ici (ou absent du serveur) : sera fusionné puis envoyé
       } else if (!same(visible(k, local), visible(k, srv))) {
@@ -172,7 +181,7 @@ async function sendDirty(known) {
     let map = known ?? await fetchAll();
     for (const k of [...dirty]) {
       const local = readLocal(k);
-      if (!allowed(k) || local === undefined) { const n = readDirty(); n.delete(k); writeDirty(n); continue; }
+      if (!writable(k) || local === undefined) { const n = readDirty(); n.delete(k); writeDirty(n); continue; }
       for (let attempt = 0; attempt < 5; attempt += 1) {
         const merged = merge3(base[k], local, fromServer(map, k));
         if (await writeDocs(toServer(k, merged), map)) {
@@ -205,13 +214,13 @@ function markDirty(k) {
  * 30 secondes et au retour sur la page. Sans réseau, tout reste sur l'appareil et repart ensuite.
  */
 export async function startShared(role) {
-  groups = GROUPS_OF[role] ?? [];
+  groups = GROUPS_OF[role] ?? []; readOnly = READ_ONLY[role] ?? [];
   if (!groups.length || active) return;
   active = true;
   const set = Storage.prototype.setItem;
   Storage.prototype.setItem = function patched(k, v) {
     set.call(this, k, v);
-    try { if (!applying && this === window.localStorage && allowed(k)) markDirty(k); } catch { /* rien */ }
+    try { if (!applying && this === window.localStorage && writable(k)) markDirty(k); } catch { /* rien */ }
   };
   const tick = () => pullShared().catch((e) => setStatus({ state: 'error', at: status.at, message: e.message }));
   setInterval(tick, 30_000);
@@ -221,7 +230,7 @@ export async function startShared(role) {
   // premier démarrage sur cet appareil : tout ce qu'il contient est fusionné avec le serveur (rien n'est écrasé)
   const INIT = 'ent-sync-init-v1';
   let first = false; try { first = !localStorage.getItem(INIT); } catch { /* rien */ }
-  if (first) { const d = readDirty(); localKeys().forEach((k) => d.add(k)); writeDirty(d); }
+  if (first) { const d = readDirty(); localKeys().filter(writable).forEach((k) => d.add(k)); writeDirty(d); }
   await pullShared();
   if (first) { applying = true; try { localStorage.setItem(INIT, new Date().toISOString()); } catch { /* rien */ } applying = false; }
 }

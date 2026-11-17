@@ -3,8 +3,8 @@
 // données : une moyenne est la même partout.
 import { loadMockExams } from './mockExamStore.js';
 import { EXAMS } from './rules/mockExam.js';
-import { SERVICES, EVALUATIONS, GRADES } from './data/grades.js';
-import { loadCarnet, carnetRaw } from './gradebookStore.js';
+import { EVALUATIONS, GRADES } from './data/grades.js';
+import { loadCarnet, carnetRaw, myServices } from './gradebookStore.js';
 import { demoOr } from './demoData.js';
 import { studentAverage, BONUS_ENABLED } from './rules/grading.js';
 
@@ -13,7 +13,7 @@ export function withMockExams(evaluations, grades) {
   const ev = { ...evaluations }; const gr = { ...grades };
   loadMockExams().sessions.forEach((x) => EXAMS[x.kind].parts.forEach((p) => {
     const c = x.counts?.[p.id];
-    const service = c && SERVICES.find((sv) => sv.cls === x.cls && sv.subject === p.subject);
+    const service = c && myServices().find((sv) => sv.cls === x.cls && sv.subject === p.subject);
     if (!service) return;
     const id = `mx-${x.id}-${p.id}`;
     ev[service.id] = [...(ev[service.id] ?? []), { id, type: 'Examen blanc', title: `${x.title} — ${p.label}`, date: x.date, publishOn: x.date, scale: 20, coef: c.coef, fromMockExam: true }];
@@ -31,7 +31,7 @@ export function termGrades() {
   if (cache.value && cache.raw === raw) return cache.value;
   const carnet = loadCarnet();
   const { ev, gr } = withMockExams(carnet?.evaluations ?? demoOr(EVALUATIONS, {}), carnet?.grades ?? demoOr(GRADES, {}));
-  SERVICES.forEach((s) => { ev[s.id] ??= []; gr[s.id] ??= {}; }); // un service sans devoir : liste vide
+  myServices().forEach((s) => { ev[s.id] ??= []; gr[s.id] ??= {}; }); // un service sans devoir : liste vide
   cache = { raw, value: { EVALUATIONS: ev, GRADES: gr, BONUS: carnet?.bonus ?? {} } };
   return cache.value;
 }

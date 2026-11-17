@@ -85,3 +85,8 @@ calendrier Parcoursup. Les notes s'ouvrent le 17 décembre ; les autres rubrique
 2. Classe commune (même matière, deux professeurs) : chacun saisit ses devoirs et voit l'avancement commun
    (« 3 / 4 notes : vous 2, Hery 1 ») ; une seule moyenne sur tous les devoirs. Enseignement scientifique : 50/50.
    Une seule appréciation au bulletin : le premier qui l'écrit (ou le professeur choisi dans Notes reçues).
+
+## 11. Mise à jour 8 — rubriques ouvertes aux professeurs (une seule fois)
+1. SQL Editor › New query → coller `80_partage_professeurs.sql` → Run (en bas : 19 règles).
+2. Les professeurs ont alors : Vie de classe et Fil de l'élève (leurs colles et observations ; jamais les soins),
+   Examens blancs (saisie des notes de leurs matières), Grilles de notes, Vie de l'école (lecture).
