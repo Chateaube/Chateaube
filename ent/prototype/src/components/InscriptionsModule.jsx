@@ -261,7 +261,7 @@ function ProfileForm({ initial, kind, onSave, onCancel, role }) {
               <Field label={`Responsable ${i + 1} — nom`}><input value={g.name} onChange={(e) => setG(i, { name: e.target.value })} className={`w-full ${inputCls}`} /></Field>
               <Field label="Lien"><select value={g.relation} onChange={(e) => setG(i, { relation: e.target.value })} className={`w-full ${inputCls}`}>{RELATIONS.map((r) => <option key={r}>{r}</option>)}</select></Field>
               <Field label="Téléphone"><input value={g.phone} onChange={(e) => setG(i, { phone: e.target.value })} placeholder="+261 34 …" className={`w-full ${inputCls}`} /></Field>
-              <Field label="E-mail (compte Google)"><input value={g.email} onChange={(e) => setG(i, { email: e.target.value })} className={`w-full ${inputCls}`} /></Field>
+              <Field label="E-mail"><input value={g.email} onChange={(e) => setG(i, { email: e.target.value })} className={`w-full ${inputCls}`} /></Field>
               <div className="flex flex-wrap items-end gap-3 pb-1.5 text-xs text-slate-600">
                 <label className="flex items-center gap-1"><input type="radio" name="payer" checked={g.payer} onChange={() => setG(i, { payer: true })} />Responsable financier</label>
                 {p.guardians.length > 1 && <button type="button" aria-label="Retirer ce responsable" onClick={() => set({ guardians: p.guardians.filter((_, k) => k !== i) })} className="rounded p-1 text-slate-400 hover:text-red-600"><Icon name="x" /></button>}
