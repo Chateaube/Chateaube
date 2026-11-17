@@ -16,13 +16,15 @@ export function buildSchool({ timetable = [], changes = [], calendar = null, eve
   };
 }
 
-let me = null; let school = null;
+let me = null; let school = null; let news = null;
+export const currentNews = () => news;
 export const currentStudent = () => me;
 export const currentSchool = () => school;
 
 /** Au démarrage d'un compte élève : sa fiche, puis l'emploi du temps et le calendrier de l'école. */
 export async function loadStudentContext(accountId) {
-  const [mine, ecole, orient] = await Promise.all([fetchDoc(`eleve:${accountId}`), fetchDoc('ecole'), fetchDoc(`orientation:${accountId}`)]);
+  const [mine, ecole, orient, vie] = await Promise.all([fetchDoc(`eleve:${accountId}`), fetchDoc('ecole'), fetchDoc(`orientation:${accountId}`), fetchDoc('ecole-vie').catch(() => null)]);
+  news = vie?.value ?? null;
   me = mine?.value ? { id: accountId, ...mine.value } : null;
   school = ecole?.value ?? null;
   if (me) setRemoteImport({ students: [{ cls: me.cls, lastName: me.lastName, firstName: me.firstName, specialties: me.specialties ?? [] }], timetable: school?.timetable ?? [], importedAt: school?.sentAt ?? 'x' });

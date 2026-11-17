@@ -3,7 +3,8 @@ import { Icon } from './ui.jsx';
 import AgendaModule from './AgendaModule.jsx';
 import OrientationSheet from './OrientationSheet.jsx';
 import { FamilyDocuments, TermsGate } from './InternalResources.jsx';
-import { currentStudent, currentSchool } from '../online/school.js';
+import { currentStudent, currentSchool, currentNews } from '../online/school.js';
+import { newsFor } from '../online/schoolNews.js';
 import { loadTimetable } from '../timetableStore.js';
 import { loadChanges } from './TimetableChanges.jsx';
 import { dayCourses, nowNext, shortSubject, subjectColor as courseColor } from '../rules/timetableGrid.js';
@@ -16,7 +17,7 @@ import { DEFAULT_SETTINGS } from '../data/settings.js';
 
 // Portail des élèves, version en ligne (test avant l'ouverture du 17 décembre) : emploi du temps du jour,
 // agenda, documents de l'école, orientation (fiche + calendrier Parcoursup). Les autres rubriques sont visibles
-// avec « en cours de création » ; les notes s'ouvrent le 17 décembre. Aucune donnée fictive.
+// avec « en cours de création » ; l'onglet École montre les annonces et la vie de l'école publiées ; les notes s'ouvrent le 17 décembre. Aucune donnée fictive.
 const TABS = [['home', 'Accueil', 'home'], ['school', 'École', 'sparkles'], ['notes', 'Notes', 'pen'], ['agenda', 'Agenda', 'calendar'], ['more', 'Autres', 'menu']];
 const MORE = [
   ['orientation', 'Orientation et Parcoursup', 'compass', true],
@@ -67,6 +68,45 @@ function Today({ me, settings }) {
         </>
       )}
     </Box>
+  );
+}
+
+/** Onglet École : annonces adressées aux élèves et vie de l'école, en lecture seule (publiées par la Direction). */
+function SchoolNews({ me }) {
+  const news = currentNews();
+  const annonces = newsFor(news, me.cls);
+  const posts = news?.posts ?? [];
+  const [open, setOpen] = useState(null);
+  const day = (d) => (d ? formatDateFr(String(d).slice(0, 10)) : '');
+  return (
+    <>
+      <Box title="Annonces">
+        {annonces.length ? (
+          <ul className="space-y-3">{annonces.map((a) => (
+            <li key={a.id} className={`rounded-xl px-3 py-2.5 ${a.pinned ? 'bg-amber-50 ring-1 ring-amber-200' : 'bg-slate-50'}`}>
+              <p className="text-sm font-semibold text-slate-900">{a.pinned ? '📌 ' : ''}{a.title}</p>
+              <p className="text-xs text-slate-500">{day(a.at)}</p>
+              {a.text && <p className="mt-1 whitespace-pre-line text-sm text-slate-700">{a.text}</p>}
+              {a.photos?.length > 0 && <div className="mt-2 grid grid-cols-3 gap-1.5">{a.photos.map((src, i) => <button key={i} type="button" onClick={() => setOpen(src)} className="overflow-hidden rounded-lg bg-slate-100" aria-label={`Agrandir la photo ${i + 1}`}><img src={src} alt="" className="aspect-[4/3] w-full object-cover" /></button>)}</div>}
+            </li>
+          ))}</ul>
+        ) : <p className="text-sm text-slate-600">Pas d'annonce pour le moment.</p>}
+      </Box>
+      <h2 className="px-1 pt-2 font-display text-base font-semibold text-navy-900">Vie de l'école</h2>
+      {posts.length ? posts.map((p) => (
+        <article key={p.id} className="rounded-2xl bg-white p-4 shadow-soft">
+          <h3 className="font-display text-[15px] font-semibold text-slate-900">{p.title}</h3>
+          <p className="mb-2 text-xs text-slate-500">{day(p.date)}{p.parent ? ` · album « ${posts.find((x) => x.id === p.parent)?.title ?? ''} »` : ''}</p>
+          {p.text && <p className="mb-2 text-sm text-slate-700">{p.text}</p>}
+          <div className="grid grid-cols-3 gap-1.5">{p.photos.map((src, i) => <button key={i} type="button" onClick={() => setOpen(src)} className="overflow-hidden rounded-lg bg-slate-100" aria-label={`Agrandir la photo ${i + 1}`}><img src={src} alt={`Photo ${i + 1}`} className="aspect-[4/3] w-full object-cover" /></button>)}</div>
+        </article>
+      )) : <Box><p className="text-sm text-slate-600">Les photos des actions de l'école paraîtront ici.</p></Box>}
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 p-4" role="dialog" aria-label="Photo" onClick={() => setOpen(null)}>
+          <img src={open} alt="Photo en grand" className="max-h-full max-w-full rounded-lg" />
+        </div>
+      )}
+    </>
   );
 }
 
@@ -129,7 +169,7 @@ export default function OnlineStudentPortal({ settings }) {
             )}
             <Box title="Mes notes"><p className="text-sm text-slate-600">Tes notes et tes moyennes seront visibles ici à partir du <strong>17 décembre</strong>.</p></Box>
           </>)}
-          {view === 'school' && <Soon title="Vie de l'école, annonces et vie scolaire" />}
+          {view === 'school' && <SchoolNews me={me} />}
           {view === 'notes' && <Box title="Mes notes"><p className="text-sm text-slate-600">Tes notes et tes moyennes seront visibles ici à partir du <strong>17 décembre</strong>.</p></Box>}
           {view === 'agenda' && <AgendaModule compact role="ELEVE" cls={me.cls} settings={st} today={today()} />}
           {view === 'more' && (
