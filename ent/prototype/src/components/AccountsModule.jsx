@@ -3,12 +3,12 @@ import { Badge, Button, Card } from './ui.jsx';
 import { supabase, FN_COMPTES } from '../online/client.js';
 import { printOnly } from '../print.js';
 import { askConfirm } from './Dialogs.jsx';
-import { usePersistent } from '../persist.js';
+import { usePersistent, readStored } from '../persist.js';
 import AgentForm, { EMPTY_AGENT, serviceText } from './AgentForm.jsx';
 import { StaffDocumentsButtons } from './StaffDocuments.jsx';
 import BulkTeachers from './BulkTeachers.jsx';
 import { schoolYearOf } from '../rules/documents.js';
-import { loginFor } from '../rules/logins.js';
+import { loginFor, accessMessage, accessMailto, DEFAULT_WELCOME } from '../rules/logins.js';
 import { today } from '../clock.js';
 
 const fr = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
@@ -26,9 +26,13 @@ const call = async (body) => {
 };
 
 function Slip({ slip, onClose }) {
-  const url = window.location.href.split('#')[0];
+  const url = `${window.location.origin}${window.location.pathname}`;
+  // message de bienvenue : le même pour tous, modifiable (gardé avec les réglages de l'école)
+  const [welcome, setWelcome] = usePersistent('ent-k-message-acces', DEFAULT_WELCOME);
+  const [editing, setEditing] = useState(false); const [copied, setCopied] = useState(false);
+  const message = accessMessage(slip, url, welcome);
   return (
-    <Card title="Fiche à remettre en main propre" subtitle="Le code est provisoire : la personne choisit le sien à la première connexion">
+    <Card title="Accès à transmettre" subtitle="Le code est provisoire : la personne choisit le sien à la première connexion">
       <div className="account-slip rounded-xl border-2 border-dashed border-slate-300 p-4 text-sm">
         <p className="font-semibold text-navy-900">ENT Chateaubriand — vos accès</p>
         <p className="mt-2">{slip.name}</p>
@@ -37,10 +41,20 @@ function Slip({ slip, onClose }) {
         <p>Code provisoire : <strong className="font-mono text-base">{slip.code}</strong></p>
         <p className="mt-2 text-xs text-slate-600">À la première connexion, choisissez votre propre code (8 caractères, lettres et chiffres). Ne le communiquez à personne.</p>
       </div>
-      <div className="mt-3 flex gap-2">
-        <Button onClick={() => printOnly('.account-slip', 'size: A5 landscape; margin: 12mm;', `Accès ENT — ${slip.name}`)}>Imprimer</Button>
-        <Button variant="secondary" onClick={onClose}>Fermer</Button>
+      <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm">
+        <p className="text-xs font-semibold text-slate-600">Message de bienvenue (envoyé avec les accès)</p>
+        {editing
+          ? <textarea rows={4} value={welcome} onChange={(e) => setWelcome(e.target.value)} className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
+          : <p className="mt-1 whitespace-pre-line text-slate-700">{welcome}</p>}
+        <button type="button" className="mt-1 text-xs font-medium text-navy-700 underline" onClick={() => setEditing(!editing)}>{editing ? 'Terminé' : 'Modifier le message'}</button>
       </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <a href={accessMailto(slip.email, message)} className="inline-flex items-center rounded-full bg-navy-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-navy-700">Envoyer par e-mail{slip.email ? ` (${slip.email})` : ''}</a>
+        <Button variant="secondary" onClick={() => { try { navigator.clipboard.writeText(message); setCopied(true); } catch { /* copie impossible */ } }}>{copied ? '✓ Message copié (WhatsApp…)' : 'Copier le message (WhatsApp…)'}</Button>
+        <Button variant="secondary" onClick={() => printOnly('.account-slip', 'size: A5 landscape; margin: 12mm;', `Accès ENT — ${slip.name}`)}>Imprimer</Button>
+        <Button variant="ghost" onClick={onClose}>Fermer</Button>
+      </div>
+      <p className="mt-2 text-xs text-slate-500">« Envoyer par e-mail » ouvre votre messagerie avec le message déjà rédigé{slip.email ? '' : ' (ajoutez l\'adresse du destinataire)'} : il ne part que lorsque vous cliquez sur Envoyer. Le code ne s'affiche qu'une fois : envoyez-le maintenant.</p>
     </Card>
   );
 }
@@ -81,7 +95,7 @@ export default function AccountsModule({ embedded = false, settings }) {
     const r = await call({ action: 'create', first: d.first, last: d.last, usual: d.usual, role: d.role, title: d.title, email: d.email });
     const { email, ...rest } = d;
     setFiches({ ...fiches, [r.id]: rest });
-    setSlip({ ...r, name: `${d.first.trim()} ${d.last.trim().toUpperCase()}` });
+    setSlip({ ...r, name: `${d.first.trim()} ${d.last.trim().toUpperCase()}`, first: (d.usual || d.first.trim().split(/\s+/)[0]), email: d.email?.trim() || '' });
     setD(null);
   });
   return (
@@ -105,7 +119,7 @@ export default function AccountsModule({ embedded = false, settings }) {
         {(list ?? []).some(toRenew) && <Button variant="secondary" disabled={busy} onClick={async () => {
           const todo = list.filter(toRenew);
           if (!(await askConfirm(`Donner un nouveau code provisoire aux ${todo.length} compte(s) qui ne se sont pas encore connectés ? Les anciens codes ne marcheront plus.`))) return;
-          run(async () => { const out = []; for (const u of todo) { try { const r = await call({ action: 'reset', userId: u.id }); out.push({ ...r, name: `${u.first_name} ${u.last_name}` }); } catch (x) { out.push({ name: `${u.first_name} ${u.last_name}`, error: x.message }); } } setSlips(out); });
+          run(async () => { const out = []; for (const u of todo) { try { const r = await call({ action: 'reset', userId: u.id }); out.push({ ...r, name: `${u.first_name} ${u.last_name}`, first: fiches[u.id]?.usual || String(u.first_name ?? '').split(/\s+/)[0], email: /\.invalid$/.test(u.email ?? '') ? '' : u.email ?? '' }); } catch (x) { out.push({ name: `${u.first_name} ${u.last_name}`, error: x.message }); } } setSlips(out); });
         }}>Nouveaux codes pour tous les « code provisoire »</Button>}</div>}
       {slips && (
         <Card title={`Fiches d'accès (${slips.filter((s) => !s.error).length})`} subtitle="À imprimer maintenant : les codes ne s'affichent qu'une fois">
@@ -119,6 +133,10 @@ export default function AccountsModule({ embedded = false, settings }) {
                 <p>Identifiant : <strong style={{ fontFamily: 'monospace', fontSize: 14 }}>{s.login}</strong></p>
                 <p>Code provisoire : <strong style={{ fontFamily: 'monospace', fontSize: 14 }}>{s.code}</strong></p>
                 <p style={{ marginTop: 4, fontSize: 9.5 }}>À la première connexion, choisissez votre propre code (8 caractères, lettres et chiffres). Ne le communiquez à personne.</p>
+                <p className="print:hidden" style={{ marginTop: 6, display: 'flex', gap: 12 }}>
+                  <a href={accessMailto(s.email, accessMessage(s, `${window.location.origin}${window.location.pathname}`, readStored('ent-k-message-acces') ?? DEFAULT_WELCOME))} style={{ color: '#005baa', textDecoration: 'underline' }}>Envoyer par e-mail</a>
+                  <button type="button" style={{ color: '#005baa', textDecoration: 'underline' }} onClick={() => { try { navigator.clipboard.writeText(accessMessage(s, `${window.location.origin}${window.location.pathname}`, readStored('ent-k-message-acces') ?? DEFAULT_WELCOME)); } catch { /* copie impossible */ } }}>Copier (WhatsApp)</button>
+                </p>
               </div>
             ))}
           </div>
@@ -216,7 +234,7 @@ export default function AccountsModule({ embedded = false, settings }) {
                       {!u.is_active && <Badge tone="slate">désactivé</Badge>}
                       <Button variant="ghost" className="!py-1 text-xs" onClick={() => setEdit(edit?.id === u.id ? null : { id: u.id, value: f })}>{edit?.id === u.id ? 'Fermer la fiche' : 'Fiche'}</Button>
                       <Button variant="ghost" className="!py-1 text-xs" onClick={() => setDocsFor(docsFor === u.id ? null : u.id)}>Documents</Button>
-                      <Button variant="secondary" className="!py-1 text-xs" disabled={busy || !u.is_active} onClick={() => run(async () => { const r = await call({ action: 'reset', userId: u.id }); setSlip({ ...r, name: `${u.first_name} ${u.last_name}` }); })}>Nouveau code</Button>
+                      <Button variant="secondary" className="!py-1 text-xs" disabled={busy || !u.is_active} onClick={() => run(async () => { const r = await call({ action: 'reset', userId: u.id }); setSlip({ ...r, name: `${u.first_name} ${u.last_name}`, first: fiches[u.id]?.usual || String(u.first_name ?? '').split(/\s+/)[0], email: /\.invalid$/.test(u.email ?? '') ? '' : u.email ?? '' }); })}>Nouveau code</Button>
                       <Button variant="ghost" className="!py-1 text-xs" disabled={busy} onClick={async () => { if (u.is_active && !(await askConfirm(`Désactiver le compte de ${u.first_name} ${u.last_name} ? La personne ne pourra plus se connecter ; ses saisies restent.`))) return; run(() => call({ action: 'active', userId: u.id, active: !u.is_active })); }}>{u.is_active ? 'Désactiver' : 'Réactiver'}</Button>
                     </div>
                   </div>
