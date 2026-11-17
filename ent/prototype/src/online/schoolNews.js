@@ -2,7 +2,9 @@
 // « ecole-vie » (type ECOLE, lisible par tout compte connecté, règle de 40_eleves.sql : aucun script à lancer).
 // Rien d'autre ne part : ni brouillons, ni propositions, ni réactions, ni annonces réservées au personnel ou aux parents.
 import { supabase } from './client.js';
-import { fetchDoc } from './docs.js';
+import { fetchDoc, fetchDocs } from './docs.js';
+import { labelsFor, loadEngagements, loadCatalogue } from '../engagementsStore.js';
+import { currentStudents } from '../importStore.js';
 import { isPublic } from '../rules/publication.js';
 import { receives } from '../rules/announcements.js';
 
@@ -33,10 +35,29 @@ export async function publishNews() {
   if (error) throw new Error(error.message);
   last = sig; return true;
 }
+/** Engagements de chaque élève sur sa fiche « eleve:<id> » (lue par lui seul et le personnel), quand ils changent. */
+let lastEng = null;
+export async function publishEngagements() {
+  const sig = JSON.stringify([loadEngagements(), loadCatalogue()]);
+  if (sig === lastEng) return 0;
+  const students = currentStudents() ?? [];
+  const sexOf = (name) => students.find((s) => `${s.lastName} ${s.firstName}`.trim() === name)?.sex;
+  let n = 0;
+  for (const d of await fetchDocs('ELEVE')) {
+    const v = d.value ?? {}; const name = `${v.lastName ?? ''} ${v.firstName ?? ''}`.trim();
+    const l = labelsFor(name, sexOf(name));
+    if (JSON.stringify(l) === JSON.stringify({ engagements: v.engagements ?? [], attestations: v.attestations ?? [] })) continue;
+    const { error } = await supabase.from('ent_doc').upsert({ key: d.key, kind: 'ELEVE', owner: d.owner, value: { ...v, ...l } });
+    if (error) throw new Error(error.message);
+    n += 1;
+  }
+  lastEng = sig; return n;
+}
+
 let started = false;
 export function startNews() {
   if (started) return; started = true;
-  const run = () => publishNews().catch(() => { /* hors ligne : nouvel essai à la minute suivante */ });
+  const run = () => { publishNews().catch(() => { /* hors ligne : nouvel essai à la minute suivante */ }); publishEngagements().catch(() => { /* idem */ }); };
   run(); setInterval(run, 60_000);
 }
 
