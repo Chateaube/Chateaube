@@ -102,6 +102,8 @@ function NewCode({ first, onDone }) {
         {err && <p role="alert" className="mt-2 text-sm text-red-700">{err}</p>}
         <button disabled={errs.length > 0 || busy} className="mt-4 min-h-[44px] w-full rounded-xl bg-navy-500 font-semibold text-white disabled:bg-slate-300">Enregistrer mon code</button>
       </form>
+      {/* pas son compte (essai d'un code, appareil prêté) : revenir à la connexion sans rien changer */}
+      <button type="button" onClick={() => signOut().finally(() => { try { window.location.hash = ''; } catch { /* rien */ } window.location.reload(); })} className="mt-3 w-full text-sm text-navy-600 underline">Annuler et revenir à la connexion</button>
     </Shell>
   );
 }
