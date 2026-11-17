@@ -31,7 +31,7 @@ export default function AgentForm({ value: d, onChange, withAccount = true, with
         <label className={`${label} sm:col-span-1`}>Civilité<select value={d.civility} onChange={(e) => set({ civility: e.target.value })} className={field}><option>Madame</option><option>Monsieur</option></select></label>
         <label className={`${label} sm:col-span-2`}>Prénom(s) *<input value={d.first} onChange={(e) => set({ first: e.target.value })} className={field} /></label>
         <label className={`${label} sm:col-span-3`}>Nom *<input value={d.last} onChange={(e) => set({ last: e.target.value })} className={field} /></label>
-        <label className={`${label} sm:col-span-3`}>Prénom d'usage (s'il n'est pas le premier : sert à l'identifiant)<input value={d.usual ?? ''} onChange={(e) => set({ usual: e.target.value })} className={field} /></label>
+        <label className={`${label} sm:col-span-3`}>Prénom d'usage (s'il n'est pas le premier : sert à l'identifiant et au bulletin)<input value={d.usual ?? ''} onChange={(e) => set({ usual: e.target.value })} className={field} /></label>
         {withAccount && <label className={`${label} sm:col-span-2`}>Fonction dans l'ENT *<select value={d.role} onChange={(e) => set({ role: e.target.value })} className={field}>{ROLES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>}
         <label className={`${label} ${withAccount ? 'sm:col-span-4' : 'sm:col-span-6'}`}>Intitulé du poste (ex. Professeur de mathématiques, Économe)<input value={d.title} onChange={(e) => set({ title: e.target.value })} className={field} /></label>
         <label className={`${label} sm:col-span-3`}>Téléphone<input value={d.phone} onChange={(e) => set({ phone: e.target.value })} className={field} /></label>
