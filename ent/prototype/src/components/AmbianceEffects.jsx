@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useReducedMotion } from '../ambianceRuntime.js';
 
 // Effet d'ambiance discret : quelques particules (confettis, pétales, feuilles, étoiles) dessinées sur un canvas
@@ -23,11 +23,17 @@ export default function AmbianceEffects({ ambiance, enabled = true }) {
   const reduced = useReducedMotion();
   const [done, setDone] = useState(false);
   const motif = ambiance?.motif;
-  const active = enabled && !reduced && motif && SHAPES[motif];
+  // une seule fois par thème et par appareil : à la première ouverture de la période (Droits de l'enfant, Noël…)
+  const SEEN = 'ent-ambiance-vue';
+  const theme = ambiance ? `${ambiance.id}|${new Date().getFullYear()}` : '';
+  // lu une fois par thème (et non à chaque affichage), sinon l'animation s'arrêterait dès qu'on la marque « vue »
+  const seen = useMemo(() => { try { return localStorage.getItem(SEEN) === theme; } catch { return false; } }, [theme]);
+  const active = enabled && !reduced && motif && SHAPES[motif] && !seen;
 
   useEffect(() => {
     setDone(false);
     if (!active) return undefined;
+    try { localStorage.setItem(SEEN, theme); } catch { /* rien */ }
     const canvas = ref.current; const ctx = canvas.getContext('2d');
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const resize = () => { canvas.width = window.innerWidth * dpr; canvas.height = window.innerHeight * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); };
