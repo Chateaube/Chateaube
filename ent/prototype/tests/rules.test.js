@@ -1430,7 +1430,7 @@ import { mandatesOf, can, audienceErrors, classMandateErrors, NEVER, serviceLabe
 test('mandats d\'élèves : délégué (sa classe), BDE (son site), jamais de notes ni de paramètres, validation obligatoire', () => {
   const delegue = { role: 'ELEVE', mandates: mandatesOf(['DELEGUE'], { cls: '1re STMG' }) };
   const bde = { role: 'ELEVE', mandates: mandatesOf(['BDE_PRESIDENT'], { cls: 'Terminale STMG' }) };
-  const eleve = { role: 'ELEVE', mandates: mandatesOf(['ECO_DELEGUE'], { cls: '1re STMG' }) };
+  const eleve = { role: 'ELEVE', mandates: mandatesOf(['SPORT'], { cls: '1re STMG' }) };
   assert.deepEqual([can(delegue, 'ANNONCE_CLASSE'), can(delegue, 'EVENEMENT'), can(bde, 'EVENEMENT'), can(eleve, 'ANNONCE_CLASSE')], [true, false, true, false]);
   assert.equal(bde.mandates[0].president, true);
   NEVER.forEach((c) => assert.equal(can({ mandates: [...delegue.mandates, ...bde.mandates] }, c), false, c));
