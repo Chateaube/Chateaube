@@ -23,6 +23,15 @@
         var root = document.getElementById('root');
         if (!root || root.dataset.failed) return;
         root.dataset.failed = '1';
+        // navigateur trop ancien (le code n'est pas compris) : rien à effacer, il faut un navigateur à jour
+        if (/SyntaxError|Unexpected token|Unexpected identifier|Invalid regular expression/i.test(String(msg))) {
+          root.innerHTML = '<div style="max-width:520px;margin:12vh auto;padding:24px;font:15px system-ui,sans-serif;color:#0f172a;background:#fff;border-radius:16px">'
+            + '<h1 style="font-size:20px;margin:0 0 8px">Votre navigateur est trop ancien</h1>'
+            + '<p style="margin:0 0 12px;color:#475569">Pour ouvrir l\u2019ENT, mettez à jour <strong>Google Chrome</strong> (Play Store ou App Store), puis ouvrez <strong>chateaubriand.pro/ent</strong> dans Chrome.</p>'
+            + '<p style="margin:0;color:#475569">Si le lien s\u2019ouvre dans WhatsApp ou Facebook, touchez les trois points en haut puis « Ouvrir dans Chrome ».</p>'
+            + '<p style="margin:16px 0 0;font-size:12px;color:#94a3b8">Détail : ' + String(msg).replace(/[<>&]/g, '') + '</p></div>';
+          return;
+        }
         root.innerHTML = '<div style="max-width:520px;margin:12vh auto;padding:24px;font:15px system-ui,sans-serif;color:#0f172a;background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.08)">'
           + '<h1 style="font-size:20px;margin:0 0 8px">L\u2019application n\u2019a pas pu s\u2019ouvrir</h1>'
           + '<p style="margin:0 0 16px;color:#475569">Les données gardées dans ce navigateur l\u2019en empêchent sans doute. Le bouton ci-dessous les efface (réglages compris) et rouvre l\u2019application avec les exemples ; il suffira de réimporter votre fichier.</p>'

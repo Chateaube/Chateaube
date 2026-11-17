@@ -9,7 +9,10 @@ const MAX_LENGTH = 450; // place disponible dans la case du bulletin
 
 // Frontières de mots Unicode : en JS, \b ignore les lettres accentuées
 // (« exprimées » contiendrait sinon le mot « es »).
-const B = '(?<![\\p{L}\\p{N}_])';
+// anciens navigateurs (iOS < 16.4) : pas de « regarder en arrière » (?<!…) dans les expressions régulières ;
+// on se rabat alors sur une frontière qui consomme le caractère précédent (contrôles un peu moins fins, jamais d'erreur)
+export const LOOKBEHIND = (() => { try { return new RegExp('(?<!a)b').test('cb'); } catch { return false; } })();
+const B = LOOKBEHIND ? '(?<![\\p{L}\\p{N}_])' : '(?:^|[^\\p{L}\\p{N}_])';
 const E = '(?![\\p{L}\\p{N}_])';
 const w = (src, flags = 'giu') => new RegExp(src.replaceAll('⟨', B).replaceAll('⟩', E), flags);
 
@@ -20,7 +23,7 @@ const TUTOIEMENT = [
   { re: w("⟨t['’]\\s?\\p{L}+"), hint: 'Forme élidée de « tu / te » à reformuler.' },
   { re: w('⟨(?:te|tes|ta)⟩'), hint: 'Déterminant/pronom de 2e personne : utiliser « son / sa / ses ».' },
   // « ton » est aussi un nom (« le ton de ses écrits ») : on exclut ces cas
-  { re: w('(?<!⟨(?:le|un|du|au|ce|son|bon|même)\\s)⟨ton⟩'), hint: 'Remplacer « ton » par « son ».' },
+  ...(LOOKBEHIND ? [{ re: w('(?<!⟨(?:le|un|du|au|ce|son|bon|même)\\s)⟨ton⟩'), hint: 'Remplacer « ton » par « son ».' }] : []),
   { re: w('⟨es⟩'), hint: '« es » correspond à « tu es » : écrire « est ».' },
 ];
 // Impératifs de 2e personne en début de phrase (souvent involontaires)
@@ -48,7 +51,7 @@ const DECISION = w('⟨(Admis|Retenu|Réorienté|Maintenu)(\\(e\\)|·e|-e|e|\\.e
 
 function sentences(text) {
   return text
-    .split(/(?<=[.!?…])\s+/u)
+    .replace(/([.!?…])\s+/gu, '$1\u0000').split('\u0000') // coupe après la ponctuation (sans « regarder en arrière »)
     .map((s) => s.trim())
     .filter(Boolean);
 }

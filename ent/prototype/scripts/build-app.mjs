@@ -3,10 +3,37 @@
 // Le service worker est versionné à chaque construction : l'application se met à jour
 // d'elle-même dès qu'elle retrouve la connexion.
 import { readFileSync, writeFileSync } from 'node:fs';
+import { transform } from 'lightningcss';
+
+/**
+ * Anciens téléphones (Chrome 64+, iOS 12+) : la feuille de style de Tailwind utilise des notations récentes
+ * qu'ils ignorent (blocs « @layer », couleurs oklch, media « width>=… »), ce qui donnerait un écran sans couleurs.
+ * 1. les blocs @layer sont déroulés dans le même ordre (theme, base, components, utilities, puis le reste) ;
+ * 2. Lightning CSS ajoute des couleurs classiques (#rrggbb) avant les couleurs modernes, et réécrit les media.
+ * Les navigateurs récents gardent les couleurs modernes (déclarées après).
+ */
+export function unwrapLayers(css) {
+  let out = css.replace(/@layer\s+[\w-]+(\s*,\s*[\w-]+)*\s*;/g, '');
+  for (let i = out.indexOf('@layer'); i !== -1; i = out.indexOf('@layer', i)) {
+    const open = out.indexOf('{', i);
+    let depth = 0; let j = open;
+    for (; j < out.length; j += 1) { if (out[j] === '{') depth += 1; else if (out[j] === '}') { depth -= 1; if (depth === 0) break; } }
+    out = out.slice(0, i) + out.slice(open + 1, j) + out.slice(j + 1);
+  }
+  return out;
+}
+const OLD_TARGETS = { chrome: 64 << 16, safari: 12 << 16, firefox: 60 << 16, edge: 79 << 16 };
+function compatCss(html) {
+  return html.replace(/<style([^>]*)>([\s\S]*?)<\/style>/g, (all, attrs, css) => {
+    if (!css.includes('@layer')) return all;
+    const code = transform({ filename: 'app.css', code: Buffer.from(unwrapLayers(css)), minify: true, targets: OLD_TARGETS }).code.toString();
+    return `<style${attrs}>${code}</style>`;
+  });
+}
 
 const out = new URL('../../', import.meta.url); // ent/ : l'ENT est à l'adresse …/ent/
 const version = new Date().toISOString().replace(/\D/g, '').slice(0, 14);
-let html = readFileSync(new URL('../dist/index.html', import.meta.url), 'utf8');
+let html = compatCss(readFileSync(new URL('../dist/index.html', import.meta.url), 'utf8'));
 const head = `
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#003366" />
