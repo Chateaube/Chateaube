@@ -58,7 +58,7 @@ export const AMBIANCES = [
     note: { title: 'Le 29 mars 1947', text: 'Début de l\'insurrection malgache contre la colonisation, durement réprimée. Le 29 mars est une journée de commémoration nationale à Madagascar ; cette période est étudiée en histoire.' } },
   { id: 'ENVIRONNEMENT', label: 'Journée de l\'environnement', category: 'CIVIQUE', from: '05-30', to: '06-05', palette: 'vert', motif: 'feuilles', symbol: '🌱',
     greeting: 'Le 5 juin : chaque geste compte.',
-    note: { title: 'Agir pour l\'environnement', text: 'Instituée par l\'ONU en 1972. Les éco-délégués de chaque classe proposent des gestes simples : tri, économies d\'eau et d\'énergie.' } },
+    note: { title: 'Agir pour l\'environnement', text: 'Instituée par l\'ONU en 1972. Chacun peut agir par des gestes simples : tri, économies d\'eau et d\'énergie.' } },
   { id: 'INDEPENDANCE', label: 'Fête de l\'Indépendance', category: 'HISTORIQUE', from: '06-20', to: '06-26', palette: 'vert', motif: 'confettis', symbol: '🇲🇬',
     greeting: 'Bonne fête nationale !',
     note: { title: '26 juin 1960', text: 'Proclamation de l\'indépendance de Madagascar. Le 26 juin est la fête nationale.' } },

@@ -8,7 +8,7 @@ import { catalogue, addToCatalogue, setForStudents, engagementErrors } from '../
 import { classMandateErrors, MANDATES } from '../rules/mandates.js';
 import { askConfirm } from './Dialogs.jsx';
 
-// Engagements et attestations (Direction) : délégués, BDE, éco-délégués, parrainage, ASSR…
+// Engagements et attestations (Direction) : délégués, BDE, équipe sportive, parrainage, ASSR…
 // - Par engagement : on coche d'un coup tous les élèves concernés (30 élèves, une seule liste) ;
 // - Liste : la Direction crée ses propres engagements et attestations, ou cesse d'en proposer.
 // Tout peut changer en cours d'année : chaque fin de trimestre, la Direction valide l'état du moment,
