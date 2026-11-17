@@ -287,7 +287,7 @@ export default function App() {
   const Current = screenOf(NAV.flatMap((g) => g.items).find((i) => i.id === screen) ?? NAV[0].items[0]);
   const switchProfile = (p) => { setProfile(p); setScreen(PROFILES[p].home); };
 
-  const myself = realData0 ? loadMe() : null;
+  const myself = realData0 || ONLINE ? loadMe() : null;
   const persona = myself ? { name: myself.name, short: myself.name, detail: ROLES.find(([k]) => k === myself.role)?.[1] ?? '' }
     : profile === 'DIRECTION' ? { name: account.name, detail: account.email } : PERSONAS[profile];
 

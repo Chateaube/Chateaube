@@ -103,7 +103,7 @@ function DayAgenda({ visible: all, shown, setShown, available, today }) {
             <li key={i.id} className="flex items-start gap-2 rounded-lg border border-slate-100 px-2.5 py-2 text-sm">
               <span className="w-[86px] shrink-0 whitespace-nowrap text-xs tabular-nums text-slate-600">{i.allDay ? 'journée' : `${i.start.replace(':', 'h')}–${(i.end ?? '').replace(':', 'h')}`}</span>
               <span className={`min-w-0 flex-1 ${i.status === 'ANNULE' ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{i.title}{i.place && <span className="block text-xs text-slate-500">{i.place}</span>}</span>
-              <Badge tone={AGENDAS[i.agenda].tone}>{AGENDAS[i.agenda].label}</Badge>
+              <span className="shrink-0"><Badge tone={AGENDAS[i.agenda].tone}>{FAMILY_LABEL[i.agenda] ?? AGENDAS[i.agenda].label}</Badge></span>
             </li>
           ))}
         </ul>
