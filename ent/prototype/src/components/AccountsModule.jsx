@@ -48,6 +48,8 @@ function Slip({ slip, onClose }) {
 export default function AccountsModule({ embedded = false, settings }) {
   const [list, setList] = useState(null); const [err, setErr] = useState('');
   const [loginEdit, setLoginEdit] = useState(null); // { id, value } : identifiant modifié à la main
+  const [mailEdit, setMailEdit] = useState(null); // { id, value } : e-mail du compte (lien « choisir mon code »)
+  const [msg, setMsg] = useState('');
   // filtre : l'équipe (sans les élèves), l'administration, les professeurs ou les élèves
   const [who, setWho] = useState('EQUIPE');
   const rolesOf = (u) => (u.user_role ?? []).map((r) => r.role);
@@ -89,6 +91,7 @@ export default function AccountsModule({ embedded = false, settings }) {
         <h1 className="text-2xl font-semibold text-navy-900">Comptes du personnel</h1>
       </div>}
       {err && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p>}
+      {msg && <p role="status" className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{msg}</p>}
       {slip && <Slip slip={slip} onClose={() => setSlip(null)} />}
       {d ? (
         <Card title="Nouvel agent" subtitle="Tout en une fois : le compte est créé et la fiche enregistrée. Seuls le prénom, le nom et la fonction sont obligatoires.">
@@ -159,6 +162,22 @@ export default function AccountsModule({ embedded = false, settings }) {
                           if (fic) setFiches({ ...fiches, [u.id]: { ...fic, first, last } });
                         })}>Nom du compte à mettre à jour : « {last} {first} »</button>;
                       })()}
+                      <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs">
+                        {!/\.invalid$/.test(u.email ?? '') && u.email && <span className="text-slate-600">{u.email}</span>}
+                        {!/\.invalid$/.test(u.email ?? '') && u.email && u.is_active && <button type="button" disabled={busy} className="font-medium text-navy-700 underline" onClick={() => run(async () => {
+                          // lien « choisir mon code » : pour la première connexion ou un code oublié (le code n'est jamais écrit dans l'e-mail)
+                          const { error } = await supabase.auth.resetPasswordForEmail(u.email, { redirectTo: `${window.location.origin}${window.location.pathname}` });
+                          if (error) throw new Error(/rate|limit/i.test(error.message) ? 'Trop d\'e-mails envoyés pour l\'instant : réessayez dans une heure (ou configurez l\'envoi d\'e-mails dans Supabase).' : error.message);
+                          setMsg(`Lien envoyé à ${u.email} : la personne l'ouvre et choisit son code.`);
+                        })}>Envoyer le lien « choisir mon code » par e-mail</button>}
+                        {!(u.user_role ?? []).some((r) => r.role === 'DIRECTION') && <button type="button" className="font-medium text-navy-700 underline" onClick={() => setMailEdit(mailEdit?.id === u.id ? null : { id: u.id, value: /\.invalid$/.test(u.email ?? '') ? '' : u.email ?? '' })}>{/\.invalid$/.test(u.email ?? '') || !u.email ? 'Ajouter un e-mail' : 'Modifier l\'e-mail'}</button>}
+                      </p>
+                      {mailEdit?.id === u.id && (
+                        <form className="mt-1 flex flex-wrap items-center gap-2" onSubmit={(e) => { e.preventDefault(); const v = mailEdit.value.trim(); setMailEdit(null); run(() => call({ action: 'email', userId: u.id, email: v })); }}>
+                          <input type="email" required value={mailEdit.value} onChange={(e) => setMailEdit({ ...mailEdit, value: e.target.value })} aria-label="Adresse e-mail" placeholder="prenom.nom@gmail.com" className="rounded-md border border-slate-300 px-2 py-1 text-xs" />
+                          <Button type="submit" className="!px-2 !py-1 text-xs" disabled={busy}>Enregistrer</Button>
+                        </form>
+                      )}
                       {loginEdit?.id === u.id && (
                         <form className="mt-1 flex flex-wrap items-center gap-2" onSubmit={async (e) => {
                           e.preventDefault();

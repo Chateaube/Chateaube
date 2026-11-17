@@ -78,6 +78,18 @@ Deno.serve(async (req) => {
       if (target.auth_uid) await admin.auth.admin.deleteUser(target.auth_uid);
       return reply({ ok: true });
     }
+    // adresse e-mail d'un compte (pour recevoir le lien « choisir mon code ») : jamais un compte de la Direction
+    if (body.action === 'email') {
+      const email = String(body.email ?? '').trim().toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(email)) return reply({ error: 'Adresse e-mail invalide.' }, 400);
+      const { data: target } = await admin.from('app_user').select('id, auth_uid, user_role(role)').eq('id', body.userId).maybeSingle();
+      if (!target?.auth_uid) return reply({ error: 'Compte introuvable.' }, 404);
+      if ((target.user_role ?? []).some((r: { role: string }) => r.role === 'DIRECTION') && target.id !== me.id) return reply({ error: 'L\'adresse d\'un compte de la Direction se change par la personne elle-même.' }, 400);
+      const r = await admin.auth.admin.updateUserById(target.auth_uid, { email, email_confirm: true });
+      if (r.error) return reply({ error: /already|registered|exists/i.test(r.error.message) ? 'Cette adresse e-mail a déjà un compte.' : 'Adresse non enregistrée.' }, 400);
+      await admin.from('app_user').update({ email }).eq('id', target.id);
+      return reply({ ok: true });
+    }
     return reply({ error: 'Action inconnue.' }, 400);
   } catch (_e) {
     return reply({ error: 'Erreur du serveur. Réessayez.' }, 500);
