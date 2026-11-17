@@ -2544,3 +2544,18 @@ test('Accès : message selon le profil, objet « Première connexion », Gmail d
   const g = decodeURIComponent(accessGmail('k@x.mg', m));
   assert.match(g, /authuser=chateaubetamatave@gmail\.com/); assert.match(g, /su=ENT Chateaubriand — Première connexion/); assert.match(g, /to=k@x\.mg/);
 });
+
+test('Vie de l\'école pour les élèves : seulement le publié, adressé aux élèves, par classe', async () => {
+  const { buildNews, newsFor } = await import('../src/online/schoolNews.js');
+  const au = (roles, scope = 'ALL', values = []) => ({ roles, site: 'TMV', scope, values });
+  const n = buildNews(
+    [{ id: 'p1', title: 'A', date: '2026-11-01', photos: ['x'], status: 'PUBLIEE', reactions: { '❤️': ['Paul'] } }, { id: 'p2', title: 'B', date: '2026-11-02', photos: ['x'], status: 'EN_ATTENTE' }],
+    [{ id: 'a1', title: 'Élèves', status: 'PUBLIEE', audience: au(['ELEVE']) }, { id: 'a2', title: 'Parents', status: 'PUBLIEE', audience: au(['PARENT']) },
+      { id: 'a3', title: 'Brouillon', status: 'BROUILLON', audience: au(['ELEVE']) }, { id: 'a4', title: '6e', status: 'PUBLIEE', audience: au(['ELEVE'], 'LEVEL', ['6e']) }],
+  );
+  assert.deepEqual(n.posts.map((p) => p.id), ['p1']);
+  assert.equal(n.posts[0].reactions, undefined);
+  assert.deepEqual(n.annonces.map((a) => a.id), ['a1', 'a4']);
+  assert.deepEqual(newsFor(n, 'Terminale STMG').map((a) => a.id), ['a1']);
+  assert.deepEqual(newsFor(n, '6e').map((a) => a.id).sort(), ['a1', 'a4']);
+});

@@ -7,6 +7,7 @@ import { preferLocalImport } from '../importStore.js';
 import { loadRemoteCarnet } from '../gradebookStore.js';
 import { flushAll } from '../online/docs.js';
 import { loadStudentContext, loadSchoolForStaff } from '../online/school.js';
+import { startNews } from '../online/schoolNews.js';
 
 // Version en ligne : rien ne s'affiche sans connexion. Identifiant + code ; « code oublié » envoie un lien à
 // l'adresse du compte ; à la première connexion (code provisoire remis par la Direction), on choisit son code.
@@ -141,6 +142,7 @@ export default function OnlineGate({ children }) {
     // Direction, secrétariat, vie scolaire : données partagées (caisse, élèves, vie scolaire…) reçues avant l'ouverture.
     // Sans réseau, on ouvre quand même avec ce que l'appareil contient : tout repartira au retour du réseau.
     if (GROUPS_OF[acc.profile]) { try { await startShared(acc.profile); } catch { /* hors ligne : données de l'appareil */ } preferLocalImport(); }
+    if (acc.profile === 'DIRECTION') startNews(); // vie de l'école et annonces publiées → portail des élèves
     flushAll();
     setState({ step: 'in', acc });
   };
