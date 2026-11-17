@@ -1,12 +1,10 @@
 // Engagements de l'élève, portés sur le bulletin : nos élèves passent les examens en candidats
 // libres, sans livret scolaire ; le bulletin est donc le seul document qui les montre (Parcoursup,
-// changement d'établissement). Éco-délégué : élève chargé des gestes écologiques de la classe
-// (tri, économies d'eau et d'énergie, projets environnement).
+// changement d'établissement).
 
 export const ENGAGEMENTS = [
   { id: 'DELEGUE', masc: 'Délégué de classe', fem: 'Déléguée de classe', neutral: 'Délégué(e) de classe' },
   { id: 'SUPPLEANT', masc: 'Délégué suppléant', fem: 'Déléguée suppléante', neutral: 'Délégué(e) suppléant(e)' },
-  { id: 'ECO_DELEGUE', masc: 'Éco-délégué', fem: 'Éco-déléguée', neutral: 'Éco-délégué(e)' },
   { id: 'BDE', masc: 'Membre du Bureau des élèves (BDE)', fem: 'Membre du Bureau des élèves (BDE)', neutral: 'Membre du Bureau des élèves (BDE)' },
   { id: 'BDE_PRESIDENT', masc: 'Président du Bureau des élèves (BDE)', fem: 'Présidente du Bureau des élèves (BDE)', neutral: 'Président(e) du Bureau des élèves (BDE)' },
   { id: 'TUTEUR', masc: 'Tuteur d\'un élève (aide aux devoirs)', fem: 'Tutrice d\'un élève (aide aux devoirs)', neutral: 'Tutorat d\'un élève (aide aux devoirs)' },

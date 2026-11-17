@@ -4,7 +4,7 @@ import { demoOr } from './demoData.js';
 import { engagementLabels, attestationLabels } from './rules/engagements.js';
 const KEY = 'ent-engagements-v1';
 export const DEMO_ENGAGEMENTS = {
-  'RAKOTOARISOA Aina': ['DELEGUE', 'BDE'], 'RAZAFY Kanto': ['SUPPLEANT'], 'RAMAROSON Fitia': ['ECO_DELEGUE'],
+  'RAKOTOARISOA Aina': ['DELEGUE', 'BDE'], 'RAZAFY Kanto': ['SUPPLEANT'], 'RAMAROSON Fitia': ['SPORT'],
   'RANDRIA Mamy': ['DELEGUE', 'BDE_PRESIDENT', 'NUMERIQUE'], 'RAZAFINDRATSIMA Volana': ['SUPPLEANT'], 'RABEMANANTSOA Fitia': ['PSC1'],
 };
 export const loadEngagements = () => { try { return JSON.parse(localStorage.getItem(KEY)) ?? demoOr(DEMO_ENGAGEMENTS, {}); } catch { return demoOr(DEMO_ENGAGEMENTS, {}); } };
