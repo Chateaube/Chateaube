@@ -2534,10 +2534,13 @@ test('Classe commune : les deux gardent la classe, minimum compté à deux, une 
   assert.equal(servicesFor(chosen, 'y').length, 0);
 });
 
-test('Accès : message de bienvenue et e-mail prérempli', async () => {
-  const { accessMessage, accessMailto } = await import('../src/rules/logins.js');
-  const m = accessMessage({ name: 'Patricia Karèle ZAFIANTENAINA', first: 'Karèle', login: 'za.karele', code: 'dqqeb56x' }, 'https://chateaubriand.pro/ent/', 'Bienvenue !');
-  assert.match(m, /^Bonjour Karèle,/); assert.match(m, /Bienvenue !/); assert.match(m, /Identifiant : za\.karele/); assert.match(m, /Code provisoire : dqqeb56x/);
-  const link = accessMailto('k@x.mg', m);
-  assert.ok(link.startsWith('mailto:k%40x.mg?subject=')); assert.match(decodeURIComponent(link), /Code provisoire : dqqeb56x/);
+test('Accès : message selon le profil, objet « Première connexion », Gmail de l\'école', async () => {
+  const { accessMessage, accessGmail, welcomeFor, welcomeGroup, WELCOMES } = await import('../src/rules/logins.js');
+  assert.equal(welcomeGroup(['ELEVE']), 'ELEVE'); assert.equal(welcomeGroup(['BUREAU']), 'PERSONNEL'); assert.equal(welcomeGroup(['PROFESSEUR']), 'PROFESSEUR');
+  assert.doesNotMatch(welcomeFor({}, 'ELEVE'), /saisie des notes/); assert.doesNotMatch(welcomeFor({}, 'PERSONNEL'), /saisie des notes/);
+  assert.equal(welcomeFor('Ancien texte', 'PROFESSEUR'), 'Ancien texte'); assert.equal(welcomeFor('Ancien texte', 'ELEVE'), WELCOMES.ELEVE);
+  const m = accessMessage({ first: 'Karèle', login: 'za.karele', code: 'dqqeb56x' }, 'https://chateaubriand.pro/ent/', 'Bienvenue !');
+  assert.match(m, /^Bonjour Karèle,/); assert.match(m, /Code provisoire : dqqeb56x/);
+  const g = decodeURIComponent(accessGmail('k@x.mg', m));
+  assert.match(g, /authuser=chateaubetamatave@gmail\.com/); assert.match(g, /su=ENT Chateaubriand — Première connexion/); assert.match(g, /to=k@x\.mg/);
 });

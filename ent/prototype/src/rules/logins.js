@@ -24,13 +24,31 @@ export function splitGuardianName(g) {
   return { last: words[0] ?? '', first: words.slice(1).join(' ') || words[0] || '' };
 }
 
-/** Message de bienvenue par défaut, joint aux accès (modifiable par la Direction). */
-export const DEFAULT_WELCOME = 'Bienvenue sur l\'ENT de l\'École Chateaubriand ! Vous y trouverez dès aujourd\'hui la saisie des notes ; les autres rubriques ouvriront petit à petit. Si quelque chose ne fonctionne pas ou vous pose question, n\'hésitez pas à nous le dire.';
+/** Messages de bienvenue par défaut, joints aux accès, selon le profil (modifiables par la Direction). */
+export const WELCOMES = {
+  PROFESSEUR: 'Bienvenue sur l\'ENT de l\'École Chateaubriand ! Vous y trouverez dès aujourd\'hui la saisie des notes ; les autres rubriques ouvriront petit à petit. Si quelque chose ne fonctionne pas ou vous pose question, n\'hésitez pas à nous le dire.',
+  PERSONNEL: 'Bienvenue sur l\'ENT de l\'École Chateaubriand ! Vous y retrouverez les outils de votre poste ; les rubriques ouvriront petit à petit. Si quelque chose ne fonctionne pas ou vous pose question, n\'hésitez pas à nous le dire.',
+  ELEVE: 'Bienvenue sur ton portail élève ! Tu y trouveras ton emploi du temps, l\'agenda de l\'école et ton orientation ; les autres rubriques ouvriront petit à petit. Si quelque chose ne fonctionne pas, parles-en à la Direction.',
+  PARENT: 'Bienvenue sur le portail des familles de l\'École Chateaubriand ! Vous y suivrez la scolarité de votre enfant : notes, assiduité et documents de l\'école.',
+};
+export const DEFAULT_WELCOME = WELCOMES.PROFESSEUR;
+/** Profil d'un compte pour le message : professeur, élève, parent, sinon personnel (Direction, secrétariat, CPE…). */
+export const welcomeGroup = (roles = []) => (roles.includes('PROFESSEUR') ? 'PROFESSEUR' : roles.includes('ELEVE') ? 'ELEVE' : roles.includes('PARENT') ? 'PARENT' : 'PERSONNEL');
+/** Message choisi pour ce profil : réglage de l'école (ancien format : un seul texte = professeurs), sinon par défaut. */
+export function welcomeFor(stored, group) {
+  if (typeof stored === 'string') return group === 'PROFESSEUR' ? stored : WELCOMES[group];
+  return stored?.[group] || WELCOMES[group];
+}
+export const ACCESS_SUBJECT = 'ENT Chateaubriand — Première connexion';
+/** Boîte de l'école : les accès partent de cette adresse (Gmail ouvert dans le navigateur, sur ce compte). */
+export const SCHOOL_MAIL = 'chateaubetamatave@gmail.com';
 /** Message des accès (e-mail ou WhatsApp) : bonjour + bienvenue + adresse, identifiant, code provisoire. */
-export function accessMessage({ name, login, code, first }, url, welcome = DEFAULT_WELCOME) {
+export function accessMessage({ login, code, first }, url, welcome = DEFAULT_WELCOME) {
   const hello = first ? `Bonjour ${first},` : 'Bonjour,';
   return [hello, '', welcome.trim(), '', 'ENT Chateaubriand — vos accès', `Adresse : ${url}`, `Identifiant : ${login}`, `Code provisoire : ${code}`, '',
     'À la première connexion, choisissez votre propre code (8 caractères, lettres et chiffres). Ne le communiquez à personne.', '', 'Bien cordialement,', 'La Direction'].join('\n');
 }
-/** Lien « mailto: » : ouvre la messagerie avec l'e-mail déjà rédigé (rien ne part sans cliquer sur Envoyer). */
-export const accessMailto = (to, message) => `mailto:${encodeURIComponent(to ?? '')}?subject=${encodeURIComponent('Vos accès à l\'ENT Chateaubriand')}&body=${encodeURIComponent(message)}`;
+/** Lien « mailto: » (messagerie de l'ordinateur). */
+export const accessMailto = (to, message) => `mailto:${encodeURIComponent(to ?? '')}?subject=${encodeURIComponent(ACCESS_SUBJECT)}&body=${encodeURIComponent(message)}`;
+/** Gmail de l'école : nouvelle fenêtre de rédaction, déjà remplie, sur le compte de l'école (rien ne part sans Envoyer). */
+export const accessGmail = (to, message) => `https://mail.google.com/mail/?authuser=${encodeURIComponent(SCHOOL_MAIL)}&view=cm&fs=1&to=${encodeURIComponent(to ?? '')}&su=${encodeURIComponent(ACCESS_SUBJECT)}&body=${encodeURIComponent(message)}`;
