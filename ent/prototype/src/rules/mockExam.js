@@ -38,6 +38,29 @@ export const EXAMS = {
     P('LVA', 'Langue vivante A (anglais)', 3, 'Anglais'), P('LVB', 'Langue vivante B (espagnol)', 3, 'Espagnol'), P('EPS', 'Éducation physique et sportive', 6, 'EPS')] },
 };
 
+/*
+ * Situation d'un élève de Terminale à l'examen (choisie par la Direction, onglet « Notes de 1re ») :
+ * - NORMAL : notes officielles de 1re (relevé de juin) + épreuves de Terminale ;
+ * - REDOUBLANT : redoublant(e) de Terminale dans la même voie : il (elle) garde ses notes de 1re et n'a pas
+ *   d'épreuve anticipée de mathématiques (créée à la session 2026, après sa 1re) : coefficient retiré du total ;
+ * - TOUT_EN_TLE : changement de voie (ex. générale → STMG) : toutes les épreuves de la nouvelle voie sont passées
+ *   en fin de Terminale, sauf les mathématiques anticipées (dispense) ; au bac blanc, les épreuves de 1re sont
+ *   donc notées comme les autres (notes rangées à part : P1_…).
+ */
+export const SITUATIONS = {
+  NORMAL: { label: 'Parcours habituel', option: 'Habituel', short: '' },
+  REDOUBLANT: { label: 'Redoublant(e) — dispensé(e) des mathématiques anticipées', option: 'Redoublant(e), sans maths anticipées', short: 'Redoublant(e)',
+    note: 'Redoublant(e) de Terminale : dispensé(e) de l\'épreuve anticipée de mathématiques (épreuve créée à la session 2026) ; son coefficient est retiré du total.' },
+  TOUT_EN_TLE: { label: 'Changement de voie — toutes les épreuves en Terminale', option: 'Changement de voie, tout en Tle', short: 'Changement de voie',
+    note: 'Changement de voie : les épreuves de 1re de la nouvelle voie sont passées en fin de Terminale ; dispensé(e) de l\'épreuve anticipée de mathématiques, dont le coefficient est retiré du total.' },
+};
+export const situationOf = (situations, student) => (SITUATIONS[situations?.[student]] ? situations[student] : 'NORMAL');
+export const dispensedOf = (situation) => (situation === 'REDOUBLANT' || situation === 'TOUT_EN_TLE' ? ['MA_EA'] : []);
+/** Épreuves de 1re passées au bac blanc par un élève qui change de voie (sans les mathématiques anticipées). */
+export const firstInTle = (kind) => (EXAMS[kind]?.first ? EXAMS[EXAMS[kind].first].parts.filter((p) => p.id !== 'MA_EA').map((p) => ({ ...p, id: `P1_${p.id}`, inFirst: p.id })) : []);
+/** Épreuves notées au bac blanc pour cet élève : celles de Terminale, plus celles de 1re s'il change de voie. */
+export const blancPartsFor = (kind, situation) => [...EXAMS[kind].parts, ...(isBac(kind) && situation === 'TOUT_EN_TLE' ? firstInTle(kind) : [])];
+
 export const examsForClass = (cls) => Object.entries(EXAMS).filter(([, e]) => e.levels.test(cls)).map(([k]) => k);
 export const bacKindOf = (cls) => (/STMG/.test(cls) ? 'BAC_STMG' : 'BAC_G');
 export const isBac = (kind) => kind === 'BAC_G' || kind === 'BAC_STMG';
@@ -100,14 +123,17 @@ export function examResult(allParts, marks, skip = []) {
  * - bac blanc : moyenne pondérée des épreuves de Terminale, à comparer ;
  * - projection : moyenne au bac si l'élève refait ses notes du bac blanc.
  */
-export function bacProjection(kind, { official = {}, blanc = {} }) {
-  const first = EXAMS[EXAMS[kind].first].parts;
-  const finals = EXAMS[kind].parts;
+export function bacProjection(kind, { official = {}, blanc = {}, situation = 'NORMAL' }) {
+  const dispensed = dispensedOf(situation);
+  const allTle = situation === 'TOUT_EN_TLE';
+  const first = EXAMS[EXAMS[kind].first].parts.filter((p) => !dispensed.includes(p.id));
+  const finals = blancPartsFor(kind, situation);
+  official = official ?? {}; blanc = blanc ?? {};
   const rows = [
-    ...first.map((p) => ({ ...p, mark: official[p.id] == null ? null : num(official[p.id]), source: 'Officielle (1re)' })),
+    ...(allTle ? [] : first.map((p) => ({ ...p, mark: official[p.id] == null ? null : num(official[p.id]), source: 'Officielle (1re)' }))),
     ...finals.map((p) => ({ ...p, mark: blanc[p.id] == null || blanc[p.id] === '' ? null : num(blanc[p.id]), source: 'Bac blanc' })),
   ];
-  const total = rows.reduce((s, r) => s + r.coef, 0); // 100
+  const total = rows.reduce((s, r) => s + r.coef, 0); // 100 (98 sans les mathématiques anticipées)
   const acquiredRows = rows.filter((r) => r.source !== 'Bac blanc' && r.mark != null);
   const acquired = acquiredRows.reduce((s, r) => s + r.mark * r.coef, 0);
   const acquiredCoef = acquiredRows.reduce((s, r) => s + r.coef, 0);
@@ -132,7 +158,9 @@ export const suggestedCoef = (evaluations = []) => Math.max(1, ...evaluations.ma
  * acquises) puis les notes du bac blanc, avec les points (note × coefficient) et le total sur 100.
  * Un 16 coefficient 4 ne compense pas un 2 coefficient 16 : la colonne des points le montre.
  */
-export function fullBacTranscript(kind, { official = {}, blanc = {}, skip = [] }) {
+export function fullBacTranscript(kind, { official = {}, blanc = {}, skip = [], situation = 'NORMAL' }) {
+  const dispensed = dispensedOf(situation);
+  const allTle = situation === 'TOUT_EN_TLE';
   const section = (title, allParts, marks, source) => {
     const parts = source === 'BLANC' ? allParts.filter((p) => !skip.includes(p.id)) : allParts;
     const rows = parts.map((p) => {
@@ -143,15 +171,19 @@ export function fullBacTranscript(kind, { official = {}, blanc = {}, skip = [] }
     const known = rows.filter((r) => r.mark != null);
     return { title, rows, coef: parts.reduce((t, p) => t + p.coef, 0), points: round2(known.reduce((t, r) => t + r.points, 0)), missing: rows.filter((r) => r.mark == null).map((r) => r.label) };
   };
-  const first = section('Épreuves de 1re — notes officielles (relevé de juin)', EXAMS[EXAMS[kind].first].parts, official, 'OFFICIEL');
+  const firstParts = allTle ? firstInTle(kind) : EXAMS[EXAMS[kind].first].parts.filter((p) => !dispensed.includes(p.id));
+  const first = allTle ? section('Épreuves de 1re — passées en fin de Terminale (bac blanc)', firstParts, blanc, 'BLANC')
+    : section('Épreuves de 1re — notes officielles (relevé de juin)', firstParts, official, 'OFFICIEL');
+  // épreuve dont l'élève est dispensé : affichée « Dispensé(e) », hors du total et jamais « manquante »
+  first.rows.push(...EXAMS[EXAMS[kind].first].parts.filter((p) => dispensed.includes(p.id)).map((p) => ({ ...p, mark: null, points: null, dispensed: true })));
   const final = section('Épreuves de Terminale — bac blanc', EXAMS[kind].parts, blanc, 'BLANC');
   const rows = [...first.rows, ...final.rows].filter((r) => r.mark != null);
   const coef = rows.reduce((t, r) => t + r.coef, 0);
   const points = round2(rows.reduce((t, r) => t + r.points, 0));
   const average = coef ? round2(points / coef) : null;
   const complete = !first.missing.length && !final.missing.length;
-  return { sections: [first, final], total: first.coef + final.coef, coef, points, average, complete, officialMissing: first.missing.length === first.rows.length,
-    decision: complete ? decision(average, kind) : '', mention: complete ? mention(average) : '' };
+  return { sections: [first, final], total: first.coef + final.coef, coef, points, average, complete, officialMissing: !allTle && first.missing.length === firstParts.length,
+    decision: complete ? decision(average, kind) : '', mention: complete ? mention(average) : '', note: SITUATIONS[situation]?.note ?? '' };
 }
 
 const norm = (t) => String(t ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();

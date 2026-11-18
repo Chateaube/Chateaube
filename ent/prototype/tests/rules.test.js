@@ -2559,3 +2559,32 @@ test('Vie de l\'école pour les élèves : seulement le publié, adressé aux é
   assert.deepEqual(newsFor(n, 'Terminale STMG').map((a) => a.id), ['a1']);
   assert.deepEqual(newsFor(n, '6e').map((a) => a.id).sort(), ['a1', 'a4']);
 });
+
+import { blancPartsFor, bacProjection as projSit, fullBacTranscript as fullSit } from '../src/rules/mockExam.js';
+test('situation à l\'examen : redoublant dispensé des maths anticipées, changement de voie (tout en Terminale)', () => {
+  const official = { FR_E: 8, FR_O: 12, SGN: 2, HG: 11, EMC: 14, MA: 9, LVA: 13, LVB: 12 }; // pas de MA_EA
+  const blanc = { PHI: 10, MSGN: 16, DE: 11, GO: 12, HG: 10, EMC: 12, MA: 10, LVA: 14, LVB: 11, EPS: 15 };
+  // redoublant : complet sans l'épreuve anticipée, total sur 98
+  const r = fullSit('BAC_STMG', { official, blanc, situation: 'REDOUBLANT' });
+  assert.equal(r.total, 98);
+  assert.ok(r.complete);
+  assert.equal(r.coef, 98);
+  const ma = r.sections[0].rows.find((x) => x.id === 'MA_EA');
+  assert.ok(ma.dispensed);
+  assert.match(r.note, /dispensé/);
+  assert.equal(projSit('BAC_STMG', { official, blanc, situation: 'REDOUBLANT' }).total, 98);
+  // sans situation, le même élève serait « incomplet » (MA_EA manquante)
+  assert.equal(fullSit('BAC_STMG', { official, blanc }).complete, false);
+  // changement de voie : les épreuves de 1re viennent du bac blanc (P1_…), pas des notes officielles
+  const parts = blancPartsFor('BAC_STMG', 'TOUT_EN_TLE').map((p) => p.id);
+  assert.ok(parts.includes('P1_FR_E') && !parts.includes('P1_MA_EA'));
+  const all = { ...blanc, P1_FR_E: 9, P1_FR_O: 11, P1_SGN: 12, P1_HG: 10, P1_EMC: 13, P1_MA: 8, P1_LVA: 12, P1_LVB: 10 };
+  const c = fullSit('BAC_STMG', { official: { FR_E: 20 }, blanc: all, situation: 'TOUT_EN_TLE' });
+  assert.ok(c.complete);
+  assert.equal(c.total, 98);
+  assert.equal(c.officialMissing, false);
+  assert.equal(c.sections[0].rows.find((x) => x.inFirst === 'FR_E').mark, 9); // la note du bac blanc, pas l'officielle
+  const p = projSit('BAC_STMG', { official: {}, blanc: all, situation: 'TOUT_EN_TLE' });
+  assert.equal(p.acquiredCoef, 0);
+  assert.ok(p.complete);
+});

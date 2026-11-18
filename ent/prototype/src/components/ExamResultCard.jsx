@@ -7,9 +7,9 @@ const f2 = (v) => (v === 'ABS' ? 'Abs.' : v == null ? '—' : Number(v).toFixed(
 const fr = (iso) => iso.split('-').reverse().join('/');
 const nextOf = (kind) => Object.entries(EXAMS).find(([, e]) => e.first === kind)?.[0];
 
-export default function ExamResultCard({ session, student, official }) {
+export default function ExamResultCard({ session, student, official, situation }) {
   const exam = EXAMS[session.kind];
-  if (isBac(session.kind)) return <FullBacCard session={session} student={student} official={official} />;
+  if (isBac(session.kind)) return <FullBacCard session={session} student={student} official={official} situation={situation} />;
   const marks = session.marks[student] ?? {};
   const skip = session.skip ?? [];
   const r = examResult(exam.parts, marks, skip);
@@ -56,9 +56,9 @@ export default function ExamResultCard({ session, student, official }) {
 }
 
 /** Terminale : relevé complet, comme le relevé officiel — notes de 1re déjà acquises + bac blanc, sur 100. */
-function FullBacCard({ session, student, official }) {
+function FullBacCard({ session, student, official, situation = 'NORMAL' }) {
   const exam = EXAMS[session.kind];
-  const full = fullBacTranscript(session.kind, { official, blanc: session.marks[student] ?? {}, skip: session.skip ?? [] });
+  const full = fullBacTranscript(session.kind, { official, blanc: session.marks[student] ?? {}, skip: session.skip ?? [], situation });
   return (
     <section aria-label={`Relevé — ${session.title}`} className="rounded-2xl bg-white p-4 shadow-soft">
       <p className="text-xs text-slate-600">{exam.official} · bac blanc du {fr(session.date)}</p>
@@ -70,7 +70,7 @@ function FullBacCard({ session, student, official }) {
             <tr><th colSpan={4} scope="colgroup" className="pt-2 text-left text-[11px] font-semibold uppercase tracking-wide text-navy-700">{sec.title}</th></tr>
             {sec.rows.map((p) => (
               <tr key={p.id} className="border-t border-slate-100"><td className="py-1.5 pr-2">{p.label}</td><td className="px-1 text-right tabular-nums text-slate-600">{p.coef}</td>
-                <td className={`px-1 text-right font-semibold tabular-nums ${typeof p.mark === 'number' && p.mark < 10 ? 'text-red-700' : 'text-slate-900'}`}>{f2(p.mark)}</td>
+                <td className={`px-1 text-right font-semibold tabular-nums ${typeof p.mark === 'number' && p.mark < 10 ? 'text-red-700' : 'text-slate-900'}`}>{p.dispensed ? <span className="text-xs font-normal italic text-slate-600">Dispensé(e)</span> : f2(p.mark)}</td>
                 <td className="text-right tabular-nums text-slate-700">{p.points == null ? '—' : f2(p.points)}</td></tr>
             ))}
             <tr className="border-t border-slate-200 text-xs font-semibold text-slate-700"><td className="py-1">Sous-total</td><td className="px-1 text-right">{sec.coef}</td><td /><td className="text-right tabular-nums">{f2(sec.points)}</td></tr>
@@ -81,6 +81,7 @@ function FullBacCard({ session, student, official }) {
         <p>Total : <strong className="tabular-nums">{f2(full.points)}</strong> points sur {full.coef * 20} · moyenne <strong className="text-base tabular-nums">{f2(full.average)}</strong> / 20</p>
         <p className="text-slate-700">{full.complete ? [full.decision, full.mention].filter(Boolean).join(' · ') : full.officialMissing ? 'Notes officielles de 1re pas encore saisies par l\'école' : 'Épreuve(s) manquante(s)'}</p>
       </div>
+      {full.note && <p className="mt-2 text-xs text-slate-700">{full.note}</p>}
       <p className="mt-2 text-xs text-slate-600">La colonne « Points » (note × coefficient) montre le poids réel de chaque épreuve : un 16 en coefficient 4 rapporte 64 points, un 2 en coefficient 16 n'en rapporte que 32 sur 320 possibles.</p>
       <p className="mt-2 text-[11px] text-slate-600">Notes de 1re : relevé officiel. Notes de Terminale : bac blanc de l'établissement, sans valeur officielle.</p>
     </section>

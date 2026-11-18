@@ -6,7 +6,7 @@ import { termGrades } from '../termGrades.js';
 import { myServices } from '../gradebookStore.js';
 import { specialtiesOf } from '../data/mockExams.js';
 import { loadMockExams, saveMockExams } from '../mockExamStore.js';
-import { EXAMS, examsForClass, bacKindOf, isBac, examResult, partMark, keptSubs, bacProjection, mention, decision, validMark, suggestedCoef, fullBacTranscript, importOfficial, officialHeaders } from '../rules/mockExam.js';
+import { EXAMS, examsForClass, bacKindOf, isBac, examResult, partMark, keptSubs, bacProjection, mention, decision, validMark, suggestedCoef, fullBacTranscript, importOfficial, officialHeaders, SITUATIONS, situationOf, blancPartsFor, firstInTle } from '../rules/mockExam.js';
 import { formatDateFr } from '../rules/calendar.js';
 import { printOnly } from '../print.js';
 import { buildXlsx } from '../xlsx.js';
@@ -44,13 +44,13 @@ const canEnter = (role, p) => role !== 'ENSEIGNANT' || mySubjects().includes(fol
 const abbr = (l) => (l.length <= 22 ? l : `${l.split(/ — |, | \(/)[0].slice(0, 20)}…`);
 const cells = (p) => (p.subs ? p.subs.map((x) => ({ id: x.id, label: x.label, part: p })) : [{ id: p.id, label: p.label, part: p }]);
 
-function Transcript({ session, student, extra, official }) {
+function Transcript({ session, student, extra, official, situation = 'NORMAL' }) {
   const exam = EXAMS[session.kind];
   const marks = session.marks[student] ?? {};
   const skip = session.skip ?? [];
   const r = examResult(exam.parts, marks, skip);
   const td = 'border border-black';
-  const full = isBac(session.kind) ? fullBacTranscript(session.kind, { official, blanc: marks, skip }) : null;
+  const full = isBac(session.kind) ? fullBacTranscript(session.kind, { official, blanc: marks, skip, situation }) : null;
   return (
     <div className="mx-auto mb-6 w-full max-w-[760px] bg-white p-8 text-[11px] text-black shadow-soft print:mb-0 print:shadow-none" style={{ breakAfter: 'page', fontFamily: 'Poppins, sans-serif' }}>
       <div className="flex items-start justify-between gap-6">
@@ -62,7 +62,7 @@ function Transcript({ session, student, extra, official }) {
         </div>
       </div>
       <div className="mt-4 flex justify-between border-y border-black py-1.5 text-[12px]">
-        <span>Candidat·e : <strong>{student}</strong></span><span>Classe : <strong>{session.cls}</strong></span>
+        <span>Candidat·e : <strong>{student}</strong>{SITUATIONS[situation]?.short ? ` · ${SITUATIONS[situation].short}` : ''}</span><span>Classe : <strong>{session.cls}</strong></span>
       </div>
       {full ? <FullBacTable full={full} kind={session.kind} student={student} td={td} /> : (<>
       <table data-grid className="mt-5 w-full border-collapse">
@@ -109,20 +109,21 @@ function FullBacTable({ full, kind, student, td }) {
           <tbody key={sec.title}>
             <tr><td colSpan={4} className={`${td} bg-slate-100 px-2 py-1 font-bold`}>{sec.title}</td></tr>
             {sec.rows.map((p) => (
-              <tr key={p.id}><td className={`${td} px-2 py-1.5`}>{partLabel(p, kind, student)}</td><td className={`${td} text-center`}>{p.coef}</td>
-                <td className={`${td} text-center font-semibold ${typeof p.mark === 'number' && p.mark < 10 ? 'text-red-700' : ''}`}>{p.mark == null ? '—' : f2(p.mark)}</td>
+              <tr key={p.id}><td className={`${td} px-2 py-1.5`}>{partLabel(p, kind, student)}</td><td className={`${td} text-center ${p.dispensed ? 'line-through' : ''}`}>{p.coef}</td>
+                <td className={`${td} text-center font-semibold ${typeof p.mark === 'number' && p.mark < 10 ? 'text-red-700' : ''}`}>{p.dispensed ? <span className="text-[9px] font-normal italic">Dispensé(e)</span> : p.mark == null ? '—' : f2(p.mark)}</td>
                 <td className={`${td} text-center`}>{p.points == null ? '' : f2(p.points)}</td></tr>
             ))}
             <tr className="font-semibold"><td className={`${td} px-2 py-1 text-right`}>Sous-total</td><td className={`${td} text-center`}>{sec.coef}</td><td className={td} /><td className={`${td} text-center`}>{f2(sec.points)}</td></tr>
           </tbody>
         ))}
-        <tbody><tr className="font-bold"><td className={`${td} px-2 py-1.5 text-right`}>TOTAL DU BACCALAURÉAT</td><td className={`${td} text-center`}>{full.total}</td><td className={td} /><td className={`${td} text-center`}>{f2(full.points)} / {full.coef * 20}</td></tr></tbody>
+        <tbody><tr className="font-bold"><td className={`${td} px-2 py-1.5 text-right`}>TOTAL DU BACCALAURÉAT{full.total !== 100 ? ` (sur ${full.total} coefficients)` : ''}</td><td className={`${td} text-center`}>{full.total}</td><td className={td} /><td className={`${td} text-center`}>{f2(full.points)} / {full.coef * 20}</td></tr></tbody>
       </table>
       <div className="mt-4 grid grid-cols-3 gap-3 text-center">
-        <div className="border border-black p-2"><p className="text-[9px] font-bold">MOYENNE SUR 100 COEF.</p><p className="text-[16px] font-bold">{full.average == null ? '—' : f2(full.average)}</p></div>
+        <div className="border border-black p-2"><p className="text-[9px] font-bold">MOYENNE SUR {full.total} COEF.</p><p className="text-[16px] font-bold">{full.average == null ? '—' : f2(full.average)}</p></div>
         <div className="border border-black p-2"><p className="text-[9px] font-bold">MENTION</p><p className="text-[12px] font-semibold">{full.mention || '—'}</p></div>
         <div className="border border-black p-2"><p className="text-[9px] font-bold">RÉSULTAT INDICATIF</p><p className="text-[12px] font-semibold">{full.complete ? full.decision : 'Relevé incomplet'}</p></div>
       </div>
+      {full.note && <p className="mt-2 text-[10px]">{full.note}</p>}
       {full.officialMissing && <p className="mt-2 text-[10px] font-semibold">Notes officielles de 1re non saisies : la moyenne ne porte que sur les épreuves de Terminale.</p>}
       {!full.complete && !full.officialMissing && <p className="mt-2 text-[10px]">Sans note : {full.sections.flatMap((x) => x.missing).join(', ')}.</p>}
     </>
@@ -162,7 +163,11 @@ function EntryTab({ data, setData, role }) {
     update({ ...data, sessions: [...data.sessions, n] }); setId(n.id); setDraft(null);
   };
   const skip = s?.skip ?? [];
-  const results = students.map((st) => examResult(exam?.parts ?? [], s?.marks[st], skip));
+  const sit = (st) => situationOf(data.situations, st);
+  // élèves qui changent de voie : leurs épreuves de 1re sont notées à ce bac blanc (colonnes « 1re · … »)
+  const extra = s && isBac(s.kind) && students.some((st) => sit(st) === 'TOUT_EN_TLE') ? firstInTle(s.kind) : [];
+  const gridParts = exam ? [...exam.parts, ...extra] : [];
+  const results = students.map((st) => examResult(s ? blancPartsFor(s.kind, sit(st)) : [], s?.marks[st], skip));
   const done = results.filter((r) => r.complete);
   const myParts = exam ? exam.parts.filter((p) => isTeacher && canEnter(role, p)) : [];
   const service = s && myServices().find((x) => x.cls === s.cls && myParts.some((p) => foldS(p.subject) === foldS(x.subject)));
@@ -220,11 +225,12 @@ function EntryTab({ data, setData, role }) {
           <Card title={`${s.title} — ${s.cls}`} subtitle={`${exam.official} · notes sur 20, « abs » pour un absent (compté 0)${isTeacher ? ' · vous saisissez votre épreuve' : ''}`}>
             <div className="overflow-x-auto">
               <table data-grid className="w-full min-w-[900px] text-sm">
-                <thead><tr className="border-b border-slate-200 text-left text-xs text-slate-500"><th className="py-2 pr-2">Élève</th>{exam.parts.flatMap(cells).map((c) => <th key={c.id} title={c.label} className={`px-1 text-center ${skip.includes(c.part.id) ? 'text-slate-400 line-through' : ''}`}>{abbr(c.label)}<span className="block font-normal">{c.part.subs ? '2 meilleures' : `coef. ${c.part.coef}`}</span></th>)}{!isTeacher && <><th className="px-2 text-right">Moyenne</th><th className="px-2">Résultat</th></>}</tr></thead>
+                <thead><tr className="border-b border-slate-200 text-left text-xs text-slate-500"><th className="py-2 pr-2">Élève</th>{gridParts.flatMap(cells).map((c) => <th key={c.id} title={c.part.inFirst ? `Épreuve de 1re passée en Terminale (changement de voie) : ${c.label}` : c.label} className={`px-1 text-center ${skip.includes(c.part.id) ? 'text-slate-400 line-through' : ''}`}>{c.part.inFirst ? `1re · ${abbr(c.label)}` : abbr(c.label)}<span className="block font-normal">{c.part.subs ? '2 meilleures' : `coef. ${c.part.coef}`}</span></th>)}{!isTeacher && <><th className="px-2 text-right">Moyenne</th><th className="px-2">Résultat</th></>}</tr></thead>
                 <tbody>{students.map((st, i) => (
                   <tr key={st} className="border-b border-slate-100">
-                    <td className="py-1.5 pr-2 font-medium text-slate-900">{st}{s.kind === 'BAC_G' && <span className="block text-[11px] font-normal text-slate-500">{specialtiesOf(st).join(' · ')}</span>}</td>
-                    {exam.parts.flatMap(cells).map((c) => {
+                    <td className="py-1.5 pr-2 font-medium text-slate-900">{st}{s.kind === 'BAC_G' && <span className="block text-[11px] font-normal text-slate-500">{specialtiesOf(st).join(' · ')}</span>}{isBac(s.kind) && SITUATIONS[sit(st)].short && <span className="block text-[11px] font-normal text-amber-800">{SITUATIONS[sit(st)].short}</span>}</td>
+                    {gridParts.flatMap(cells).map((c) => {
+                      if (c.part.inFirst && sit(st) !== 'TOUT_EN_TLE') return <td key={c.id} className="px-1 text-center text-xs text-slate-300">—</td>;
                       const k = `${st}|${c.id}`; const raw = text[k] ?? f2(s.marks[st]?.[c.id]).replace('Abs.', 'abs');
                       const bad = raw && !validMark(parseMark(raw));
                       if (!canEnter(role, c.part)) return <td key={c.id} className="px-1 text-center text-xs text-slate-400">{raw ? '•' : ''}</td>;
@@ -237,6 +243,7 @@ function EntryTab({ data, setData, role }) {
                   </tr>))}</tbody>
               </table>
             </div>
+            {extra.length > 0 && <p className="mt-2 text-xs text-slate-600">Colonnes « 1re · … » : épreuves de 1re passées à ce bac blanc par les élèves qui changent de voie (les autres : « — »).</p>}
             {isTeacher && <p className="mt-2 text-xs text-slate-500">Les autres épreuves sont saisies par leurs professeurs ; « • » : note déjà saisie.</p>}
           </Card>
         </>
@@ -276,8 +283,8 @@ function TranscriptsTab({ data, setData, role }) {
         )}
       </Card>
       <div className="transcripts-print">
-        {s && students.map((st) => <Transcript key={st} session={s} student={st} official={data.official?.[st]}
-          extra={bac && withProj ? <ProjectionBlock p={bacProjection(s.kind, { official: data.official?.[st], blanc: s.marks[st] })} /> : null} />)}
+        {s && students.map((st) => <Transcript key={st} session={s} student={st} official={data.official?.[st]} situation={situationOf(data.situations, st)}
+          extra={bac && withProj ? <ProjectionBlock p={bacProjection(s.kind, { official: data.official?.[st], blanc: s.marks[st], situation: situationOf(data.situations, st) })} /> : null} />)}
       </div>
     </div>
   );
@@ -310,7 +317,10 @@ function OfficialTab({ data, setData }) {
       setReport({ ok: Object.keys(r.official).length, errors: r.errors });
     } catch (x) { setReport({ ok: 0, errors: [`Fichier illisible : ${x.message}`] }); }
   };
-  const filled = (st) => parts.filter((p) => data.official?.[st]?.[p.id] != null).length;
+  const sit = (st) => situationOf(data.situations, st);
+  const setSit = (st, v) => { const next = { ...data, situations: { ...(data.situations ?? {}), [st]: v } }; if (v === 'NORMAL') delete next.situations[st]; setData(next); saveMockExams(next); };
+  const needed = (st) => parts.filter((p) => !(sit(st) !== 'NORMAL' && p.id === 'MA_EA'));
+  const filled = (st) => needed(st).filter((p) => data.official?.[st]?.[p.id] != null).length;
   return (
     <Card title="Notes officielles de 1re" subtitle="Relevé de juin des épreuves anticipées et de fin de 1re : elles apparaissent sur le relevé du bac blanc et dans l'application des familles"
       action={<select value={cls} onChange={(e) => { setCls(e.target.value); setReport(null); }} aria-label="Classe" className={inputCls}>{terminales.map((c) => <option key={c}>{c}</option>)}</select>}>
@@ -326,24 +336,30 @@ function OfficialTab({ data, setData }) {
           <thead><tr className="border-b border-slate-200 text-left text-xs text-slate-600">
             <th className="py-2 pr-2 font-medium">Élève</th>
             {parts.map((p) => <th key={p.id} className="px-1 text-center font-medium">{p.label}<span className="block font-normal">coef. {p.coef}</span></th>)}
+            <th className="px-2 font-medium">Situation à l'examen</th>
             <th className="px-2 font-medium">État</th>
           </tr></thead>
           <tbody>{students.map((st) => (
             <tr key={st} className="border-b border-slate-100">
               <td className="py-1.5 pr-2 font-medium text-slate-900">{st}</td>
-              {parts.map((p) => (
+              {parts.map((p) => (sit(st) === 'TOUT_EN_TLE' || (p.id === 'MA_EA' && sit(st) === 'REDOUBLANT')) ? (
+                <td key={p.id} className="px-1 text-center text-[11px] text-slate-500">{p.id === 'MA_EA' ? 'dispensé(e)' : 'en Tle'}</td>
+              ) : (
                 <td key={p.id} className="px-1 text-center">
                   <input key={`${st}-${p.id}-${data.official?.[st]?.[p.id] ?? ''}`} defaultValue={f2(data.official?.[st]?.[p.id])} aria-label={`${p.label} — ${st}`}
                     onBlur={(e) => { if (!setMark(st, p.id, e.target.value)) e.target.value = f2(data.official?.[st]?.[p.id]); }}
                     className="w-14 rounded border border-slate-300 px-1 py-0.5 text-center tabular-nums" />
                 </td>
               ))}
-              <td className="px-2 text-xs">{filled(st) === parts.length ? <Badge tone="green">complet</Badge> : filled(st) === 0 ? <Badge tone="amber">relevé à demander</Badge> : <Badge tone="slate">{parts.length - filled(st)} manquante{parts.length - filled(st) > 1 ? 's' : ''}</Badge>}</td>
+              <td className="px-2"><select value={sit(st)} onChange={(e) => setSit(st, e.target.value)} aria-label={`Situation à l'examen — ${st}`} className="max-w-[13rem] rounded border border-slate-300 bg-white px-1 py-0.5 text-xs">
+                {Object.entries(SITUATIONS).map(([k, v]) => <option key={k} value={k} title={v.label}>{v.option}</option>)}</select></td>
+              <td className="px-2 text-xs">{sit(st) === 'TOUT_EN_TLE' ? <Badge tone="slate">tout au bac blanc</Badge> : filled(st) === needed(st).length ? <Badge tone="green">complet</Badge> : filled(st) === 0 ? <Badge tone="amber">relevé à demander</Badge> : <Badge tone="slate">{needed(st).length - filled(st)} manquante{needed(st).length - filled(st) > 1 ? 's' : ''}</Badge>}</td>
             </tr>
           ))}</tbody>
         </table>
       </div>
       <p className="mt-2 text-xs text-slate-600">Nouvel élève en Terminale : le relevé des épreuves anticipées est demandé dans les pièces d'inscription. Sans ces notes, le relevé du bac blanc reste partiel.</p>
+      <p className="mt-1 text-xs text-slate-600"><strong>Situation à l'examen</strong> — « Redoublant(e) » : garde ses notes de 1re, dispensé(e) des mathématiques anticipées (coefficient retiré du total). « Changement de voie » : toutes les épreuves de la nouvelle voie au bac blanc, y compris celles de 1re, sans les mathématiques anticipées. Le relevé l'indique.</p>
     </Card>
   );
 }
@@ -382,7 +398,7 @@ function ProjectionTab({ data, setData }) {
             <th className="py-2 pr-2">Élève</th><th className="px-2 text-center">Notes de 1re<span className="block font-normal">officielles</span></th>
             <th className="px-2 text-center">Bac blanc<span className="block font-normal">épreuves de Tle</span></th><th className="px-2 text-center">Pour 10</th><th className="px-2 text-center">Pour 12</th><th className="px-2 text-center">Pour 14</th><th className="px-2 text-center">Moyenne projetée</th></tr></thead>
           <tbody>{(CLASSES[cls] ?? []).map((st) => {
-            const p = bacProjection(kind, { official: data.official?.[st], blanc: last?.marks[st] });
+            const p = bacProjection(kind, { official: data.official?.[st], blanc: last?.marks[st], situation: situationOf(data.situations, st) });
             return (
               <React.Fragment key={st}>
                 <tr className="border-b border-slate-100">
