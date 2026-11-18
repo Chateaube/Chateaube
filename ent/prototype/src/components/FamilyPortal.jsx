@@ -337,7 +337,7 @@ function Notes({ child, audience, settings }) {
       {exams.length > 0 && (
         <details className="rounded-2xl bg-white/70 p-2 shadow-soft">
           <summary className="cursor-pointer px-2 py-1.5 text-sm font-semibold text-slate-800">Examens blancs ({exams.length}) — voir les relevés</summary>
-          <div className="mt-2 space-y-3">{exams.map((x) => <ExamResultCard key={x.id} session={x} student={fullName(child)} official={loadMockExams().official?.[fullName(child)]} />)}</div>
+          <div className="mt-2 space-y-3">{exams.map((x) => <ExamResultCard key={x.id} session={x} student={fullName(child)} official={loadMockExams().official?.[fullName(child)]} situation={loadMockExams().situations?.[fullName(child)]} />)}</div>
         </details>
       )}
       <div className="grid grid-cols-3 gap-1 rounded-full bg-white p-1 shadow-soft">
