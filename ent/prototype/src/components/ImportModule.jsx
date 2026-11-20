@@ -230,10 +230,12 @@ export default function ImportModule({ role = 'DIRECTION' }) {
     more += payNote;
     if (newTimetable) more += ` Emploi du temps : ${extras.timetable.slots.length} cours.`;
     else if (extras?.timetable?.slots.length) more += role === 'DIRECTION' ? ' Emploi du temps gardé tel quel.' : ' Emploi du temps non remplacé : seule la Direction peut le faire.';
-    setDone(`${data.students.length} élèves et ${data.assignments.length} professeurs importés.${more} Les données fictives ont disparu de tous les écrans : seuls vos élèves et vos professeurs apparaissent, et le reste (absences, punitions, caisse, annonces, tâches…) part de zéro.`);
+    // fichier de caisse seule : on ne parle ni d'élèves ni de professeurs (ils n'ont pas bougé)
+    const head = analysis || assignments ? `${data.students.length} élèves et ${data.assignments.length} professeurs importés.` : 'Élèves et professeurs inchangés.';
+    setDone(analysis || assignments ? `${head}${more} Les données fictives ont disparu de tous les écrans : seuls vos élèves et vos professeurs apparaissent, et le reste (absences, punitions, caisse, annonces, tâches…) part de zéro.` : `${head}${more}`);
     // enregistré dans le navigateur : on recharge pour que tous les écrans (dates, listes) repartent des vraies données
     if (where === 'LOCAL') {
-      try { sessionStorage.setItem('ent-flash', JSON.stringify({ screen: 'import', text: `${data.students.length} élèves et ${data.assignments.length} professeurs importés.${more} Les exemples fictifs ont disparu ; la date du jour est maintenant la vraie date.` })); } catch { /* indisponible */ }
+      try { sessionStorage.setItem('ent-flash', JSON.stringify({ screen: 'import', text: analysis || assignments ? `${head}${more} Les exemples fictifs ont disparu ; la date du jour est maintenant la vraie date.` : `${head}${more}` })); } catch { /* indisponible */ }
       window.location.reload();
       return;
     }
@@ -270,7 +272,7 @@ export default function ImportModule({ role = 'DIRECTION' }) {
       {ONLINE && current?.students?.length > 0 && <Button variant="ghost" onClick={() => setShowImport(false)}>‹ Retour à la sauvegarde</Button>}
       <div>
         <p className="text-sm font-semibold text-navy-500">Reprise des données existantes · année 2026-2027</p>
-        <h1 className="text-2xl font-semibold text-navy-900">Importer et sauvegarder</h1>
+        <h1 className="text-2xl font-semibold text-navy-900">{ONLINE && current?.students?.length ? 'Importer un fichier' : 'Importer et sauvegarder'}</h1>
         <p className="text-sm text-slate-600">Un seul fichier : le modèle Excel de l'école. Remplissez les onglets que vous avez ; un onglet vide est simplement ignoré. Réimporter plus tard un fichier complété ne double rien : les élèves déjà présents sont mis à jour, les nouveaux sont ajoutés, aucun n'est effacé.</p>
       </div>
       <p className="rounded-2xl bg-amber-50 p-3 text-sm text-amber-900">
@@ -363,11 +365,16 @@ export default function ImportModule({ role = 'DIRECTION' }) {
       )}
 
       {!analysis && !assignments && !extras && <p className="text-sm text-slate-600">Choisissez le fichier Excel rempli : les élèves et les professeurs s'affichent ici pour vérification avant l'import.</p>}
-      {(analysis || assignments || extras?.timetable?.slots.length > 0) && (
+      {/* un fichier qui ne contient que la caisse (paiements, dépenses) s'importe aussi : élèves et professeurs restent tels quels */}
+      {(analysis || assignments || extras?.timetable?.slots.length > 0 || extras?.payments?.movements.length > 0 || extras?.expenses?.length > 0 || extras?.cashMoves?.length > 0
+        || Object.keys(extras?.official ?? {}).length > 0 || extras?.inventory?.length > 0) && (
         <div className="flex flex-wrap items-center gap-3">
           <Button onClick={doImport}>
-            Importer {[analysis && `${analysis.students.length} élèves`, assignments && `${assignments.length} professeurs`, extras?.timetable?.slots.length && `l'emploi du temps (${extras.timetable.slots.length} cours)`].filter(Boolean).join(', ')}
+            Importer {[analysis && `${analysis.students.length} élèves`, assignments && `${assignments.length} professeurs`, extras?.timetable?.slots.length && `l'emploi du temps (${extras.timetable.slots.length} cours)`,
+              extras?.payments?.movements.length && `${extras.payments.movements.length} paiements`, (extras?.expenses?.length || extras?.cashMoves?.length) && `${(extras.expenses?.length ?? 0) + (extras.cashMoves?.length ?? 0)} sorties`,
+              Object.keys(extras?.official ?? {}).length && `les notes de 1re (${Object.keys(extras.official).length} élèves)`, extras?.inventory?.length && `l'inventaire (${extras.inventory.length})`].filter(Boolean).join(', ')}
           </Button>
+          {!analysis && !assignments && <p className="basis-full text-xs text-slate-600">Les élèves, les professeurs et leurs classes ne changent pas : ce fichier n'en contient pas.</p>}
           {analysis?.students.some((x) => x.student.suggestedNumber) && (
             <label className="flex items-center gap-1.5 text-xs text-slate-700"><input type="checkbox" checked={renumber} onChange={(e) => setRenumber(e.target.checked)} />
               Attribuer les n° proposés aux doublons ({analysis.students.filter((x) => x.student.suggestedNumber).map((x) => `${x.student.lastName} → ${x.student.suggestedNumber}`).join(', ')})</label>
@@ -376,7 +383,8 @@ export default function ImportModule({ role = 'DIRECTION' }) {
         </div>
       )}
 
-      <BackupCard role={role} />
+      {/* en ligne, la sauvegarde a sa propre page (« Sauvegarder ») : pas deux fois */}
+      {!(ONLINE && current?.students?.length) && <BackupCard role={role} />}
     </div>
   );
 }
