@@ -17,7 +17,12 @@ const RANK = ['DIRECTION', 'BUREAU', 'VIE_SCOLAIRE', 'PROFESSEUR', 'PARENT', 'EL
 /** Connexion par identifiant + code ; message unique en cas d'échec (on ne dit pas lequel des deux est faux). */
 export async function signIn(login, code) {
   const fail = new Error('Identifiant ou code incorrect.');
-  const { data: email, error } = await supabase.rpc('ent_login_email', { p_login: login.trim().toLowerCase() });
+  const l = login.trim().toLowerCase();
+  // le serveur ne donne l'adresse du compte que si le code est juste (100_connexion.sql) ; 5 essais ratés en
+  // 15 minutes bloquent l'identifiant. Avant cette mise à jour du serveur : ancienne fonction.
+  let { data: email, error } = await supabase.rpc('ent_login_check', { p_login: l, p_code: code });
+  if (error && /TROP_ESSAIS/.test(error.message)) throw new Error('Trop d\'essais avec cet identifiant : réessayez dans 15 minutes, ou demandez un nouveau code à la Direction.');
+  if (error && /ent_login_check|function|PGRST202|404/i.test(`${error.code} ${error.message}`)) ({ data: email, error } = await supabase.rpc('ent_login_email', { p_login: l }));
   if (error) throw new Error('Connexion impossible pour le moment. Vérifiez internet et réessayez.');
   if (!email) throw fail;
   const res = await supabase.auth.signInWithPassword({ email, password: code });
@@ -26,8 +31,13 @@ export async function signIn(login, code) {
 
 /** « Code oublié » : lien envoyé à l'adresse du compte (même réponse si l'identifiant est inconnu). */
 export async function forgotCode(login) {
-  const { data: email } = await supabase.rpc('ent_login_email', { p_login: login.trim().toLowerCase() });
-  if (email && !/\.invalid$/.test(email)) await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.href.split('#')[0] });
+  const l = login.trim().toLowerCase(); const redirectTo = window.location.href.split('#')[0];
+  // par la fonction des comptes : l'adresse n'est jamais renvoyée au navigateur
+  const { data, error } = await supabase.functions.invoke(FN_COMPTES, { body: { action: 'forgot', login: l, redirectTo } });
+  if (!error && data?.ok) return;
+  // fonction pas encore mise à jour : ancienne méthode (tant que 100_connexion.sql n'est pas lancé)
+  const { data: email } = await supabase.rpc('ent_login_email', { p_login: l });
+  if (email && !/\.invalid$/.test(email)) await supabase.auth.resetPasswordForEmail(email, { redirectTo });
 }
 
 /** La personne connectée : identité, rôle principal, code à changer ? */

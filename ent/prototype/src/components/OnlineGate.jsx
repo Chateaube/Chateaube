@@ -8,7 +8,7 @@ import { loadRemoteCarnet } from '../gradebookStore.js';
 import { flushAll } from '../online/docs.js';
 import { loadStudentContext, loadSchoolForStaff } from '../online/school.js';
 import { startNews } from '../online/schoolNews.js';
-import { setAllowedSites, activeSite } from '../site.js';
+import { setAllowedSites, activeSite, wipeDevice } from '../site.js';
 
 // Version en ligne : rien ne s'affiche sans connexion. Identifiant + code ; « code oublié » envoie un lien à
 // l'adresse du compte ; à la première connexion (code provisoire remis par la Direction), on choisit son code.
@@ -167,7 +167,7 @@ export default function OnlineGate({ children }) {
   if (state.step === 'orphan' || state.step === 'norole') return (
     <Shell title="Compte incomplet">
       <p className="text-sm text-slate-700">Ce compte n'est pas encore relié à une fonction dans l'ENT. Demandez à la Direction de le compléter.</p>
-      <button type="button" onClick={() => signOut().then(refresh)} className="mt-4 min-h-[44px] w-full rounded-xl bg-navy-500 font-semibold text-white">Se déconnecter</button>
+      <button type="button" onClick={() => signOut().finally(() => { wipeDevice(); refresh(); })} className="mt-4 min-h-[44px] w-full rounded-xl bg-navy-500 font-semibold text-white">Se déconnecter</button>
     </Shell>
   );
   return children;

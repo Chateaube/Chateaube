@@ -2596,3 +2596,12 @@ test('reçus : la numérotation suit le journal des reçus (continue, sans doubl
   assert.deepEqual(lastReceiptNumbers(r), { ECOLAGE: 7, FRAIS_ANNEXES: 2, DROITS_EXAMEN: 0 });
   assert.equal(lastReceiptNumbers(r, { ECOLAGE: 412 }).ECOLAGE, 412);
 });
+
+test('restauration : la sauvegarde remet ce qui manque sans rien effacer ni remplacer de ce qui a été saisi depuis', async () => {
+  const { unionKeep } = await import('../src/online/shared.js');
+  const server = [{ id: 'r1', status: 'ANNULE' }, { id: 'r3', status: 'VALIDE' }]; // r3 : saisi après la sauvegarde
+  const backup = [{ id: 'r1', status: 'VALIDE' }, { id: 'r2', status: 'VALIDE' }]; // r2 : perdu sur le serveur
+  assert.deepEqual(unionKeep(server, backup), [{ id: 'r1', status: 'ANNULE' }, { id: 'r3', status: 'VALIDE' }, { id: 'r2', status: 'VALIDE' }]);
+  assert.deepEqual(unionKeep({ a: 1, list: [] }, { a: 2, b: 3, list: [{ id: 'x' }] }), { a: 1, b: 3, list: [{ id: 'x' }] });
+  assert.equal(unionKeep(undefined, 5), 5);
+});

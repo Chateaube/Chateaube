@@ -18,6 +18,19 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   try {
     const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
+    const body = await req.json();
+    // « Code oublié » (sans être connecté) : le lien part à l'adresse du compte, qui n'est jamais montrée ; même
+    // réponse que l'identifiant existe ou non (on ne révèle rien)
+    if (body.action === 'forgot') {
+      const login = String(body.login ?? '').trim().toLowerCase();
+      const { data: u } = login ? await admin.from('app_user').select('email, is_active, auth_uid').eq('login', login).maybeSingle() : { data: null };
+      if (u?.is_active && u.auth_uid && u.email && !/\.invalid$/.test(u.email)) {
+        const pub = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { auth: { persistSession: false } });
+        const to = String(body.redirectTo ?? '');
+        await pub.auth.resetPasswordForEmail(u.email, /^https:\/\//.test(to) ? { redirectTo: to } : undefined);
+      }
+      return reply({ ok: true });
+    }
     // qui appelle ?
     const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer /, '');
     const { data: { user } } = await admin.auth.getUser(token);
@@ -25,7 +38,6 @@ Deno.serve(async (req) => {
     const { data: me } = await admin.from('app_user').select('id, user_role(role)').eq('auth_uid', user.id).eq('is_active', true).maybeSingle();
     if (!me?.user_role?.some((r: { role: string }) => r.role === 'DIRECTION')) return reply({ error: 'Réservé à la Direction.' }, 403);
 
-    const body = await req.json();
     if (body.action === 'create') {
       const first = String(body.first ?? '').trim(); const last = String(body.last ?? '').trim().toUpperCase();
       const role = String(body.role ?? ''); const email = String(body.email ?? '').trim().toLowerCase();
