@@ -1,3 +1,4 @@
+import { siteName } from '../site.js';
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, Stat } from './ui.jsx';
 import { TIMETABLE } from '../data/timetable.js';
@@ -124,7 +125,7 @@ export default function TeachingHours({ role, settings }) {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-semibold text-navy-500">{isTeacher ? 'Mes heures' : 'Professeurs'} · Tamatave</p>
+        <p className="text-sm font-semibold text-navy-500">{isTeacher ? 'Mes heures' : 'Professeurs'} · {siteName()}</p>
         <h1 className="text-2xl font-semibold text-navy-900">{role === 'ENSEIGNANT' ? 'Mes heures et absences' : 'Heures et absences des profs'}</h1>
         <p className="text-sm text-slate-500">{isCpe ? 'Séances à surveiller et travail laissé par le professeur.' : 'Volume horaire prévu par l\'emploi du temps (jours de classe, hors fériés et vacances), heures faites et absences.'}</p>
       </div>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { siteName } from '../site.js';
 import { Badge, Button, Card, Icon, Stat } from './ui.jsx';
 import { DocumentInput, DocumentThumb } from './PhotoInput.jsx';
 import { loadInventory, saveInventory } from '../careStore.js';
@@ -122,7 +123,7 @@ export default function InventoryModule({ role = 'BUREAU' }) {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-navy-500">Tamatave</p>
+          <p className="text-sm font-semibold text-navy-500">{siteName()}</p>
           <h1 className="text-2xl font-semibold text-navy-900">Inventaire du matériel</h1>
           <p className="text-sm text-slate-500">Mobilier, équipement, fournitures, trousse de secours et bilan des manuels : ce qui est cassé, les factures, ce qu'il faut recommander.</p>
         </div>

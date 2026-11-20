@@ -13,6 +13,8 @@ import ComingSoon from './components/ComingSoon.jsx';
 const STAFF_LATER = ['messages', 'oversight-grades', 'oversight-homework'];
 // professeurs : rubriques ouvertes en ligne en plus du carnet (données partagées : online/shared.js, groupes classe / ecole)
 const TEACHER_READY = ['discipline', 'student-file', 'mock-exams', 'grade-sheets', 'school-life'];
+// rubriques de Tamatave seulement (professeurs, élèves et bulletins en ligne), cachées quand on travaille sur Tana
+const TANA_LATER = ['notes-recues', 'my-grades', 'relecture', 'council', 'bulletins', 'grade-sheets', 'eleves-portail', 'absents-devoirs', 'students'];
 const ONLINE_READY = ['grades', 'absents-devoirs', 'agenda']; // carnet de notes en ligne (le reste suit à la bascule de décembre)
 const COMING_TEXT = {
   grades: 'La saisie des notes en ligne ouvre très prochainement. En attendant, gardez vos notes comme d\'habitude : vous les recopierez ici évaluation par évaluation.',
@@ -87,6 +89,7 @@ import WhoAmI from './components/WhoAmI.jsx';
 import ScreenBoundary from './components/ScreenBoundary.jsx';
 import AccountsModule from './components/AccountsModule.jsx';
 import { ONLINE, signOut } from './online/client.js';
+import { activeSite, allowedSites, switchSite } from './site.js';
 import { askConfirm } from './components/Dialogs.jsx';
 
 // Un portail par profil (cf. docs/02-architecture-ux.md, matrice des droits).
@@ -279,7 +282,9 @@ export default function App() {
   // affichent « Fonction en cours de création » (leurs données ne sont pas encore partagées en ligne).
   // secrétariat et vie scolaire : leurs données sont partagées en ligne (online/shared.js) ; restent à venir les
   // rubriques qui dépendent des professeurs ou des familles (messages, cahiers de textes, suivi des professeurs)
-  const notYet = (it) => ONLINE && profile !== 'DIRECTION' && it.id !== PROFILES[profile].home && !ONLINE_READY.includes(it.id)
+  // Tana : ni professeurs ni élèves en ligne pour l'instant ; ces rubriques écrivent dans les documents de Tamatave
+  const tanaLater = (it) => activeSite() === 'TANA' && TANA_LATER.includes(it.id);
+  const notYet = (it) => tanaLater(it) || ONLINE && profile !== 'DIRECTION' && it.id !== PROFILES[profile].home && !ONLINE_READY.includes(it.id)
     && (['BUREAU', 'VIE_SCOLAIRE'].includes(profile) ? STAFF_LATER.includes(it.id) : profile === 'ENSEIGNANT' ? !TEACHER_READY.includes(it.id) : true);
   // rubriques pas encore ouvertes : masquées du menu (plutôt qu'un écran vide « en cours de création »)
   const NAV_SHOWN = NAV.map((g) => ({ ...g, items: g.items.filter((it) => !notYet(it)) })).filter((g) => g.items.length);
@@ -288,14 +293,16 @@ export default function App() {
   const switchProfile = (p) => { setProfile(p); setScreen(PROFILES[p].home); };
 
   const myself = realData0 || ONLINE ? loadMe() : null;
-  const persona = myself ? { name: myself.name, short: myself.name, detail: ROLES.find(([k]) => k === myself.role)?.[1] ?? '' }
+  const persona = myself ? { name: myself.name, short: myself.name, detail: (activeSite() === 'TANA' && myself.title) || (ROLES.find(([k]) => k === myself.role)?.[1] ?? '') }
     : profile === 'DIRECTION' ? { name: account.name, detail: account.email } : PERSONAS[profile];
 
   // Ambiance retenue par l'établissement : Océan (dégradé bleu)
   const theme = 'ocean';
   useEffect(() => { document.documentElement.dataset.theme = theme; }, []);
-  // Site affiché (Direction) : Tamatave pour l'instant ; Tana sera ajouté avec son secrétariat et sa vie scolaire
-  const [site, setSite] = useState('TMV');
+  // Site affiché : la Direction passe de Tamatave à Tana (chaque site a ses propres données, cf. site.js) ;
+  // l'Économe et le BVS de Tana restent sur Tana, le reste de l'équipe sur Tamatave
+  const site = activeSite() === 'TANA' ? 'TNR' : 'TMV';
+  const canSwitch = profile === 'DIRECTION' && allowedSites().length > 1;
 
   // Protection d'écran : tous les profils sauf Direction et Bureau
   const [protection, setProtection] = useState(true);
@@ -439,14 +446,14 @@ export default function App() {
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white p-1 shadow-sm"><img src={pillar} alt="" className="h-full" /></span>
             <span className="hidden text-left leading-tight sm:block">
               <span className="block font-display text-[15px] font-semibold tracking-wide">CHATEAUBRIAND</span>
-              <span className="block text-[11px]" style={{ color: 'var(--topbar-muted)' }}>{PROFILES[profile].title}</span>
+              <span className="block text-[11px]" style={{ color: 'var(--topbar-muted)' }}>{(activeSite() === 'TANA' && myself?.title) || PROFILES[profile].title}</span>
             </span>
           </button>
           {staffProfile && (
-            <select value={site} onChange={(e) => setSite(e.target.value)} aria-label="Site" onClick={(e) => e.stopPropagation()} disabled={profile !== 'DIRECTION'}
+            <select value={site} onChange={(e) => switchSite(e.target.value === 'TNR' ? 'TANA' : 'TMV')} aria-label="Site" onClick={(e) => e.stopPropagation()} disabled={!canSwitch}
               className="min-w-0 max-w-[7.5rem] rounded-full border-0 bg-white/15 px-3 py-1 text-xs font-medium text-white disabled:opacity-100 sm:ml-2 sm:max-w-none">
               <option value="TMV" className="text-slate-900">Tamatave</option>
-              <option value="TNR" disabled className="text-slate-500">Tana (bientôt)</option>
+              <option value="TNR" className="text-slate-900">Tana</option>
             </select>
           )}
 

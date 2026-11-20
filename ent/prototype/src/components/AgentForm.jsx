@@ -20,7 +20,7 @@ const label = 'text-xs font-medium text-slate-600';
 const subjects = () => allSubjects(loadImport()?.assignments?.length ? loadImport().assignments : ASSIGNMENTS).filter((s) => s.id !== 'VDC').map((s) => s.label);
 
 /** `withAccount` : champs du compte (fonction, e-mail) ; `withRate` : taux horaire (Direction seule). */
-export default function AgentForm({ value: d, onChange, withAccount = true, withRate = true }) {
+export default function AgentForm({ value: d, onChange, withAccount = true, withRate = true, roles = ROLES }) {
   const set = (patch) => onChange({ ...d, ...patch });
   const setService = (i, patch) => set({ services: d.services.map((s, k) => (k === i ? { ...s, ...patch } : s)) });
   const teaches = d.role === 'PROFESSEUR' || d.services.length > 0;
@@ -32,7 +32,7 @@ export default function AgentForm({ value: d, onChange, withAccount = true, with
         <label className={`${label} sm:col-span-2`}>Prénom(s) *<input value={d.first} onChange={(e) => set({ first: e.target.value })} className={field} /></label>
         <label className={`${label} sm:col-span-3`}>Nom *<input value={d.last} onChange={(e) => set({ last: e.target.value })} className={field} /></label>
         <label className={`${label} sm:col-span-3`}>Prénom d'usage (s'il n'est pas le premier : sert à l'identifiant et au bulletin)<input value={d.usual ?? ''} onChange={(e) => set({ usual: e.target.value })} className={field} /></label>
-        {withAccount && <label className={`${label} sm:col-span-2`}>Fonction dans l'ENT *<select value={d.role} onChange={(e) => set({ role: e.target.value })} className={field}>{ROLES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>}
+        {withAccount && <label className={`${label} sm:col-span-2`}>Fonction dans l'ENT *<select value={d.role} onChange={(e) => set({ role: e.target.value })} className={field}>{roles.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>}
         <label className={`${label} ${withAccount ? 'sm:col-span-4' : 'sm:col-span-6'}`}>Intitulé du poste (ex. Professeur de mathématiques, Économe)<input value={d.title} onChange={(e) => set({ title: e.target.value })} className={field} /></label>
         <label className={`${label} sm:col-span-3`}>Téléphone<input value={d.phone} onChange={(e) => set({ phone: e.target.value })} className={field} /></label>
         {withAccount && <label className={`${label} sm:col-span-3`}>E-mail (facultatif, pour le code oublié)<input type="email" value={d.email} onChange={(e) => set({ email: e.target.value })} className={field} /></label>}

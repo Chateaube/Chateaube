@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { siteName } from '../site.js';
 import { Badge, Button, Card, Stat } from './ui.jsx';
 import { STAFF, POSTES, CONTRATS, contractFor } from '../data/people.js';
 import { usePersistent } from '../persist.js';
@@ -35,7 +36,7 @@ export default function StaffModule({ embedded = false }) {
   return (
     <div className="space-y-5">
       {!embedded && <div>
-        <p className="text-sm font-semibold text-navy-500">Administration · Tamatave</p>
+        <p className="text-sm font-semibold text-navy-500">Administration · {siteName()}</p>
         <h1 className="text-2xl font-semibold text-navy-900">Gestion des agents</h1>
         <p className="text-sm text-slate-500">Registre du personnel : entrées, sorties et accès à l'ENT.</p>
       </div>}

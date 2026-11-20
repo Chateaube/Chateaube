@@ -90,3 +90,12 @@ calendrier Parcoursup. Les notes s'ouvrent le 17 décembre ; les autres rubrique
 1. SQL Editor › New query → coller `80_partage_professeurs.sql` → Run (en bas : 19 règles).
 2. Les professeurs ont alors : Vie de classe et Fil de l'élève (leurs colles et observations ; jamais les soins),
    Examens blancs (saisie des notes de leurs matières), Grilles de notes, Vie de l'école (lecture).
+
+## 12. Mise à jour 9 — ouverture de Tana (une seule fois)
+1. SQL Editor › New query → coller `90_sites.sql` → Run (en bas : 21 règles).
+2. Fonction des comptes : remplacer son code par `functions/comptes/index.ts` (Edge Functions › la fonction
+   des comptes › Code → coller → Deploy). Elle range chaque nouveau compte sur son site.
+3. Effet : la Direction (Mme Ratsimbazafy, Mme Lo) voit les deux sites, avec le sélecteur Tamatave / Tana en haut ;
+   tous les autres comptes existants restent sur Tamatave et ne voient jamais Tana.
+4. Sur Tana (sélecteur), Gestion des agents › « Nouvel agent à Tana » : Économe (caisse, dépenses, salaires,
+   trésorerie, inscriptions) ou BVS (vie scolaire). Ces comptes ne voient que Tana.

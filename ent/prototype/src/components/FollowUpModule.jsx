@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { siteName } from '../site.js';
 import { saveFile } from '../download.js';
 import StageConvention from './StageConvention.jsx';
 import OrientationSheet, { loadSheets, setSheetOwner } from './OrientationSheet.jsx';
@@ -322,7 +323,7 @@ export default function FollowUpModule({ settings, role = 'DIRECTION' }) {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-semibold text-navy-500">Familles · Tamatave</p>
+        <p className="text-sm font-semibold text-navy-500">Familles · {siteName()}</p>
         <h1 className="text-2xl font-semibold text-navy-900">Autorisations, stages et orientation</h1>
       </div>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

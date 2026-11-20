@@ -47,7 +47,10 @@ Deno.serve(async (req) => {
       if (created.error) return reply({ error: /already|registered|exists/i.test(created.error.message) ? 'Cette adresse e-mail a déjà un compte.' : 'Création impossible pour le moment.' }, 400);
       const { data: person, error } = await admin.from('app_user').insert({ email: authEmail, first_name: first, last_name: last, auth_provider: 'PASSWORD', auth_uid: created.data.user.id, login, must_change_code: true }).select('id').single();
       if (error) { await admin.auth.admin.deleteUser(created.data.user.id); return reply({ error: 'Création impossible : cette personne existe peut-être déjà.' }, 400); }
-      await admin.from('user_role').insert({ user_id: person.id, role, title: body.title || null });
+      // site du compte (90_sites.sql) : Tana pour l'Économe et le BVS de Tana ; sinon Tamatave (la Direction : les deux)
+      const siteCode = role === 'DIRECTION' ? null : (body.site === 'TANA' ? 'TANA' : 'TMV');
+      const { data: site } = siteCode ? await admin.from('site').select('id').eq('code', siteCode).maybeSingle() : { data: null };
+      await admin.from('user_role').insert({ user_id: person.id, role, title: body.title || null, ...(site?.id ? { site_id: site.id } : {}) });
       return reply({ id: person.id, login, code });
     }
     if (body.action === 'reset' || body.action === 'active') {

@@ -1,6 +1,7 @@
 // Sauvegarde complète des données de l'ENT, au cas où le site rencontre un problème : un classeur Excel
 // (un onglet par type de données, lisible sans l'ENT) et un fichier JSON (copie exacte, pour restaurer).
 // Les photos et signatures ne vont pas dans Excel (« [photo] ») : elles restent dans le JSON.
+import { siteLocalKeys } from '../site.js';
 
 const MAX_CELL = 32000; // limite d'une cellule Excel : 32 767 caractères
 const nameOf = (key) => key.replace(/^ent-/, '').replace(/-v\d+$/, '');
@@ -53,8 +54,7 @@ export function restoreLocalData(data, storage = localStorage) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Ce fichier n\'est pas une sauvegarde de l\'ENT.');
   const entries = Object.entries(data).filter(([k]) => k.startsWith('ent-') && keepKey(k));
   if (!entries.length) throw new Error('Ce fichier n\'est pas une sauvegarde de l\'ENT.');
-  const old = [];
-  for (let i = 0; i < storage.length; i += 1) { const k = storage.key(i); if (k?.startsWith('ent-') && keepKey(k)) old.push(k); }
+  const old = siteLocalKeys(storage).filter((k) => k.startsWith('ent-') && keepKey(k));
   old.forEach((k) => storage.removeItem(k));
   entries.forEach(([k, v]) => storage.setItem(k, JSON.stringify(v))); // valeurs lues par JSON.parse à la sauvegarde
   return entries.length;
@@ -63,8 +63,7 @@ export function restoreLocalData(data, storage = localStorage) {
 /** Lit toutes les données de l'ENT gardées dans ce navigateur. */
 export function readLocalData(storage = localStorage) {
   const out = [];
-  for (let i = 0; i < storage.length; i += 1) {
-    const k = storage.key(i);
+  for (const k of siteLocalKeys(storage)) {
     if (!k?.startsWith('ent-') || !keepKey(k)) continue;
     try { out.push([k, JSON.parse(storage.getItem(k))]); } catch { out.push([k, storage.getItem(k)]); }
   }

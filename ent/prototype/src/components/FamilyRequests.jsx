@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { siteName } from '../site.js';
 import { Badge, Button, Card } from './ui.jsx';
 import { PhotoInput, DocumentInput, DocumentThumb } from './PhotoInput.jsx';
 import { addRequest, addOnlinePrereg, decideRequest, loadRequests, requestsFor, loadCampaign } from '../requestsStore.js';
@@ -146,7 +147,7 @@ export function PublicPreregistration() {
   if (!campaignOpen(campaign, today)) {
     return (
       <div className="mx-auto max-w-[520px] rounded-2xl bg-white p-6 text-center shadow-soft">
-        <p className="text-xs font-semibold text-navy-500">École Collège Lycée Chateaubriand · Tamatave</p>
+        <p className="text-xs font-semibold text-navy-500">École Collège Lycée Chateaubriand · {siteName()}</p>
         <h1 className="mt-1 font-display text-lg font-semibold text-navy-900">Pré-inscriptions {campaign.year}</h1>
         <p className="mt-2 text-sm text-slate-600">{today < campaign.opens ? `Ouverture le ${fmt(campaign.opens)}, jusqu'au ${fmt(campaign.closes)}.` : 'La campagne est terminée. Contactez le secrétariat.'}</p>
         <p className="mt-3 text-xs text-slate-400">Démonstration : la Direction règle ces dates dans Inscriptions → Pré-inscriptions.</p>
@@ -178,7 +179,7 @@ function PublicForm() {
       <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-900">Démonstration : la demande reste dans ce navigateur et apparaît dans Secrétariat → Inscriptions. Rien n'est envoyé à l'école tant que le serveur n'est pas en place.</p>
       <section className="space-y-3 rounded-2xl bg-white p-4 shadow-soft">
         <div>
-          <p className="text-xs font-semibold text-navy-500">École Collège Lycée Chateaubriand · Tamatave</p>
+          <p className="text-xs font-semibold text-navy-500">École Collège Lycée Chateaubriand · {siteName()}</p>
           <h1 className="font-display text-xl font-semibold text-navy-900">Pré-inscription en ligne</h1>
           <p className="text-sm text-slate-500">Quelques informations suffisent ; le dossier se complète ensuite.</p>
         </div>

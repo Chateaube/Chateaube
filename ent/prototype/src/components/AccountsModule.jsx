@@ -10,6 +10,7 @@ import BulkTeachers from './BulkTeachers.jsx';
 import { schoolYearOf } from '../rules/documents.js';
 import { loginFor, accessMessage, accessGmail, welcomeFor, welcomeGroup, SCHOOL_MAIL } from '../rules/logins.js';
 import { today } from '../clock.js';
+import { activeSite } from '../site.js';
 
 const fr = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
 
@@ -18,6 +19,9 @@ const fr = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
 // d'oubli sans e-mail, désactivation d'un compte (départ). Les familles viendront avec le portail en ligne.
 const ROLES = [['PROFESSEUR', 'Professeur'], ['VIE_SCOLAIRE', 'CPE / vie scolaire'], ['BUREAU', 'Secrétariat / économat'], ['DIRECTION', 'Direction']];
 const LABEL = Object.fromEntries(ROLES);
+// Tana : deux fonctions seulement (la Direction est la même pour les deux sites)
+const TANA_ROLES = [['BUREAU', 'Économe (caisse, dépenses, salaires, inscriptions)'], ['VIE_SCOLAIRE', 'BVS (bureau de la vie scolaire)']];
+const TANA_TITLE = { BUREAU: 'Économe', VIE_SCOLAIRE: 'BVS' };
 const field = 'mt-1 w-full rounded-lg border border-slate-300 px-2.5 py-2 text-sm';
 const call = async (body) => {
   const { data, error } = await supabase.functions.invoke(FN_COMPTES, { body });
@@ -74,7 +78,17 @@ export default function AccountsModule({ embedded = false, settings }) {
     ADMIN: ['Administration', (u) => rolesOf(u).some((r) => ['DIRECTION', 'BUREAU', 'VIE_SCOLAIRE'].includes(r))],
     PROFS: ['Professeurs', (u) => rolesOf(u).includes('PROFESSEUR')],
     ELEVES: ['Élèves', (u) => rolesOf(u).includes('ELEVE')] };
-  const shownList = (list ?? []).filter(WHO[who][1]);
+  // site : sur Tana, les comptes de Tana ; sur Tamatave, ceux de Tamatave (la Direction : sur les deux)
+  const tana = activeSite() === 'TANA';
+  const [siteIds, setSiteIds] = useState({});
+  useEffect(() => { supabase.from('site').select('id, code').then(({ data }) => setSiteIds(Object.fromEntries((data ?? []).map((s) => [s.id, s.code]))), () => {}); }, []);
+  const onSite = (u) => {
+    const ids = (u.user_role ?? []).map((r) => r.site_id ?? null);
+    if (!ids.length || ids.some((x) => x === null)) return !tana || rolesOf(u).includes('DIRECTION');
+    const codes = ids.map((x) => siteIds[x]);
+    return tana ? codes.includes('TANA') : codes.some((c) => c !== 'TANA');
+  };
+  const shownList = (list ?? []).filter(onSite).filter(WHO[who][1]);
   const [d, setD] = useState(null); // nouvel agent : fiche complète
   const [busy, setBusy] = useState(false); const [slip, setSlip] = useState(null);
   // fiche de chaque agent (contrat, identité, enseignements, taux) : sur l'appareil de la Direction
@@ -86,7 +100,7 @@ export default function AccountsModule({ embedded = false, settings }) {
   // codes en série : jamais les comptes de la Direction (on ne se retire pas son propre accès par erreur)
   const toRenew = (u) => u.must_change_code && u.is_active && !(u.user_role ?? []).some((r) => r.role === 'DIRECTION');
   const load = async () => {
-    const { data, error } = await supabase.from('app_user').select('id, first_name, last_name, login, email, is_active, last_login_at, must_change_code, user_role(role, title)').order('last_name');
+    const { data, error } = await supabase.from('app_user').select('id, first_name, last_name, login, email, is_active, last_login_at, must_change_code, user_role(role, title, site_id)').order('last_name');
     if (error) setErr('La liste des comptes n\'a pas pu être chargée.'); else setList(data);
   };
   useEffect(() => { load(); }, []);
@@ -95,7 +109,13 @@ export default function AccountsModule({ embedded = false, settings }) {
   const ficheOf = (u) => ({ ...EMPTY_AGENT, first: u.first_name, last: u.last_name, title: u.user_role?.[0]?.title ?? '', role: u.user_role?.[0]?.role ?? 'PROFESSEUR', ...(fiches[u.id] ?? {}) });
   const number = (u) => `${schoolYearOf(today())}/${String(list.findIndex((x) => x.id === u.id) + 1).padStart(3, '0')}`;
   const create = () => run(async () => {
-    const r = await call({ action: 'create', first: d.first, last: d.last, usual: d.usual, role: d.role, title: d.title, email: d.email });
+    const r = await call({ action: 'create', first: d.first, last: d.last, usual: d.usual, role: d.role, title: tana ? TANA_TITLE[d.role] : d.title, email: d.email, site: tana ? 'TANA' : 'TMV' });
+    if (tana) {
+      // compte de Tana : rattaché à Tana (aussi fait par le serveur à jour ; ici si la fonction des comptes est ancienne)
+      const tanaId = Object.keys(siteIds).find((id) => siteIds[id] === 'TANA');
+      const { error: e } = tanaId ? await supabase.from('user_role').update({ site_id: tanaId }).eq('user_id', r.id) : { error: { message: 'site Tana introuvable' } };
+      if (e) throw new Error(`Compte créé mais pas encore rattaché à Tana (${e.message}) : ne remettez pas le code, prévenez-moi.`);
+    }
     const { email, ...rest } = d;
     setFiches({ ...fiches, [r.id]: rest });
     setSlip({ ...r, name: `${d.first.trim()} ${d.last.trim().toUpperCase()}`, first: (d.usual || d.first.trim().split(/\s+/)[0]), email: d.email?.trim() || '', roles: [d.role] });
@@ -112,13 +132,13 @@ export default function AccountsModule({ embedded = false, settings }) {
       {slip && <Slip slip={slip} onClose={() => setSlip(null)} />}
       {d ? (
         <Card title="Nouvel agent" subtitle="Tout en une fois : le compte est créé et la fiche enregistrée. Seuls le prénom, le nom et la fonction sont obligatoires.">
-          <AgentForm value={d} onChange={setD} />
+          <AgentForm value={d} onChange={setD} roles={tana ? TANA_ROLES : undefined} />
           <div className="mt-4 flex flex-wrap gap-2">
             <Button disabled={!ok || busy} onClick={create}>{busy ? 'Création…' : 'Créer le compte et enregistrer la fiche'}</Button>
             <Button variant="secondary" onClick={() => setD(null)}>Annuler</Button>
           </div>
         </Card>
-      ) : !bulk && <div className="flex flex-wrap gap-2"><Button onClick={() => setD({ ...EMPTY_AGENT })}>＋ Nouvel agent</Button><Button variant="secondary" onClick={() => setBulk(true)}>Créer les comptes des professeurs (liste)</Button>
+      ) : !bulk && <div className="flex flex-wrap gap-2"><Button onClick={() => setD({ ...EMPTY_AGENT, ...(tana ? { role: 'BUREAU', title: 'Économe' } : {}) })}>＋ Nouvel agent{tana ? ' à Tana' : ''}</Button>{!tana && <Button variant="secondary" onClick={() => setBulk(true)}>Créer les comptes des professeurs (liste)</Button>}
         {(list ?? []).some(toRenew) && <Button variant="secondary" disabled={busy} onClick={async () => {
           const todo = list.filter(toRenew);
           if (!(await askConfirm(`Donner un nouveau code provisoire aux ${todo.length} compte(s) qui ne se sont pas encore connectés ? Les anciens codes ne marcheront plus.`))) return;

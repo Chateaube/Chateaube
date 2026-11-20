@@ -1,4 +1,5 @@
 import './polyfills.js'; // en premier : anciens navigateurs
+import './siteInit.js'; // puis le site (Tamatave / Tana) : données de l'appareil rangées par site
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { watchTables } from './tableCards.js';

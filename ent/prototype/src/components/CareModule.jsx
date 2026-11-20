@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { siteName } from '../site.js';
 import { Badge, Button, Card, Icon, Stat } from './ui.jsx';
 import { ClassStudentPicker } from './VieScolaireModule.jsx';
 import { classOf } from '../data/schoollife.js';
@@ -70,7 +71,7 @@ export default function CareModule({ role = 'BUREAU' }) {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-semibold text-navy-500">Tamatave</p>
+        <p className="text-sm font-semibold text-navy-500">{siteName()}</p>
         <h1 className="text-2xl font-semibold text-navy-900">Soins (secrétariat)</h1>
         <p className="text-sm text-slate-600">Élèves souffrants, accueillis par la vie scolaire ou le secrétariat. Pas d'infirmerie : seul le Doliprane est donné, par le secrétariat.</p>
       </div>

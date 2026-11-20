@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { siteName } from '../site.js';
 import { Badge, Button, Card } from './ui.jsx';
 import { AGENDAS, agendaItems, agendasFor, closuresAsEvents, isExamClass, toIcs, overview } from '../rules/agenda.js';
 import { SCHOOL_EVENTS, seedParcoursup } from '../data/events.js';
@@ -169,7 +170,7 @@ export default function AgendaModule({ role, cls: fixedCls, settings, compact = 
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-semibold text-navy-500">{fixedCls ? fixedCls : 'Tamatave'}</p>
+        <p className="text-sm font-semibold text-navy-500">{fixedCls ? fixedCls : siteName()}</p>
         <h1 className="text-2xl font-semibold text-navy-900">Agendas</h1>
         <p className="text-sm text-slate-500">Des agendas séparés : les cours, le calendrier de l'école (vacances, jours fériés, réunions){available.includes('EXAMENS') ? ', les classes d\'examen' : ''}{available.includes('EQUIPE') ? ', l\'équipe (arrêts des notes, conseils, portes ouvertes)' : ''} et les devoirs. Affichez ceux qui vous intéressent, ou ajoutez-les à Google Agenda ou Apple Agenda.</p>
       </div>
