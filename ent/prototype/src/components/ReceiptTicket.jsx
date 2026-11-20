@@ -52,7 +52,7 @@ export default function ReceiptTicket({ receipt, student, payer, cashier, at, du
       <Row left="Caisse" right={cashier} />
       <Rule />
       <p className="text-center">Merci. Reçu à conserver.</p>
-      <p className="text-center">Reçu officiel (A5) sur demande.</p>
+      <p className="text-center">Reçu officiel (A4) sur demande.</p>
       <p className="mt-2 text-center tracking-[0.3em]">✂ - - - - - - - - - - -</p>
     </div>
   );
