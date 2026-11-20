@@ -1,5 +1,5 @@
 import { logActivity } from '../activityStore.js';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Badge, Button, Card, Icon } from './ui.jsx';
 import { JOURNALS, CLASS_FEES, STUDENT_ACCOUNTS, BANKS, FAMILIES } from '../data/accounting.js';
 import { studentDues, defaultSelection, validateInstrument, buildReceipts, PAYMENT_METHODS, lastReceiptNumbers, RECEIPT_PREFIX } from '../rules/billing.js';
@@ -7,6 +7,7 @@ import { supabase, ONLINE } from '../online/client.js';
 import { activeSite, SITE_CODES } from '../site.js';
 import { formatAr } from '../rules/finance.js';
 import ReceiptTicket from './ReceiptTicket.jsx';
+import { downloadOfficialReceipt } from '../officialReceiptPdf.js';
 import { printOnly } from '../print.js';
 import { loadImport } from '../importStore.js';
 import { seniority } from '../rules/documents.js';
@@ -202,6 +203,10 @@ function CollectPaymentInner({ settings, articles = [], accounts: sharedAccounts
   const unpaidMonths = months.filter((m) => !['PAYE', 'EXONERE'].includes(m.status));
 
   const [busy, setBusy] = useState(false); // un seul encaissement à la fois (double clic)
+  // impression automatique du ticket (réglage de cet ordinateur, activé par défaut)
+  const [autoPrint, setAutoPrintState] = useState(() => { try { return localStorage.getItem('ent-impression-auto') !== 'non'; } catch { return true; } });
+  const setAutoPrint = (v) => { setAutoPrintState(v); try { localStorage.setItem('ent-impression-auto', v ? 'oui' : 'non'); } catch { /* rien */ } };
+  useEffect(() => { if (receipts?.length && autoPrint) { const t = setTimeout(printTickets, 400); return () => clearTimeout(t); } return undefined; }, [receipts]);
   const [numErr, setNumErr] = useState('');
   const collect = async () => {
     if (busy) return;
@@ -383,11 +388,16 @@ function CollectPaymentInner({ settings, articles = [], accounts: sharedAccounts
 
         {receipts && (
           <Card title={`Reçu${receipts.length > 1 ? 's' : ''} — format ticket de caisse`} subtitle="Imprimante thermique 80 mm · un ticket par journal"
-            action={<Button variant="secondary" onClick={printTickets}>Imprimer</Button>}>
+            action={<Button variant="secondary" onClick={printTickets}>Imprimer le ticket</Button>}>
+            <label className="mb-3 flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" checked={autoPrint} onChange={(e) => setAutoPrint(e.target.checked)} />Impression automatique du ticket à chaque encaissement (sur cet ordinateur)</label>
             <div className="ticket-print flex flex-col items-center gap-4 rounded-xl bg-slate-100 py-4">
               {receipts.map((r) => <ReceiptTicket key={r.number} receipt={r} student={student} payer={receiptsBearer} cashier={cashier} at={receiptsAt} />)}
             </div>
-            <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500"><Icon name="bell" />Reçu envoyé au parent payeur par e-mail et dans l'application.</p>
+            {/* reçu officiel A5 : attestation durable (employeur, mutuelle), à imprimer ou à joindre à un e-mail */}
+            <div className="mt-3 flex flex-wrap gap-2">
+              {receipts.map((r) => <Button key={r.number} variant="secondary" className="text-xs" onClick={() => downloadOfficialReceipt({ ...r, student: student.name, cls: student.cls, bearer: receiptsBearer, cashier, at: receiptsAt, status: 'VALIDE' })}>Télécharger le reçu officiel (PDF){receipts.length > 1 ? ` · ${r.number}` : ''}</Button>)}
+            </div>
+            <p className="mt-2 text-xs text-slate-500">Reçu officiel au format A5 : à imprimer, ou à joindre à un e-mail pour les parents qui en ont besoin.</p>
           </Card>
         )}
       </div>
