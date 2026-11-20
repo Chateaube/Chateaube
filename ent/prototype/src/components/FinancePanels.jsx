@@ -51,7 +51,7 @@ export function DunningAlerts({ settings, site = 'TMV' }) {
         const st = currentStudents().find((s) => s.id === x.account.id);
         const g = (st?.guardians ?? [])[0];
         return { id: x.account.id, student: x.account.name, cls: x.account.cls, site: 'TMV', overdue: x.overdue, due: x.firstDue, months: x.lateItems,
-          guardian: g ? `${g.firstName} ${g.lastName}`.trim() || x.account.family : x.account.family, phone: g?.phone ?? '' };
+          guardian: (g && ([g.firstName, g.lastName].filter(Boolean).join(' ') || g.name)) || x.account.family || 'la famille', phone: g?.phone ?? '' };
       })
     : DUNNING_CASES), [settings]);
   const cases = useMemo(() => source.map((c) => {
