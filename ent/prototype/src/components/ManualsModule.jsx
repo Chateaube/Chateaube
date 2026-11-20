@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { siteName } from '../site.js';
 import { Badge, Button, Card, Stat } from './ui.jsx';
 import { CLASSES } from '../data/schoollife.js';
 import { DEMO_SPECIALTIES, RENTAL_PRICE } from '../data/manuals.js';
@@ -471,7 +472,7 @@ export default function ManualsModule({ role }) {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-semibold text-navy-500">Secrétariat et Direction · Tamatave</p>
+        <p className="text-sm font-semibold text-navy-500">Secrétariat et Direction · {siteName()}</p>
         <h1 className="text-2xl font-semibold text-navy-900">Manuels scolaires</h1>
         <p className="text-sm text-slate-500">Manuels de base en location ({formatAr(RENTAL_PRICE)} l'un), cahiers d'activités à rendre ou gardés. Un manuel dû bloque la remise du bulletin.</p>
       </div>

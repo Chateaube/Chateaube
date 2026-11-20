@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { siteName } from '../site.js';
 import { Badge, Button, Card } from './ui.jsx';
 import { RESOURCES, SUGGESTIONS } from '../data/resources.js';
 import { AUDIENCES, forOf, isProtected, visibleFor, SUGGESTION_CATEGORIES, SUGGESTION_STATUS, suggestionErrors, answerSuggestion } from '../rules/resources.js';
@@ -79,7 +80,7 @@ export default function InternalResources({ role }) {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-semibold text-navy-500">Élèves, parents, professeurs, équipe · Tamatave</p>
+        <p className="text-sm font-semibold text-navy-500">Élèves, parents, professeurs, équipe · {siteName()}</p>
         <h1 className="text-2xl font-semibold text-navy-900">Ressources et idées</h1>
         <p className="text-sm text-slate-500">Chacun voit les documents de son public : règlement intérieur, chartes, guides… Les ressources de l'équipe se consultent dans l'ENT seulement. Pour une information ponctuelle, utilisez Annonces.</p>
       </div>

@@ -3,6 +3,7 @@
 // puis envoyée ; en cas d'échec (pas de réseau), elle repart toute seule dès que possible. Rien n'est perdu
 // tant que l'appareil n'a pas confirmé l'envoi.
 import { supabase, ONLINE } from './client.js';
+import { siteLocalKeys } from '../site.js';
 
 const PENDING = (key) => `ent-pending-${key}`;
 const listeners = new Set();
@@ -64,9 +65,9 @@ async function push(key) {
 
 /** Renvoie tout ce qui attend sur cet appareil (au démarrage, au retour du réseau). */
 export function flushAll() {
-  try { Object.keys(localStorage).filter((k) => k.startsWith('ent-pending-')).forEach((k) => push(k.slice('ent-pending-'.length))); } catch { /* rien */ }
+  try { siteLocalKeys().filter((k) => k.startsWith('ent-pending-')).forEach((k) => push(k.slice('ent-pending-'.length))); } catch { /* rien */ }
 }
-export const hasPending = () => { try { return Object.keys(localStorage).some((k) => k.startsWith('ent-pending-')); } catch { return false; } };
+export const hasPending = () => { try { return siteLocalKeys().some((k) => k.startsWith('ent-pending-')); } catch { return false; } };
 
 if (typeof window !== 'undefined' && ONLINE) {
   window.addEventListener('online', flushAll);

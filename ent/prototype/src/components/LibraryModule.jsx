@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { siteName } from '../site.js';
 import { Badge, Button, Card, Stat } from './ui.jsx';
 import { CLASSES } from '../data/schoollife.js';
 import { STAFF } from '../data/people.js';
@@ -385,7 +386,7 @@ export default function LibraryModule() {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-semibold text-navy-500">Salle d'étude · Tamatave</p>
+        <p className="text-sm font-semibold text-navy-500">Salle d'étude · {siteName()}</p>
         <h1 className="text-2xl font-semibold text-navy-900">Bibliothèque</h1>
         <p className="text-sm text-slate-500">Romans, annales, documentaires et ouvrages de référence, prêtés aux élèves (un mois) et aux professeurs.</p>
       </div>

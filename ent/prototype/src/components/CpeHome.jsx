@@ -1,4 +1,5 @@
 import React from 'react';
+import { siteName } from '../site.js';
 import { Badge, Button, Card, Icon } from './ui.jsx';
 import TodoList from './TodoList.jsx';
 import AbsentToggle from './AbsentToggle.jsx';
@@ -26,7 +27,7 @@ export default function CpeHome({ go, account }) {
   return (
     <div className="space-y-5 pb-16 sm:pb-0">
       <div>
-        <p className="text-sm font-semibold text-navy-500">Vie scolaire · Tamatave</p>
+        <p className="text-sm font-semibold text-navy-500">Vie scolaire · {siteName()}</p>
         <h1 className="text-2xl font-semibold text-navy-900">Bonjour {me('VIE_SCOLAIRE')}</h1>
         <p className="text-sm text-slate-600">{day.length ? `${day.length} chose${day.length > 1 ? 's' : ''} à traiter aujourd'hui.` : 'Rien d\'urgent aujourd\'hui.'}</p>
       </div>

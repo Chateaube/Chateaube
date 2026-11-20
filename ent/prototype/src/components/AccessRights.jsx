@@ -1,4 +1,5 @@
 import { useNarrow } from '../useNarrow.js';
+import { siteName } from '../site.js';
 import React, { useState } from 'react';
 import { Badge, Button, Card } from './ui.jsx';
 import ScreenTabs from './ScreenTabs.jsx';
@@ -78,7 +79,7 @@ export default function AccessRights({ settings, onChange, catalogue, baseNavs }
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-semibold text-navy-500">Administration · Tamatave</p>
+        <p className="text-sm font-semibold text-navy-500">Administration · {siteName()}</p>
         <h1 className="text-2xl font-semibold text-navy-900">Droits d'accès</h1>
         <p className="text-sm text-slate-600">Qui voit quoi, et qui peut modifier. Les changements s'appliquent dès la prochaine ouverture du menu.</p>
       </div>

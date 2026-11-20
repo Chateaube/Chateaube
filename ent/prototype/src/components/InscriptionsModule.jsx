@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { siteName } from '../site.js';
 import { logActivity } from '../activityStore.js';
 import { Avatar, Badge, Button, Card, Icon, Stat, Tel } from './ui.jsx';
 import { PREREGISTRATIONS, PREREG_SOURCES, ENROLL_CLASSES, LANGUAGES, RELATIONS } from '../data/enrollment.js';
@@ -462,7 +463,7 @@ export default function InscriptionsModule({ role }) {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-navy-500">Année 2026-2027 · réinscriptions 2027-2028 · Tamatave</p>
+          <p className="text-sm font-semibold text-navy-500">Année 2026-2027 · réinscriptions 2027-2028 · {siteName()}</p>
           <h1 className="text-2xl font-semibold text-navy-900">Élèves</h1>
         </div>
         {canEdit && <Button onClick={() => startNew(null)}>＋ Inscrire un élève</Button>}

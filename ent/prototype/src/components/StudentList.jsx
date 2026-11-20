@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { siteName } from '../site.js';
 import { Avatar, Badge, Button, Card, Tel } from './ui.jsx';
 import { loadProfiles } from '../profilesStore.js';
 import { filterStudents, studentsCsv, accessSlips } from '../rules/studentList.js';
@@ -40,7 +41,7 @@ export default function StudentList({ role, onOpen, embedded = false, rowAction 
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          {!embedded && <><p className="text-sm font-semibold text-navy-500">Année 2026-2027 · Tamatave</p>
+          {!embedded && <><p className="text-sm font-semibold text-navy-500">Année 2026-2027 · {siteName()}</p>
           <h1 className="text-2xl font-semibold text-navy-900">Liste des élèves</h1></>}
           <p className="text-sm text-slate-500">{list.length} élève{list.length > 1 ? 's' : ''}{noPhoto ? ` · ${noPhoto} sans photo d'identité` : ''}</p>
         </div>

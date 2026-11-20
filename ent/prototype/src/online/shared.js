@@ -9,6 +9,7 @@
 // Les élèves et les parents n'y ont pas accès (règles du serveur : 60_partage.sql, 80_partage_professeurs.sql).
 // Un effacement sur un appareil (expiration, « Effacer les données ») reste local : il n'efface rien sur le serveur.
 import { supabase } from './client.js';
+import { activeSite, siteLocalKeys } from '../site.js';
 
 const GESTION = ['ent-s-depenses', 'ent-k-tarifs', 'ent-s-recus', 'ent-s-journal-caisse', 'ent-s-clotures', 'ent-caisse-mouvements-v1', 'ent-k-reductions',
   'ent-k-articles', 'ent-s-fournisseurs', 'ent-s-comptes-', 'ent-s-relances-envoyees', 'ent-s-relances-decisions', 'ent-tarifs-verrou-v1', 'ent-s-taux',
@@ -34,7 +35,10 @@ const READ_ONLY = { ENSEIGNANT: ['ecole'] };
 const inList = (list, k) => list.some((p) => (p.endsWith('-') ? k.startsWith(p) : k === p));
 /** Groupe d'une donnée de l'appareil (null : reste sur l'appareil). */
 export const groupOf = (k) => (inList(GESTION, k) ? 'gestion' : inList(EQUIPE, k) ? 'equipe' : inList(CLASSE, k) ? 'classe' : inList(ECOLE, k) ? 'ecole' : null);
-const docKey = (group, k) => `partage:${group}:${k}`;
+// Tana : ses données partagées sont rangées à part sur le serveur (« partage:TANA:… », règles de 90_sites.sql)
+const prefix = () => (activeSite() === 'TANA' ? 'partage:TANA:' : 'partage:');
+const docKey = (group, k) => `${prefix()}${group}:${k}`;
+const ofThisSite = (dk) => (activeSite() === 'TANA' ? dk.startsWith('partage:TANA:') : !dk.startsWith('partage:TANA:'));
 
 /* ---------------- Fusion à trois (base commune, appareil, serveur) ---------------- */
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -125,10 +129,10 @@ const visible = (k, v) => (k === IMPORT && !groups.includes('gestion') && isObj(
 async function fetchAll() {
   const { data, error } = await supabase.from('ent_doc').select('key, value, updated_at').eq('kind', 'PARTAGE');
   if (error) throw new Error(error.message);
-  return new Map((data ?? []).map((d) => [d.key, { value: d.value, at: d.updated_at }]));
+  return new Map((data ?? []).filter((d) => ofThisSite(d.key)).map((d) => [d.key, { value: d.value, at: d.updated_at }]));
 }
-const localKeys = () => { const out = []; try { for (let i = 0; i < localStorage.length; i += 1) { const k = localStorage.key(i); if (k && allowed(k)) out.push(k); } } catch { /* rien */ } return out; };
-const serverKeys = (map) => [...map.keys()].map((dk) => dk.split(':').slice(2).join(':').replace(PAY, '')).filter((k) => allowed(k));
+const localKeys = () => siteLocalKeys().filter((k) => allowed(k));
+const serverKeys = (map) => [...map.keys()].map((dk) => dk.slice(prefix().length).split(':').slice(1).join(':').replace(PAY, '')).filter((k) => allowed(k));
 
 // une seule opération à la fois sur cet appareil (réception / envoi)
 let chain = Promise.resolve();

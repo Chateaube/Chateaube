@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { siteName } from '../site.js';
 import { Badge, Button, Card } from './ui.jsx';
 import ScreenTabs from './ScreenTabs.jsx';
 import { CLASSES } from '../data/schoollife.js';
@@ -43,7 +44,7 @@ export default function MandatesAdmin({ account }) {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-semibold text-navy-500">Tamatave · {TERM.label}</p>
+        <p className="text-sm font-semibold text-navy-500">{siteName()} · {TERM.label}</p>
         <h1 className="text-2xl font-semibold text-navy-900">Engagements et attestations</h1>
         <p className="text-sm text-slate-600">Modifiables toute l'année ; validés à chaque fin de trimestre, puis repris tels quels sur les bulletins de ce trimestre.</p>
       </div>

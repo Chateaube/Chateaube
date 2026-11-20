@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { siteName } from '../site.js';
 import logo from '../assets/logo-tamatave.png';
 import { Badge, Button, Card, Stat } from './ui.jsx';
 import { CLASSES } from '../data/schoollife.js';
@@ -434,7 +435,7 @@ export default function MockExamsModule({ role }) {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-semibold text-navy-500">Tamatave · classes d'examen</p>
+        <p className="text-sm font-semibold text-navy-500">{siteName()} · classes d'examen</p>
         <h1 className="text-2xl font-semibold text-navy-900">Examens blancs</h1>
         <p className="text-sm text-slate-500">Brevet blanc (3e), épreuves de 1re blanches, bac blanc (Terminale) : toutes les épreuves des candidats libres, avec les coefficients de l'examen.</p>
       </div>

@@ -1,4 +1,5 @@
 import AmbianceSettings from './AmbianceSettings.jsx';
+import { siteName } from '../site.js';
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, Icon } from './ui.jsx';
 import { DEFAULT_SETTINGS } from '../data/settings.js';
@@ -279,7 +280,7 @@ export default function SettingsModule({ settings, onChange, onReset }) {
 
           {tab === 'fees' && <>
           {/* Frais de scolarité */}
-          <Card title="Échéancier de frais de scolarité" subtitle="Année 2026-2027 · Tamatave">
+          <Card title="Échéancier de frais de scolarité" subtitle={`Année 2026-2027 · ${siteName()}`}>
             <NumberField label="Jour d'échéance mensuelle" value={settings.tuition.dueDay} min={1} max={28} suffix="du mois"
               onChange={(v) => set('tuition', { dueDay: v })} />
             <div className="-mx-5 mt-4 overflow-x-auto">
@@ -396,7 +397,7 @@ export default function SettingsModule({ settings, onChange, onReset }) {
 
           {tab === 'grades' && <>
           {/* Notes */}
-          <Card title="Notes & conseil de classe" subtitle="Règles communes à toutes les classes de Tamatave">
+          <Card title="Notes & conseil de classe" subtitle={`Règles communes à toutes les classes de ${siteName()}`}>
             <div className="grid gap-4 sm:grid-cols-2">
               <NumberField label="Notes minimum par trimestre (pour valider)" value={settings.grading.minEvaluations} min={1} max={10} suffix="évaluations"
                 onChange={(v) => set('grading', { minEvaluations: v })} />

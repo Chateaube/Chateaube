@@ -1,4 +1,5 @@
 import { useNarrow } from '../useNarrow.js';
+import { siteName } from '../site.js';
 import React, { useEffect, useState } from 'react';
 import { Button, Card } from './ui.jsx';
 import { loadTimetable, importedTimetable } from '../timetableStore.js';
@@ -166,7 +167,7 @@ export default function TimetableView({ settings = DEFAULT_SETTINGS }) {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-navy-500">Tamatave · {imported ? 'emploi du temps importé (gardé dans ce navigateur)' : 'emploi du temps de démonstration'}</p>
+          <p className="text-sm font-semibold text-navy-500">{siteName()} · {imported ? 'emploi du temps importé (gardé dans ce navigateur)' : 'emploi du temps de démonstration'}</p>
           <h1 className="text-2xl font-semibold text-navy-900">Emplois du temps</h1>
           <p className="text-sm text-slate-600">Cette semaine : <strong>semaine {current}</strong> (calendrier de l'école : la semaine de la rentrée est une semaine A, l'alternance continue pendant les vacances).</p>
         </div>

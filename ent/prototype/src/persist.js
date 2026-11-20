@@ -5,6 +5,7 @@
 //  - « ent-s-… » : saisies de l'année, effacées au premier import des vraies données ;
 //  - « ent-k-… » : réglages de l'école (tarifs, articles, réductions), toujours gardés.
 import { useCallback, useEffect, useState } from 'react';
+import { siteLocalKeys } from './site.js';
 
 const memory = new Map(); // repli quand le stockage est refusé
 const cache = new Map(); // clé → { raw, value } : pas de relecture JSON à chaque accès
@@ -32,7 +33,7 @@ export function writeStored(key, value) {
 
 export function clearStored(prefix) {
   [...memory.keys()].filter((k) => k.startsWith(prefix)).forEach((k) => memory.delete(k));
-  try { Object.keys(localStorage).filter((k) => k.startsWith(prefix)).forEach((k) => localStorage.removeItem(k)); } catch { /* stockage indisponible */ }
+  try { siteLocalKeys().filter((k) => k.startsWith(prefix)).forEach((k) => localStorage.removeItem(k)); } catch { /* stockage indisponible */ }
 }
 
 /** Comme useState, mais enregistré sous `key` à chaque modification. */

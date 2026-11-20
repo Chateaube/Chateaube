@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { siteName } from '../site.js';
 import { Badge, Button, Card } from './ui.jsx';
 import { loadTimetable } from '../timetableStore.js';
 import { DEFAULT_SETTINGS } from '../data/settings.js';
@@ -56,7 +57,7 @@ export default function TimetableChanges({ role, settings = DEFAULT_SETTINGS }) 
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-semibold text-navy-500">Emploi du temps · Tamatave</p>
+        <p className="text-sm font-semibold text-navy-500">Emploi du temps · {siteName()}</p>
         <h1 className="text-2xl font-semibold text-navy-900">Changements d'emploi du temps</h1>
         <p className="text-sm text-slate-500">Cours annulé, déplacé, ajouté, ou nouvel horaire définitif : les élèves, les parents et les professeurs de la classe sont prévenus, et les agendas sont mis à jour. L'absence d'un professeur, elle, n'est pas annoncée : les élèves viennent, en étude surveillée.</p>
       </div>

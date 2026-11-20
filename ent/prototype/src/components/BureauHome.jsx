@@ -1,4 +1,5 @@
 import React from 'react';
+import { siteName } from '../site.js';
 import ActivityJournal from './ActivityJournal.jsx';
 import AbsentToggle from './AbsentToggle.jsx';
 import QuickEntry from './QuickEntry.jsx';
@@ -32,7 +33,7 @@ export default function BureauHome({ go, settings }) {
     <div className="space-y-5 pb-16 sm:pb-0">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-navy-500">Secrétariat de Tamatave</p>
+          <p className="text-sm font-semibold text-navy-500">Secrétariat de {siteName()}</p>
           <h1 className="text-2xl font-semibold text-navy-900">Bonjour {me('BUREAU')}</h1>
         </div>
         <Button onClick={() => go('accounting')}><Icon name="wallet" />Nouvel encaissement</Button>

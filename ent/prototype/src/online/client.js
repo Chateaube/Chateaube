@@ -38,7 +38,10 @@ export async function loadAccount() {
   if (error) return { failed: true, message: error.message }; // base injoignable ou refus : ce n'est pas un compte incomplet
   if (!data) return { orphan: true, email: user.email };
   const roles = (data.user_role ?? []).map((r) => r.role).sort((a, b) => RANK.indexOf(a) - RANK.indexOf(b));
+  // sites permis (90_sites.sql) ; avant cette mise à jour du serveur : Tamatave seulement
+  const sites = await supabase.rpc('ent_my_sites').then(({ data: s, error: e }) => (e || !Array.isArray(s) ? ['TMV'] : s), () => ['TMV']);
   return {
+    sites,
     id: data.id, login: data.login, name: `${data.first_name} ${data.last_name}`.trim(), mustChange: data.must_change_code,
     role: roles[0] ?? null, profile: PROFILE_OF[roles[0]] ?? null, title: data.user_role?.find((r) => r.role === roles[0])?.title ?? null,
   };

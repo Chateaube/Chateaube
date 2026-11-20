@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { siteName } from '../site.js';
 import { saveFile } from '../download.js';
 import { Badge, Button, Card, Icon, Stat } from './ui.jsx';
 import {
@@ -29,7 +30,7 @@ import { teacherHours } from '../rules/teachingHours.js';
 import { loadTeacherAbsences } from '../absencesStore.js';
 import { takeIntent } from '../navIntent.js';
 import { nowTime, today } from '../clock.js';
-import { meLabel } from '../identity.js';
+import { meLabel, isEconome } from '../identity.js';
 import { askConfirm } from './Dialogs.jsx';
 import { reverseMovement } from '../rules/cashControl.js';
 
@@ -120,7 +121,7 @@ function FeesTab({ fees, setFees, settings, canEdit }) {
   const update = (i, key, v) => setFees(fees.map((r, k) => (k === i ? { ...r, [key]: v ?? 0 } : r)));
   return (
     <Card
-      title="Classes & tarifs — Tamatave 2026-2027"
+      title={`Classes & tarifs — ${siteName()} 2026-2027`}
       subtitle={canEdit ? 'Montants modifiables par la Direction uniquement ; ils alimentent l\'encaissement' : 'Consultation : seule la Direction peut modifier les classes et les tarifs'}
       action={
         <label className="flex items-center gap-2 text-sm text-slate-600">
@@ -242,7 +243,7 @@ function MonthlyCashExport({ movements }) {
   const r = useMemo(() => monthlyCashReport(CASH_YEAR_OPENING, history, month, Object.keys(JOURNALS)), [history, month]);
   const label = MONTH_OPTIONS.find(([m]) => m === month)[1].replace(' (en cours)', '');
   const download = () => {
-    const csv = cashMonthCsv(r, { site: 'Tamatave', journalLabels: Object.fromEntries(Object.entries(JOURNALS).map(([k, j]) => [k, j.label])) });
+    const csv = cashMonthCsv(r, { site: siteName(), journalLabels: Object.fromEntries(Object.entries(JOURNALS).map(([k, j]) => [k, j.label])) });
     saveFile(`caisse-tamatave-${month}.csv`, csv);
   };
   const days = Object.entries(r.byDay);
@@ -259,7 +260,7 @@ function MonthlyCashExport({ movements }) {
       )}>
       <div className="cash-report">
         <div className="print-only mb-3 hidden">
-          <p className="text-lg font-semibold">École Chateaubriand Tamatave — caisse de {label.toLowerCase()}</p>
+          <p className="text-lg font-semibold">École Chateaubriand {siteName()} — caisse de {label.toLowerCase()}</p>
           <p className="text-xs">Édité le 13/10/2026 par le secrétariat · {r.movements.length} mouvements</p>
         </div>
         <div className="overflow-x-auto">
@@ -338,7 +339,7 @@ function CashTab({ movements, setMovements, role, account }) {
         <Stat label="Sorties du jour" value={formatAr(sum('OUT'))} tone="red" />
         {Object.entries(JOURNALS).slice(0, 2).map(([k, j]) => <Stat key={k} label={`Caisse ${j.label.toLowerCase()}`} value={formatAr(balance[k])} hint={`Ouverture ${formatAr(CASH_OPENING[k])}`} />)}
       </div>
-      <Card title="Mouvements de caisse — mardi 13 octobre 2026" subtitle={`Caisse de Tamatave · caisse droits d'examen : ${formatAr(balance.DROITS_EXAMEN)} (à reverser aux centres)`}>
+      <Card title="Mouvements de caisse — mardi 13 octobre 2026" subtitle={`Caisse de ${siteName()} · caisse droits d'examen : ${formatAr(balance.DROITS_EXAMEN)} (à reverser aux centres)`}>
         <div className="-mx-5 overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
             <thead>
@@ -486,6 +487,7 @@ export default function AccountingModule({ settings, role, account }) {
       : FAMILIES.map((f) => ({ id: f.id, amount: accountStatement(f.lines).totals.balance, due: TODAY })).filter((d) => d.amount > 0),
   }), [movements, expenses, payroll, rates, salaryPayments, accounts, settings]);
   const actor = meLabel(role === 'DIRECTION' ? 'DIRECTION' : 'BUREAU');
+  const econome = role === 'BUREAU' && isEconome(); // Tana : l'Économe voit aussi la trésorerie
   const closed = closings.some((c) => c.date === TODAY);
   const pendingCancels = receipts.filter((r) => r.status === 'ANNULATION_DEMANDEE').length;
   // Chaque reçu émis à l'encaissement entre dans le journal des reçus et dans la caisse
@@ -500,7 +502,7 @@ export default function AccountingModule({ settings, role, account }) {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-navy-500">Espace comptabilité · Tamatave</p>
+          <p className="text-sm font-semibold text-navy-500">Espace comptabilité · {siteName()}</p>
           <h1 className="text-2xl font-semibold text-navy-900">Caisse et comptabilité</h1>
           <p className="text-sm text-slate-500">Trois journaux étanches : frais de scolarité, frais annexes, droits d'examen.</p>
         </div>
@@ -508,7 +510,7 @@ export default function AccountingModule({ settings, role, account }) {
       {/* onglets en deux groupes : le quotidien du secrétariat, puis le suivi et le paramétrage de la Direction */}
       <div className="space-y-1.5" role="tablist" aria-label="Caisse et comptabilité">
         {[['Quotidien', DAILY_TABS], ['Direction et paramétrage', SETUP_GROUP]].map(([group, ids]) => {
-          const list = TABS.filter(([id, , only]) => ids.includes(id) && (!only || only === role) && featureVisible(settings, TAB_FEATURE[id], role));
+          const list = TABS.filter(([id, , only]) => ids.includes(id) && (!only || only === role || (only === 'DIRECTION' && econome)) && featureVisible(settings, TAB_FEATURE[id], role));
           if (!list.length) return null;
           return (
             <div key={group} className="flex flex-wrap items-center gap-1 rounded-lg bg-slate-100 p-1">
@@ -541,7 +543,7 @@ export default function AccountingModule({ settings, role, account }) {
       {tab === 'cash' && <CashTab movements={movements} setMovements={setMovements} role={role} account={account} />}
       {tab === 'expenses' && <ExpensesTab expenses={expenses} setExpenses={setExpenses} suppliers={suppliers} setSuppliers={setSuppliers} onCashOut={cashOut} today={TODAY} canBackdate={role === 'DIRECTION'} />}
       {tab === 'dunning' && <DunningAlerts settings={settings} />}
-      {tab === 'treasury' && role === 'DIRECTION' && <div className="space-y-5"><TreasuryDashboard tx={tx} opening={realData() ? 0 : Object.values(CASH_YEAR_OPENING).reduce((a, b) => a + b, 0)} months={schoolMonthsTo(TODAY)} /><SeparateJournals settings={settings} /></div>}
+      {tab === 'treasury' && (role === 'DIRECTION' || econome) && <div className="space-y-5"><TreasuryDashboard tx={tx} opening={realData() ? 0 : Object.values(CASH_YEAR_OPENING).reduce((a, b) => a + b, 0)} months={schoolMonthsTo(TODAY)} /><SeparateJournals settings={settings} /></div>}
     </div>
   );
 }

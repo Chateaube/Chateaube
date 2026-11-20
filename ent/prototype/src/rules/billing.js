@@ -1,3 +1,4 @@
+import { activeSite, SITE_CODES } from '../site.js';
 import { examOf } from '../data/accounting.js';
 // Encaissement : ce que doit un élève, mois par mois, d'après la grille tarifaire.
 // Le caissier sélectionne l'élève, coche les échéances à régler (les échéances
@@ -114,7 +115,7 @@ export function buildReceipts(items, selectedKeys, { method, ref, bank }, nextNu
     (byJournal[it.journal] ??= []).push(it);
   }
   return Object.entries(byJournal).map(([journal, lines]) => ({
-    number: `${PREFIX[journal]}-TMV-${String(nextNumber(journal)).padStart(5, '0')}`,
+    number: `${PREFIX[journal]}-${SITE_CODES[activeSite()]}-${String(nextNumber(journal)).padStart(5, '0')}`, // série propre à chaque site
     journal,
     lines,
     total: lines.reduce((s, l) => s + l.amount, 0),

@@ -8,6 +8,7 @@ import { loadRemoteCarnet } from '../gradebookStore.js';
 import { flushAll } from '../online/docs.js';
 import { loadStudentContext, loadSchoolForStaff } from '../online/school.js';
 import { startNews } from '../online/schoolNews.js';
+import { setAllowedSites, activeSite } from '../site.js';
 
 // Version en ligne : rien ne s'affiche sans connexion. Identifiant + code ; « code oublié » envoie un lien à
 // l'adresse du compte ; à la première connexion (code provisoire remis par la Direction), on choisit son code.
@@ -119,10 +120,11 @@ export default function OnlineGate({ children }) {
     if (!acc || acc.orphan) { setState({ step: 'orphan' }); return; }
     if (acc.mustChange) { setState({ step: 'first', acc }); return; }
     if (!acc.profile) { setState({ step: 'norole', acc }); return; }
+    if (setAllowedSites(acc.sites)) return; // appareil sur un site interdit : il repart sur le bon site
     supabase.rpc('ent_seen').then(() => {}, () => {});
     // l'application signe les saisies de ce nom, avec ce profil (voir identity.js) ; si la personne de cet
     // appareil change, on recharge une fois pour que tous les écrans repartent de la bonne identité
-    const prev = loadMe(); const next = { role: acc.profile, name: acc.name, login: acc.login, id: acc.id };
+    const prev = loadMe(); const next = { role: acc.profile, name: acc.name, login: acc.login, id: acc.id, title: acc.title ?? '' };
     saveMe(next);
     if ((prev?.id !== next.id || prev?.role !== next.role) && !sessionStorage.getItem('ent-me-reload')) {
       sessionStorage.setItem('ent-me-reload', '1'); window.location.reload(); return;
@@ -132,7 +134,7 @@ export default function OnlineGate({ children }) {
     // Si le serveur ne répond pas, on n'ouvre pas (sinon un carnet vide pourrait remplacer le vrai).
     if (acc.profile === 'ELEVE') {
       try { await loadStudentContext(acc.id); } catch (e) { setState({ step: 'failed', message: e?.message, sync: true }); return; }
-    } else if (acc.profile !== 'DIRECTION') {
+    } else if (acc.profile !== 'DIRECTION' && activeSite() === 'TMV') {
       try {
         const roster = await loadRoster();
         await loadSchoolForStaff(roster?.students ?? []); // agenda : emploi du temps et événements publiés
@@ -142,7 +144,7 @@ export default function OnlineGate({ children }) {
     // Direction, secrétariat, vie scolaire : données partagées (caisse, élèves, vie scolaire…) reçues avant l'ouverture.
     // Sans réseau, on ouvre quand même avec ce que l'appareil contient : tout repartira au retour du réseau.
     if (GROUPS_OF[acc.profile]) { try { await startShared(acc.profile); } catch { /* hors ligne : données de l'appareil */ } preferLocalImport(); }
-    if (acc.profile === 'DIRECTION') startNews(); // vie de l'école et annonces publiées → portail des élèves
+    if (acc.profile === 'DIRECTION' && activeSite() === 'TMV') startNews(); // vie de l'école et annonces publiées → portail des élèves
     flushAll();
     setState({ step: 'in', acc });
   };

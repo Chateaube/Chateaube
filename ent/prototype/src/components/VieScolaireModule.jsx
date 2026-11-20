@@ -1,4 +1,5 @@
 import AbsenceCarryTab from './AbsenceCarryTab.jsx';
+import { siteName } from '../site.js';
 import React, { useState } from 'react';
 import { Badge, Button, Card, Icon, Stat } from './ui.jsx';
 import { CLASSES, classOf, STAFF_NAMES, MEASURES_LOG } from '../data/schoollife.js';
@@ -465,7 +466,7 @@ export default function VieScolaireModule({ settings, role = 'VIE_SCOLAIRE', ini
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-semibold text-navy-500">Tamatave</p>
+        <p className="text-sm font-semibold text-navy-500">{siteName()}</p>
         <h1 className="text-2xl font-semibold text-navy-900">{focus ? FOCUS_TITLE[initialTab] : role === 'ENSEIGNANT' ? 'Vie de classe' : 'Absences, retards et punitions'}</h1>
       </div>
       {role !== 'ENSEIGNANT' && !focus && <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
