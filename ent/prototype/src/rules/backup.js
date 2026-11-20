@@ -43,7 +43,8 @@ export function backupSheets(entries, at) {
 }
 
 // Jamais dans une sauvegarde : la session de connexion (ent-auth) ni les envois en attente vers le serveur.
-const keepKey = (k) => k !== 'ent-auth' && !k.startsWith('ent-pending-');
+// ni l'état de la synchronisation (ent-sync-…), ni le site choisi sur l'appareil : propres à chaque poste
+const keepKey = (k) => !k.startsWith('ent-auth') && !k.startsWith('ent-pending-') && !k.startsWith('ent-sync') && k !== 'ent-site' && k !== 'ent-sites';
 
 /**
  * Restaure une sauvegarde complète (fichier .json de « Sauvegarde complète ») : remplace les données de ce

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Button, Card } from './ui.jsx';
 import { backupSheets, readLocalData, restoreLocalData } from '../rules/backup.js';
 import { askConfirm } from './Dialogs.jsx';
+import { ONLINE } from '../online/client.js';
+import { beginRestore } from '../online/shared.js';
 import { buildXlsx } from '../xlsx.js';
 import { saveFile } from '../download.js';
 
@@ -24,7 +26,12 @@ export default function BackupCard({ role }) {
     if (!file) return;
     try {
       const data = JSON.parse(await file.text());
-      if (!(await askConfirm(`Restaurer la sauvegarde « ${file.name} » ? Tout ce que cet ordinateur contient (élèves importés, caisse, vie scolaire…) sera remplacé par le contenu du fichier.`))) return;
+      // en ligne : la sauvegarde REMET ce qui manque, pour toute l'équipe, sans rien effacer de ce qui a été saisi
+      // depuis (reçus, paiements, absences…) ; en cas de différence, la version actuelle du serveur est gardée
+      if (!(await askConfirm(ONLINE
+        ? `Restaurer la sauvegarde « ${file.name} » ? Ce qu'elle contient et qui manque aujourd'hui sera remis, pour toute l'équipe. Rien de ce qui a été saisi depuis ne sera effacé ni modifié.`
+        : `Restaurer la sauvegarde « ${file.name} » ? Tout ce que cet ordinateur contient (élèves importés, caisse, vie scolaire…) sera remplacé par le contenu du fichier.`))) return;
+      if (ONLINE) beginRestore(Object.keys(data).filter((k) => k.startsWith('ent-') && k !== 'ent-auth' && !k.startsWith('ent-pending-') && !k.startsWith('ent-sync')));
       const n = restoreLocalData(data);
       try { sessionStorage.setItem('ent-flash', JSON.stringify({ screen: 'import', text: `Sauvegarde « ${file.name} » restaurée (${n} types de données).` })); } catch { /* rien */ }
       window.location.reload();

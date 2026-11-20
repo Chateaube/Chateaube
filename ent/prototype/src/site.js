@@ -65,3 +65,22 @@ export function setAllowedSites(sites) {
 
 /** Nom du site affiché dans les titres des écrans (« Tamatave », « Tana »). */
 export const siteName = () => SITE_NAMES[current];
+
+// préférences de l'appareil, sans donnée personnelle : gardées à la déconnexion
+const DEVICE_PREFS = ['ent-texte-grand-v1', 'ent-ambiance-prefs-v1', 'ent-ambiance-vue', 'ent-site'];
+/**
+ * Déconnexion : efface de l'appareil toutes les données de l'ENT, des deux sites (élèves, caisse, salaires, notes…),
+ * pour qu'un poste partagé ne garde rien. Tout est sur le serveur et revient à la prochaine connexion.
+ */
+export function wipeDevice() {
+  if (!raw) return;
+  const ls = window.localStorage; const doomed = [];
+  try {
+    for (let i = 0; i < ls.length; i += 1) {
+      const k = ls.key(i); const name = k?.startsWith('TANA:') ? k.slice(5) : k;
+      if (name?.startsWith('ent-') && !DEVICE_PREFS.includes(name)) doomed.push(k);
+    }
+    doomed.forEach((k) => raw.remove.call(ls, k));
+  } catch { /* stockage indisponible */ }
+  try { window.sessionStorage.clear(); } catch { /* rien */ }
+}

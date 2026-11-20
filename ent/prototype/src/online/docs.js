@@ -65,7 +65,7 @@ async function push(key) {
 
 /** Renvoie tout ce qui attend sur cet appareil (au démarrage, au retour du réseau). */
 export function flushAll() {
-  try { siteLocalKeys().filter((k) => k.startsWith('ent-pending-')).forEach((k) => push(k.slice('ent-pending-'.length))); } catch { /* rien */ }
+  try { return Promise.all(siteLocalKeys().filter((k) => k.startsWith('ent-pending-')).map((k) => push(k.slice('ent-pending-'.length)))); } catch { return Promise.resolve(); }
 }
 export const hasPending = () => { try { return siteLocalKeys().some((k) => k.startsWith('ent-pending-')); } catch { return false; } };
 

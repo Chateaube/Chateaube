@@ -2,7 +2,9 @@ import { logActivity } from '../activityStore.js';
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, Icon } from './ui.jsx';
 import { JOURNALS, CLASS_FEES, STUDENT_ACCOUNTS, BANKS, FAMILIES } from '../data/accounting.js';
-import { studentDues, defaultSelection, validateInstrument, buildReceipts, PAYMENT_METHODS, lastReceiptNumbers } from '../rules/billing.js';
+import { studentDues, defaultSelection, validateInstrument, buildReceipts, PAYMENT_METHODS, lastReceiptNumbers, RECEIPT_PREFIX } from '../rules/billing.js';
+import { supabase, ONLINE } from '../online/client.js';
+import { activeSite, SITE_CODES } from '../site.js';
 import { formatAr } from '../rules/finance.js';
 import ReceiptTicket from './ReceiptTicket.jsx';
 import { printOnly } from '../print.js';
@@ -199,9 +201,22 @@ function CollectPaymentInner({ settings, articles = [], accounts: sharedAccounts
   const extras = items.filter((i) => i.key.startsWith('ART-'));
   const unpaidMonths = months.filter((m) => !['PAYE', 'EXONERE'].includes(m.status));
 
-  const collect = () => {
-    const next = { ...counter };
-    const r = buildReceipts(items, keys, instrument, (j) => ++next[j]);
+  const [busy, setBusy] = useState(false); // un seul encaissement à la fois (double clic)
+  const [numErr, setNumErr] = useState('');
+  const collect = async () => {
+    if (busy) return;
+    setBusy(true); setNumErr('');
+    // numéros attribués par le serveur (100_connexion.sql) : deux postes ne reçoivent jamais le même ;
+    // avant cette mise à jour du serveur, ou sans version en ligne : suite du journal de ce poste
+    const next = { ...counter }; const fromServer = {};
+    if (ONLINE) {
+      for (const j of [...new Set(chosen.map((c) => c.journal))]) {
+        const { data, error } = await supabase.rpc('ent_next_receipt', { p_series: `${RECEIPT_PREFIX[j]}-${SITE_CODES[activeSite()]}`, p_floor: counter[j] ?? 0 });
+        if (!error && Number.isInteger(data)) fromServer[j] = data;
+        else if (error && !/ent_next_receipt|PGRST202|function/i.test(`${error.code} ${error.message}`)) { setNumErr('Numéro de reçu indisponible (réseau ?) : rien n\'a été encaissé, réessayez.'); setBusy(false); return; }
+      }
+    }
+    const r = buildReceipts(items, keys, instrument, (j) => fromServer[j] ?? ++next[j]);
     setAccounts(accounts.map((a) => (a.id === studentId ? { ...a, paid: [...a.paid, ...chosen.map((c) => c.key)] } : a)));
     const day = catchUp.on ? catchUp.date : TODAY;
     const time = catchUp.on ? '' : new Date().toTimeString().slice(0, 5);
@@ -213,6 +228,7 @@ function CollectPaymentInner({ settings, articles = [], accounts: sharedAccounts
     if (catchUp.on) logActivity({ who: cashier, role: 'DIRECTION', kind: 'CAISSE', student: student.name, text: `Paiement enregistré après coup : reçu papier n° ${catchUp.paper.trim()} du ${day.split('-').reverse().join('/')} (${formatAr(total)})` });
     setCatchUp({ on: false, date: '', paper: '' });
     setSelected([]);
+    setBusy(false);
   };
 
   const matches = accounts.filter((a) => (!cls || a.cls === cls) && `${a.name} ${a.family}`.toLowerCase().includes(query.toLowerCase()));
@@ -357,9 +373,10 @@ function CollectPaymentInner({ settings, articles = [], accounts: sharedAccounts
           {!online && <p className="mt-3 rounded-lg bg-red-50 p-2 text-xs text-red-800">Hors connexion : l'encaissement est désactivé pour éviter les doublons de reçus. Reconnectez-vous (clé 4G ou partage de connexion).</p>}
           {/* sur téléphone, le bouton reste visible en bas de l'écran */}
           <div className="sticky bottom-0 z-10 -mx-5 mt-4 border-t border-slate-200 bg-white px-5 py-2 sm:static sm:mx-0 sm:border-0 sm:p-0">
-            <Button className="w-full !py-3 sm:!py-2" disabled={!online || (closed && !catchUp.on) || !chosen.length || errors.length > 0 || !bearerName || (catchUp.on && (!catchUp.date || catchUp.date > TODAY || !catchUp.paper.trim()))} onClick={collect}>
-              {catchUp.on ? 'Enregistrer le paiement' : 'Encaisser'} {total > 0 && formatAr(total)}
+            <Button className="w-full !py-3 sm:!py-2" disabled={busy || !online || (closed && !catchUp.on) || !chosen.length || errors.length > 0 || !bearerName || (catchUp.on && (!catchUp.date || catchUp.date > TODAY || !catchUp.paper.trim()))} onClick={collect}>
+              {busy ? 'Enregistrement…' : <>{catchUp.on ? 'Enregistrer le paiement' : 'Encaisser'} {total > 0 && formatAr(total)}</>}
             </Button>
+            {numErr && <p role="alert" className="mt-1 text-xs text-red-700">{numErr}</p>}
           </div>
           <p className="mt-2 text-[11px] text-slate-500">Un reçu est édité par journal (frais de scolarité, frais annexes, droits d'examen).</p>
         </Card>

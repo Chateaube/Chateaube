@@ -99,3 +99,9 @@ calendrier Parcoursup. Les notes s'ouvrent le 17 décembre ; les autres rubrique
    tous les autres comptes existants restent sur Tamatave et ne voient jamais Tana.
 4. Sur Tana (sélecteur), Gestion des agents › « Nouvel agent à Tana » : Économe (caisse, dépenses, salaires,
    trésorerie, inscriptions) ou BVS (vie scolaire). Ces comptes ne voient que Tana.
+
+## 13. Mise à jour 10 — sécurité de la connexion et numéros de reçus (une seule fois)
+1. Fonction des comptes : remplacer son code par `functions/comptes/index.ts` → Deploy (« code oublié » passe par elle).
+2. SQL Editor › New query → coller `100_connexion.sql` → Run (en bas : « ok »).
+3. Effet : la page de connexion ne révèle plus l'e-mail d'un compte ; 5 codes faux en 15 minutes bloquent
+   l'identifiant 15 minutes ; les numéros de reçus sont donnés par le serveur (jamais deux fois le même).

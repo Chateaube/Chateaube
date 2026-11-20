@@ -84,8 +84,40 @@ export function merge3(base, local, server) {
   return local; // valeur simple modifiée des deux côtés : la dernière saisie l'emporte
 }
 
+/**
+ * Restauration d'une sauvegarde : on remet ce qui manque, sans jamais rien effacer ni remplacer de ce qui a été
+ * saisi depuis (sur ce poste ou un autre). Listes : celles du serveur + les éléments de la sauvegarde absents ;
+ * fiches : les champs du serveur + ceux qui lui manquent ; valeurs simples : celle du serveur.
+ */
+export function unionKeep(server, local) {
+  if (server === undefined) return local;
+  if (local === undefined) return server;
+  const listish = (a) => Array.isArray(a) && (!a.length || keyed(a));
+  if (listish(server) && listish(local)) {
+    const ids = new Set(server.map((x) => String(idOf(x))));
+    return [...server, ...local.filter((x) => !ids.has(String(idOf(x))))];
+  }
+  if (isObj(server) && isObj(local)) {
+    const out = { ...server };
+    Object.keys(local).forEach((k) => { out[k] = unionKeep(server[k], local[k]); });
+    return out;
+  }
+  return server;
+}
+
 /* ---------------- Synchronisation ---------------- */
 let groups = []; let readOnly = []; let active = false; let applying = false;
+let suspended = false; // restauration en cours : rien ne part avant le rechargement
+const RESTORE = 'ent-sync-restaure';
+const readRestore = () => { try { return new Set(JSON.parse(localStorage.getItem(RESTORE)) ?? []); } catch { return new Set(); } };
+const writeRestore = (s) => { applying = true; try { if (s.size) localStorage.setItem(RESTORE, JSON.stringify([...s])); else localStorage.removeItem(RESTORE); } catch { /* rien */ } applying = false; };
+/** Avant d'écrire une sauvegarde sur l'appareil : plus aucun envoi jusqu'au rechargement ; ces données seront
+ *  ensuite ajoutées au serveur sans rien y effacer (unionKeep). */
+export function beginRestore(keys) {
+  suspended = true; clearTimeout(timer);
+  const r = readRestore(); keys.forEach((k) => r.add(k)); writeRestore(r);
+  const d = readDirty(); keys.forEach((k) => d.add(k)); writeDirty(d);
+}
 const base = {}; // dernière version commune connue, par clé (en mémoire)
 const DIRTY = 'ent-sync-dirty';
 const readDirty = () => { try { return new Set(JSON.parse(localStorage.getItem(DIRTY)) ?? []); } catch { return new Set(); } };
@@ -140,7 +172,7 @@ const exclusive = (fn) => { const run = chain.then(fn, fn); chain = run.catch(()
 
 /** Reçoit les données du serveur ; envoie ce qui n'y est pas encore. */
 export function pullShared() {
-  if (!active) return Promise.resolve();
+  if (!active || suspended) return Promise.resolve();
   return exclusive(async () => {
     const map = await fetchAll();
     const dirty = readDirty();
@@ -187,9 +219,11 @@ async function sendDirty(known) {
       const local = readLocal(k);
       if (!writable(k) || local === undefined) { const n = readDirty(); n.delete(k); writeDirty(n); continue; }
       for (let attempt = 0; attempt < 5; attempt += 1) {
-        const merged = merge3(base[k], local, fromServer(map, k));
+        const restoring = readRestore().has(k);
+        const merged = restoring ? unionKeep(fromServer(map, k), local) : merge3(base[k], local, fromServer(map, k));
         if (await writeDocs(toServer(k, merged), map)) {
           base[k] = merged;
+          if (restoring) { const r = readRestore(); r.delete(k); writeRestore(r); }
           // une saisie faite pendant l'envoi n'est pas écrasée : elle reste à envoyer
           if (same(readLocal(k), local)) { if (!same(merged, local)) writeLocal(k, merged); const n = readDirty(); n.delete(k); writeDirty(n); }
           break;
@@ -203,11 +237,12 @@ async function sendDirty(known) {
   }
 }
 /** Envoie les données modifiées sur cet appareil (fusionnées avec celles du serveur). */
-export function pushShared() { return active ? exclusive(() => sendDirty()) : Promise.resolve(); }
+export function pushShared() { return active && !suspended ? exclusive(() => sendDirty()) : Promise.resolve(); }
 
 let timer = null;
 function markDirty(k) {
   const d = readDirty(); if (!d.has(k)) { d.add(k); writeDirty(d); }
+  if (suspended) return;
   setStatus({ state: 'pending', at: status.at });
   clearTimeout(timer); timer = setTimeout(() => pushShared(), 1500);
 }
@@ -230,7 +265,7 @@ export async function startShared(role) {
   setInterval(tick, 30_000);
   window.addEventListener('online', tick);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') tick(); });
-  window.addEventListener('beforeunload', (e) => { if (readDirty().size) { pushShared(); e.preventDefault(); e.returnValue = ''; } });
+  window.addEventListener('beforeunload', (e) => { if (!suspended && readDirty().size) { pushShared(); e.preventDefault(); e.returnValue = ''; } });
   // premier démarrage sur cet appareil : tout ce qu'il contient est fusionné avec le serveur (rien n'est écrasé)
   const INIT = 'ent-sync-init-v1';
   let first = false; try { first = !localStorage.getItem(INIT); } catch { /* rien */ }

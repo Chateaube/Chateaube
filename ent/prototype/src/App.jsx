@@ -90,6 +90,7 @@ import ScreenBoundary from './components/ScreenBoundary.jsx';
 import AccountsModule from './components/AccountsModule.jsx';
 import { ONLINE, signOut } from './online/client.js';
 import { activeSite, allowedSites, switchSite } from './site.js';
+import { signOutAndWipe } from './online/logout.js';
 import { askConfirm } from './components/Dialogs.jsx';
 
 // Un portail par profil (cf. docs/02-architecture-ux.md, matrice des droits).
@@ -509,7 +510,7 @@ export default function App() {
                     </label>
                   )}
                   <label className="mt-3 flex items-center gap-2 text-sm text-slate-800"><input type="checkbox" checked={largeText} onChange={(e) => setLargeText(e.target.checked)} className="h-5 w-5" />Texte agrandi (sur cet appareil)</label>
-                  {ONLINE ? <button type="button" onClick={() => { forgetMe(); signOut().finally(() => window.location.reload()); }} className="mt-3 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-left text-sm text-slate-800 hover:bg-slate-50">Se déconnecter</button>
+                  {ONLINE ? <button type="button" onClick={() => { signOutAndWipe(askConfirm); }} className="mt-3 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-left text-sm text-slate-800 hover:bg-slate-50">Se déconnecter</button>
                     : realData && <button type="button" onClick={async () => { if ((await askConfirm('Changer la personne qui utilise cet appareil ? Les saisies déjà faites restent signées de leur auteur.'))) { forgetMe(); window.location.reload(); } }} className="mt-3 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-left text-sm text-slate-800 hover:bg-slate-50">Changer d'utilisateur de cet appareil</button>}
                   {/* Direction seule : vider cet ordinateur (import, fiches) ; jamais chez un professeur (notes en attente d'envoi) ni chez un élève */}
                   {profile === 'DIRECTION' && <button type="button" onClick={wipe} className="mt-3 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-left text-sm text-red-700 hover:bg-red-50">Effacer les données de cet ordinateur</button>}
