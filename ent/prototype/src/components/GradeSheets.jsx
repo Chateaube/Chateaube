@@ -1,4 +1,5 @@
 import { termGrades, subjectAverage } from '../termGrades.js';
+import { todayFr } from '../clock.js';
 import { takeIntent } from '../navIntent.js';
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card } from './ui.jsx';
@@ -17,7 +18,7 @@ import { printOnly } from '../print.js';
 // Grilles de notes par classe, à imprimer (A4 paysage, uniquement le tableau) ou à exporter
 // vers Excel (toutes les données : élèves, repères de classe, professeurs).
 
-const EDITED = '13/10/2026';
+const EDITED = todayFr();
 export const SHORT = { FR: 'Fra', MATHS: 'Math', HG: 'H-G', LVA: 'Ang', LVB: 'Esp', EPS: 'EPS', EMC: 'EMC', MGT: 'Mgt', SGN: 'SGN', DROIT: 'Droit', ECO: 'Éco', VDC: 'VdC',
   PHILO: 'Philo', ANG: 'Ang', ESP: 'Esp', SPE_MATHS: 'Spé Math', SPE_PC: 'Spé PC', SPE_SVT: 'Spé SVT', ES: 'Ens. sci.' };
 const tone = (v) => (v === null || v === undefined ? 'text-slate-400' : v < 10 ? 'text-red-700' : '');

@@ -7,7 +7,7 @@ import { WORK_KINDS, teacherHours, absenceErrors, sessionsToSupervise, slotHours
 import { loadTeacherAbsences, saveTeacherAbsences, loadLateness, saveLateness } from '../absencesStore.js';
 import { DocumentInput, DocumentThumb } from './PhotoInput.jsx';
 import { formatDateFr } from '../rules/calendar.js';
-import { today } from '../clock.js';
+import { today, schoolMonthsSoFar } from '../clock.js';
 
 // Heures des professeurs et absences.
 //  - Direction et secrétariat : volume horaire prévu par l'emploi du temps, fait, absences, reste à faire ;
@@ -16,11 +16,12 @@ import { today } from '../clock.js';
 
 const TODAY = today();
 const ME = 'p1'; // professeur connecté (démonstration : Mme Ranaivo)
-const PERIODS = {
-  OCT: ['Octobre 2026', '2026-10-01', '2026-10-31'],
-  SEPT: ['Septembre 2026', '2026-09-01', '2026-09-30'],
-  T1: ['1er trimestre', '2026-09-07', '2026-12-18'],
-};
+// périodes : les mois de l'année scolaire jusqu'au mois en cours (le plus récent d'abord), puis le 1er trimestre
+const lastDay = (k) => new Date(Date.UTC(Number(k.slice(0, 4)), Number(k.slice(5, 7)), 0)).toISOString().slice(0, 10);
+const PERIODS = Object.fromEntries([
+  ...schoolMonthsSoFar().reverse().map(([k, l]) => [k, [l.charAt(0).toUpperCase() + l.slice(1), `${k}-01`, lastDay(k)]]),
+  ['T1', ['1er trimestre', '2026-09-07', '2026-12-18']],
+]);
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
 const h = (n) => `${String(Math.round(n * 100) / 100).replace('.', ',')} h`;
 const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
@@ -104,7 +105,7 @@ export default function TeachingHours({ role, settings }) {
   const isTeacher = role === 'ENSEIGNANT';
   const isCpe = role === 'VIE_SCOLAIRE';
   const [absences, setAbsences] = useState(loadTeacherAbsences);
-  const [period, setPeriod] = useState('OCT');
+  const [period, setPeriod] = useState(Object.keys(PERIODS)[0]);
   const [open, setOpen] = useState(null);
   const [, from, to] = PERIODS[period];
   const add = (a) => {

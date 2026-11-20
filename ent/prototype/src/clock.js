@@ -18,3 +18,25 @@ export function addDays(iso, n) {
 export const weekStart = (iso) => { const wd = new Date(`${iso}T12:00:00Z`).getUTCDay(); return addDays(iso, wd === 0 ? -6 : 1 - wd); };
 /** Prochain jour de la semaine donnée (1 = lundi … 5 = vendredi), aujourd'hui exclu. */
 export const nextWeekday = (iso, wd) => { let d = addDays(iso, 1); while (new Date(`${d}T12:00:00Z`).getUTCDay() !== wd) d = addDays(d, 1); return d; };
+
+/* ---------- Dates du jour pour les titres et les traces (jamais une date écrite en dur) ---------- */
+const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+/** « 20/11/2026 » */
+export const todayFr = () => today().split('-').reverse().join('/');
+/** « 20/11/2026 14:05 » (trace d'une action) */
+export const stampFr = () => `${todayFr()} ${new Date().toTimeString().slice(0, 5)}`;
+/** « vendredi 20 novembre 2026 » */
+export const todayLong = () => new Date(`${today()}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+/** Mois en cours : « 2026-11 » */
+export const monthKey = () => today().slice(0, 7);
+/** « novembre 2026 » */
+export const monthLabel = (key = monthKey()) => `${MOIS[Number(key.slice(5, 7)) - 1]} ${key.slice(0, 4)}`;
+/** « d'octobre », « de novembre » */
+export const ofMonth = (key = monthKey()) => { const m = MOIS[Number(key.slice(5, 7)) - 1]; return /^[aeiouéèêh]/i.test(m) ? `d'${m}` : `de ${m}`; };
+/** Mois de l'année scolaire, de septembre au mois en cours : [['2026-09', 'septembre 2026'], …] */
+export function schoolMonthsSoFar(key = monthKey()) {
+  const y0 = Number(key.slice(5, 7)) >= 8 ? Number(key.slice(0, 4)) : Number(key.slice(0, 4)) - 1;
+  const out = []; let y = y0; let m = 9;
+  while (`${y}-${String(m).padStart(2, '0')}` <= key) { const k = `${y}-${String(m).padStart(2, '0')}`; out.push([k, monthLabel(k)]); m += 1; if (m > 12) { m = 1; y += 1; } }
+  return out;
+}

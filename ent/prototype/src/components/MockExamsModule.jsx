@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { siteName } from '../site.js';
-import logo from '../assets/logo-tamatave.png';
 import { Badge, Button, Card, Stat } from './ui.jsx';
 import { CLASSES } from '../data/schoollife.js';
 import { termGrades } from '../termGrades.js';
@@ -13,6 +12,7 @@ import { printOnly } from '../print.js';
 import { buildXlsx } from '../xlsx.js';
 import { readXlsx, sheetRows } from '../xlsxRead.js';
 import { saveFile } from '../download.js';
+import { brand } from '../siteBrand.js';
 
 // Examens blancs (candidats libres : pas de contrôle continu) : saisie des notes par épreuve — chaque
 // professeur saisit son épreuve —, relevés de notes « comme à l'examen » (3e, 1re, Terminale) et projection
@@ -55,7 +55,7 @@ function Transcript({ session, student, extra, official, situation = 'NORMAL' })
   return (
     <div className="mx-auto mb-6 w-full max-w-[760px] bg-white p-8 text-[11px] text-black shadow-soft print:mb-0 print:shadow-none" style={{ breakAfter: 'page', fontFamily: 'Poppins, sans-serif' }}>
       <div className="flex items-start justify-between gap-6">
-        <img src={logo} alt="École Collège Lycée Chateaubriand Tamatave" className="w-[200px]" />
+        <img src={brand().logo} alt={`École Collège Lycée Chateaubriand ${brand().city}`} className="w-[200px]" />
         <div className="text-right">
           <p className="text-[15px] font-bold uppercase tracking-wide">Relevé de notes</p>
           <p className="font-semibold">{exam.official}</p>

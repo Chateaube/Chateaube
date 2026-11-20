@@ -6,14 +6,14 @@ import { PAYMENT_METHODS } from '../rules/billing.js';
 import { formatAr } from '../rules/finance.js';
 import { DENOMINATIONS, expectedCash, countTotal, closingCheck, requestCancel, decideCancel, requestDuplicate, decideDuplicate, canPrintDuplicate, afterDuplicatePrint, depositAlert, validateDeposit, depositReminder, salaryWindow } from '../rules/cashControl.js';
 import { printOnly } from '../print.js';
-import { today } from '../clock.js';
+import { today, stampFr, todayLong, todayFr } from '../clock.js';
 
 // Reçus et clôture : journal des reçus du jour (duplicata, annulation avec motif validée par la
 // Direction), clôture des espèces chaque soir (comptage, écart justifié) et versements en banque.
 // Chaque action est horodatée et attribuée : on sait qui a fait quoi.
 
 const TODAY = today();
-const now = () => `13/10/2026 ${new Date().toTimeString().slice(0, 5)}`;
+const now = () => stampFr();
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
 const STATUS = {
   VALIDE: ['green', 'Valide'],
@@ -173,7 +173,7 @@ export default function CashControl({ role, actor, receipts, setReceipts, audit,
         </Card>
       )}
 
-      <Card title="Reçus du jour — mardi 13 octobre 2026" subtitle="Duplicata à la demande ; annulation uniquement avec un motif, validée par la Direction">
+      <Card title={`Reçus du jour — ${todayLong()}`} subtitle="Duplicata à la demande ; annulation uniquement avec un motif, validée par la Direction">
         <div className="-mx-5 overflow-x-auto">
           <table className="w-full min-w-[820px] text-sm">
             <thead>
@@ -254,7 +254,7 @@ export default function CashControl({ role, actor, receipts, setReceipts, audit,
                 </label>
               )}
               {tried && (counted === 0 ? <p className="mt-1 text-xs text-red-700">Saisir le montant compté.</p> : check.errors.map((e) => <p key={e} className="mt-1 text-xs text-red-700">{e}</p>))}
-              <Button className="mt-3 w-full" onClick={close}>Clôturer la caisse du 13/10/2026</Button>
+              <Button className="mt-3 w-full" onClick={close}>Clôturer la caisse du {todayFr()}</Button>
             </>
           )}
           <p className="mb-1 mt-4 text-xs font-semibold text-slate-500">Clôtures précédentes</p>

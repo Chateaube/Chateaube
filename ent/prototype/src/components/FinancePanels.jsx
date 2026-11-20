@@ -10,6 +10,7 @@ import { usePersistent } from '../persist.js';
 import { currentStudents } from '../importStore.js';
 import { printOnly } from '../print.js';
 import { relanceText } from '../rules/finance.js';
+import { brand } from '../siteBrand.js';
 
 // Finances (Caisse et comptabilité) : alertes de frais de scolarité (relances, avertissement, mise à pied)
 // et les deux journaux séparés (frais de scolarité / droits d'examen). Retirés de l'accueil de la Direction.
@@ -156,9 +157,9 @@ export function DunningAlerts({ settings, site = 'TMV' }) {
           <div className="relance-print hidden">
             {printing.map((c) => (
               <div key={c.id} style={{ breakAfter: 'page', fontSize: '12pt', lineHeight: 1.5, padding: '10mm' }}>
-                <p style={{ fontWeight: 700 }}>École Collège Lycée Chateaubriand — Tamatave</p>
-                <p style={{ fontSize: '10pt' }}>27 Rue Nationale, 501 Toamasina · +261 34 51 227 78</p>
-                <p style={{ marginTop: '12mm', textAlign: 'right' }}>Toamasina, le {formatDateFr(TODAY)}</p>
+                <p style={{ fontWeight: 700 }}>École Collège Lycée Chateaubriand — {brand().city}</p>
+                <p style={{ fontSize: '10pt' }}>{brand().address} · {brand().phone}</p>
+                <p style={{ marginTop: '12mm', textAlign: 'right' }}>{brand().town}, le {formatDateFr(TODAY)}</p>
                 <p style={{ marginTop: '8mm' }}>À l'attention de {c.guardian}</p>
                 <p style={{ marginTop: '8mm', fontWeight: 700 }}>Objet : frais de scolarité — {c.student} ({c.cls})</p>
                 {relanceText(c, c.stage, settings).split('\n').map((l, i) => <p key={i} style={{ marginTop: '4mm' }}>{l}</p>)}

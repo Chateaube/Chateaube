@@ -22,7 +22,8 @@ export function me(role) {
   return DEMO[role] ?? '';
 }
 /** « Mme Hanta (secrétariat) » */
-export const meLabel = (role) => `${me(role)} (${ROLE_LABEL[role] ?? role})`;
+// à Tana, la fonction écrite sur le compte (« Économe », « BVS ») plutôt que « secrétariat » / « vie scolaire »
+export const meLabel = (role) => { const t = loadMe()?.role === role && /[ée]conom|bvs/i.test(loadMe()?.title ?? '') ? loadMe().title.toLowerCase().replace('bvs', 'BVS') : null; return `${me(role)} (${t ?? ROLE_LABEL[role] ?? role})`; };
 
 /** Économe (Tana) : compte « secrétariat » qui tient aussi les salaires et la trésorerie. */
 export const isEconome = () => { const m = loadMe(); return m?.role === 'BUREAU' && /[ée]conom/i.test(m?.title ?? ''); };

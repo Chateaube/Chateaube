@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Badge, Button } from './ui.jsx';
 import SignaturePad from './SignaturePad.jsx';
 import { referenceOf, setReference, ficheOf, saveFiche } from '../ficheStore.js';
+import { brand } from '../siteBrand.js';
 
 // Fiche signalétique de l'établissement, remplie en ligne par le parent depuis son compte
 // (plus de saisie à la main), puis signée au doigt. La signature de référence du compte sert
@@ -35,7 +36,7 @@ export function prefill(profile, account) {
     sex: profile?.sex ?? '', photo: null, cls: profile?.cls ?? '', enteredOn: profile?.enteredOn?.slice(0, 7) ?? '', previousSchool: profile?.previousSchool ?? '', why: '',
     siblings: [], guardians: [guardian(g1) ?? emptyGuardian(), guardian(g2) ?? emptyGuardian('Père')],
     allergies: profile?.health?.allergies ?? '', treatment: '', emergencyName: '', emergencyPhone: '',
-    authImage: profile?.authorizations?.image ?? false, authHospital: false, accept: false, place: 'Tamatave', account,
+    authImage: profile?.authorizations?.image ?? false, authHospital: false, accept: false, place: brand().city, account,
   };
 }
 

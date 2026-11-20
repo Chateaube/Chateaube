@@ -5,6 +5,7 @@ import { accord, schoolYearOf, classLongName, frDate } from '../rules/documents.
 import { printOnly } from '../print.js';
 import { addSignatureRequest } from '../signatureStore.js';
 import { today } from '../clock.js';
+import { brand } from '../siteBrand.js';
 
 // Certificat de scolarité selon la matrice de l'établissement : une demi-page A4,
 // imprimé en 1 ou 2 exemplaires selon la demande de l'élève (2 exemplaires = une page découpée).
@@ -17,7 +18,7 @@ export const SIGNATORIES = [
 ];
 
 const SITES = [
-  ['CHATEAUBRIAND TAMATAVE', '27 Rue Nationale, 501 Toamasina', '+261 34 51 227 78', 'chateaubetamatave@gmail.com'],
+  [`CHATEAUBRIAND ${brand().city.toUpperCase()}`, brand().address, brand().phone, brand().mail],
   ['CHATEAUBRIAND TANANARIVE', 'Lot II R 5 Betongolo, 101 Antananarivo', '+261 34 16 982 87', 'chateaube@yahoo.fr'],
 ];
 
@@ -36,7 +37,7 @@ export function CertificateSheet({ profile: p, signatory = SIGNATORIES[0], signa
         ))}
       </div>
       <div className="flex flex-col">
-        <p className="text-right">Tamatave, le {frDate(date)}</p>
+        <p className="text-right">{brand().city}, le {frDate(date)}</p>
         <h2 className="mt-12 text-center text-[15px] font-bold tracking-wide">CERTIFICAT DE SCOLARITÉ</h2>
         <p className="mt-6 text-justify">Je soussignée, {signatory.intro}, certifie que :</p>
         <p className="mt-4 text-center font-bold">{p.lastName}&nbsp;&nbsp;&nbsp;{p.firstName}</p>

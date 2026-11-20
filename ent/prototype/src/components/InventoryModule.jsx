@@ -15,6 +15,7 @@ import { loadImport } from '../importStore.js';
 import { today } from '../clock.js';
 import { me } from '../identity.js';
 import { askConfirm } from './Dialogs.jsx';
+import { brand } from '../siteBrand.js';
 
 /** Élèves par classe avec leurs spécialités : import de l'année s'il existe, sinon la démonstration. */
 function roster() {
@@ -111,7 +112,7 @@ export default function InventoryModule({ role = 'BUREAU' }) {
     setNewItem(null); setErr('');
   };
   const exportXlsx = () => {
-    const rows = [[{ v: 'Inventaire — Tamatave', s: 'title' }], [], ['Catégorie', 'Article', 'Lieu', 'Quantité', 'Cassés', 'En état', 'Perdus', 'Seuil', 'Péremption'].map((v) => ({ v, s: 'head' }))];
+    const rows = [[{ v: `Inventaire — ${brand().city}`, s: 'title' }], [], ['Catégorie', 'Article', 'Lieu', 'Quantité', 'Cassés', 'En état', 'Perdus', 'Seuil', 'Péremption'].map((v) => ({ v, s: 'head' }))];
     items.forEach((i) => rows.push([i.cat, i.name, i.place, i.qty, i.broken ?? 0, { v: usable(i), s: i.min != null && usable(i) <= i.min ? 'red' : 'cell' }, i.lost ?? 0, i.min ?? '', i.expires ? i.expires.split('-').reverse().join('/') : ''].map((v) => (typeof v === 'object' && v ? v : { v, s: 'cell' }))));
     saveFile('inventaire.xlsx', buildXlsx([{ name: 'Inventaire', rows, widths: [18, 34, 20, 10, 10, 10, 10, 8, 12], freeze: { row: 3, col: 0 } }]));
   };
@@ -234,7 +235,7 @@ export default function InventoryModule({ role = 'BUREAU' }) {
         )}
       </Card>}
       <div className="inventory-print hidden print:block">
-        <h1 className="mb-2 text-lg font-semibold">Inventaire du matériel — Tamatave</h1>
+        <h1 className="mb-2 text-lg font-semibold">Inventaire du matériel — {brand().city}</h1>
         <table className="w-full text-xs"><thead><tr className="border-b text-left"><th>Catégorie</th><th>Article</th><th>Lieu</th><th className="text-right">Qté</th><th className="text-right">Cassés</th><th className="text-right">Perdus</th><th className="text-right">En état</th></tr></thead>
           <tbody>{items.map((i) => <tr key={i.id} className="border-b"><td>{i.cat}</td><td>{i.name}</td><td>{i.place}</td><td className="text-right">{i.qty}</td><td className="text-right">{i.broken ?? 0}</td><td className="text-right">{i.lost ?? 0}</td><td className="text-right">{usable(i)}</td></tr>)}</tbody></table>
       </div>

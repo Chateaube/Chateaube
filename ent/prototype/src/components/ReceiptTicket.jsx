@@ -2,7 +2,7 @@ import React from 'react';
 import { JOURNALS } from '../data/accounting.js';
 import { PAYMENT_METHODS } from '../rules/billing.js';
 import { amountInWords } from '../rules/finance.js';
-import logo from '../assets/logo-tamatave-ticket.png';
+import { brand } from '../siteBrand.js';
 
 // Reçu au format ticket de caisse (imprimante thermique 80 mm) : un ticket par journal.
 // 1 ariary = 5 francs malgaches (FMG)
@@ -23,7 +23,7 @@ export default function ReceiptTicket({ receipt, student, payer, cashier, at, du
   const method = PAYMENT_METHODS[receipt.method];
   return (
     <div className="ticket w-[300px] bg-white px-4 py-5 font-mono text-[11.5px] leading-snug text-black shadow-soft">
-      <img src={logo} alt="École Collège Lycée Chateaubriand Tamatave — 27 Rue Nationale, 501 Toamasina · +261 34 51 227 78" className="w-full" />
+      <img src={brand().ticket} alt={`École Collège Lycée Chateaubriand ${brand().city} — ${brand().address} · ${brand().phone}`} className="w-full" />
       <Rule />
       {duplicate && <p className="text-center font-bold tracking-widest">*** DUPLICATA ***</p>}
       {receipt.status === 'ANNULE' && <p className="text-center font-bold tracking-widest">*** REÇU ANNULÉ ***</p>}

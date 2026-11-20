@@ -1,6 +1,6 @@
 import React from 'react';
-import logo from '../assets/logo-tamatave.png';
 import { fmtAvg } from '../rules/grading.js';
+import { brand } from '../siteBrand.js';
 
 // Bulletin trimestriel selon la matrice de l'établissement (fichier Excel « Exemple bulletin ») :
 // MATIÈRES / PROFESSEURS · COMPÉTENCES · MOYENNE (ÉLÈVE, CLASSE) · APPRÉCIATIONS,
@@ -15,7 +15,7 @@ export function BulletinSheet({ b }) {
     <div className="bulletin mx-auto w-full max-w-[1000px] break-after-page bg-white p-8 text-[10.5px] leading-snug text-black shadow-soft print:max-w-none print:p-0 print:text-[9px] print:leading-tight print:shadow-none"
       style={{ fontFamily: 'Poppins, sans-serif' }}>
       <div className="flex items-start justify-between gap-6">
-        <img src={logo} alt="École Collège Lycée Chateaubriand Tamatave — 27 Rue Nationale, 501 Toamasina" className="w-[300px] shrink-0" />
+        <img src={brand().logo} alt={`École Collège Lycée Chateaubriand ${brand().city} — ${brand().address}`} className="w-[300px] shrink-0" />
         <div className="text-right">
           <p className="text-[14px] font-bold">Bulletin du {b.term}</p>
           <p className="font-bold">Année Scolaire {b.year}</p>

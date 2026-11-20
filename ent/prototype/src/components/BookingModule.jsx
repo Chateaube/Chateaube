@@ -224,7 +224,7 @@ export default function BookingModule({ role }) {
             <div className="grid grid-cols-3 gap-2">
               <label className="col-span-3 block sm:col-span-1 xl:col-span-3">
                 <span className="text-xs font-medium text-slate-600">Date</span>
-                <input type="date" min="2026-10-13" className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5" value={date} onChange={(e) => { if (e.target.value) { setDate(e.target.value); setConfirmation(null); } }} />
+                <input type="date" min={today()} className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5" value={date} onChange={(e) => { if (e.target.value) { setDate(e.target.value); setConfirmation(null); } }} />
               </label>
               <label className="block xl:col-span-1">
                 <span className="text-xs font-medium text-slate-600">Début</span>

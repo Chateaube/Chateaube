@@ -91,6 +91,8 @@ import AccountsModule from './components/AccountsModule.jsx';
 import { ONLINE, signOut } from './online/client.js';
 import { activeSite, allowedSites, switchSite } from './site.js';
 import { signOutAndWipe } from './online/logout.js';
+import { sharedPending } from './online/shared.js';
+import { hasPending } from './online/docs.js';
 import { askConfirm } from './components/Dialogs.jsx';
 
 // Un portail par profil (cf. docs/02-architecture-ux.md, matrice des droits).
@@ -298,6 +300,16 @@ export default function App() {
   const persona = myself ? { name: myself.name, short: myself.name, detail: (activeSite() === 'TANA' && myself.title) || (ROLES.find(([k]) => k === myself.role)?.[1] ?? '') }
     : profile === 'DIRECTION' ? { name: account.name, detail: account.email } : PERSONAS[profile];
 
+  // Poste resté ouvert la nuit : à minuit, l'application repart sur le nouveau jour (dates, caisse du jour,
+  // mois de paie) — sauf si des saisies n'ont pas encore été envoyées (nouvel essai 5 minutes plus tard)
+  useEffect(() => {
+    if (!realData0) return undefined;
+    let t;
+    const tick = () => { if (ONLINE && (sharedPending() || hasPending())) { t = setTimeout(tick, 300000); return; } window.location.reload(); };
+    const n = new Date();
+    t = setTimeout(tick, new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1, 0, 0, 30) - n);
+    return () => clearTimeout(t);
+  }, []);
   // Ambiance retenue par l'établissement : Océan (dégradé bleu)
   const theme = 'ocean';
   useEffect(() => { document.documentElement.dataset.theme = theme; }, []);

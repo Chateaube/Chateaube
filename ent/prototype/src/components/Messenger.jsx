@@ -9,7 +9,7 @@ import { demoOr } from '../demoData.js';
 import { imageToDataUrl } from '../image.js';
 import { atWork, nextOpening, openingLabel } from '../rules/workHours.js';
 import { DEFAULT_SETTINGS } from '../data/settings.js';
-import { today } from '../clock.js';
+import { today, nowIso } from '../clock.js';
 
 // Messagerie de l'ENT, pour tous les profils et dans tous les sens : professeurs ↔ élèves,
 // professeurs ↔ parents, professeurs ↔ collègues, familles ↔ établissement ; une classe entière
@@ -31,7 +31,7 @@ function Photo({ photo }) {
 
 // Pas de réponse en dehors des horaires de travail : la famille le sait au moment d'écrire.
 function WorkHoursNotice() {
-  const now = `2026-10-13T${new Date().toTimeString().slice(0, 5)}`;
+  const now = nowIso();
   const next = nextOpening(now, DEFAULT_SETTINGS);
   return atWork(now, DEFAULT_SETTINGS)
     ? <span className="mt-1 block text-[11px] text-slate-600">L'équipe répond pendant les horaires de travail : du lundi au vendredi 7h–17h, le mercredi 7h–12h. Urgence : appelez la vie scolaire.</span>
