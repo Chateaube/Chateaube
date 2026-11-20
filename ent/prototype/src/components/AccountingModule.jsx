@@ -523,7 +523,7 @@ export default function AccountingModule({ settings, role, account }) {
           );
         })}
       </div>
-      {tab === 'collect' && <CollectPayment settings={settings} articles={articles} accounts={accounts} setAccounts={setAccounts} reductionTypes={reductionTypes} onCollected={onCollected} cashier={actor} closed={closed} canCatchUp={role === 'DIRECTION'} />}
+      {tab === 'collect' && <CollectPayment settings={settings} articles={articles} accounts={accounts} setAccounts={setAccounts} reductionTypes={reductionTypes} issued={receipts} onCollected={onCollected} cashier={actor} closed={closed} canCatchUp={role === 'DIRECTION'} />}
       {tab === 'receipts' && <CashControl role={role} actor={actor} receipts={receipts} setReceipts={setReceipts} audit={audit} setAudit={setAudit} movements={movements} setMovements={setMovements} accounts={accounts} setAccounts={setAccounts} closings={closings} setClosings={setClosings} safe={CASH_SAFE} settings={settings} salariesPaid={cashSalariesPaid(payroll, salaryPayments)} />}
       {tab === 'salaries' && <Salaries role={role} actor={actor} settings={settings} payroll={payroll} setPayroll={setPayroll} rates={rates} setRates={setRates} payments={salaryPayments} setPayments={setSalaryPayments} validated={payrollValidated} setValidated={setPayrollValidated} movements={movements} setMovements={setMovements} setAudit={setAudit} safe={CASH_SAFE} />}
       {SETUP_TABS.includes(tab) && (

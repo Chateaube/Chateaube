@@ -89,9 +89,25 @@ export function validateInstrument({ method, ref, bank }) {
   return errors;
 }
 
+export const RECEIPT_PREFIX = { ECOLAGE: 'ECO', FRAIS_ANNEXES: 'ANX', DROITS_EXAMEN: 'EXA' };
+/**
+ * Dernier numéro émis dans chaque série (une série par journal : ECO, ANX, EXA), lu dans le journal des reçus
+ * gardé (et partagé en ligne) : la numérotation est continue, sans trou ni doublon, et un reçu annulé garde
+ * son numéro (il n'est jamais réattribué). floor : point de départ (démonstration).
+ */
+export function lastReceiptNumbers(receipts = [], floor = {}) {
+  const out = Object.fromEntries(Object.keys(RECEIPT_PREFIX).map((j) => [j, floor[j] ?? 0]));
+  const byPrefix = Object.fromEntries(Object.entries(RECEIPT_PREFIX).map(([j, p]) => [p, j]));
+  receipts.forEach((r) => {
+    const m = /^([A-Z]{3})-[A-Z]+-(\d+)$/.exec(String(r?.number ?? ''));
+    if (m && byPrefix[m[1]]) out[byPrefix[m[1]]] = Math.max(out[byPrefix[m[1]]], Number(m[2]));
+  });
+  return out;
+}
+
 /** Un reçu par journal pour les échéances cochées. */
 export function buildReceipts(items, selectedKeys, { method, ref, bank }, nextNumber) {
-  const PREFIX = { ECOLAGE: 'ECO', FRAIS_ANNEXES: 'ANX', DROITS_EXAMEN: 'EXA' };
+  const PREFIX = RECEIPT_PREFIX;
   const byJournal = {};
   for (const it of items) {
     if (!selectedKeys.includes(it.key) || it.status === 'PAYE' || it.status === 'EXONERE') continue;

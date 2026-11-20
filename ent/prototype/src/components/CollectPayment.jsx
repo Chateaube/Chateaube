@@ -2,7 +2,7 @@ import { logActivity } from '../activityStore.js';
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, Icon } from './ui.jsx';
 import { JOURNALS, CLASS_FEES, STUDENT_ACCOUNTS, BANKS, FAMILIES } from '../data/accounting.js';
-import { studentDues, defaultSelection, validateInstrument, buildReceipts, PAYMENT_METHODS } from '../rules/billing.js';
+import { studentDues, defaultSelection, validateInstrument, buildReceipts, PAYMENT_METHODS, lastReceiptNumbers } from '../rules/billing.js';
 import { formatAr } from '../rules/finance.js';
 import ReceiptTicket from './ReceiptTicket.jsx';
 import { printOnly } from '../print.js';
@@ -12,7 +12,7 @@ import { CLASSES } from '../data/schoollife.js';
 import { DEMO_SPECIALTIES } from '../data/manuals.js';
 import { kitFor, kitTotals } from '../rules/manuals.js';
 import { loadManuals, manualsDefined } from '../manualsStore.js';
-import { realData } from '../demoData.js';
+import { realData, demoOr } from '../demoData.js';
 import { useOnline } from '../online.js';
 import { liveArray } from '../demoData.js';
 import { usePersistent, readStored } from '../persist.js';
@@ -145,7 +145,7 @@ function DueTile({ item, checked, onToggle }) {
   );
 }
 
-function CollectPaymentInner({ settings, articles = [], accounts: sharedAccounts, setAccounts: setSharedAccounts, reductionTypes = [], onCollected, cashier = 'Mme Hanta (bureau)', closed = false, canCatchUp = false }) {
+function CollectPaymentInner({ settings, articles = [], accounts: sharedAccounts, setAccounts: setSharedAccounts, reductionTypes = [], issued = [], onCollected, cashier = 'Mme Hanta (bureau)', closed = false, canCatchUp = false }) {
   const [localAccounts, setLocalAccounts] = usePersistent(accountsKey(), () => [...CASH_ACCOUNTS]);
   const accounts = sharedAccounts ?? localAccounts;
   const online = useOnline();
@@ -161,7 +161,8 @@ function CollectPaymentInner({ settings, articles = [], accounts: sharedAccounts
   const [receiptsBearer, setReceiptsBearer] = useState('');
   // Reprise : paiement déjà reçu sur un reçu papier (jours sans logiciel) — daté du jour réel, hors caisse du jour
   const [catchUp, setCatchUp] = useState({ on: false, date: '', paper: '' });
-  const [counter, setCounter] = useState({ ECOLAGE: 412, FRAIS_ANNEXES: 208, DROITS_EXAMEN: 57 });
+  // numéros : suite du journal des reçus (jamais un compteur qui repartirait à l'ouverture de l'écran)
+  const counter = lastReceiptNumbers(issued, demoOr({ ECOLAGE: 412, FRAIS_ANNEXES: 208, DROITS_EXAMEN: 57 }, {}));
 
   const student = accounts.find((a) => a.id === studentId);
   // Réduction accordée par la Direction : type (taux) + motif, appliquée aux frais de scolarité
@@ -201,7 +202,6 @@ function CollectPaymentInner({ settings, articles = [], accounts: sharedAccounts
   const collect = () => {
     const next = { ...counter };
     const r = buildReceipts(items, keys, instrument, (j) => ++next[j]);
-    setCounter(next);
     setAccounts(accounts.map((a) => (a.id === studentId ? { ...a, paid: [...a.paid, ...chosen.map((c) => c.key)] } : a)));
     const day = catchUp.on ? catchUp.date : TODAY;
     const time = catchUp.on ? '' : new Date().toTimeString().slice(0, 5);

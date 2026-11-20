@@ -2588,3 +2588,11 @@ test('situation à l\'examen : redoublant dispensé des maths anticipées, chang
   assert.equal(p.acquiredCoef, 0);
   assert.ok(p.complete);
 });
+
+import { lastReceiptNumbers } from '../src/rules/billing.js';
+test('reçus : la numérotation suit le journal des reçus (continue, sans doublon, annulés compris)', () => {
+  assert.deepEqual(lastReceiptNumbers([]), { ECOLAGE: 0, FRAIS_ANNEXES: 0, DROITS_EXAMEN: 0 });
+  const r = [{ number: 'ECO-TMV-00003' }, { number: 'ECO-TMV-00007', status: 'ANNULE' }, { number: 'ANX-TMV-00002' }, { number: 'PAY-0375' }];
+  assert.deepEqual(lastReceiptNumbers(r), { ECOLAGE: 7, FRAIS_ANNEXES: 2, DROITS_EXAMEN: 0 });
+  assert.equal(lastReceiptNumbers(r, { ECOLAGE: 412 }).ECOLAGE, 412);
+});
