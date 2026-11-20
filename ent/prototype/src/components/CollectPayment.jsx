@@ -393,11 +393,11 @@ function CollectPaymentInner({ settings, articles = [], accounts: sharedAccounts
             <div className="ticket-print flex flex-col items-center gap-4 rounded-xl bg-slate-100 py-4">
               {receipts.map((r) => <ReceiptTicket key={r.number} receipt={r} student={student} payer={receiptsBearer} cashier={cashier} at={receiptsAt} />)}
             </div>
-            {/* reçu officiel A5 : attestation durable (employeur, mutuelle), à imprimer ou à joindre à un e-mail */}
+            {/* reçu officiel A4 : attestation durable (employeur, mutuelle), à imprimer ou à joindre à un e-mail */}
             <div className="mt-3 flex flex-wrap gap-2">
               {receipts.map((r) => <Button key={r.number} variant="secondary" className="text-xs" onClick={() => downloadOfficialReceipt({ ...r, student: student.name, cls: student.cls, bearer: receiptsBearer, cashier, at: receiptsAt, status: 'VALIDE' })}>Télécharger le reçu officiel (PDF){receipts.length > 1 ? ` · ${r.number}` : ''}</Button>)}
             </div>
-            <p className="mt-2 text-xs text-slate-500">Reçu officiel au format A5 : à imprimer, ou à joindre à un e-mail pour les parents qui en ont besoin.</p>
+            <p className="mt-2 text-xs text-slate-500">Reçu officiel au format A4 : à imprimer, ou à joindre à un e-mail pour les parents qui en ont besoin.</p>
           </Card>
         )}
       </div>
