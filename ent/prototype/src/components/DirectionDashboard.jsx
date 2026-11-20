@@ -1,5 +1,6 @@
 import React from 'react';
 import ActivityJournal from './ActivityJournal.jsx';
+import ServerUpdates from './ServerUpdates.jsx';
 import { PulseCard, UpcomingCard, TodoCard, FinanceCard } from './HomeBlocks.jsx';
 import { notificationsFor } from '../notify.js';
 import { me } from '../identity.js';
@@ -19,6 +20,7 @@ export default function DirectionDashboard({ account, settings, go, site = 'TMV'
         <h1 className="text-2xl font-semibold text-navy-900">Bonjour {realData() ? me('DIRECTION') : account.name.replace(/ \(.*\)$/, '')}</h1>
         <p className="text-sm text-slate-600">{count ? `${count} point${count > 1 ? 's' : ''} à traiter.` : 'Rien d\'urgent.'}</p>
       </div>
+      <ServerUpdates />
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <PulseCard go={go} />
         <FinanceCard go={go} settings={settings} />

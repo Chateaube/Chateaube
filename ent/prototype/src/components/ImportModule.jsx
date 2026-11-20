@@ -137,6 +137,10 @@ export default function ImportModule({ role = 'DIRECTION' }) {
   // message laissé avant le rechargement qui suit un import
   const [done, setDone] = useState(() => { try { const f = JSON.parse(sessionStorage.getItem('ent-flash')); if (f?.screen === 'import') { sessionStorage.removeItem('ent-flash'); return f.text; } } catch { /* rien */ } return null; });
   const [renumber, setRenumber] = useState(true);
+  // Onglets à reprendre : au premier import, tout ; à un réimport, ce qui remplacerait des corrections faites
+  // dans l'ENT (répartition des classes, notes officielles de 1re, inventaire) est décoché par défaut.
+  const [skip, setSkip] = useState(() => new Set(current?.students?.length ? ['staff', 'official', 'inventory'] : []));
+  const use = (k) => !skip.has(k);
   const [showImport, setShowImport] = useState(false);
   const [extras, setExtras] = useState(null);
   const [edu, setEdu] = useState(null); // export EduFinance lu, en attente de « Reprendre la caisse »
@@ -184,15 +188,15 @@ export default function ImportModule({ role = 'DIRECTION' }) {
       importedAt: current?.importedAt,
       // Réimport : fusion, jamais d'effacement — un élève déjà importé (même nom, même date de naissance) est
       // mis à jour, un nouveau est ajouté, ceux qui ne figurent pas dans ce fichier sont gardés.
-      students: analysis ? mergeStudents(current?.students ?? [], withExtras(analysis.students.map((s) => (renumber && s.student.suggestedNumber ? { ...s.student, number: s.student.suggestedNumber } : s.student)), extras ?? {})) : current?.students ?? [],
-      assignments: assignments ?? current?.assignments ?? [],
+      students: analysis && use('students') ? mergeStudents(current?.students ?? [], withExtras(analysis.students.map((s) => (renumber && s.student.suggestedNumber ? { ...s.student, number: s.student.suggestedNumber } : s.student)), extras ?? {})) : current?.students ?? [],
+      assignments: (use('staff') ? assignments : null) ?? current?.assignments ?? [],
       // emploi du temps : le nouveau remplace l'ancien en entier (c'est la semaine type de l'année)
       timetable: newTimetable ? extras.timetable.slots : current?.timetable ?? null,
       // paiements déjà reçus : l'onglet 7 rempli remplace la reprise précédente (c'est la liste de l'année)
       payments: current?.payments ?? null,
     };
     let payNote = '';
-    if (extras?.payments?.movements.length) {
+    if (use('payments') && extras?.payments?.movements.length) {
       const inList = new Set(data.students.map((x) => fold(`${x.lastName} ${x.firstName}`)));
       const kept = extras.payments.movements.filter((m) => inList.has(m.student));
       const paid = Object.fromEntries(Object.entries(extras.payments.paid).filter(([k]) => inList.has(k)));
@@ -207,26 +211,26 @@ export default function ImportModule({ role = 'DIRECTION' }) {
     // Premier vrai import : ce qui a été saisi pendant la démonstration (absences, punitions, caisse, tâches…) est effacé
     if (!current?.students?.length && data.students.length) resetDemoState();
     const where = saveImport(data);
-    if (extras?.cashMoves?.length) {
+    if (use('expenses') && extras?.cashMoves?.length) {
       // versements en banque, remises à la Direction, virements : mouvements de caisse (une reprise précédente est remplacée)
       const imp = loadImport();
       saveImport({ ...imp, payments: { paid: imp.payments?.paid ?? {}, movements: [...(imp.payments?.movements ?? []).filter((m) => !String(m.id).startsWith('tpl-')), ...extras.cashMoves].sort((a, b) => a.date.localeCompare(b.date)) } });
       payNote += ` Sorties d'espèces reprises (versements, remises, virements) : ${extras.cashMoves.length} (${new Intl.NumberFormat('fr-FR').format(extras.cashMoves.reduce((s, x) => s + x.amount, 0))} Ar).`;
     }
-    if (extras?.expenses?.length) {
+    if (use('expenses') && extras?.expenses?.length) {
       writeStored('ent-s-depenses', [...(readStored('ent-s-depenses') ?? []).filter((x) => !String(x.id).startsWith('tpl-')), ...extras.expenses]);
       payNote += ` Dépenses reprises : ${extras.expenses.length} (${new Intl.NumberFormat('fr-FR').format(extras.expenses.reduce((s, x) => s + x.amount, 0))} Ar).${extras.expenseErrors.length ? ` ${extras.expenseErrors.length} ligne(s) de dépenses à corriger, non reprises.` : ''}`;
     }
     setCurrent(loadImport());
     let more = '';
-    if (extras && Object.keys(extras.official).length) {
+    if (use('official') && extras && Object.keys(extras.official).length) {
       // notes rangées sous le nom de l'élève tel qu'il apparaît dans l'ENT (« NOM Prénom »)
       const nameOf = Object.fromEntries(data.students.map((x) => [`${x.lastName} ${x.firstName}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase(), `${x.lastName} ${x.firstName}`]));
       const m = loadMockExams();
       saveMockExams({ ...m, official: { ...m.official, ...Object.fromEntries(Object.entries(extras.official).map(([k, v]) => [nameOf[k] ?? k, v])) } });
       more += ` Notes officielles de 1re : ${Object.keys(extras.official).length} élèves.`;
     }
-    if (extras?.inventory.length) { saveInventory(extras.inventory); more += ` Inventaire : ${extras.inventory.length} articles.`; }
+    if (use('inventory') && extras?.inventory.length) { saveInventory(extras.inventory); more += ` Inventaire : ${extras.inventory.length} articles.`; }
     more += payNote;
     if (newTimetable) more += ` Emploi du temps : ${extras.timetable.slots.length} cours.`;
     else if (extras?.timetable?.slots.length) more += role === 'DIRECTION' ? ' Emploi du temps gardé tel quel.' : ' Emploi du temps non remplacé : seule la Direction peut le faire.';
@@ -369,10 +373,26 @@ export default function ImportModule({ role = 'DIRECTION' }) {
       {(analysis || assignments || extras?.timetable?.slots.length > 0 || extras?.payments?.movements.length > 0 || extras?.expenses?.length > 0 || extras?.cashMoves?.length > 0
         || Object.keys(extras?.official ?? {}).length > 0 || extras?.inventory?.length > 0) && (
         <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={doImport}>
-            Importer {[analysis && `${analysis.students.length} élèves`, assignments && `${assignments.length} professeurs`, extras?.timetable?.slots.length && `l'emploi du temps (${extras.timetable.slots.length} cours)`,
-              extras?.payments?.movements.length && `${extras.payments.movements.length} paiements`, (extras?.expenses?.length || extras?.cashMoves?.length) && `${(extras.expenses?.length ?? 0) + (extras.cashMoves?.length ?? 0)} sorties`,
-              Object.keys(extras?.official ?? {}).length && `les notes de 1re (${Object.keys(extras.official).length} élèves)`, extras?.inventory?.length && `l'inventaire (${extras.inventory.length})`].filter(Boolean).join(', ')}
+          {(() => {
+            const parts = [['students', analysis && `Élèves (${analysis.students.length}) : mis à jour par matricule, aucun effacé`],
+              ['staff', assignments && `Personnel et classes des professeurs (${assignments.length}) : remplace la répartition actuelle`],
+              ['payments', extras?.payments?.movements.length && `Paiements (${extras.payments.movements.length}) : remplacent la reprise précédente`],
+              ['expenses', (extras?.expenses?.length || extras?.cashMoves?.length) && `Sorties et dépenses (${(extras.expenses?.length ?? 0) + (extras.cashMoves?.length ?? 0)}) : remplacent la reprise précédente`],
+              ['official', Object.keys(extras?.official ?? {}).length && `Notes officielles de 1re (${Object.keys(extras.official).length} élèves) : remplacent celles saisies`],
+              ['inventory', extras?.inventory?.length && `Inventaire (${extras.inventory.length} articles) : remplace l'inventaire actuel`]].filter(([, l]) => l);
+            return parts.length > 1 || current?.students?.length ? (
+              <fieldset className="basis-full rounded-xl bg-white p-3 text-sm shadow-soft">
+                <legend className="px-1 text-xs font-semibold text-slate-600">Onglets à reprendre{current?.students?.length ? ' (décochés : rien ne change dans l\'ENT)' : ''}</legend>
+                {parts.map(([k, l]) => (
+                  <label key={k} className="flex items-start gap-2 py-0.5"><input type="checkbox" className="mt-1" checked={use(k)} onChange={() => { const n = new Set(skip); if (n.has(k)) n.delete(k); else n.add(k); setSkip(n); }} />{l}</label>
+                ))}
+              </fieldset>
+            ) : null;
+          })()}
+          <Button onClick={doImport} disabled={![analysis && use('students'), assignments && use('staff'), extras?.timetable?.slots.length, extras?.payments?.movements.length && use('payments'), (extras?.expenses?.length || extras?.cashMoves?.length) && use('expenses'), Object.keys(extras?.official ?? {}).length && use('official'), extras?.inventory?.length && use('inventory')].some(Boolean)}>
+            Importer {[analysis && use('students') && `${analysis.students.length} élèves`, assignments && use('staff') && `${assignments.length} professeurs`, extras?.timetable?.slots.length && `l'emploi du temps (${extras.timetable.slots.length} cours)`,
+              use('payments') && extras?.payments?.movements.length && `${extras.payments.movements.length} paiements`, use('expenses') && (extras?.expenses?.length || extras?.cashMoves?.length) && `${(extras.expenses?.length ?? 0) + (extras.cashMoves?.length ?? 0)} sorties`,
+              use('official') && Object.keys(extras?.official ?? {}).length && `les notes de 1re (${Object.keys(extras.official).length} élèves)`, use('inventory') && extras?.inventory?.length && `l'inventaire (${extras.inventory.length})`].filter(Boolean).join(', ')}
           </Button>
           {!analysis && !assignments && <p className="basis-full text-xs text-slate-600">Les élèves, les professeurs et leurs classes ne changent pas : ce fichier n'en contient pas.</p>}
           {analysis?.students.some((x) => x.student.suggestedNumber) && (

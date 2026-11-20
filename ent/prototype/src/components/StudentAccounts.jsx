@@ -89,7 +89,7 @@ export default function StudentAccounts({ settings }) {
       <div>
         <p className="text-sm font-semibold text-navy-500">Élèves · en ligne</p>
         <h1 className="text-2xl font-semibold text-navy-900">Portail des élèves</h1>
-        <p className="text-sm text-slate-600">Les élèves voient leur emploi du temps, l'agenda de l'école, les documents de l'école et leur fiche d'orientation. Les notes s'ouvriront le 17 décembre ; les autres rubriques sont affichées « en cours de création ».</p>
+        <p className="text-sm text-slate-600">Les élèves voient leur emploi du temps, l'agenda, les annonces et la vie de l'école que vous publiez, le règlement et les chartes, leurs engagements et leur fiche d'orientation. Les notes s'ouvriront le 17 décembre ; les autres rubriques sont marquées « bientôt ».</p>
       </div>
       {err && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{err}</p>}
       {msg && <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{msg}</p>}
