@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Badge, Button, Card, Stat } from './ui.jsx';
 import ReceiptTicket from './ReceiptTicket.jsx';
+import { downloadOfficialReceipt } from '../officialReceiptPdf.js';
 import { JOURNALS, BANKS } from '../data/accounting.js';
 import { PAYMENT_METHODS } from '../rules/billing.js';
 import { formatAr } from '../rules/finance.js';
@@ -196,6 +197,8 @@ export default function CashControl({ role, actor, receipts, setReceipts, audit,
                   </td>
                   <td className="px-4 py-2">
                     <div className="flex flex-wrap justify-end gap-1">
+                      {/* reçu officiel A5 (même numéro que le ticket) : tracé dans l'historique de la caisse */}
+                      <Button variant="secondary" className="!px-2 !py-1 text-xs" onClick={() => { downloadOfficialReceipt({ ...r, bearer: r.bearer }); log({ at: now(), by: actor, action: 'Reçu officiel (PDF) édité', receipt: r.number, detail: r.student }); }}>Reçu officiel (PDF)</Button>
                       {canPrintDuplicate(r, role) ? <Button variant="secondary" className="!px-2 !py-1 text-xs" onClick={() => setDuplicate(r)}>{isDirection ? 'Duplicata' : 'Imprimer le duplicata autorisé'}</Button>
                         : r.dup?.status === 'DEMANDE' ? <span className="self-center text-[11px] text-amber-700">Duplicata demandé à la Direction</span>
                           : <Button variant="secondary" className="!px-2 !py-1 text-xs" onClick={() => setAskingDup(r.number)}>Demander un duplicata</Button>}
