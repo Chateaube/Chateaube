@@ -128,7 +128,8 @@ function StaffHub({ settings }) {
     </div>
   );
 }
-const IMPORT = { id: 'import', label: 'Importer et sauvegarder', icon: 'swap', screen: ImportModule };
+// en ligne, une fois les élèves en place : la page s'ouvre sur la sauvegarde (l'import est rangé derrière un bouton)
+const IMPORT = { id: 'import', label: ONLINE ? 'Sauvegarder' : 'Importer et sauvegarder', icon: 'swap', screen: ImportModule };
 const GRADE_SHEETS = { id: 'grade-sheets', label: 'Grilles de notes', icon: 'pen', screen: GradeSheets };
 const BOOKS_FOR_TEACHER = { id: 'books', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who={me('ENSEIGNANT')} kind="PROF" /> };
 const TT_CHANGES = { id: 'tt-changes', label: 'Changements d\'emploi du temps', icon: 'clock', screen: TimetableChanges };
