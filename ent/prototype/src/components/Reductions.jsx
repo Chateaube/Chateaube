@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { stampFr } from '../clock.js';
 import { Badge, Button, Card } from './ui.jsx';
 import { CLASS_FEES } from '../data/accounting.js';
 import { reductionAmount } from '../rules/billing.js';
@@ -112,7 +113,7 @@ export default function Reductions({ canEdit, actor, types, setTypes, accounts, 
             <Button className="w-full" onClick={() => {
               setTried(true);
               if (errors.length) return;
-              setAccounts(accounts.map((a) => (a.id === draft.studentId ? { ...a, reduction: { typeId: draft.typeId, motif: draft.motif.trim(), by: actor, at: '13/10/2026' } } : a)));
+              setAccounts(accounts.map((a) => (a.id === draft.studentId ? { ...a, reduction: { typeId: draft.typeId, motif: draft.motif.trim(), by: actor, at: stampFr() + '' } } : a)));
               setDraft({ studentId: '', typeId: draft.typeId, motif: '' });
               setTried(false);
             }}>Accorder la réduction</Button>

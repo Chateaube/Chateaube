@@ -7,11 +7,13 @@ import { printOnly } from '../print.js';
 import { today } from '../clock.js';
 import { loadSignatures } from '../signatureStore.js';
 import { serviceText, weeklyHours } from './AgentForm.jsx';
+import { brand } from '../siteBrand.js';
 
 // Documents de l'agent, imprimés à la demande par la Direction seule (même présentation que le certificat
 // de scolarité) : contrat de vacation d'enseignement, attestation de travail (en poste), certificat de
 // travail (fin d'engagement). Un champ vide laisse une ligne pointillée à compléter à la main.
-const SCHOOL = { name: 'ÉCOLE CHATEAUBRIAND – Site de Tamatave', phone: '+261 34 51 227 78', mail: 'chateaubetamatave@gmail.com' };
+// coordonnées du site sur lequel on travaille (Tamatave / Tana)
+const SCHOOL = { get name() { return `ÉCOLE CHATEAUBRIAND – Site de ${brand().city}`; }, get phone() { return brand().phone; }, get mail() { return brand().mail; } };
 const blank = (v, w = '40mm') => (v ? v : <span style={{ display: 'inline-block', minWidth: w, borderBottom: '1px dotted #000' }}>&nbsp;</span>);
 const ar = (n) => (n ? `${new Intl.NumberFormat('fr-FR').format(Number(n))} Ariary` : null);
 const longDate = (iso) => (iso ? new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : null);
@@ -23,7 +25,7 @@ function Header({ date }) {
   return (
     <div className="flex items-start justify-between gap-6">
       <img src={logo} alt="École Collège Lycée Chateaubriand" className="w-[42mm]" />
-      <p className="text-right text-[10px] leading-tight">CHATEAUBRIAND TAMATAVE<br />27 Rue Nationale, 501 Toamasina<br />{SCHOOL.phone}<br />{SCHOOL.mail}<br /><br />Tamatave, le {frDate(date)}</p>
+      <p className="text-right text-[10px] leading-tight">CHATEAUBRIAND {brand().city.toUpperCase()}<br />{brand().address}<br />{SCHOOL.phone}<br />{SCHOOL.mail}<br /><br />{brand().city}, le {frDate(date)}</p>
     </div>
   );
 }
@@ -54,7 +56,7 @@ export function ContractSheet({ agent: a, headName, number, date = today() }) {
       <h2 className="mt-5 text-center text-[15px] font-bold tracking-wide">{TITLE[a.contract ?? 'Vacataire'] ?? 'CONTRAT DE TRAVAIL'}</h2>
       <p className="text-center">Contrat n° {blank(number, '25mm')} · Conformément au Code du travail de la République de Madagascar</p>
       <p className="mt-4 font-bold">ENTRE LES SOUSSIGNÉS :</p>
-      <p className="mt-1">{SCHOOL.name}, 27 Rue Nationale, 501 Tamatave, représentée par {headName ? `Madame ${headName}` : blank('', '55mm')}, en sa qualité de Cheffe d'établissement, ci-après dénommée « L'Employeur »,</p>
+      <p className="mt-1">{SCHOOL.name}, {brand().address}, représentée par {headName ? `Madame ${headName}` : blank('', '55mm')}, en sa qualité de Cheffe d'établissement, ci-après dénommée « L'Employeur »,</p>
       <p className="mt-2 font-bold">ET</p>
       <p className="mt-1">{fullName(a)}, demeurant à {blank(a.address, '70mm')}, {a.idType || 'pièce d\'identité'} n° {blank(a.idNumber, '35mm')}, délivré{a.idType === 'CIN' || a.idType === 'Carte de résident' ? 'e' : ''} le {blank(frDate(a.idIssued), '25mm')} à {blank(a.idPlace, '35mm')}, ci-après {fem(a, 'dénommé', 'dénommée')} « {P} ».</p>
       <p className="mt-2">Il a été convenu ce qui suit :</p>
@@ -70,7 +72,7 @@ export function ContractSheet({ agent: a, headName, number, date = today() }) {
         {teacher && <p>L'activité d'enseignement étant liée au calendrier scolaire, aucune heure de cours n'est due pendant les vacances scolaires ni en juillet et août.</p>}
       </Art>
       <Art n={3} title="LIEU DE TRAVAIL">
-        <p>{P} exerce ses fonctions sur le site de Tamatave de l'École Chateaubriand, 27 Rue Nationale, 501 Tamatave.</p>
+        <p>{P} exerce ses fonctions sur le site de {brand().city} de l'École Chateaubriand, {brand().address}.</p>
       </Art>
       <Art n={4} title="MISSIONS">
         {teacher ? (svc.length ? (
@@ -97,7 +99,7 @@ export function ContractSheet({ agent: a, headName, number, date = today() }) {
       <Art n={8} title="FIN DU CONTRAT">
         <p>La rupture du contrat est soumise aux dispositions du Code du travail malgache. Chaque partie respecte un préavis, de préférence à la fin d'un trimestre scolaire dans l'intérêt de la continuité du service. Un certificat de travail est remis à {p} à la fin de son engagement.</p>
       </Art>
-      <p className="mt-4">Fait à Tamatave, le {frDate(date)}, en deux exemplaires originaux.</p>
+      <p className="mt-4">Fait à {brand().city}, le {frDate(date)}, en deux exemplaires originaux.</p>
       <Sign signatory={SIGNATORIES[1]} both />
     </div>
   );
@@ -118,7 +120,7 @@ export function WorkSheet({ agent: a, kind, signatory, appreciation = true, sign
     <div className="staff-doc flex min-h-[270mm] w-full max-w-[210mm] flex-col bg-white px-[18mm] py-[12mm] text-[12.5px] leading-relaxed text-black" style={{ fontFamily: 'Poppins, sans-serif' }}>
       <Header date={date} />
       <h2 className="mt-12 text-center text-[17px] font-bold tracking-wide">{cert ? 'CERTIFICAT DE TRAVAIL' : 'ATTESTATION DE TRAVAIL'}</h2>
-      <p className="mt-10">Je soussignée, {blank(signatory.name, '50mm')}, {head} Chateaubriand Tamatave,<br />situé au 27 rue Nationale, 501 Tamatave, Madagascar,</p>
+      <p className="mt-10">Je soussignée, {blank(signatory.name, '50mm')}, {head} Chateaubriand {brand().city},<br />situé au {brand().address}, Madagascar,</p>
       <p className="mt-5">{cert ? 'certifie que :' : 'atteste que :'}</p>
       <p className="mt-5"><strong>{civ} {String(a.last).toUpperCase()} {a.first}</strong>, {fem(a, 'né', 'née')} le {blank(monthDate(a.birthDate), '35mm')}, à {blank(a.birthPlace, '35mm')},<br />
         {cert

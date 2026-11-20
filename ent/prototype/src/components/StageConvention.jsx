@@ -5,6 +5,8 @@ import { DEFAULT_SETTINGS } from '../data/settings.js';
 import { loadProfiles, profileKey } from '../profilesStore.js';
 import { formatDateFr } from '../rules/calendar.js';
 import { printOnly } from '../print.js';
+import { brand } from '../siteBrand.js';
+import { activeSite } from '../site.js';
 
 // Conventions de stage imprimables, d'après les modèles de l'école (3e : découverte de l'entreprise et des
 // métiers ; 2de : observation d'un métier ; 1re STMG : étude de terrain, même trame). Une convention par
@@ -55,7 +57,7 @@ function Convention({ kind, school, student }) {
       <P>La présente convention règle les rapports de l'Organisme d'Accueil avec l'Établissement et le/la Stagiaire. Cette convention est portée à la connaissance de l'élève mineur et de ses représentants légaux. Ils s'engagent par leurs signatures à en accepter les clauses.</P>
       <P>ENTRE les soussignés,</P>
       <P style={{ fontWeight: 700, marginTop: '2mm' }}>1. L'Établissement</P>
-      <P style={{ margin: 0 }}>Lycée Chateaubriand Tamatave, sis {school.address},</P>
+      <P style={{ margin: 0 }}>Lycée Chateaubriand {brand().city}, sis {school.address},</P>
       <Row><F label="Représenté par" value={school.headName} grow={3} /><span>, Cheffe d'Établissement</span></Row>
       <P style={{ fontWeight: 700, marginTop: '2mm' }}>2. L'Organisme d'Accueil <span style={{ fontWeight: 400 }}>(écrire en lettres majuscules)</span></P>
       <Row><F label="Nom de l'entreprise :" /></Row>
@@ -109,7 +111,7 @@ function GestionLetter({ school, student, date }) {
   const who = first || <B w="30mm" />;
   return (
     <section style={{ ...BASE, fontSize: '10.5pt', lineHeight: 1.5, pageBreakAfter: 'always' }}>
-      <p style={{ textAlign: 'right' }}>À Toamasina, le {formatDateFr(date).replace(/^\S+ /, '')}</p>
+      <p style={{ textAlign: 'right' }}>À {brand().town}, le {formatDateFr(date).replace(/^\S+ /, '')}</p>
       <p style={{ marginTop: '6mm' }}>À l'attention des responsables de l'organisation,</p>
       <p style={{ marginTop: '4mm' }}><strong>Objet : Demande d'entretien dans le cadre de l'épreuve anticipée d'Étude de gestion – Bac STMG</strong></p>
       <p style={{ marginTop: '4mm' }}>Madame, Monsieur,</p>
@@ -132,7 +134,8 @@ function GestionLetter({ school, student, date }) {
 }
 
 export default function StageConvention({ settings = DEFAULT_SETTINGS }) {
-  const school = { ...DEFAULT_SETTINGS.school, ...settings.school };
+  // Tana : adresse et contact du site de Tana par défaut (les Paramètres de chaque site peuvent les changer)
+  const school = { ...DEFAULT_SETTINGS.school, ...(activeSite() === 'TANA' ? { address: `${brand().address}, Madagascar`, stageReferent: { ...DEFAULT_SETTINGS.school.stageReferent, phone: brand().phone, mail: brand().mail } } : {}), ...settings.school };
   const profiles = useMemo(() => loadProfiles(), []);
   const [kind, setKind] = useState('STAGE_3E');
   const [who, setWho] = useState('ALL'); // 'ALL' : toute la classe ; 'BLANK' : une convention vierge ; sinon un élève

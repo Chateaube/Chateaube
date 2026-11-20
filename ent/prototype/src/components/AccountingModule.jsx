@@ -29,7 +29,7 @@ import { TIMETABLE } from '../data/timetable.js';
 import { teacherHours } from '../rules/teachingHours.js';
 import { loadTeacherAbsences } from '../absencesStore.js';
 import { takeIntent } from '../navIntent.js';
-import { nowTime, today } from '../clock.js';
+import { nowTime, today, schoolMonthsSoFar, monthKey, todayFr, todayLong } from '../clock.js';
 import { meLabel, isEconome } from '../identity.js';
 import { askConfirm } from './Dialogs.jsx';
 import { reverseMovement } from '../rules/cashControl.js';
@@ -235,10 +235,13 @@ function ArticlesTab({ articles, setArticles, canEdit }) {
 
 /* ---------- Caisse : entrées / sorties ---------- */
 /* ---------- Export mensuel de la caisse ---------- */
-const MONTH_OPTIONS = [['2026-09', 'Septembre 2026'], ['2026-10', 'Octobre 2026 (en cours)']];
+// mois de l'année scolaire jusqu'au mois en cours (le dernier : « en cours »)
+const cap1 = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+const monthOptions = () => schoolMonthsSoFar().map(([k, l], i, all) => [k, `${cap1(l)}${i === all.length - 1 ? ' (en cours)' : ''}`]);
 
 function MonthlyCashExport({ movements }) {
-  const [month, setMonth] = useState('2026-10');
+  const MONTH_OPTIONS = monthOptions();
+  const [month, setMonth] = useState(monthKey());
   const history = useMemo(() => [...CASH_HISTORY, ...movements], [movements]);
   const r = useMemo(() => monthlyCashReport(CASH_YEAR_OPENING, history, month, Object.keys(JOURNALS)), [history, month]);
   const label = MONTH_OPTIONS.find(([m]) => m === month)[1].replace(' (en cours)', '');
@@ -261,7 +264,7 @@ function MonthlyCashExport({ movements }) {
       <div className="cash-report">
         <div className="print-only mb-3 hidden">
           <p className="text-lg font-semibold">École Chateaubriand {siteName()} — caisse de {label.toLowerCase()}</p>
-          <p className="text-xs">Édité le 13/10/2026 par le secrétariat · {r.movements.length} mouvements</p>
+          <p className="text-xs">Édité le {todayFr()} par le secrétariat · {r.movements.length} mouvements</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm">
@@ -339,7 +342,7 @@ function CashTab({ movements, setMovements, role, account }) {
         <Stat label="Sorties du jour" value={formatAr(sum('OUT'))} tone="red" />
         {Object.entries(JOURNALS).slice(0, 2).map(([k, j]) => <Stat key={k} label={`Caisse ${j.label.toLowerCase()}`} value={formatAr(balance[k])} hint={`Ouverture ${formatAr(CASH_OPENING[k])}`} />)}
       </div>
-      <Card title="Mouvements de caisse — mardi 13 octobre 2026" subtitle={`Caisse de ${siteName()} · caisse droits d'examen : ${formatAr(balance.DROITS_EXAMEN)} (à reverser aux centres)`}>
+      <Card title={`Mouvements de caisse — ${todayLong()}`} subtitle={`Caisse de ${siteName()} · caisse droits d'examen : ${formatAr(balance.DROITS_EXAMEN)} (à reverser aux centres)`}>
         <div className="-mx-5 overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
             <thead>

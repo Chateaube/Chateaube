@@ -7,7 +7,7 @@ import { rateOn, rateHistory, payOf } from '../rules/payroll.js';
 import { formatAr } from '../rules/finance.js';
 import { expectedCash, salaryWindow } from '../rules/cashControl.js';
 import { staffStatus } from './StaffModule.jsx';
-import { today } from '../clock.js';
+import { today, monthKey, stampFr, ofMonth, monthLabel } from '../clock.js';
 
 // Salaires du personnel : rubrique de sortie à part. Les professeurs sont payés à l'heure de cours
 // effectuée face aux élèves (heures proposées d'après les appels, corrigées par la Direction). La Direction prépare et valide l'état de paie
@@ -15,9 +15,10 @@ import { today } from '../clock.js';
 // de caisse est créée ; par virement, on note la référence. Tout est tracé dans l'historique.
 
 const TODAY = today();
-const MONTH = '2026-10';
-const MONTH_START = '2026-10-01';
-const now = () => `13/10/2026 ${new Date().toTimeString().slice(0, 5)}`;
+// mois de paie : le mois en cours (salaires payés en fin de mois)
+const MONTH = monthKey();
+const MONTH_START = `${MONTH}-01`;
+const now = () => stampFr();
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
 const fmt = (iso) => iso.split('-').reverse().join('/');
 
@@ -51,7 +52,7 @@ export default function Salaries({ role, actor, settings, payroll, setPayroll, r
   const pay = (p) => {
     const s = staffOf(p.staffId);
     if (p.method === 'ESPECES') {
-      setMovements([...movements, { id: `s${Date.now()}`, date: TODAY, time: new Date().toTimeString().slice(0, 5), dir: 'OUT', nature: 'Salaires', journal: 'ECOLAGE', label: `Salaire d'octobre — ${s.name}`, method: 'Espèces', amount: p.amount, agent: actor }]);
+      setMovements([...movements, { id: `s${Date.now()}`, date: TODAY, time: new Date().toTimeString().slice(0, 5), dir: 'OUT', nature: 'Salaires', journal: 'ECOLAGE', label: `Salaire ${ofMonth(MONTH)} — ${s.name}`, method: 'Espèces', amount: p.amount, agent: actor }]);
     }
     setPayments([...payments, { staffId: p.staffId, month: MONTH, amount: p.amount, method: p.method, signature: p.method === 'ESPECES' ? signature : null, ref: p.method === 'VIREMENT' ? `${ref.bank} n° ${ref.ref}` : null, by: actor, at: now() }]);
     log({ at: now(), by: actor, action: 'Salaire payé', receipt: '—', detail: `${s.name} · ${formatAr(p.amount)} · ${p.method === 'ESPECES' ? 'espèces, émargé' : `virement ${ref.ref}`}` });
@@ -61,19 +62,19 @@ export default function Salaries({ role, actor, settings, payroll, setPayroll, r
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Masse salariale d'octobre" value={formatAr(total)} hint={`${rows.length} salariés`} />
+        <Stat label={`Masse salariale ${ofMonth(MONTH)}`} value={formatAr(total)} hint={`${rows.length} salariés`} />
         <Stat label="Dont en espèces" value={formatAr(cashTotal)} hint={`${cashRows.length} salariés`} />
         <Stat label="Espèces restant à payer" value={formatAr(cashLeft)} tone={cashLeft > cash ? 'red' : undefined} />
         <Stat label="Espèces en caisse" value={formatAr(cash)} tone={cashLeft > cash ? 'red' : 'green'} hint={cashLeft > cash ? `manque ${formatAr(cashLeft - cash)}` : 'suffisant pour les salaires'} />
       </div>
 
       <p className="rounded-2xl bg-navy-50 p-3 text-sm text-navy-900">
-        <strong>Semaine des salaires :</strong> du lundi {fmt(win.start)} (dernière semaine de cours d'octobre, les vacances commençant après le {fmt(win.lastSchoolDay)}) jusqu'au paiement des salaires.
+        <strong>Semaine des salaires :</strong> du lundi {fmt(win.start)} (dernière semaine de cours du mois, les vacances commençant après le {fmt(win.lastSchoolDay)}) jusqu'au paiement des salaires.
         Pendant cette période, pas de rappel de versement : les espèces restent au secrétariat. Les rappels reprennent dès que les salaires en espèces sont payés.
       </p>
 
-      <Card title="État de paie — octobre 2026" subtitle={`Préparé et payé par le secrétariat ; la Direction voit chaque paiement et reçoit le récapitulatif${validated ? ` · vu par ${validated.by} le ${validated.at}` : ''}`}
-        action={<span className="flex items-center gap-2"><Badge tone={rows.every((p) => paidOf(p.staffId)) ? 'green' : 'amber'}>{rows.filter((p) => paidOf(p.staffId)).length} / {rows.length} payés</Badge>{isDirection && !validated && <Button variant="secondary" onClick={() => { setValidated({ by: actor, at: now() }); log({ at: now(), by: actor, action: 'État de paie vu par la Direction', receipt: '—', detail: `Octobre 2026 · ${formatAr(total)}` }); }}>Marquer comme vu</Button>}</span>}>
+      <Card title={`État de paie — ${monthLabel(MONTH)}`} subtitle={`Préparé et payé par le secrétariat ; la Direction voit chaque paiement et reçoit le récapitulatif${validated ? ` · vu par ${validated.by} le ${validated.at}` : ''}`}
+        action={<span className="flex items-center gap-2"><Badge tone={rows.every((p) => paidOf(p.staffId)) ? 'green' : 'amber'}>{rows.filter((p) => paidOf(p.staffId)).length} / {rows.length} payés</Badge>{isDirection && !validated && <Button variant="secondary" onClick={() => { setValidated({ by: actor, at: now() }); log({ at: now(), by: actor, action: 'État de paie vu par la Direction', receipt: '—', detail: `${monthLabel(MONTH)} · ${formatAr(total)}` }); }}>Marquer comme vu</Button>}</span>}>
         <div className="-mx-5 overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
             <thead>

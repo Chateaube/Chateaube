@@ -7,6 +7,7 @@ import { nationalityLabels, missingDocuments } from '../rules/enrollment.js';
 import { usualFirstName } from '../rules/names.js';
 import { saveFile } from '../download.js';
 import { printOnly } from '../print.js';
+import { brand } from '../siteBrand.js';
 
 // Liste des élèves (Direction, Bureau, Vie scolaire) : par classe, avec photo, exportable vers
 // Excel (toutes les informations de la fiche) et imprimable : liste, trombinoscope, codes d'accès.
@@ -21,7 +22,7 @@ export default function StudentList({ role, onOpen, embedded = false, rowAction 
   const [preview, setPreview] = useState(null); // aperçu à l'écran : 'trombi' | 'codes'
   const classes = useMemo(() => [...new Set(profiles.map((p) => p.cls))].sort(), [profiles]);
   const list = useMemo(() => filterStudents(profiles, { cls, query }), [profiles, cls, query]);
-  const title = `Liste des élèves${cls ? ` — ${cls}` : ''} · 2026-2027 · Chateaubriand Tamatave`;
+  const title = `Liste des élèves${cls ? ` — ${cls}` : ''} · 2026-2027 · Chateaubriand ${brand().city}`;
   // CPE : consultation seulement (appeler une famille), sans impression ni export
   const readOnly = role === 'VIE_SCOLAIRE';
   const canCodes = !readOnly;
