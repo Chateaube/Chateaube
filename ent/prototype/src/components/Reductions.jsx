@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { stampFr } from '../clock.js';
 import { Badge, Button, Card } from './ui.jsx';
 import { CLASS_FEES } from '../data/accounting.js';
-import { reductionAmount } from '../rules/billing.js';
+import { reductionAmount, isNewStudent } from '../rules/billing.js';
 import { reductionText } from './CollectPayment.jsx';
 import { formatAr } from '../rules/finance.js';
 import { askConfirm, askText, tell } from './Dialogs.jsx';
@@ -26,8 +26,8 @@ export default function Reductions({ canEdit, actor, types, setTypes, accounts, 
     const fee = CLASS_FEES.find((f) => f.cls === a.cls);
     if (!fee) return '';
     const eco = reductionAmount(fee.ecolage, t.rates.ECOLAGE);
-    const ins = reductionAmount(a.isNew ? fee.inscription : fee.reinscription, t.rates.INSCRIPTION);
-    return [eco && `−${formatAr(eco)} / mois`, ins && `−${formatAr(ins)} à l'${a.isNew ? 'inscription' : 'réinscription'}`].filter(Boolean).join(' · ');
+    const ins = reductionAmount(isNewStudent(a) ? fee.inscription : fee.reinscription, t.rates.INSCRIPTION);
+    return [eco && `−${formatAr(eco)} / mois`, ins && `−${formatAr(ins)} à l'${isNewStudent(a) ? 'inscription' : 'réinscription'}`].filter(Boolean).join(' · ');
   };
   const updateType = (id, patch) => setTypes(types.map((t) => (t.id === id ? { ...t, ...patch } : t)));
 
