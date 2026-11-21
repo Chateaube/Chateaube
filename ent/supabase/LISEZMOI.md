@@ -105,3 +105,8 @@ calendrier Parcoursup. Les notes s'ouvrent le 17 décembre ; les autres rubrique
 2. SQL Editor › New query → coller `100_connexion.sql` → Run (en bas : « ok »).
 3. Effet : la page de connexion ne révèle plus l'e-mail d'un compte ; 5 codes faux en 15 minutes bloquent
    l'identifiant 15 minutes ; les numéros de reçus sont donnés par le serveur (jamais deux fois le même).
+
+## 14. Mise à jour 11 — connexion : 3 essais (une seule fois)
+1. SQL Editor › New query → coller `110_connexion_3_essais.sql` → Run (en bas : « ok »).
+2. Effet : 3 codes faux en 15 minutes bloquent l'identifiant 15 minutes ; un compte sans code classique ne
+   provoque plus « Connexion impossible ».

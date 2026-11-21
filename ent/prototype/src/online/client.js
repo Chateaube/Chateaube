@@ -20,10 +20,16 @@ export async function signIn(login, code) {
   const l = login.trim().toLowerCase();
   // le serveur ne donne l'adresse du compte que si le code est juste (100_connexion.sql) ; 5 essais ratés en
   // 15 minutes bloquent l'identifiant. Avant cette mise à jour du serveur : ancienne fonction.
+  const blocked = new Error('Trop d\'essais avec cet identifiant (3 codes faux) : réessayez dans 15 minutes, ou demandez un nouveau code à la Direction.');
   let { data: email, error } = await supabase.rpc('ent_login_check', { p_login: l, p_code: code });
-  if (error && /TROP_ESSAIS/.test(error.message)) throw new Error('Trop d\'essais avec cet identifiant : réessayez dans 15 minutes, ou demandez un nouveau code à la Direction.');
-  if (error && /ent_login_check|function|PGRST202|404/i.test(`${error.code} ${error.message}`)) ({ data: email, error } = await supabase.rpc('ent_login_email', { p_login: l }));
-  if (error) throw new Error('Connexion impossible pour le moment. Vérifiez internet et réessayez.');
+  if (email === 'TROP_ESSAIS' || (error && /TROP_ESSAIS/.test(error.message))) throw blocked;
+  // fonction absente du serveur (mise à jour 100 pas installée) : ancienne méthode
+  if (error && error.code === 'PGRST202') ({ data: email, error } = await supabase.rpc('ent_login_email', { p_login: l }));
+  if (error) {
+    // réseau coupé : message simple ; erreur du serveur : son code, pour que la Direction puisse la signaler
+    const offline = typeof navigator !== 'undefined' && navigator.onLine === false || /fetch|network/i.test(error.message ?? '');
+    throw new Error(offline ? 'Pas de connexion internet : vérifiez le réseau et réessayez.' : `Connexion impossible pour le moment (erreur du serveur ${error.code ?? ''} : ${String(error.message ?? '').slice(0, 80)}). Signalez-la à la Direction.`);
+  }
   if (!email) throw fail;
   const res = await supabase.auth.signInWithPassword({ email, password: code });
   if (res.error) throw fail;
