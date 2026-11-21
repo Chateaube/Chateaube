@@ -5,6 +5,7 @@ import { supabase } from './client.js';
 import { fetchDoc, fetchDocs } from './docs.js';
 import { labelsFor, loadEngagements, loadCatalogue } from '../engagementsStore.js';
 import { currentStudents } from '../importStore.js';
+import { lifeOf } from '../rules/studentLife.js';
 import { isPublic } from '../rules/publication.js';
 import { receives } from '../rules/announcements.js';
 
@@ -35,19 +36,25 @@ export async function publishNews() {
   if (error) throw new Error(error.message);
   last = sig; return true;
 }
-/** Engagements de chaque élève sur sa fiche « eleve:<id> » (lue par lui seul et le personnel), quand ils changent. */
+/**
+ * Fiche de chaque élève « eleve:<id> » (lue par lui seul et le personnel) : ses engagements et sa vie scolaire
+ * (absences, retards, oublis, punitions, colles, objets), mis à jour quand ils changent.
+ */
+const rawList = (k) => { try { const v = JSON.parse(localStorage.getItem(k)); return v ?? null; } catch { return null; } };
+const lifeData = () => ({ attendance: rawList('ent-absences-eleves-v1') ?? [], passport: rawList('ent-passeport-v3') ?? {}, sanctions: rawList('ent-s-sanctions') ?? [], objects: rawList('ent-objets-v1') ?? [] });
 let lastEng = null;
 export async function publishEngagements() {
-  const sig = JSON.stringify([loadEngagements(), loadCatalogue()]);
+  const life = lifeData();
+  const sig = JSON.stringify([loadEngagements(), loadCatalogue(), life]);
   if (sig === lastEng) return 0;
   const students = currentStudents() ?? [];
   const sexOf = (name) => students.find((s) => `${s.lastName} ${s.firstName}`.trim() === name)?.sex;
   let n = 0;
   for (const d of await fetchDocs('ELEVE')) {
     const v = d.value ?? {}; const name = `${v.lastName ?? ''} ${v.firstName ?? ''}`.trim();
-    const l = labelsFor(name, sexOf(name));
-    if (JSON.stringify(l) === JSON.stringify({ engagements: v.engagements ?? [], attestations: v.attestations ?? [] })) continue;
-    const { error } = await supabase.from('ent_doc').upsert({ key: d.key, kind: 'ELEVE', owner: d.owner, value: { ...v, ...l } });
+    const l = { ...labelsFor(name, sexOf(name)), vie: lifeOf(name, life) };
+    if (JSON.stringify(l) === JSON.stringify({ engagements: v.engagements ?? [], attestations: v.attestations ?? [], vie: v.vie ?? null })) continue;
+    const { error } = await supabase.from('ent_doc').update({ value: { ...v, ...l } }).eq('key', d.key);
     if (error) throw new Error(error.message);
     n += 1;
   }
@@ -55,9 +62,13 @@ export async function publishEngagements() {
 }
 
 let started = false;
-export function startNews() {
+/** Direction : vie de l'école + fiches des élèves ; secrétariat et vie scolaire : fiches des élèves (120_…sql). */
+export function startNews(role = 'DIRECTION') {
   if (started) return; started = true;
-  const run = () => { publishNews().catch(() => { /* hors ligne : nouvel essai à la minute suivante */ }); publishEngagements().catch(() => { /* idem */ }); };
+  const run = () => {
+    if (role === 'DIRECTION') publishNews().catch(() => { /* hors ligne : nouvel essai à la minute suivante */ });
+    publishEngagements().catch(() => { /* idem, ou règle du serveur pas encore installée */ });
+  };
   run(); setInterval(run, 60_000);
 }
 

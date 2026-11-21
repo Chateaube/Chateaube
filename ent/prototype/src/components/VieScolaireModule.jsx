@@ -158,7 +158,7 @@ function MeasuresTab({ log, setLog, role, toast }) {
                 {m.cancelled && <p className="text-xs font-medium text-red-700">Annulée le {m.cancelled.at.split('-').reverse().join('/')} par {m.cancelled.by} : {m.cancelled.reason}</p>}
                 {!m.cancelled && (authors.includes(m.author) || ['DIRECTION', 'VIE_SCOLAIRE'].includes(authorRole)) && (
                   <p className="mt-1 flex gap-3 text-xs">
-                    <button type="button" className="text-navy-600 underline" onClick={() => setDraft({ ...blank, student: m.student, measureId: m.measure, reason: m.reason, when: m.when ?? '', author: authors.includes(m.author) ? m.author : authors[0], editId: m.id })}>Corriger</button>
+                    <button type="button" className="text-navy-600 underline" onClick={() => setDraft({ ...blank, student: m.student, measureId: m.measure, reason: m.reason, reasonKind: splitReason(m.reason).kind, reasonNote: splitReason(m.reason).note, when: m.when ?? '', author: authors.includes(m.author) ? m.author : authors[0], editId: m.id })}>Corriger</button>
                     <button type="button" className="text-red-700 underline" onClick={async () => {
                       const reason = (await askText('Motif de l\'annulation (gardé dans le dossier) :'));
                       if (!reason?.trim()) return;
@@ -192,7 +192,16 @@ function MeasuresTab({ log, setLog, role, toast }) {
               ))}
             </select>
           </label>
-          <label className="block text-xs text-slate-600">Motif<textarea rows={2} value={draft.reason} onChange={(e) => setDraft({ ...draft, reason: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>
+          <label className="block text-xs text-slate-600">Motif
+            <select value={draft.reasonKind ?? ''} onChange={(e) => setDraft({ ...draft, reasonKind: e.target.value, reason: composeReason(e.target.value, draft.reasonNote) })} className={`mt-1 w-full ${inputCls}`}>
+              <option value="">Choisir le motif…</option>{MEASURE_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
+            </select>
+          </label>
+          {draft.reasonKind && (
+            <label className="block text-xs text-slate-600">{draft.reasonKind === 'Autre' ? 'Motif (à écrire) *' : 'Précision (facultatif)'}
+              <textarea rows={2} value={draft.reasonNote ?? ''} onChange={(e) => setDraft({ ...draft, reasonNote: e.target.value, reason: composeReason(draft.reasonKind, e.target.value) })}
+                placeholder={draft.reasonKind === 'Autre' ? 'Décrire le motif' : 'ex. DM n°2, pendant le cours de maths'} className={`mt-1 w-full ${inputCls}`} /></label>
+          )}
           {draft.measureId === 'RETENUE' && (
             <div className="grid grid-cols-[1fr_90px] gap-2">
               <label className="block text-xs text-slate-600">Colle le ({colleSlotsLabel()})<input type="datetime-local" value={draft.when} onChange={(e) => setDraft({ ...draft, when: e.target.value })} className={`mt-1 w-full ${inputCls}`} /></label>
@@ -384,6 +393,15 @@ function PhonesTab({ phones, setPhones, settings, toast, role }) {
     </div>
   );
 }
+
+// Motifs courants d'une mesure (liste déroulante) ; « Autre » : motif écrit à la main
+export const MEASURE_REASONS = ['Oubli du passeport (carnet de liaison)', 'Oubli de matériel', 'Devoir non fait', 'Travail non rendu', 'Bavardages répétés',
+  'Répond au professeur', 'Manque de respect', 'Insolence', 'Perturbation du cours', 'Retards répétés', 'Téléphone ou objet interdit', 'Tenue non conforme',
+  'Tricherie', 'Dégradation de matériel', 'Violence verbale', 'Violence physique', 'Autre'];
+/** Motif enregistré : « Devoir non fait — DM n°2 », ou le texte libre pour « Autre ». */
+export const composeReason = (kind, note) => { const n = String(note ?? '').trim(); return !kind ? n : kind === 'Autre' ? n : n ? `${kind} — ${n}` : kind; };
+/** Retrouve le motif de la liste et la précision dans un motif déjà enregistré (pour « Corriger »). */
+export const splitReason = (reason) => { const r = String(reason ?? ''); const k = MEASURE_REASONS.find((x) => x !== 'Autre' && (r === x || r.startsWith(`${x} — `))); return k ? { kind: k, note: r.slice(k.length).replace(/^ — /, '') } : { kind: r ? 'Autre' : '', note: r }; };
 
 const TABS = [['attendance', 'Absences & retards'], ['passport', 'Passeport de vie scolaire'], ['measures', 'Punitions & sanctions'], ['phones', 'Objets confisqués'], ['leave', 'Sorties anticipées'], ['carry', 'Reprise du 1er trimestre']];
 

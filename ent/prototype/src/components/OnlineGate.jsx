@@ -144,7 +144,8 @@ export default function OnlineGate({ children }) {
     // Direction, secrétariat, vie scolaire : données partagées (caisse, élèves, vie scolaire…) reçues avant l'ouverture.
     // Sans réseau, on ouvre quand même avec ce que l'appareil contient : tout repartira au retour du réseau.
     if (GROUPS_OF[acc.profile]) { try { await startShared(acc.profile); } catch { /* hors ligne : données de l'appareil */ } preferLocalImport(); }
-    if (acc.profile === 'DIRECTION' && activeSite() === 'TMV') startNews(); // vie de l'école et annonces publiées → portail des élèves
+    // portail des élèves : vie de l'école (Direction), fiches des élèves avec engagements et vie scolaire (équipe)
+    if (['DIRECTION', 'BUREAU', 'VIE_SCOLAIRE'].includes(acc.profile) && activeSite() === 'TMV') startNews(acc.profile);
     flushAll();
     setState({ step: 'in', acc });
   };

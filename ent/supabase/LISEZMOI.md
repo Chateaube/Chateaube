@@ -110,3 +110,8 @@ calendrier Parcoursup. Les notes s'ouvrent le 17 décembre ; les autres rubrique
 1. SQL Editor › New query → coller `110_connexion_3_essais.sql` → Run (en bas : « ok »).
 2. Effet : 3 codes faux en 15 minutes bloquent l'identifiant 15 minutes ; un compte sans code classique ne
    provoque plus « Connexion impossible ».
+
+## 15. Mise à jour 12 — vie scolaire dans le portail des élèves (une seule fois)
+1. SQL Editor › New query → coller `120_vie_scolaire_eleves.sql` → Run (en bas : 22 règles).
+2. Effet : chaque élève voit sa vie scolaire (absences, retards, oublis, punitions, colles, objets) ; elle est
+   mise à jour par les postes de la Direction, du secrétariat et de la vie scolaire, dans la minute.

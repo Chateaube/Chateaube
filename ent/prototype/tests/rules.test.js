@@ -2613,3 +2613,15 @@ test('nouvel élève : une inscription déjà payée fait foi, même sans date d
   assert.equal(isNewStudent({ isNew: true, paid: [] }), true);
   assert.equal(isNewStudent({ isNew: false, paid: [] }), false);
 });
+
+test('vie scolaire de l\'élève : seulement la sienne, mesures annulées retirées, résumé', async () => {
+  const { lifeOf, lifeSummary } = await import('../src/rules/studentLife.js');
+  const l = lifeOf('RABE Fy', {
+    attendance: [{ student: 'RABE Fy', date: '2026-11-10', kind: 'ABSENCE', justified: false }, { student: 'RABE Fy', date: '2026-11-12', kind: 'RETARD' }, { student: 'ZAFY Lova', date: '2026-11-10', kind: 'ABSENCE' }],
+    passport: { forgets: [{ student: 'RABE Fy', date: '2026-11-11', kind: 'Carnet de liaison' }], colles: [{ student: 'RABE Fy', when: '2026-11-18T13:00', hours: 1, status: 'A_FAIRE', reason: '3 retards' }] },
+    sanctions: [{ student: 'RABE Fy', date: '2026-11-11', measure: 'AVERTISSEMENT', reason: 'Répond au professeur' }, { student: 'RABE Fy', date: '2026-11-12', measure: 'BLAME', reason: 'x', cancelled: { at: '2026-11-13' } }],
+  });
+  assert.equal(l.absences.length, 1); assert.equal(l.retards.length, 1); assert.equal(l.oublis.length, 1);
+  assert.deepEqual(l.mesures.map((m) => m.label), ['Avertissement']);
+  assert.equal(lifeSummary(l), '1 absence · 1 retard · 1 oubli · 1 punition ou sanction · 1 colle à faire');
+});
