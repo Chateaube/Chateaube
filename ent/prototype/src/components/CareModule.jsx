@@ -11,6 +11,7 @@ import { consume, usable } from '../rules/inventory.js';
 import { formatDateFr } from '../rules/calendar.js';
 import { nowIso } from '../clock.js';
 import { me, meLabel } from '../identity.js';
+import { familiesTold } from '../familyReach.js';
 
 // Soins : registre des passages au secrétariat (mal de tête, blessure…). Pas d'infirmerie :
 // le seul médicament donné est le Doliprane, par le secrétariat, comme le dit le règlement intérieur.
@@ -64,7 +65,7 @@ export default function CareModule({ role = 'BUREAU' }) {
       const n = d.products?.[i.id]; return n > 0 ? consume(i, n, who, d.at, note) : i;
     });
     setInv(nextInv); saveInventory(nextInv);
-    setMsg(`Passage enregistré ; les parents de ${d.student} sont prévenus dans l'application.`);
+    setMsg(`Passage enregistré pour ${d.student} ; ${familiesTold()}.`);
     setD(blank); setTried(false);
   };
 

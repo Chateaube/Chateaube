@@ -22,6 +22,8 @@ import { nowIso, today } from '../clock.js';
 import { me, meLabel } from '../identity.js';
 import { realData } from '../demoData.js';
 import { askText } from './Dialogs.jsx';
+import { familiesTold } from '../familyReach.js';
+import { ONLINE } from '../online/client.js';
 
 // Vie scolaire : absences / retards, punitions et sanctions, objets confisqués.
 // Accessible à la Vie scolaire, au Bureau et à la Direction.
@@ -77,7 +79,7 @@ function AttendanceTab({ rows, setRows, toast, role, initialFilter }) {
   const notifyLog = { kind: 'PARENTS', text: (r) => `Parents prévenus (${r.kind === 'ABSENCE' ? 'absence' : 'retard'})` };
   return (
     <Card title="Absences et retards" subtitle="Issus de l'appel des enseignants. Justification possible pendant 24 h après le début de l'absence ; ensuite, non justifiée automatiquement"
-      action={notInformed.length > 0 && <Button onClick={() => update(notInformed.map((r) => r.id), { notified: true }, `${notInformed.length} famille${notInformed.length > 1 ? 's' : ''} prévenue${notInformed.length > 1 ? 's' : ''} (e-mail + application).`, notifyLog)}><Icon name="bell" />Prévenir les {notInformed.length} parent{notInformed.length > 1 ? 's' : ''}</Button>}>
+      action={notInformed.length > 0 && <Button onClick={() => update(notInformed.map((r) => r.id), { notified: true }, `${notInformed.length} famille${notInformed.length > 1 ? 's' : ''} prévenue${notInformed.length > 1 ? 's' : ''}${ONLINE ? ' (marqué ; appel ou message de votre part)' : ' (e-mail + application)'}.`, notifyLog)}><Icon name="bell" />Prévenir les {notInformed.length} parent{notInformed.length > 1 ? 's' : ''}</Button>}>
       <div className="mb-3 flex flex-wrap gap-2">
         {FILTERS.map(([k, l, n]) => (
           <button key={k} type="button" aria-pressed={filter === k} onClick={() => setFilter(k)}
@@ -120,7 +122,7 @@ function AttendanceTab({ rows, setRows, toast, role, initialFilter }) {
                 </td>
                 <td className="px-2">{r.notified ? <Ack at={r.parentAck} /> : <span className="text-xs font-medium text-amber-800">Pas encore prévenus</span>}</td>
                 <td className="px-4 text-right">
-                  {!r.notified && <Button variant="secondary" onClick={() => update([r.id], { notified: true }, `Parents de ${r.student} prévenus (e-mail + application).`, notifyLog)}><Icon name="bell" />Prévenir les parents</Button>}
+                  {!r.notified && <Button variant="secondary" onClick={() => update([r.id], { notified: true }, ONLINE ? `Parents de ${r.student} : marqué « prévenus » (appel ou message de votre part).` : `Parents de ${r.student} prévenus (e-mail + application).`, notifyLog)}><Icon name="bell" />Prévenir les parents</Button>}
                 </td>
               </tr>
             ))}
@@ -161,7 +163,7 @@ function MeasuresTab({ log, setLog, role, toast }) {
                       const reason = (await askText('Motif de l\'annulation (gardé dans le dossier) :'));
                       if (!reason?.trim()) return;
                       setLog(log.map((x) => (x.id === m.id ? { ...x, cancelled: { at: today(), by: authors[0], reason: reason.trim() } } : x)));
-                      toast('Mesure annulée ; le parent en est informé.');
+                      toast(`Mesure annulée ; ${familiesTold()}.`);
                     }}>Annuler la mesure</button>
                   </p>
                 )}
@@ -217,7 +219,7 @@ function MeasuresTab({ log, setLog, role, toast }) {
             if (draft.editId) {
               // correction : le parent est prévenu à nouveau et doit reconfirmer
               setLog(log.map((x) => (x.id === draft.editId ? { ...x, student: draft.student, measure: draft.measureId, reason: draft.reason.trim(), when: draft.when || null, author: draft.author, parentAck: null, editedAt: today() } : x)));
-              toast(`Mesure corrigée ; le parent de ${draft.student} est prévenu de la correction.`);
+              toast(`Mesure corrigée pour ${draft.student} ; ${familiesTold()}.`);
               clearDraft();
               return;
             }
@@ -225,7 +227,7 @@ function MeasuresTab({ log, setLog, role, toast }) {
             logActivity({ who: draft.author, role, kind: 'PUNITION', student: draft.student, text: `${MEASURE[draft.measureId].label} : ${draft.reason.trim()}` });
             // une retenue est une colle : elle entre au passeport, à la suite des autres colles de l'élève
             if (retenue) { const pp = loadPassport(); savePassport({ ...pp, colles: [...pp.colles, { id: `c${Date.now()}`, student: draft.student, kind: 'COLLE', cause: 'AUTRE', hours: draft.hours ?? 1, date: '2026-10-13', when: draft.when, reason: draft.reason.trim(), status: 'A_FAIRE', by: draft.author }] }); }
-            toast(`Mesure enregistrée ; le parent de ${draft.student} est notifié (e-mail + application).`);
+            toast(`Mesure enregistrée pour ${draft.student} ; ${familiesTold()}.`);
             clearDraft();
           }}>{draft.editId ? 'Enregistrer la correction' : 'Enregistrer et prévenir le parent'}</Button>
           {draft.editId && <Button variant="ghost" className="w-full" onClick={clearDraft}>Abandonner la correction</Button>}
@@ -253,7 +255,7 @@ function PhonesTab({ phones, setPhones, settings, toast, role }) {
   const decide = (p, duration) => {
     setPhones(phones.map((x) => (x.id === p.id ? { ...x, duration, durationBy: actor } : x)));
     logActivity({ who: actor, role, kind: 'OBJET', student: p.student, text: `Durée de confiscation décidée : ${PHONE_DURATIONS.find((d) => d.id === duration).label} (${objectOf(p).toLowerCase()})` });
-    toast(`${objectOf(p)} de ${p.student} : ${PHONE_DURATIONS.find((d) => d.id === duration).label}. Les parents sont prévenus.`);
+    toast(`${objectOf(p)} de ${p.student} : ${PHONE_DURATIONS.find((d) => d.id === duration).label} ; ${familiesTold()}.`);
   };
   return (
     <div className="grid gap-5 xl:grid-cols-[1fr_380px] xl:items-start">
@@ -374,7 +376,7 @@ function PhonesTab({ phones, setPhones, settings, toast, role }) {
             const item = { ...rest, owner: otherOwner ? draft.owner : undefined, id: `p${Date.now()}`, reason: draft.reason.trim(), objectNote: draft.objectNote.trim(), duration: isWarning ? undefined : draft.duration || null, durationBy: draft.duration ? actor : undefined, receivedBy: isWarning ? undefined : draft.receivedBy, returned: null };
             setPhones([item, ...phones]);
             logActivity({ who: draft.confiscatedBy, role, kind: 'OBJET', student: draft.student, text: isWarning ? `Avertissement (${objectOf(item).toLowerCase()}) : ${item.reason}` : `${objectOf(item)} confisqué, remis à ${draft.receivedBy}` });
-            toast(isWarning ? `Avertissement enregistré ; le parent de ${draft.student} est prévenu.` : `Confiscation enregistrée${draft.duration ? '' : ' ; la durée sera décidée par la Direction ou le secrétariat'}. ${otherOwner ? `Les parents de ${draft.student} et de ${draft.owner} sont prévenus` : `Le parent de ${draft.student} est prévenu`}.`);
+            toast(isWarning ? `Avertissement enregistré pour ${draft.student} ; ${familiesTold()}.` : `Confiscation enregistrée${draft.duration ? '' : ' ; la durée sera décidée par la Direction ou le secrétariat'}. ${otherOwner ? `Les parents de ${draft.student} et de ${draft.owner} sont prévenus` : `Le parent de ${draft.student} est prévenu`}.`);
             clearDraft();
           }}>Enregistrer</Button>
         </div>
@@ -402,7 +404,7 @@ function EarlyLeaveTab({ toast }) {
     const item = { ...d, id: `s${Date.now()}`, minor, leftAlone: !d.pickedUpBy.trim() };
     const next = [item, ...list]; setList(next);
     try { localStorage.setItem(LEAVE_KEY, JSON.stringify(next)); } catch { /* stockage indisponible */ }
-    toast(`Sortie enregistrée ; les parents de ${d.student} sont prévenus dans l'application.`);
+    toast(`Sortie enregistrée pour ${d.student} ; ${familiesTold()}.`);
     setD(blank); setTried(false);
   };
   return (
@@ -447,7 +449,8 @@ function EarlyLeaveTab({ toast }) {
 
 export default function VieScolaireModule({ settings, role = 'VIE_SCOLAIRE', initialTab }) {
   // l'enseignant ne voit que ses outils, punitions en premier : punitions, passeport, objet confisqué
-  const tabs = role === 'ENSEIGNANT' ? ['measures', 'passport', 'phones'].map((id) => TABS.find(([t]) => t === id)) : TABS;
+  // professeur : « Noter un oubli » (le passeport et les colles restent à la vie scolaire et à la Direction)
+  const tabs = role === 'ENSEIGNANT' ? ['measures', 'passport', 'phones'].map((id) => TABS.find(([t]) => t === id)).map(([id, l]) => [id, id === 'passport' ? 'Noter un oubli' : l]) : TABS;
   const [intent] = useState(() => takeIntent('vs'));
   const wanted = intent?.tab ?? initialTab;
   const [tab, setTab] = useState(tabs.some(([id]) => id === wanted) ? wanted : tabs[0][0]);

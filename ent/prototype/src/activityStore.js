@@ -6,6 +6,9 @@ import { me, meLabel } from './identity.js';
 import { realData } from './demoData.js';
 
 const KEY = 'ent-journal-v1';
+// lignes écrites par les professeurs : partagées avec la vie scolaire et la Direction (groupe « classe » ;
+// le journal de l'équipe, lui, contient aussi la caisse et n'est pas lisible par les professeurs)
+const PROF_KEY = 'ent-journal-profs-v1';
 export const DEMO_TODAY = today(); // nom historique : le jour courant (démo : 13 octobre)
 
 // Lignes de démonstration tirées des données fictives de vie scolaire
@@ -24,7 +27,8 @@ const DEMO = [
 
 export function loadJournal() {
   const demo = demoOr(DEMO, []);
-  try { return [...(JSON.parse(localStorage.getItem(KEY)) ?? []), ...demo]; } catch { return demo; }
+  const read = (k) => { try { return JSON.parse(localStorage.getItem(k)) ?? []; } catch { return []; } };
+  return [...read(KEY), ...read(PROF_KEY), ...demo].sort((a, b) => String(b.at).localeCompare(String(a.at)));
 }
 
 /** Ajoute une ligne au journal (date de démonstration, heure réelle). */
@@ -32,8 +36,9 @@ export function logActivity({ who, role, kind, text, student }) {
   const time = new Date().toTimeString().slice(0, 5);
   const entry = { id: `j${Date.now()}${Math.random().toString(36).slice(2, 6)}`, at: `${DEMO_TODAY}T${time}`, who, role, kind, text, student };
   try {
-    const mine = JSON.parse(localStorage.getItem(KEY)) ?? [];
-    localStorage.setItem(KEY, JSON.stringify([entry, ...mine].slice(0, 2000)));
+    const key = role === 'ENSEIGNANT' ? PROF_KEY : KEY;
+    const mine = JSON.parse(localStorage.getItem(key)) ?? [];
+    localStorage.setItem(key, JSON.stringify([entry, ...mine].slice(0, 2000)));
   } catch { /* stockage indisponible */ }
   return entry;
 }
