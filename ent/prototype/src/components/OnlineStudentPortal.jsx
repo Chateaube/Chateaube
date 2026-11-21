@@ -6,6 +6,7 @@ import { FamilyDocuments, TermsGate } from './InternalResources.jsx';
 import { currentStudent, currentSchool, currentNews } from '../online/school.js';
 import { newsFor } from '../online/schoolNews.js';
 import EngagementsCard from './EngagementsCard.jsx';
+import { lifeSummary } from '../rules/studentLife.js';
 import { loadTimetable } from '../timetableStore.js';
 import { loadChanges } from './TimetableChanges.jsx';
 import { dayCourses, nowNext, shortSubject, subjectColor as courseColor } from '../rules/timetableGrid.js';
@@ -21,6 +22,7 @@ import { DEFAULT_SETTINGS } from '../data/settings.js';
 // avec « en cours de création » ; l'onglet École montre les annonces et la vie de l'école publiées ; les notes s'ouvrent le 17 décembre. Aucune donnée fictive.
 const TABS = [['home', 'Accueil', 'home'], ['school', 'École', 'sparkles'], ['notes', 'Notes', 'pen'], ['agenda', 'Agenda', 'calendar'], ['more', 'Autres', 'menu']];
 const MORE = [
+  ['viesco', 'Ma vie scolaire', 'alert', true],
   ['orientation', 'Orientation et Parcoursup', 'compass', true],
   ['schooldocs', 'Règlement et chartes', 'check', true],
   ['messages', 'Messages', 'bell', false],
@@ -111,6 +113,29 @@ function SchoolNews({ me }) {
   );
 }
 
+const frDate = (iso) => (iso ? String(iso).slice(0, 10).split('-').reverse().join('/') : '');
+const COLLE = { A_FAIRE: ['à faire', 'bg-amber-50 text-amber-900'], FAITE: ['faite', 'bg-emerald-50 text-emerald-800'], NON_FAITE: ['non faite', 'bg-red-50 text-red-800'], ANNULEE: ['annulée', 'bg-slate-100 text-slate-600'] };
+/** Vie scolaire de l'élève (déposée sur sa fiche par l'équipe) : ce qui le concerne, du plus récent au plus ancien. */
+function MyLife({ life }) {
+  if (!life) return <Box title="Ma vie scolaire"><p className="text-sm text-slate-600">Rien pour l'instant.</p></Box>;
+  const block = (title, list, render, none = 'Aucun.') => (
+    <Box title={`${title} (${list.length})`}>
+      {list.length ? <ul className="space-y-1.5 text-sm">{list.map((x, i) => <li key={i} className="rounded-lg bg-slate-50 px-3 py-2">{render(x)}</li>)}</ul> : <p className="text-sm text-slate-500">{none}</p>}
+    </Box>
+  );
+  return (
+    <>
+      <p className="px-1 text-sm text-slate-600">Ce que la vie scolaire, la Direction et tes professeurs ont noté pour toi. Une question ou une erreur ? Parles-en à la vie scolaire.</p>
+      {block('Colles et TIG', life.colles ?? [], (c) => <span className="flex items-start justify-between gap-2"><span>{c.tig ? 'TIG' : `Colle de ${c.hours} h`} · {frDate(c.when)}{String(c.when).length > 10 ? ` à ${String(c.when).slice(11, 16).replace(':', 'h')}` : ''}<span className="block text-xs text-slate-500">{c.reason}</span></span><span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${COLLE[c.status]?.[1] ?? ''}`}>{COLLE[c.status]?.[0] ?? c.status}</span></span>, 'Aucune.')}
+      {block('Punitions et sanctions', life.mesures ?? [], (m) => <><span className={m.sanction ? 'font-semibold text-red-800' : 'font-medium'}>{m.label}</span> · {frDate(m.date)}<span className="block text-xs text-slate-500">{m.reason}</span></>, 'Aucune.')}
+      {block('Absences', life.absences ?? [], (a) => <>{frDate(a.date)}{a.slot ? ` · ${a.slot}` : ''} · {a.justified ? <span className="text-emerald-700">justifiée</span> : <span className="text-amber-800">non justifiée</span>}</>, 'Aucune.')}
+      {block('Retards', life.retards ?? [], (a) => <>{frDate(a.date)}{a.slot ? ` · ${a.slot}` : ''}{a.justified ? ' · justifié' : ''}</>)}
+      {block('Oublis', life.oublis ?? [], (f) => <>{f.kind} · {frDate(f.date)}{f.note ? <span className="block text-xs text-slate-500">{f.note}</span> : null}</>)}
+      {block('Objets confisqués', life.objets ?? [], (o) => <>{o.warning ? 'Avertissement' : o.object} · {frDate(o.at)} · {o.returned ? 'rendu' : 'à la vie scolaire'}<span className="block text-xs text-slate-500">{o.reason}</span></>)}
+    </>
+  );
+}
+
 function Orientation({ me, school }) {
   const dated = (school?.events ?? []).filter((e) => ORIENT.test(e.title) && (!e.classes?.length || e.classes.includes(me.cls)))
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -168,6 +193,11 @@ export default function OnlineStudentPortal({ settings }) {
                 <span><span className="block font-semibold text-amber-900">Orientation{/^Terminale/.test(me.cls) ? ' et Parcoursup' : ''}</span><span className="text-sm text-amber-800">Ta fiche d'orientation et le calendrier</span></span><span aria-hidden="true">›</span>
               </button>
             )}
+            {lifeSummary(me.vie) && (
+              <button type="button" onClick={() => go('viesco')} className="flex w-full items-center justify-between rounded-2xl bg-white p-4 text-left shadow-soft">
+                <span><span className="block font-display text-base font-semibold text-navy-900">Ma vie scolaire</span><span className="text-sm text-slate-600">{lifeSummary(me.vie)}</span></span><span aria-hidden="true">›</span>
+              </button>
+            )}
             <EngagementsCard engagements={me.engagements} attestations={me.attestations} />
             <Box title="Mes notes"><p className="text-sm text-slate-600">Tes notes et tes moyennes seront visibles ici à partir du <strong>17 décembre</strong>.</p></Box>
           </>)}
@@ -187,6 +217,7 @@ export default function OnlineStudentPortal({ settings }) {
             </div>
           )}
           {view === 'orientation' && <Orientation me={me} school={school} />}
+          {view === 'viesco' && <MyLife life={me.vie} />}
           {view === 'schooldocs' && <FamilyDocuments audience="ELEVE" />}
           {MORE.some(([id, , , ready]) => id === view && !ready) && <Soon title={MORE.find(([id]) => id === view)[1]} />}
         </TermsGate>
