@@ -2605,3 +2605,11 @@ test('restauration : la sauvegarde remet ce qui manque sans rien effacer ni remp
   assert.deepEqual(unionKeep({ a: 1, list: [] }, { a: 2, b: 3, list: [{ id: 'x' }] }), { a: 1, b: 3, list: [{ id: 'x' }] });
   assert.equal(unionKeep(undefined, 5), 5);
 });
+
+test('nouvel élève : une inscription déjà payée fait foi, même sans date d\'entrée', async () => {
+  const { isNewStudent } = await import('../src/rules/billing.js');
+  assert.equal(isNewStudent({ isNew: false, paid: ['INSCRIPTION', 'ECO-9'] }), true);
+  assert.equal(isNewStudent({ isNew: true, paid: ['REINSCRIPTION'] }), false);
+  assert.equal(isNewStudent({ isNew: true, paid: [] }), true);
+  assert.equal(isNewStudent({ isNew: false, paid: [] }), false);
+});

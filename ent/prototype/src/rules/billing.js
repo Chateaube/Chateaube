@@ -17,6 +17,13 @@ const schoolRank = (m) => (m + 3) % 12; // septembre = 0 … août = 11
 const yearOfMonth = (m, settings) => Number((m >= 9 ? settings.schoolYear.start : settings.schoolYear.end).slice(0, 4));
 
 /**
+ * Nouvel élève ou ancien : un paiement déjà reçu fait foi (inscription payée → nouveau, réinscription payée →
+ * ancien) ; sinon, la date d'entrée de la liste des élèves. Sans cela, un nouvel élève dont la date d'entrée
+ * manque se voyait réclamer une réinscription alors qu'il a payé son inscription.
+ */
+export const isNewStudent = (s) => (s?.paid?.includes('INSCRIPTION') ? true : s?.paid?.includes('REINSCRIPTION') ? false : Boolean(s?.isNew));
+
+/**
  * Échéances d'un élève.
  * @param student {{isNew: boolean, enrolledOn: string, paid: string[], exam?: {label: string, amount: number}}}
  * @param fees    ligne de la grille « Classes & tarifs »
@@ -28,7 +35,7 @@ export function studentDues(student, fees, settings, today) {
   const firstDue = student.enrolledOn > settings.schoolYear.start ? student.enrolledOn : settings.schoolYear.start;
 
   const items = [
-    student.isNew
+    isNewStudent(student)
       ? { key: 'INSCRIPTION', label: 'Inscription', amount: fees.inscription, journal: 'FRAIS_ANNEXES', due: firstDue }
       : { key: 'REINSCRIPTION', label: 'Réinscription', amount: fees.reinscription, journal: 'FRAIS_ANNEXES', due: firstDue },
     ...(fees.fascicule > 0 ? [{ key: 'FASCICULE', label: 'Fascicule', amount: fees.fascicule, journal: 'FRAIS_ANNEXES', due: firstDue }] : []),

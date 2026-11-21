@@ -2,7 +2,7 @@ import { logActivity } from '../activityStore.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Badge, Button, Card, Icon } from './ui.jsx';
 import { JOURNALS, CLASS_FEES, STUDENT_ACCOUNTS, BANKS, FAMILIES } from '../data/accounting.js';
-import { studentDues, defaultSelection, validateInstrument, buildReceipts, PAYMENT_METHODS, lastReceiptNumbers, RECEIPT_PREFIX } from '../rules/billing.js';
+import { studentDues, defaultSelection, validateInstrument, buildReceipts, PAYMENT_METHODS, lastReceiptNumbers, RECEIPT_PREFIX, isNewStudent } from '../rules/billing.js';
 import { supabase, ONLINE } from '../online/client.js';
 import { activeSite, SITE_CODES } from '../site.js';
 import { formatAr } from '../rules/finance.js';
@@ -257,7 +257,7 @@ function CollectPaymentInner({ settings, articles = [], accounts: sharedAccounts
             <li key={a.id}>
               <button onClick={() => pick(a.id)} className={`w-full rounded-md px-2 py-1.5 text-left text-sm ${a.id === studentId ? 'bg-navy-50 font-medium text-navy-900' : 'hover:bg-slate-50'}`}>
                 {a.name}
-                <span className="block text-xs font-normal text-slate-500">{a.cls}{a.isNew ? ` · arrivé.e le ${fmtDate(a.enrolledOn)}` : ''}</span>
+                <span className="block text-xs font-normal text-slate-500">{a.cls}{isNewStudent(a) ? (a.enrolledOn > '2026-09-01' ? ` · arrivé.e le ${fmtDate(a.enrolledOn)}` : ' · nouvel élève') : ''}</span>
               </button>
             </li>
           ))}
@@ -266,7 +266,7 @@ function CollectPaymentInner({ settings, articles = [], accounts: sharedAccounts
 
       <Card
         title={student.name}
-        subtitle={`${student.cls} · ${student.family}${student.isNew ? ` · nouvel élève : compte ouvert au ${fmtDate(student.enrolledOn)}` : ''}`}
+        subtitle={`${student.cls} · ${student.family}${isNewStudent(student) ? ` · nouvel élève${student.enrolledOn > '2026-09-01' ? ` : compte ouvert au ${fmtDate(student.enrolledOn)}` : ''}` : ''}`}
         action={overdue.length > 0 ? <Badge tone="red">{overdue.length} échéance{overdue.length > 1 ? 's' : ''} échue{overdue.length > 1 ? 's' : ''}</Badge> : <Badge tone="green">À jour</Badge>}
       >
         {reductionOf(student) && (
