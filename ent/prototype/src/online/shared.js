@@ -23,7 +23,7 @@ const EQUIPE = ['ent-import-v1', 'ent-profiles-v2', 'ent-fiche-v1', 'ent-chateau
   'ent-remontees-conseil-v1', 'ent-s-terminales-', 'ent-s-stages-', 'ent-s-conseil-passage', 'ent-themes-parcours-v1',
   'ent-k-parcoursup-2027-ajoute', 'ent-avis-v1'];
 // partagés avec les professeurs : vie de classe (punitions, colles, passeport, objets, absences) et examens blancs
-const CLASSE = ['ent-s-sanctions', 'ent-passeport-v3', 'ent-objets-v1', 'ent-absences-eleves-v1', 'ent-surveillance-colles-v1', 'ent-examens-blancs-v3'];
+const CLASSE = ['ent-s-sanctions', 'ent-passeport-v3', 'ent-objets-v1', 'ent-absences-eleves-v1', 'ent-surveillance-colles-v1', 'ent-examens-blancs-v3', 'ent-journal-profs-v1'];
 // lus par les professeurs, écrits par la Direction, le secrétariat et la vie scolaire : vie de l'école, annonces, ressources
 const ECOLE = ['ent-vie-ecole-v2', 'ent-annonces-v2', 'ent-ressources-v3'];
 const IMPORT = 'ent-import-v1';

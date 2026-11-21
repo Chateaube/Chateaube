@@ -11,7 +11,8 @@ import { seniority } from '../rules/documents.js';
 import { logActivity } from '../activityStore.js';
 import { nextWeekday, today } from '../clock.js';
 import { me, meLabel } from '../identity.js';
-import { demoOr } from '../demoData.js';
+import { demoOr, realData } from '../demoData.js';
+import { familiesTold } from '../familyReach.js';
 
 // Passeport de vie scolaire : oublis, retards, colles et TIG d'un élève.
 // Carnet de liaison oublié = 1 h de colle (nouvel élève : au 2e oubli) ; autres oublis : colle si le
@@ -51,7 +52,7 @@ export default function PassportTab({ role, toast }) {
   const isTeacher = role === 'ENSEIGNANT';
   const by = role === 'DIRECTION' ? me('DIRECTION') : role === 'ENSEIGNANT' ? me('ENSEIGNANT') : meLabel(role === 'BUREAU' ? 'BUREAU' : 'VIE_SCOLAIRE');
   const [data, setData] = useState(loadPassport);
-  const [student, setStudent] = useState('RAMAROSON Fitia');
+  const [student, setStudent] = useState(() => (realData() ? '' : 'RAMAROSON Fitia'));
   const [forget, setForget] = useState({ kind: FORGET_KINDS[0], note: '', colle: false });
   const [giving, setGiving] = useState(null); // proposition en cours : { …, when }
   const [tig, setTig] = useState(null);
@@ -68,6 +69,7 @@ export default function PassportTab({ role, toast }) {
     setForget({ kind: FORGET_KINDS[0], note: '', colle: false });
     logActivity({ who: by, role, kind: 'OUBLI', student, text: `${forget.kind === 'Devoir non fait' ? 'Devoir non fait' : `${forget.kind} oublié${forget.kind === 'Tenue (EPS)' ? 'e' : ''}`}${f.note ? ` (${f.note})` : ''}${f.colle ? ' — colle demandée' : ''}` });
     const due = passport(student, { attendance: ATTENDANCE, ...next }, { isNew }).toGive.some((g) => g.forgetId === f.id);
+    if (isTeacher) { toast(`Oubli noté pour ${student} : la vie scolaire et la Direction le reçoivent.`); return; }
     toast(`Oubli noté pour ${student}. ${due ? (isTeacher ? 'Une heure de colle est due ; la CPE en fixe la date.' : 'Une heure de colle est à donner.') : carnet ? `Pas encore de colle : nouvel élève, colle au ${carnetPerColle(true)}e oubli du carnet.` : 'Pas de colle demandée.'}`);
   };
   const give = (entry) => {
@@ -76,10 +78,31 @@ export default function PassportTab({ role, toast }) {
     update({ ...data, colles: [...data.colles, { id: `c${Date.now()}`, student, date: TODAY, status: 'A_FAIRE', by, ...entry }] });
     logActivity({ who: by, role, kind: 'COLLE', student, text: `${entry.kind === 'TIG' ? 'TIG' : `Colle de ${entry.hours} h`} : ${entry.reason}` });
     setGiving(null); setTig(null);
-    toast(`${entry.kind === 'TIG' ? 'TIG' : `Colle de ${entry.hours} h`} pour ${student} ; les parents sont prévenus dans l'application.`);
+    toast(`${entry.kind === 'TIG' ? 'TIG' : `Colle de ${entry.hours} h`} pour ${student} ; ${familiesTold()}.`);
   };
   const setStatus = (id, status) => update({ ...data, colles: data.colles.map((c) => (c.id === id ? { ...c, status } : c)) });
 
+  // Professeur : il note l'oubli, c'est tout ; le passeport, les colles et leur suivi reviennent à la vie scolaire
+  // (CPE, BVS) et à la Direction, qui reçoivent l'oubli aussitôt.
+  if (isTeacher) {
+    const mine = student ? data.forgets.filter((f) => f.student === student && f.by === by) : [];
+    return (
+      <div className="max-w-xl space-y-4">
+        <Card title="Noter un oubli" subtitle="La vie scolaire et la Direction le reçoivent aussitôt et décident d'une éventuelle colle">
+          <div className="space-y-2 text-sm">
+            <ClassStudentPicker value={student} onChange={setStudent} />
+            <select value={forget.kind} onChange={(e) => setForget({ ...forget, kind: e.target.value })} aria-label="Oubli" className={`w-full ${inputCls}`}>{FORGET_KINDS.map((k) => <option key={k}>{k}</option>)}</select>
+            <input value={forget.note} onChange={(e) => setForget({ ...forget, note: e.target.value })} placeholder="Précision (ex. calculatrice, DM n°2)" aria-label="Précision" className={`w-full ${inputCls}`} />
+            <Button className="w-full" disabled={!student} onClick={addForget}>Noter l'oubli{student ? ` de ${student.split(' ').slice(1).join(' ')}` : ''}</Button>
+          </div>
+          {mine.length > 0 && (
+            <div className="mt-4"><p className="mb-1 text-xs font-medium text-slate-600">Vos oublis notés pour cet élève</p>
+              <ul className="space-y-1 text-sm">{mine.map((f) => <li key={f.id} className="rounded-lg bg-slate-50 px-3 py-1.5">{f.date.split('-').reverse().join('/')} · {f.kind}{f.note ? ` (${f.note})` : ''}</li>)}</ul></div>
+          )}
+        </Card>
+      </div>
+    );
+  }
   return (
     <div className="grid gap-5 xl:grid-cols-[1fr_400px] xl:items-start">
       <Card title="Passeport de vie scolaire" subtitle={`Carnet de liaison oublié = 1 h de colle (nouvel élève : 2 oublis) · autres oublis : colle si demandée · ${LATES_PER_COLLE} retards = une colle de 1 ou 2 h`}>
