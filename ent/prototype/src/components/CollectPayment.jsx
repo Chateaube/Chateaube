@@ -52,7 +52,9 @@ const importedAccounts = () => {
     id: s.id, name: `${s.lastName} ${s.firstName}`, cls: s.cls, family: `Famille ${s.lastName}`,
     isNew: seniority(s.enteredOn)?.isNew ?? false, specialties: s.specialties ?? [], enrolledOn: seniority(s.enteredOn)?.isNew && s.enteredOn > '2026-09-01' ? s.enteredOn : '2026-09-01',
     // frais déjà réglés : onglet « 7 Paiements » du modèle
-    paid: (imp.payments?.paid?.[`${s.lastName} ${s.firstName}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim()] ?? []),
+    // par nom (import d'origine) et par matricule (le nom a pu être corrigé depuis dans l'ENT)
+    paid: [...new Set([...(imp.payments?.paid?.[`${s.lastName} ${s.firstName}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim()] ?? []),
+      ...(imp.payments?.paid?.[`#${String(s.number ?? s.id ?? '').trim().toUpperCase()}`] ?? [])])],
   }));
 };
 const demoAccounts = () => [

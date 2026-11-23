@@ -57,6 +57,9 @@ export function parsePayments(rows, studentKey, known) {
     if (!date) pb.push(`date « ${r.Date ?? ''} » illisible (JJ/MM/AAAA)`);
     if (pb.length) { errors.push(`Ligne ${r.line} : ${pb.join(', ')}.`); return; }
     paid[who] = [...new Set([...(paid[who] ?? []), ...keys])];
+    // aussi par matricule (« #6E-005 ») : le compte reste retrouvé même si le nom est corrigé ensuite dans l'ENT
+    const mat = String(r['N° élève (matricule)'] ?? '').trim().toUpperCase();
+    if (mat) paid[`#${mat}`] = [...new Set([...(paid[`#${mat}`] ?? []), ...keys])];
     const method = METHODS.find(([re]) => re.test(fold(r.Mode)))?.[1] ?? (r.Mode || 'Espèces');
     movements.push({
       id: `rep${r.line}`, date, time: '08:00', agent: 'Reprise de l\'existant', dir: 'IN', nature: 'Encaissement famille', journal: journalOf(keys),

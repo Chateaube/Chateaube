@@ -199,7 +199,8 @@ export default function ImportModule({ role = 'DIRECTION' }) {
     if (use('payments') && extras?.payments?.movements.length) {
       const inList = new Set(data.students.map((x) => fold(`${x.lastName} ${x.firstName}`)));
       const kept = extras.payments.movements.filter((m) => inList.has(m.student));
-      const paid = Object.fromEntries(Object.entries(extras.payments.paid).filter(([k]) => inList.has(k)));
+      const mats = new Set(data.students.map((x) => String(x.number ?? x.id ?? '').trim().toUpperCase()).filter(Boolean));
+      const paid = Object.fromEntries(Object.entries(extras.payments.paid).filter(([k]) => (k.startsWith('#') ? mats.has(k.slice(1)) : inList.has(k))));
       // reprise EduFinance déjà faite : gardée ; une reprise précédente de l'onglet 7 est remplacée
       const prev = current?.payments;
       const merged = { ...(prev?.paid ?? {}) };
