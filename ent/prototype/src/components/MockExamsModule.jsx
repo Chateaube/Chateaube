@@ -13,6 +13,7 @@ import { buildXlsx } from '../xlsx.js';
 import { readXlsx, sheetRows } from '../xlsxRead.js';
 import { saveFile } from '../download.js';
 import { brand } from '../siteBrand.js';
+import { studentLabel as sn } from '../studentNames.js';
 
 // Examens blancs (candidats libres : pas de contrôle continu) : saisie des notes par épreuve — chaque
 // professeur saisit son épreuve —, relevés de notes « comme à l'examen » (3e, 1re, Terminale) et projection
@@ -229,7 +230,7 @@ function EntryTab({ data, setData, role }) {
                 <thead><tr className="border-b border-slate-200 text-left text-xs text-slate-500"><th className="py-2 pr-2">Élève</th>{gridParts.flatMap(cells).map((c) => <th key={c.id} title={c.part.inFirst ? `Épreuve de 1re passée en Terminale (changement de voie) : ${c.label}` : c.label} className={`px-1 text-center ${skip.includes(c.part.id) ? 'text-slate-400 line-through' : ''}`}>{c.part.inFirst ? `1re · ${abbr(c.label)}` : abbr(c.label)}<span className="block font-normal">{c.part.subs ? '2 meilleures' : `coef. ${c.part.coef}`}</span></th>)}{!isTeacher && <><th className="px-2 text-right">Moyenne</th><th className="px-2">Résultat</th></>}</tr></thead>
                 <tbody>{students.map((st, i) => (
                   <tr key={st} className="border-b border-slate-100">
-                    <td className="py-1.5 pr-2 font-medium text-slate-900">{st}{s.kind === 'BAC_G' && <span className="block text-[11px] font-normal text-slate-500">{specialtiesOf(st).join(' · ')}</span>}{isBac(s.kind) && SITUATIONS[sit(st)].short && <span className="block text-[11px] font-normal text-amber-800">{SITUATIONS[sit(st)].short}</span>}</td>
+                    <td className="py-1.5 pr-2 font-medium text-slate-900" title={st}>{sn(st)}{s.kind === 'BAC_G' && <span className="block text-[11px] font-normal text-slate-500">{specialtiesOf(st).join(' · ')}</span>}{isBac(s.kind) && SITUATIONS[sit(st)].short && <span className="block text-[11px] font-normal text-amber-800">{SITUATIONS[sit(st)].short}</span>}</td>
                     {gridParts.flatMap(cells).map((c) => {
                       if (c.part.inFirst && sit(st) !== 'TOUT_EN_TLE') return <td key={c.id} className="px-1 text-center text-xs text-slate-300">—</td>;
                       const k = `${st}|${c.id}`; const raw = text[k] ?? f2(s.marks[st]?.[c.id]).replace('Abs.', 'abs');
@@ -342,7 +343,7 @@ function OfficialTab({ data, setData }) {
           </tr></thead>
           <tbody>{students.map((st) => (
             <tr key={st} className="border-b border-slate-100">
-              <td className="py-1.5 pr-2 font-medium text-slate-900">{st}</td>
+              <td className="py-1.5 pr-2 font-medium text-slate-900" title={st}>{sn(st)}</td>
               {parts.map((p) => (sit(st) === 'TOUT_EN_TLE' || (p.id === 'MA_EA' && sit(st) === 'REDOUBLANT')) ? (
                 <td key={p.id} className="px-1 text-center text-[11px] text-slate-500">{p.id === 'MA_EA' ? 'dispensé(e)' : 'en Tle'}</td>
               ) : (
@@ -403,7 +404,7 @@ function ProjectionTab({ data, setData }) {
             return (
               <React.Fragment key={st}>
                 <tr className="border-b border-slate-100">
-                  <td className="py-1.5 pr-2 font-medium text-slate-900">{st}</td>
+                  <td className="py-1.5 pr-2 font-medium text-slate-900" title={st}>{sn(st)}</td>
                   <td className="px-2 text-center"><button type="button" onClick={() => setEdit(edit === st ? null : st)} className="font-semibold tabular-nums text-navy-700 underline decoration-dotted">{p.acquiredAverage == null ? 'saisir' : f2(p.acquiredAverage)}</button></td>
                   <td className="px-2 text-center font-semibold tabular-nums">{p.blancAverage == null ? '—' : f2(p.blancAverage)}</td>
                   {[10, 12, 14].map((t) => <td key={t} className={`px-2 text-center tabular-nums ${tone(p.needed[t], p.blancAverage)}`}>{p.needed[t] == null ? 'hors d\'atteinte' : f2(p.needed[t])}</td>)}

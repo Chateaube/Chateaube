@@ -12,6 +12,7 @@ import { formatDateFr } from '../rules/calendar.js';
 import { findStudents } from '../rules/search.js';
 import { takeIntent } from '../navIntent.js';
 import { nowIso } from '../clock.js';
+import { studentLabel as sn } from '../studentNames.js';
 
 // Fil de l'élève : une seule chronologie partagée par l'équipe (absences, retards, punitions et sanctions,
 // objets confisqués, colles, passages à l'infirmerie, actions notées dans le journal).
@@ -56,7 +57,7 @@ export default function StudentTimeline({ role, student: fixed, embedded = false
       </div>}
       <Card>
         {!fixed && <div className="flex flex-col gap-2">
-          {student && <p className="text-base"><strong className="text-navy-900">{student}</strong> · {classOf(student)}</p>}
+          {student && <p className="text-base"><strong className="text-navy-900">{sn(student)}</strong> · {classOf(student)}</p>}
           <label className="relative w-full text-xs text-slate-600">Rechercher un élève (nom, prénom ou classe)
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ex. Fitia, 1re STMG" className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
             {matches.length > 0 && (

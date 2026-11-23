@@ -2329,17 +2329,17 @@ test('bulletins en ligne : matières de la classe, spécialités, ES à deux pro
 
 test('identifiant : prénom d\'usage composé en entier', async () => {
   const { loginFor } = await import('../src/rules/logins.js');
-  assert.equal(loginFor('Noro Hajatiana', 'RAZAFIMAHEFA', new Set(), 'Noro'), 'ra.noro');
+  assert.equal(loginFor('Ny Fitia Hasina', 'RAZAFITEST', new Set(), 'Ny Fitia'), 'ra.nyfitia');
   assert.equal(loginFor('Ida\'s Fanja', 'RAKOTOMALALA', new Set(), 'Ida\'s'), 'ra.idas');
   assert.equal(loginFor('Jean Tsiry', 'RAKOTO'), 'ra.jean');
 });
 
 test('identifiants d\'aperçu : prénom d\'usage, comme le compte créé', async () => {
   const { schoolLogins, accountsFor } = await import('../src/rules/enrollment.js');
-  const p = { id: 'x', lastName: 'RAZAFIMAHEFA', firstName: 'Noro Hajatiana', usualName: 'Noro', guardians: [] };
+  const p = { id: 'x', lastName: 'RAZAFITEST', firstName: 'Ny Fitia Hasina', usualName: 'Ny Fitia', guardians: [] };
   const q = { id: 'y', lastName: 'TSIMBA', firstName: 'Fanilo Dylan', usualName: 'Dylan', guardians: [] };
   const m = schoolLogins([p, q]);
-  assert.equal(accountsFor(p, m)[0].login, 'ra.noro');
+  assert.equal(accountsFor(p, m)[0].login, 'ra.nyfitia');
   assert.equal(accountsFor(q, m)[0].login, 'ti.dylan');
 });
 
@@ -2624,4 +2624,12 @@ test('vie scolaire de l\'élève : seulement la sienne, mesures annulées retir�
   assert.equal(l.absences.length, 1); assert.equal(l.retards.length, 1); assert.equal(l.oublis.length, 1);
   assert.deepEqual(l.mesures.map((m) => m.label), ['Avertissement']);
   assert.equal(lifeSummary(l), '1 absence · 1 retard · 1 oubli · 1 punition ou sanction · 1 colle à faire');
+});
+
+test('nom court d\'un élève (écrans internes) : initiale du nom + premier prénom', async () => {
+  const { studentLabel } = await import('../src/studentNames.js');
+  assert.equal(studentLabel('RAVELO-TEST Aina Lova'), 'R. Aina');
+  assert.equal(studentLabel('EXEMPLE DUPONT Éléa Marie'), 'E. Éléa');
+  assert.equal(studentLabel('Mme Mirana'), 'Mme Mirana'); // pas un nom d'élève : inchangé
+  assert.equal(studentLabel(''), '');
 });

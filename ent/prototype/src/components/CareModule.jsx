@@ -12,6 +12,7 @@ import { formatDateFr } from '../rules/calendar.js';
 import { nowIso } from '../clock.js';
 import { me, meLabel } from '../identity.js';
 import { familiesTold } from '../familyReach.js';
+import { studentLabel as sn } from '../studentNames.js';
 
 // Soins : registre des passages au secrétariat (mal de tête, blessure…). Pas d'infirmerie :
 // le seul médicament donné est le Doliprane, par le secrétariat, comme le dit le règlement intérieur.
@@ -43,7 +44,7 @@ export default function CareModule({ role = 'BUREAU' }) {
   const [pending, setPending] = useState(null); // élève envoyé par la CPE, dont on complète le passage
   const today = NOW.slice(0, 10);
   const here = visits.filter((v) => v.at.startsWith(today) && (!v.outcome || v.outcome === 'REPOS'));
-  const backToClass = (v) => { const next = visits.map((x) => (x.id === v.id ? { ...x, outcome: 'CLASSE', backAt: new Date().toTimeString().slice(0, 5) } : x)); setVisits(next); saveVisits(next); setMsg(`${v.student} est reparti·e en classe.`); };
+  const backToClass = (v) => { const next = visits.map((x) => (x.id === v.id ? { ...x, outcome: 'CLASSE', backAt: new Date().toTimeString().slice(0, 5) } : x)); setVisits(next); saveVisits(next); setMsg(`${sn(v.student)} est reparti·e en classe.`); };
   const [tried, setTried] = useState(false);
   const [msg, setMsg] = useState('');
   const doli = inv.find((i) => i.paracetamol);
@@ -59,13 +60,13 @@ export default function CareModule({ role = 'BUREAU' }) {
     for (const [id, n] of used) { const it = inv.find((i) => i.id === id); if (n > usable(it)) { setMsg(`Plus assez de « ${it.name} » dans la trousse (${usable(it)} restant).`); return; } }
     const v = { ...d, id: `c${Date.now()}`, by: who, products: used.map(([id, n]) => ({ name: inv.find((i) => i.id === id).name, n })), notice: parentNotice(d, firstNameOf(d.student)) };
     const next = [v, ...visits.filter((x) => x.id !== pending)]; setVisits(next); saveVisits(next); setPending(null);
-    const note = `${d.student} (${d.reason === 'Autre' ? d.detail : d.reason.toLowerCase()})`;
+    const note = `${sn(d.student)} (${d.reason === 'Autre' ? d.detail : d.reason.toLowerCase()})`;
     const nextInv = inv.map((i) => {
       if (d.paracetamol && doli && i.id === doli.id) return consume(i, 1, who, d.at, note);
       const n = d.products?.[i.id]; return n > 0 ? consume(i, n, who, d.at, note) : i;
     });
     setInv(nextInv); saveInventory(nextInv);
-    setMsg(`Passage enregistré pour ${d.student} ; ${familiesTold()}.`);
+    setMsg(`Passage enregistré pour ${sn(d.student)} ; ${familiesTold()}.`);
     setD(blank); setTried(false);
   };
 
@@ -88,7 +89,7 @@ export default function CareModule({ role = 'BUREAU' }) {
           <ul className="space-y-2">
             {here.map((v) => (
               <li key={v.id} className="flex flex-col gap-2 rounded-xl bg-white p-2.5 text-sm sm:flex-row sm:items-center sm:justify-between">
-                <span><strong>{v.student}</strong> · depuis {v.at.slice(11, 16).replace(':', 'h')} · {v.reason}{v.sentBy ? ` · envoyé·e par ${v.sentBy}` : ''}{v.outcome === 'REPOS' ? ' · au repos' : ''}</span>
+                <span><strong>{sn(v.student)}</strong> · depuis {v.at.slice(11, 16).replace(':', 'h')} · {v.reason}{v.sentBy ? ` · envoyé·e par ${v.sentBy}` : ''}{v.outcome === 'REPOS' ? ' · au repos' : ''}</span>
                 <span className="flex gap-2">
                   {!v.outcome && canGive && <Button variant="secondary" className="!py-1 text-xs" onClick={() => { setPending(v.id); setD({ ...blank, student: v.student, reason: CARE_REASONS.includes(v.reason) ? v.reason : 'Autre', at: v.at }); }}>Noter les soins</Button>}
                   <Button className="!py-1 text-xs" onClick={() => backToClass(v)}>Retour en classe</Button>
@@ -102,7 +103,7 @@ export default function CareModule({ role = 'BUREAU' }) {
       {frequent.length > 0 && (
         <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
           <p className="font-semibold">Passages fréquents ce mois-ci</p>
-          {frequent.map((f) => <p key={f.student}>{f.student} ({classOf(f.student) ?? '—'}) : {f.count} passages — à voir avec la famille.</p>)}
+          {frequent.map((f) => <p key={f.student}>{sn(f.student)} ({classOf(f.student) ?? '—'}) : {f.count} passages — à voir avec la famille.</p>)}
         </div>
       )}
       <div className="grid gap-5 xl:grid-cols-[1fr_400px] xl:items-start">
@@ -110,7 +111,7 @@ export default function CareModule({ role = 'BUREAU' }) {
           <ul className="divide-y divide-slate-100 text-sm">
             {visits.map((v) => (
               <li key={v.id} className="flex flex-wrap items-start justify-between gap-2 py-2">
-                <span className="min-w-0"><span className="font-medium text-slate-900">{v.student}</span> <span className="text-slate-500">· {classOf(v.student) ?? ''}</span>
+                <span className="min-w-0"><span className="font-medium text-slate-900">{sn(v.student)}</span> <span className="text-slate-500">· {classOf(v.student) ?? ''}</span>
                   <span className="block text-xs text-slate-500">{fmtDT(v.at)} · {v.reason === 'Autre' ? v.detail : v.reason}{v.detail && v.reason !== 'Autre' ? ` (${v.detail})` : ''} · {CARE_OUTCOMES[v.outcome] ?? 'en cours'} · {v.by}</span></span>
                 <span className="flex flex-wrap justify-end gap-1">{v.paracetamol ? <Badge tone="navy">Doliprane · {v.dose}</Badge> : <Badge>sans médicament</Badge>}{(v.products ?? []).map((x) => <Badge key={x.name} tone="slate">{x.n} × {x.name}</Badge>)}</span>
               </li>

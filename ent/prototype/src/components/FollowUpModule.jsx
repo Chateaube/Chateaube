@@ -15,6 +15,7 @@ import { loadImport } from '../importStore.js';
 import { higherEdSteps, PROCEDURES, exportWindowOpen, campusFranceCsv, DESTINATIONS, trackSteps, addTrack, closeTrack, trackProgress } from '../rules/orientation.js';
 import { usePersistent } from '../persist.js';
 import { today } from '../clock.js';
+import { studentLabel as sn } from '../studentNames.js';
 
 // Suivi côté établissement (Direction, Bureau, Vie scolaire) : autorisations, documents
 // envoyés et accusés de lecture, pièces manquantes, stages, orientation.
@@ -51,7 +52,7 @@ function Authorizations() {
           <tbody>
             {rows.map(({ s, answers }) => (
               <tr key={s} className="border-b border-slate-100">
-                <td className="px-4 py-2 font-medium text-slate-800">{s}</td>
+                <td className="px-4 py-2 font-medium text-slate-800" title={s}>{sn(s)}</td>
                 {answers.map((x, i) => (
                   <td key={i} className="px-2 py-2">
                     {x === null ? <Badge tone="amber">Sans réponse</Badge> : x.startsWith('Je n\'') || x.startsWith('Aucune') ? <Badge tone="red">{x}</Badge> : <span className="text-xs text-slate-700">{x}</span>}
@@ -117,7 +118,7 @@ function Requested() {
       <ul className="divide-y divide-slate-100">
         {items.map((r) => (
           <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
-            <div><p className="font-medium text-slate-800">{r.student}</p><p className="text-slate-600">{r.title} · avant le {r.due.split('-').reverse().join('/')}</p></div>
+            <div><p className="font-medium text-slate-800">{sn(r.student)}</p><p className="text-slate-600">{r.title} · avant le {r.due.split('-').reverse().join('/')}</p></div>
             {r.received === true ? <Badge tone="green">Reçu</Badge>
               : r.received === 'PENDING' ? <Button variant="secondary" className="!py-1 text-xs" onClick={() => setItems(items.map((x) => (x.id === r.id ? { ...x, received: true } : x)))}>Vérifier et valider</Button>
                 : <Badge tone="amber">Manquant</Badge>}
@@ -191,7 +192,7 @@ function OrientationSheets({ role }) {
           return (
             <li key={s} className="py-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-sm font-medium text-slate-900">{s}</span>
+                <span className="text-sm font-medium text-slate-900" title={s}>{sn(s)}</span>
                 <span className="flex items-center gap-2">
                   <Badge tone={!st ? 'green' : st.who === 'DIRECTION' ? 'amber' : 'slate'}>{!st ? 'terminée' : `à faire : ${WHO[st.who]}`}</Badge>
                   <Button variant="secondary" className="!py-1 text-xs" onClick={() => setOpen(open === s ? null : s)}>{open === s ? 'Fermer' : 'Ouvrir'}</Button>

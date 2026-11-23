@@ -5,6 +5,7 @@ import { sessionState, tally, nextToDo, lateOutcome, LATE_LIMIT, callOpen, CALL_
 import { formatDateFr } from '../rules/calendar.js';
 import { useOnline } from '../online.js';
 import { takeIntent } from '../navIntent.js';
+import { studentLabel as sn } from '../studentNames.js';
 
 // Appel (enseignant) : toutes les séances de la semaine, toutes classes confondues, dans l'ordre ;
 // la séance en cours est proposée d'office. Grande liste à toucher, pensée pour le téléphone.
@@ -67,7 +68,7 @@ function Roll({ session, record, classes, online, onSave, onBack }) {
             <li key={n} className={`rounded-2xl bg-white p-3 shadow-soft ring-1 ${m?.status === 'A' ? 'ring-red-200' : m?.status === 'R' ? 'ring-amber-200' : 'ring-transparent'}`}>
               <div className="flex items-center gap-3">
                 <Avatar name={n} className="h-9 w-9 text-xs" />
-                <span className="min-w-0 flex-1 text-sm font-medium text-slate-800">{n}</span>
+                <span className="min-w-0 flex-1 text-sm font-medium text-slate-800">{sn(n)}</span>
                 <div className="flex gap-1" role="radiogroup" aria-label={n}>
                   {[['', 'Présent', 'P', 'bg-emerald-600'], ['R', 'Retard', 'R', 'bg-amber-500'], ['A', 'Absent', 'A', 'bg-red-600']].map(([k, label, short, on]) => {
                     const active = (m?.status ?? '') === k;

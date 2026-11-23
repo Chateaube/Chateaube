@@ -2,6 +2,7 @@ import { fetchRoster } from '../online/roster.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button, Card } from './ui.jsx';
 import { fetchDoc, fetchDocs } from '../online/docs.js';
+import { studentLabel as sn } from '../studentNames.js';
 
 // « Absents aux devoirs » (Direction et secrétariat, version en ligne) : tous les « ABS » saisis par les
 // professeurs dans leurs carnets, pour organiser les rattrapages et vérifier les justificatifs.
@@ -15,7 +16,7 @@ export function absencesAtTests(carnets = [], names = {}) {
     const [cls, subject] = sid.split('|');
     const g = c.value?.grades?.[sid] ?? {};
     return (evs ?? []).filter((e) => !e.fromMockExam).flatMap((e) => Object.entries(g).filter(([, marks]) => isAbs(marks?.[e.id]))
-      .map(([student]) => ({ key: `${c.owner}|${sid}|${e.id}|${student}`, date: e.date, student, cls: cls ?? '', subject: subject ?? '', title: e.title || e.type, teacher: names[c.owner] ?? '' })));
+      .map(([student]) => ({ key: `${c.owner}|${sid}|${e.id}|${sn(student)}`, date: e.date, student, cls: cls ?? '', subject: subject ?? '', title: e.title || e.type, teacher: names[c.owner] ?? '' })));
   })).sort((a, b) => (b.date ?? '').localeCompare(a.date ?? '') || a.student.localeCompare(b.student, 'fr'));
 }
 
@@ -40,7 +41,7 @@ export default function AbsentAtTests({ embedded = false }) {
           <table className="w-full min-w-[560px] text-sm">
             <thead><tr className="border-b text-left text-xs text-slate-500"><th className="py-1.5">Date</th><th>Élève</th><th>Classe</th><th>Matière</th><th>Devoir</th><th>Professeur</th></tr></thead>
             <tbody>{shown.map((r) => (
-              <tr key={r.key} className="border-b border-slate-100"><td className="py-1.5 tabular-nums">{ddmmyyyy(r.date)}</td><td className="font-medium">{r.student}</td><td>{r.cls}</td><td>{r.subject}</td><td>{r.title}</td><td className="text-slate-600">{r.teacher}</td></tr>
+              <tr key={r.key} className="border-b border-slate-100"><td className="py-1.5 tabular-nums">{ddmmyyyy(r.date)}</td><td className="font-medium">{sn(r.student)}</td><td>{r.cls}</td><td>{r.subject}</td><td>{r.title}</td><td className="text-slate-600">{r.teacher}</td></tr>
             ))}</tbody>
           </table>
         </div>

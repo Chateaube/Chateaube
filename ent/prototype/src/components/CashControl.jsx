@@ -8,6 +8,7 @@ import { formatAr } from '../rules/finance.js';
 import { DENOMINATIONS, expectedCash, countTotal, closingCheck, requestCancel, decideCancel, requestDuplicate, decideDuplicate, canPrintDuplicate, afterDuplicatePrint, depositAlert, validateDeposit, depositReminder, salaryWindow } from '../rules/cashControl.js';
 import { printOnly } from '../print.js';
 import { today, stampFr, todayLong, todayFr } from '../clock.js';
+import { studentLabel as sn } from '../studentNames.js';
 
 // Reçus et clôture : journal des reçus du jour (duplicata, annulation avec motif validée par la
 // Direction), clôture des espèces chaque soir (comptage, écart justifié) et versements en banque.
@@ -188,7 +189,7 @@ export default function CashControl({ role, actor, receipts, setReceipts, audit,
                 <tr key={r.number} className="border-b border-slate-100 align-top last:border-0">
                   <td className="px-4 py-2"><p className="font-medium tabular-nums">{r.number}</p><Badge tone={JOURNALS[r.journal].tone}>{JOURNALS[r.journal].label}</Badge></td>
                   <td className="px-2 py-2 tabular-nums text-slate-600">{r.time}</td>
-                  <td className="px-2 py-2"><p>{r.student}</p><p className="text-xs text-slate-500">{r.cls} · {r.lines.map((l) => l.label).join(', ')}</p></td>
+                  <td className="px-2 py-2"><p>{sn(r.student)}</p><p className="text-xs text-slate-500">{r.cls} · {r.lines.map((l) => l.label).join(', ')}</p></td>
                   <td className="px-2 py-2 text-slate-600">{methodText(r)}</td>
                   <td className={`whitespace-nowrap px-2 py-2 text-right tabular-nums ${r.status === 'ANNULE' ? 'text-slate-400 line-through' : 'font-medium'}`}>{formatAr(r.total)}</td>
                   <td className="px-2 py-2">

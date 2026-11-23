@@ -17,6 +17,7 @@ import { CLASS_LIST } from '../data/people.js';
 import { studentAverage, generalAverage, classStats, councilProposal, COUNCIL_DECISIONS, fmtAvg, councilCsv } from '../rules/grading.js';
 import { decisionText, checkAppreciation, autoFix } from '../rules/appreciation.js';
 import { usePersistent } from '../persist.js';
+import { studentLabel as sn } from '../studentNames.js';
 
 // Grille du conseil de classe — réservée à la Direction et au Bureau (jamais visible des enseignants).
 
@@ -163,7 +164,7 @@ export default function CouncilGrid({ settings, role, go }) {
                   <React.Fragment key={r.name}>
                     <tr className="border-b border-slate-100">
                       <td className="sticky left-0 z-10 bg-white px-4 py-2">
-                        <button onClick={() => setOpen(open === r.name ? null : r.name)} className="text-left font-medium text-slate-900 hover:text-navy-500">{r.name}</button>
+                        <button onClick={() => setOpen(open === r.name ? null : r.name)} className="text-left font-medium text-slate-900 hover:text-navy-500">{sn(r.name)}</button>
                       </td>
                       {r.subjects.map((s) => (
                         <td key={s.id} className={`px-1.5 text-center tabular-nums ${excluded.includes(s.id) ? 'bg-slate-50 text-slate-400' : tone(s.avg)}`}>{fmtAvg(s.avg)}</td>

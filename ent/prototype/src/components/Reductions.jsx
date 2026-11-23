@@ -6,6 +6,7 @@ import { reductionAmount, isNewStudent } from '../rules/billing.js';
 import { reductionText } from './CollectPayment.jsx';
 import { formatAr } from '../rules/finance.js';
 import { askConfirm, askText, tell } from './Dialogs.jsx';
+import { studentLabel as sn } from '../studentNames.js';
 
 // Réductions sur les frais de scolarité : types et taux fixés par la Direction, puis accordés
 // élève par élève (précision facultative). Le Bureau les consulte et les voit appliquées à l'encaissement.
@@ -80,7 +81,7 @@ export default function Reductions({ canEdit, actor, types, setTypes, accounts, 
                 const t = types.find((x) => x.id === a.reduction.typeId);
                 return (
                   <li key={a.id} className="flex flex-wrap items-center gap-3 py-2 text-sm">
-                    <span className="min-w-0 flex-1"><span className="font-medium">{a.name}</span> <span className="text-slate-500">· {a.cls}</span>
+                    <span className="min-w-0 flex-1"><span className="font-medium">{sn(a.name)}</span> <span className="text-slate-500">· {a.cls}</span>
                       <span className="block text-xs text-slate-500">{a.reduction.motif ? `${a.reduction.motif} · ` : ''}accordée par {a.reduction.by} le {a.reduction.at}</span></span>
                     {t && <Badge tone="green">{t.label}</Badge>}
                     {t && <span className="text-xs tabular-nums text-slate-600">{amounts(a, t)}</span>}
@@ -100,7 +101,7 @@ export default function Reductions({ canEdit, actor, types, setTypes, accounts, 
               <option value="">Toutes les classes</option>{classes.map((c) => <option key={c}>{c}</option>)}
             </select>
             <select value={draft.studentId} onChange={(e) => setDraft({ ...draft, studentId: e.target.value })} className={`w-full ${inputCls}`} aria-label="Élève">
-              <option value="">Élève…</option>{candidates.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.cls})</option>)}
+              <option value="">Élève…</option>{candidates.map((a) => <option key={a.id} value={a.id}>{sn(a.name)} ({a.cls})</option>)}
             </select>
             <select value={draft.typeId} onChange={(e) => setDraft({ ...draft, typeId: e.target.value })} className={`w-full ${inputCls}`} aria-label="Type de réduction">
               {types.map((t) => <option key={t.id} value={t.id} disabled={!defined(t)}>{t.label} ({rate(t)})</option>)}

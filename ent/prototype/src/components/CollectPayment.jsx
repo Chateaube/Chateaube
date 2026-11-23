@@ -20,6 +20,7 @@ import { useOnline } from '../online.js';
 import { liveArray } from '../demoData.js';
 import { usePersistent, readStored } from '../persist.js';
 import { today } from '../clock.js';
+import { studentLabel as sn } from '../studentNames.js';
 
 /**
  * Tarifs d'un élève : grille de sa classe + lot de manuels (location des titres à rendre,
@@ -258,7 +259,7 @@ function CollectPaymentInner({ settings, articles = [], accounts: sharedAccounts
           {matches.map((a) => (
             <li key={a.id}>
               <button onClick={() => pick(a.id)} className={`w-full rounded-md px-2 py-1.5 text-left text-sm ${a.id === studentId ? 'bg-navy-50 font-medium text-navy-900' : 'hover:bg-slate-50'}`}>
-                {a.name}
+                {sn(a.name)}
                 <span className="block text-xs font-normal text-slate-500">{a.cls}{isNewStudent(a) ? (a.enrolledOn > '2026-09-01' ? ` · arrivé.e le ${fmtDate(a.enrolledOn)}` : ' · nouvel élève') : ''}</span>
               </button>
             </li>

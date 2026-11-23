@@ -24,6 +24,7 @@ import { realData } from '../demoData.js';
 import { askText } from './Dialogs.jsx';
 import { familiesTold } from '../familyReach.js';
 import { ONLINE } from '../online/client.js';
+import { studentLabel as sn } from '../studentNames.js';
 
 // Vie scolaire : absences / retards, punitions et sanctions, objets confisqués.
 // Accessible à la Vie scolaire, au Bureau et à la Direction.
@@ -48,7 +49,7 @@ export function ClassStudentPicker({ value, onChange }) {
       <label className="text-xs text-slate-600">Élève
         <select value={value} disabled={!cls} onChange={(e) => onChange(e.target.value)} className={`mt-1 w-full ${inputCls} disabled:bg-slate-50`}>
           <option value="">{cls ? `Choisir parmi ${CLASSES[cls].length} élèves…` : 'Choisir d\'abord la classe'}</option>
-          {(CLASSES[cls] ?? []).map((s) => <option key={s}>{s}</option>)}
+          {(CLASSES[cls] ?? []).map((s) => <option key={s} value={s}>{sn(s)}</option>)}
         </select>
       </label>
     </div>
@@ -97,7 +98,7 @@ function AttendanceTab({ rows, setRows, toast, role, initialFilter }) {
           <tbody>
             {shown.map((r) => (
               <tr key={r.id} className="border-b border-slate-100">
-                <td className="px-4 py-2"><p className="font-medium text-slate-900">{r.student}</p><p className="text-xs text-slate-500">{classOf(r.student)} · appel de {r.by}</p></td>
+                <td className="px-4 py-2"><p className="font-medium text-slate-900">{sn(r.student)}</p><p className="text-xs text-slate-500">{classOf(r.student)} · appel de {r.by}</p></td>
                 <td className="px-2">{r.kind === 'ABSENCE' ? <Badge tone="navy">Absence</Badge> : lateMinutes(r) > LATE_LIMIT ? <span><Badge tone="navy">Absence (1 h)</Badge><span className="block text-[11px] text-slate-600">retard de {lateMinutes(r)} min</span></span> : <Badge tone="slate">Retard</Badge>}</td>
                 <td className="px-2 text-slate-600">{formatDateFr(r.date).replace(/ \d{4}$/, '')}<br /><span className="text-xs">{r.slot}</span></td>
                 <td className="px-2">
@@ -105,24 +106,24 @@ function AttendanceTab({ rows, setRows, toast, role, initialFilter }) {
                     <div className="max-w-[260px] rounded-md bg-navy-50 p-2 text-xs text-navy-900">
                       <p className="font-semibold">Envoyée par {r.request.by} · {fmtDT(r.request.at)}</p>
                       <p>{r.request.reason}{r.request.note ? ` — « ${r.request.note} »` : ''}</p>
-                      {r.request.photo && <a href={r.request.photo} target="_blank" rel="noreferrer" className="mt-1 block"><img src={r.request.photo} alt={`Justificatif de ${r.student}`} className="h-16 rounded border border-slate-200 object-cover" /></a>}
+                      {r.request.photo && <a href={r.request.photo} target="_blank" rel="noreferrer" className="mt-1 block"><img src={r.request.photo} alt={`Justificatif de ${sn(r.student)}`} className="h-16 rounded border border-slate-200 object-cover" /></a>}
                       <span className="mt-1.5 flex flex-wrap gap-1">
-                        <button type="button" onClick={() => update([r.id], { justified: true, reason: r.request.reason, request: { ...r.request, acceptedAt: NOW } }, `Justification de ${r.student} acceptée : la famille est prévenue.`, { kind: 'JUSTIF', text: () => `Justification de la famille acceptée : ${r.request.reason.toLowerCase()}` })} className="rounded-full bg-emerald-700 px-2.5 py-1 font-semibold text-white">Accepter</button>
+                        <button type="button" onClick={() => update([r.id], { justified: true, reason: r.request.reason, request: { ...r.request, acceptedAt: NOW } }, `Justification de ${sn(r.student)} acceptée : la famille est prévenue.`, { kind: 'JUSTIF', text: () => `Justification de la famille acceptée : ${r.request.reason.toLowerCase()}` })} className="rounded-full bg-emerald-700 px-2.5 py-1 font-semibold text-white">Accepter</button>
                         {refusing[r.id] === undefined
                           ? <button type="button" onClick={() => setRefusing({ ...refusing, [r.id]: '' })} className="rounded-full bg-white px-2.5 py-1 font-semibold text-red-700 ring-1 ring-red-200">Refuser…</button>
                           : <span className="flex w-full gap-1"><input value={refusing[r.id]} onChange={(e) => setRefusing({ ...refusing, [r.id]: e.target.value })} placeholder="Raison (vue par la famille)" aria-label="Raison du refus" className="min-w-0 flex-1 rounded border border-slate-300 px-1.5 py-1" />
-                            <button type="button" disabled={!refusing[r.id].trim()} onClick={() => update([r.id], { request: { ...r.request, refused: { at: NOW, why: refusing[r.id].trim(), by: actor } } }, `Justification de ${r.student} refusée : la famille voit la raison.`, { kind: 'JUSTIF', text: () => `Justification refusée : ${refusing[r.id].trim()}` })} className="rounded bg-red-600 px-2 py-1 font-semibold text-white disabled:opacity-50">OK</button></span>}
+                            <button type="button" disabled={!refusing[r.id].trim()} onClick={() => update([r.id], { request: { ...r.request, refused: { at: NOW, why: refusing[r.id].trim(), by: actor } } }, `Justification de ${sn(r.student)} refusée : la famille voit la raison.`, { kind: 'JUSTIF', text: () => `Justification refusée : ${refusing[r.id].trim()}` })} className="rounded bg-red-600 px-2 py-1 font-semibold text-white disabled:opacity-50">OK</button></span>}
                       </span>
                     </div>
                   ) : st(r).status === 'NON_JUSTIFIEE' ? (
                     <span><Badge tone="red">Non justifiée</Badge><span className="block text-[11px] text-slate-600">délai dépassé le {fmtDT(st(r).deadline)}</span></span>
                   ) : justifying === r.id ? (
-                    <span className="flex flex-wrap gap-1">{absenceStreak(rows, r) >= PROOF_FROM_DAYS && <span className="w-full text-[11px] font-medium text-amber-800">{absenceStreak(rows, r)} jours d'affilée : justificatif écrit obligatoire (certificat médical pour une maladie).</span>}{REASONS.map((x) => <button key={x} type="button" onClick={() => { update([r.id], { justified: true, reason: x }, `${r.kind === 'ABSENCE' ? 'Absence' : 'Retard'} de ${r.student} justifié.`, { kind: 'JUSTIF', text: () => `${r.kind === 'ABSENCE' ? 'Absence' : 'Retard'} justifié : ${x.toLowerCase()}` }); setJustifying(null); }} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs hover:bg-navy-50">{x}</button>)}</span>
+                    <span className="flex flex-wrap gap-1">{absenceStreak(rows, r) >= PROOF_FROM_DAYS && <span className="w-full text-[11px] font-medium text-amber-800">{absenceStreak(rows, r)} jours d'affilée : justificatif écrit obligatoire (certificat médical pour une maladie).</span>}{REASONS.map((x) => <button key={x} type="button" onClick={() => { update([r.id], { justified: true, reason: x }, `${r.kind === 'ABSENCE' ? 'Absence' : 'Retard'} de ${sn(r.student)} justifié.`, { kind: 'JUSTIF', text: () => `${r.kind === 'ABSENCE' ? 'Absence' : 'Retard'} justifié : ${x.toLowerCase()}` }); setJustifying(null); }} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs hover:bg-navy-50">{x}</button>)}</span>
                   ) : <span><button type="button" onClick={() => setJustifying(r.id)} className="text-xs font-medium text-navy-700 underline decoration-dotted">Justifier</button><span className="block text-[11px] text-amber-800">encore {st(r).hoursLeft} h (jusqu'au {fmtDT(st(r).deadline)})</span></span>}
                 </td>
                 <td className="px-2">{r.notified ? <Ack at={r.parentAck} /> : <span className="text-xs font-medium text-amber-800">Pas encore prévenus</span>}</td>
                 <td className="px-4 text-right">
-                  {!r.notified && <Button variant="secondary" onClick={() => update([r.id], { notified: true }, ONLINE ? `Parents de ${r.student} : marqué « prévenus » (appel ou message de votre part).` : `Parents de ${r.student} prévenus (e-mail + application).`, notifyLog)}><Icon name="bell" />Prévenir les parents</Button>}
+                  {!r.notified && <Button variant="secondary" onClick={() => update([r.id], { notified: true }, ONLINE ? `Parents de ${sn(r.student)} : marqué « prévenus » (appel ou message de votre part).` : `Parents de ${sn(r.student)} prévenus (e-mail + application).`, notifyLog)}><Icon name="bell" />Prévenir les parents</Button>}
                 </td>
               </tr>
             ))}
@@ -151,7 +152,7 @@ function MeasuresTab({ log, setLog, role, toast }) {
           {[...log].filter((m) => authorRole !== 'PROFESSEUR' || authors.includes(m.author) || m.sharedWithTeachers).sort((a, b) => b.date.localeCompare(a.date)).map((m) => (
             <li key={m.id} className={`flex flex-wrap items-start justify-between gap-3 py-3 ${m.cancelled ? 'opacity-60' : ''}`}>
               <div className="min-w-0">
-                <p className={`text-sm font-medium text-slate-900 ${m.cancelled ? 'line-through' : ''}`}>{m.student} <span className="font-normal text-slate-500">· {classOf(m.student)} · {formatDateFr(m.date).replace(/ \d{4}$/, '')}</span></p>
+                <p className={`text-sm font-medium text-slate-900 ${m.cancelled ? 'line-through' : ''}`}>{sn(m.student)} <span className="font-normal text-slate-500">· {classOf(m.student)} · {formatDateFr(m.date).replace(/ \d{4}$/, '')}</span></p>
                 <p className="text-sm text-slate-700"><span className="text-slate-500">Motif :</span> {m.reason}</p>
                 {m.when && <p className="text-xs text-slate-500">À effectuer : {/^\d{4}-\d{2}-\d{2}T/.test(m.when) ? fmtDT(m.when) : m.when}</p>}
                 <p className="text-xs text-slate-500">Décidée par {m.author} ({AUTHORS[m.authorRole]}){m.editedAt ? ` · corrigée le ${m.editedAt.split('-').reverse().join('/')}` : ''}</p>
@@ -228,7 +229,7 @@ function MeasuresTab({ log, setLog, role, toast }) {
             if (draft.editId) {
               // correction : le parent est prévenu à nouveau et doit reconfirmer
               setLog(log.map((x) => (x.id === draft.editId ? { ...x, student: draft.student, measure: draft.measureId, reason: draft.reason.trim(), when: draft.when || null, author: draft.author, parentAck: null, editedAt: today() } : x)));
-              toast(`Mesure corrigée pour ${draft.student} ; ${familiesTold()}.`);
+              toast(`Mesure corrigée pour ${sn(draft.student)} ; ${familiesTold()}.`);
               clearDraft();
               return;
             }
@@ -236,7 +237,7 @@ function MeasuresTab({ log, setLog, role, toast }) {
             logActivity({ who: draft.author, role, kind: 'PUNITION', student: draft.student, text: `${MEASURE[draft.measureId].label} : ${draft.reason.trim()}` });
             // une retenue est une colle : elle entre au passeport, à la suite des autres colles de l'élève
             if (retenue) { const pp = loadPassport(); savePassport({ ...pp, colles: [...pp.colles, { id: `c${Date.now()}`, student: draft.student, kind: 'COLLE', cause: 'AUTRE', hours: draft.hours ?? 1, date: '2026-10-13', when: draft.when, reason: draft.reason.trim(), status: 'A_FAIRE', by: draft.author }] }); }
-            toast(`Mesure enregistrée pour ${draft.student} ; ${familiesTold()}.`);
+            toast(`Mesure enregistrée pour ${sn(draft.student)} ; ${familiesTold()}.`);
             clearDraft();
           }}>{draft.editId ? 'Enregistrer la correction' : 'Enregistrer et prévenir le parent'}</Button>
           {draft.editId && <Button variant="ghost" className="w-full" onClick={clearDraft}>Abandonner la correction</Button>}
@@ -264,7 +265,7 @@ function PhonesTab({ phones, setPhones, settings, toast, role }) {
   const decide = (p, duration) => {
     setPhones(phones.map((x) => (x.id === p.id ? { ...x, duration, durationBy: actor } : x)));
     logActivity({ who: actor, role, kind: 'OBJET', student: p.student, text: `Durée de confiscation décidée : ${PHONE_DURATIONS.find((d) => d.id === duration).label} (${objectOf(p).toLowerCase()})` });
-    toast(`${objectOf(p)} de ${p.student} : ${PHONE_DURATIONS.find((d) => d.id === duration).label} ; ${familiesTold()}.`);
+    toast(`${objectOf(p)} de ${sn(p.student)} : ${PHONE_DURATIONS.find((d) => d.id === duration).label} ; ${familiesTold()}.`);
   };
   return (
     <div className="grid gap-5 xl:grid-cols-[1fr_380px] xl:items-start">
@@ -294,7 +295,7 @@ function PhonesTab({ phones, setPhones, settings, toast, role }) {
                 return (
                   <li key={p.id} className="py-3 text-sm">
                     <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div><p className="font-medium text-slate-900">{p.student} <span className="font-normal text-slate-500">· {classOf(p.student)}</span></p><p className="text-slate-700">{objectOf(p)} · {p.reason}</p><p className="text-xs text-slate-500">Le {fmtDT(p.at)} par {p.confiscatedBy}</p></div>
+                      <div><p className="font-medium text-slate-900">{sn(p.student)} <span className="font-normal text-slate-500">· {classOf(p.student)}</span></p><p className="text-slate-700">{objectOf(p)} · {p.reason}</p><p className="text-xs text-slate-500">Le {fmtDT(p.at)} par {p.confiscatedBy}</p></div>
                       <Badge tone="amber">Avertissement</Badge>
                     </div>
                   </li>
@@ -334,7 +335,7 @@ function PhonesTab({ phones, setPhones, settings, toast, role }) {
                       <Button disabled={validateReturn({ duration: p.duration, toRole: returning.toRole, toName: returning.to }).length > 0} onClick={() => {
                         setPhones(phones.map((x) => (x.id === p.id ? { ...x, returned: { at: NOW, by: returning.by, to: returning.to.trim() } } : x)));
                         logActivity({ who: returning.by, role, kind: 'OBJET', student: p.student, text: `${objectOf(p)} rendu à ${returning.to.trim()}` });
-                        setReturning(null); toast(`${objectOf(p)} de ${p.student} restitué.`);
+                        setReturning(null); toast(`${objectOf(p)} de ${sn(p.student)} restitué.`);
                       }}>Confirmer</Button>
                     </div>
                   )}
@@ -385,7 +386,7 @@ function PhonesTab({ phones, setPhones, settings, toast, role }) {
             const item = { ...rest, owner: otherOwner ? draft.owner : undefined, id: `p${Date.now()}`, reason: draft.reason.trim(), objectNote: draft.objectNote.trim(), duration: isWarning ? undefined : draft.duration || null, durationBy: draft.duration ? actor : undefined, receivedBy: isWarning ? undefined : draft.receivedBy, returned: null };
             setPhones([item, ...phones]);
             logActivity({ who: draft.confiscatedBy, role, kind: 'OBJET', student: draft.student, text: isWarning ? `Avertissement (${objectOf(item).toLowerCase()}) : ${item.reason}` : `${objectOf(item)} confisqué, remis à ${draft.receivedBy}` });
-            toast(isWarning ? `Avertissement enregistré pour ${draft.student} ; ${familiesTold()}.` : `Confiscation enregistrée${draft.duration ? '' : ' ; la durée sera décidée par la Direction ou le secrétariat'}. ${otherOwner ? `Les parents de ${draft.student} et de ${draft.owner} sont prévenus` : `Le parent de ${draft.student} est prévenu`}.`);
+            toast(isWarning ? `Avertissement enregistré pour ${sn(draft.student)} ; ${familiesTold()}.` : `Confiscation enregistrée${draft.duration ? '' : ' ; la durée sera décidée par la Direction ou le secrétariat'}. ${otherOwner ? `Les parents de ${sn(draft.student)} et de ${draft.owner} sont prévenus` : `Le parent de ${sn(draft.student)} est prévenu`}.`);
             clearDraft();
           }}>Enregistrer</Button>
         </div>
@@ -422,7 +423,7 @@ function EarlyLeaveTab({ toast }) {
     const item = { ...d, id: `s${Date.now()}`, minor, leftAlone: !d.pickedUpBy.trim() };
     const next = [item, ...list]; setList(next);
     try { localStorage.setItem(LEAVE_KEY, JSON.stringify(next)); } catch { /* stockage indisponible */ }
-    toast(`Sortie enregistrée pour ${d.student} ; ${familiesTold()}.`);
+    toast(`Sortie enregistrée pour ${sn(d.student)} ; ${familiesTold()}.`);
     setD(blank); setTried(false);
   };
   return (
@@ -432,7 +433,7 @@ function EarlyLeaveTab({ toast }) {
         <ul className="divide-y divide-slate-100 text-sm">
           {list.map((x) => (
             <li key={x.id} className="flex flex-wrap items-start justify-between gap-2 py-2">
-              <span className="min-w-0"><span className="font-medium text-slate-900">{x.student}</span> <span className="text-slate-500">· {classOf(x.student)}</span>
+              <span className="min-w-0"><span className="font-medium text-slate-900">{sn(x.student)}</span> <span className="text-slate-500">· {classOf(x.student)}</span>
                 <span className="block text-xs text-slate-500">{fmtDT(x.at)} · {x.reason} · parent appelé à {x.calledAt.replace(':', 'h')} · {x.leftAlone ? 'parti seul (majeur)' : `avec ${x.pickedUpBy} (${x.relation}${x.pickedUpIsGuardian ? '' : ', confirmé par le parent'})`}</span></span>
               <Badge tone={x.minor ? 'navy' : 'slate'}>{x.minor ? 'mineur' : 'majeur'}</Badge>
             </li>

@@ -14,6 +14,7 @@ import { TIMETABLE } from '../data/timetable.js';
 import { STAFF } from '../data/people.js';
 import { setIntent } from '../navIntent.js';
 import { me } from '../identity.js';
+import { studentLabel as sn } from '../studentNames.js';
 
 // Accueil de la CPE : d'abord ce qui attend (du plus urgent au moins urgent), puis la journée concrète
 // (séances à surveiller, colles, objets en garde), puis les tâches confiées et le journal.
@@ -60,7 +61,7 @@ export default function CpeHome({ go, account }) {
           action={<Button variant="secondary" className="!py-1 text-xs" onClick={() => go?.('cpe-objets')}>Ouvrir</Button>}>
           {objects.length === 0 ? <p className="text-sm text-slate-600">Aucun objet en garde.</p> : (
             <ul className="divide-y divide-slate-100 text-sm">
-              {objects.slice(0, 5).map((p) => <li key={p.id} className="flex items-center justify-between gap-2 py-2"><span><strong>{p.student}</strong> · {p.object}</span><Badge tone="slate">{p.at.slice(8, 10)}/{p.at.slice(5, 7)}</Badge></li>)}
+              {objects.slice(0, 5).map((p) => <li key={p.id} className="flex items-center justify-between gap-2 py-2"><span><strong>{sn(p.student)}</strong> · {p.object}</span><Badge tone="slate">{p.at.slice(8, 10)}/{p.at.slice(5, 7)}</Badge></li>)}
               {objects.length > 5 && <li className="py-2 text-xs text-slate-600">et {objects.length - 5} autre{objects.length > 6 ? 's' : ''}…</li>}
             </ul>
           )}

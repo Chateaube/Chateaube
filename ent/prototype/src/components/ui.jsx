@@ -1,4 +1,5 @@
 import React from 'react';
+import { studentLabel as sn } from '../studentNames.js';
 
 export function Card({ title, subtitle, action, children, className = '' }) {
   return (
@@ -126,7 +127,7 @@ export function Icon({ name, className = 'h-4 w-4' }) {
  * plus pratique qu'une longue liste à faire défiler pour une classe de 30.
  * `suffix(s)` ajoute un repère au nom (ex. « ✓ validée »).
  */
-export function StudentSelect({ students, value, onChange, suffix, label = 'Élève', format = (s) => s }) {
+export function StudentSelect({ students, value, onChange, suffix, label = 'Élève', format = sn }) {
   const i = students.indexOf(value);
   return (
     <div className="flex flex-wrap items-end gap-2">

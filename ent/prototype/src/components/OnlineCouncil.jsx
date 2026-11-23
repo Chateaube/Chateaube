@@ -14,6 +14,7 @@ import { printOnly } from '../print.js';
 import { sheetKind } from '../rules/orientationSheet.js';
 import CouncilOrientation from './CouncilOrientation.jsx';
 import { setSheetOwner } from './OrientationSheet.jsx';
+import { studentLabel as sn } from '../studentNames.js';
 
 // Conseils de classe en ligne (Direction et secrétariat) : la grille se remplit toute seule avec les notes que
 // les professeurs saisissent dans leur carnet. La décision et l'appréciation générale de chaque élève sont
@@ -51,7 +52,7 @@ export default function OnlineCouncil({ settings, role, go }) {
   if (!data.roster || !cls) return <Card title="Conseils de classe"><p className="text-sm text-slate-700">Les classes n'ont pas encore été envoyées aux professeurs (Direction : Notes reçues › Envoyer les classes).</p></Card>;
 
   const { rows, subjects, entries, classAvg, generalStats } = council;
-  // grille imprimée : initiale du nom + prénom d'usage (« M. Fanja ») ; deux élèves qui s'écriraient pareil
+  // grille imprimée : initiale du nom + prénom d'usage (« R. Aina ») ; deux élèves qui s'écriraient pareil
   // gardent leur nom complet pour ne pas les confondre
   const shortLabels = rows.map((r) => shortName(r.name));
   const printName = (n) => { const i = rows.findIndex((r) => r.name === n); return shortLabels.filter((x) => x === shortLabels[i]).length > 1 ? n : shortLabels[i] ?? n; };
@@ -141,7 +142,7 @@ export default function OnlineCouncil({ settings, role, go }) {
                 return (
                   <React.Fragment key={r.name}>
                     <tr className="border-b border-slate-100">
-                      <td className="sticky left-0 z-10 bg-white px-4 py-2"><button type="button" onClick={() => setOpen(open === r.name ? null : r.name)} className="text-left font-medium text-slate-900 hover:text-navy-500">{r.name}</button></td>
+                      <td className="sticky left-0 z-10 bg-white px-4 py-2"><button type="button" onClick={() => setOpen(open === r.name ? null : r.name)} className="text-left font-medium text-slate-900 hover:text-navy-500">{sn(r.name)}</button></td>
                       {subjects.map((s) => <td key={s} className={`px-1.5 text-center tabular-nums ${r.avgs[s] === undefined ? 'bg-slate-50 text-slate-300' : tone(r.avgs[s])}`}>{r.avgs[s] === undefined ? '·' : fmtAvg(r.avgs[s])}</td>)}
                       <td className={`px-2 text-center font-semibold tabular-nums ${tone(r.general)}`}>{fmtAvg(r.general)}</td>
                       <td className="px-2"><div className="flex flex-wrap gap-1">

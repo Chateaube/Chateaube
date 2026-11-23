@@ -13,6 +13,7 @@ import { nextWeekday, today } from '../clock.js';
 import { me, meLabel } from '../identity.js';
 import { demoOr, realData } from '../demoData.js';
 import { familiesTold } from '../familyReach.js';
+import { studentLabel as sn } from '../studentNames.js';
 
 // Passeport de vie scolaire : oublis, retards, colles et TIG d'un élève.
 // Carnet de liaison oublié = 1 h de colle (nouvel élève : au 2e oubli) ; autres oublis : colle si le
@@ -69,8 +70,8 @@ export default function PassportTab({ role, toast }) {
     setForget({ kind: FORGET_KINDS[0], note: '', colle: false });
     logActivity({ who: by, role, kind: 'OUBLI', student, text: `${forget.kind === 'Devoir non fait' ? 'Devoir non fait' : `${forget.kind} oublié${forget.kind === 'Tenue (EPS)' ? 'e' : ''}`}${f.note ? ` (${f.note})` : ''}${f.colle ? ' — colle demandée' : ''}` });
     const due = passport(student, { attendance: ATTENDANCE, ...next }, { isNew }).toGive.some((g) => g.forgetId === f.id);
-    if (isTeacher) { toast(`Oubli noté pour ${student} : la vie scolaire et la Direction le reçoivent.`); return; }
-    toast(`Oubli noté pour ${student}. ${due ? (isTeacher ? 'Une heure de colle est due ; la CPE en fixe la date.' : 'Une heure de colle est à donner.') : carnet ? `Pas encore de colle : nouvel élève, colle au ${carnetPerColle(true)}e oubli du carnet.` : 'Pas de colle demandée.'}`);
+    if (isTeacher) { toast(`Oubli noté pour ${sn(student)} : la vie scolaire et la Direction le reçoivent.`); return; }
+    toast(`Oubli noté pour ${sn(student)}. ${due ? (isTeacher ? 'Une heure de colle est due ; la CPE en fixe la date.' : 'Une heure de colle est à donner.') : carnet ? `Pas encore de colle : nouvel élève, colle au ${carnetPerColle(true)}e oubli du carnet.` : 'Pas de colle demandée.'}`);
   };
   const give = (entry) => {
     const e = colleErrors({ ...entry, student, colles: data.colles });
@@ -78,7 +79,7 @@ export default function PassportTab({ role, toast }) {
     update({ ...data, colles: [...data.colles, { id: `c${Date.now()}`, student, date: TODAY, status: 'A_FAIRE', by, ...entry }] });
     logActivity({ who: by, role, kind: 'COLLE', student, text: `${entry.kind === 'TIG' ? 'TIG' : `Colle de ${entry.hours} h`} : ${entry.reason}` });
     setGiving(null); setTig(null);
-    toast(`${entry.kind === 'TIG' ? 'TIG' : `Colle de ${entry.hours} h`} pour ${student} ; ${familiesTold()}.`);
+    toast(`${entry.kind === 'TIG' ? 'TIG' : `Colle de ${entry.hours} h`} pour ${sn(student)} ; ${familiesTold()}.`);
   };
   const setStatus = (id, status) => update({ ...data, colles: data.colles.map((c) => (c.id === id ? { ...c, status } : c)) });
 

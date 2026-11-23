@@ -11,6 +11,7 @@ import { currentStudents } from '../importStore.js';
 import { printOnly } from '../print.js';
 import { relanceText } from '../rules/finance.js';
 import { brand } from '../siteBrand.js';
+import { studentLabel as sn } from '../studentNames.js';
 
 // Finances (Caisse et comptabilité) : alertes de frais de scolarité (relances, avertissement, mise à pied)
 // et les deux journaux séparés (frais de scolarité / droits d'examen). Retirés de l'accueil de la Direction.
@@ -113,7 +114,7 @@ export function DunningAlerts({ settings, site = 'TMV' }) {
                 {visibleCases.map((c) => (
                   <tr key={c.id} className="border-b border-slate-100 last:border-0">
                     <td className="px-4 py-2.5">
-                      <p className="font-medium text-slate-900">{c.student}</p>
+                      <p className="font-medium text-slate-900">{sn(c.student)}</p>
                       <p className="text-xs text-slate-500">{c.cls} · {c.guardian}</p>
                     </td>
                     <td className="px-2"><Badge>{c.site === 'TMV' ? 'Tamatave' : 'Tana'}</Badge></td>
