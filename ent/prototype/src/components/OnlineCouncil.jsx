@@ -1,4 +1,4 @@
-import { fetchRoster } from '../online/roster.js';
+import { fetchRoster, shortName } from '../online/roster.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Badge, Button, Card, Stat, StudentSelect } from './ui.jsx';
 import { RulePanel } from './gradeUi.jsx';
@@ -51,6 +51,10 @@ export default function OnlineCouncil({ settings, role, go }) {
   if (!data.roster || !cls) return <Card title="Conseils de classe"><p className="text-sm text-slate-700">Les classes n'ont pas encore été envoyées aux professeurs (Direction : Notes reçues › Envoyer les classes).</p></Card>;
 
   const { rows, subjects, entries, classAvg, generalStats } = council;
+  // grille imprimée : initiale du nom + prénom d'usage (« M. Fanja ») ; deux élèves qui s'écriraient pareil
+  // gardent leur nom complet pour ne pas les confondre
+  const shortLabels = rows.map((r) => shortName(r.name));
+  const printName = (n) => { const i = rows.findIndex((r) => r.name === n); return shortLabels.filter((x) => x === shortLabels[i]).length > 1 ? n : shortLabels[i] ?? n; };
   const name = current && rows.some((r) => r.name === current) ? current : rows[0]?.name;
   const gaOf = (n) => data.ga[councilKey(cls, n)] ?? {};
   const setGa = (n, entry) => {
@@ -226,7 +230,7 @@ export default function OnlineCouncil({ settings, role, go }) {
           <tbody>
             {rows.map((r) => (
               <tr key={r.name}>
-                <td style={{ border: '1px solid #000', padding: 2 }}>{r.name}</td>
+                <td style={{ border: '1px solid #000', padding: 2 }}>{printName(r.name)}</td>
                 {subjects.map((s) => <td key={s} style={{ border: '1px solid #000', padding: 2, textAlign: 'center' }}>{r.avgs[s] === undefined ? '' : fmtAvg(r.avgs[s])}</td>)}
                 <td style={{ border: '1px solid #000', padding: 2, textAlign: 'center', fontWeight: 700 }}>{fmtAvg(r.general)}</td>
                 <td style={{ border: '1px solid #000', padding: 2 }}>{r.flags.map(flagLine).join(' / ')}</td>
