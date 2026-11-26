@@ -4,7 +4,7 @@ import { Button, Card } from './ui.jsx';
 import { fetchDoc, fetchDocs } from '../online/docs.js';
 import { studentLabel as sn } from '../studentNames.js';
 
-// « Absents aux devoirs » (Direction et secrétariat, version en ligne) : tous les « ABS » saisis par les
+// « Absents aux évaluations » (Direction et secrétariat, version en ligne) : tous les « ABS » saisis par les
 // professeurs dans leurs carnets, pour organiser les rattrapages et vérifier les justificatifs.
 // Rien n'est envoyé aux familles.
 const isAbs = (v) => String(v ?? '').trim().toUpperCase() === 'ABS';
@@ -31,15 +31,15 @@ export default function AbsentAtTests({ embedded = false }) {
   const classes = useMemo(() => [...new Set((rows ?? []).map((r) => r.cls))].sort(), [rows]);
   const shown = (rows ?? []).filter((r) => !cls || r.cls === cls);
   const card = (
-    <Card title={`Absents aux devoirs${rows ? ` (${shown.length})` : ''}`} subtitle="Les « ABS » saisis par les professeurs : pour organiser les rattrapages et vérifier les justificatifs. Rien n'est envoyé aux familles."
+    <Card title={`Absents aux évaluations${rows ? ` (${shown.length})` : ''}`} subtitle="Les « ABS » saisis par les professeurs : pour organiser les rattrapages et vérifier les justificatifs. Rien n'est envoyé aux familles."
       action={<div className="flex gap-2">
         <select value={cls} onChange={(e) => setCls(e.target.value)} aria-label="Classe" className="rounded-lg border border-slate-300 px-2 py-1 text-xs"><option value="">Toutes les classes</option>{classes.map((c) => <option key={c}>{c}</option>)}</select>
         <Button variant="secondary" className="!py-1 text-xs" onClick={load}>Actualiser</Button></div>}>
       {err && <p role="alert" className="text-sm text-red-800">{err}</p>}
-      {!rows && !err ? <p className="text-sm text-slate-600">Chargement…</p> : shown.length === 0 ? <p className="text-sm text-slate-600">Aucune absence à un devoir.</p> : (
+      {!rows && !err ? <p className="text-sm text-slate-600">Chargement…</p> : shown.length === 0 ? <p className="text-sm text-slate-600">Aucune absence à une évaluation.</p> : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm">
-            <thead><tr className="border-b text-left text-xs text-slate-500"><th className="py-1.5">Date</th><th>Élève</th><th>Classe</th><th>Matière</th><th>Devoir</th><th>Professeur</th></tr></thead>
+            <thead><tr className="border-b text-left text-xs text-slate-500"><th className="py-1.5">Date</th><th>Élève</th><th>Classe</th><th>Matière</th><th>Évaluation</th><th>Professeur</th></tr></thead>
             <tbody>{shown.map((r) => (
               <tr key={r.key} className="border-b border-slate-100"><td className="py-1.5 tabular-nums">{ddmmyyyy(r.date)}</td><td className="font-medium">{sn(r.student)}</td><td>{r.cls}</td><td>{r.subject}</td><td>{r.title}</td><td className="text-slate-600">{r.teacher}</td></tr>
             ))}</tbody>
@@ -51,7 +51,7 @@ export default function AbsentAtTests({ embedded = false }) {
   if (embedded) return card;
   return (
     <div className="space-y-5">
-      <div><p className="text-sm font-semibold text-navy-500">Notes · en ligne</p><h1 className="text-2xl font-semibold text-navy-900">Absents aux devoirs</h1></div>
+      <div><p className="text-sm font-semibold text-navy-500">Notes · en ligne</p><h1 className="text-2xl font-semibold text-navy-900">Absents aux évaluations</h1></div>
       {card}
     </div>
   );

@@ -1,9 +1,9 @@
 // Messages de l'administration aux professeurs qui n'ont pas encore le minimum de notes, à l'approche de
 // l'arrêt des notes (texte de la Direction, tel quel). EPS : seuil adapté de 3 notes.
 export const NOTICE_GENERAL = {
-  intro: 'À l\'approche de l\'arrêt des notes, nous constatons que certaines matières ne comptent encore que 2 ou 3 évaluations. Sachant que le calendrier ne permet plus d\'organiser de nouveaux devoirs en classe, nous vous proposons des solutions pour atteindre le minimum réglementaire de 4 notes en vous appuyant uniquement sur le travail déjà accompli ce trimestre :',
+  intro: 'À l\'approche de l\'arrêt des notes, nous constatons que certaines matières ne comptent encore que 2 ou 3 évaluations. Sachant que le calendrier ne permet plus d\'organiser de nouvelles évaluations en classe, nous vous proposons des solutions pour atteindre le minimum réglementaire de 4 notes en vous appuyant uniquement sur le travail déjà accompli ce trimestre :',
   points: [
-    ['Scinder une évaluation existante', 'Diviser la note d\'un devoir complet en deux notes distinctes (par exemple : Compréhension / Analyse d\'un côté, et Expression / Rédaction / Méthode de l\'autre).'],
+    ['Scinder une évaluation existante', 'Diviser la note d\'une évaluation complète en deux notes distinctes (par exemple : Compréhension / Analyse d\'un côté, et Expression / Rédaction / Méthode de l\'autre).'],
     ['Évaluer le suivi et la participation', 'Attribuer une note globale sur le trimestre basée sur l\'implication orale, la régularité du travail à la maison ou la bonne tenue du cahier.'],
     ['Valoriser un travail déjà rendu', 'Noter un exercice fait en classe, un travail de groupe ou une recherche documentaire qui n\'avait fait l\'objet que d\'une correction collective.'],
   ],

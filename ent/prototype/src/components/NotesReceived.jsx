@@ -203,7 +203,7 @@ export default function NotesReceived({ settings, go }) {
       </Card>
 
       {conflicts.length > 0 && (
-        <Card title="Classes communes (deux professeurs, même matière)" subtitle="Chacun saisit ses devoirs ; une seule moyenne sur tous les devoirs, et le minimum se compte à deux. Vous pouvez aussi confier la classe à un seul professeur.">
+        <Card title="Classes communes (deux professeurs, même matière)" subtitle="Chacun saisit ses évaluations ; une seule moyenne sur toutes les évaluations, et le minimum se compte à deux. Vous pouvez aussi confier la classe à un seul professeur.">
           <ul className="space-y-2 text-sm text-amber-900">{conflicts.map((g) => (
             <li key={g.key} className="rounded-lg bg-amber-50 px-3 py-2">
               <p>⚠ <strong>{g.cls} · {g.subject}</strong> : {g.teachers.map((t) => t.name).join(' et ')}</p>
@@ -211,7 +211,7 @@ export default function NotesReceived({ settings, go }) {
                 <span className="text-xs">Confier à un seul professeur (facultatif) :</span>
                 {g.teachers.map((t) => {
                                     const notes = (data?.carnets?.[t.id]?.value?.evaluations?.[g.key] ?? []).length;
-                  return <Button key={t.id} variant="secondary" className="!px-2 !py-1 text-xs" disabled={busy} onClick={() => entrust(g, t)}>{t.name} seul·e{notes ? ` · ${notes} devoir${notes > 1 ? 's' : ''}` : ''}</Button>;
+                  return <Button key={t.id} variant="secondary" className="!px-2 !py-1 text-xs" disabled={busy} onClick={() => entrust(g, t)}>{t.name} seul·e{notes ? ` · ${notes} évaluation${notes > 1 ? 's' : ''}` : ''}</Button>;
                 })}
               </div>
             </li>
@@ -237,7 +237,7 @@ export default function NotesReceived({ settings, go }) {
         </Card>
       )}
 
-      <Card title="2. Saisies des professeurs" subtitle="Notes saisies / notes attendues (élèves × devoirs)"
+      <Card title="2. Saisies des professeurs" subtitle="Notes saisies / notes attendues (élèves × évaluations)"
         action={<div className="flex gap-2"><Button variant="secondary" className="!py-1 text-xs" onClick={load}>Actualiser</Button><Button className="!py-1 text-xs" disabled={!rows.some((r) => r.carnet)} onClick={exportAll}>Exporter en Excel</Button></div>}>
         {!data ? <p className="text-sm text-slate-600">Chargement…</p> : rows.length === 0 ? <p className="text-sm text-slate-600">Aucun professeur avec un compte.</p> : (
           <div className="space-y-4">
@@ -253,7 +253,7 @@ export default function NotesReceived({ settings, go }) {
                       return (
                         <li key={s.id} className="flex flex-wrap items-center gap-2 py-1.5">
                           <span className="min-w-[12rem] flex-1 text-slate-800">{s.cls} · {s.subject} <span className="text-xs text-slate-500">({s.students.length} élèves)</span>{s.shared && <span className="ml-1"><Badge tone="violet">partagée avec {s.coTeachers.join(', ')} · 50/50 · 2 notes min.</Badge></span>}{s.conflict && <span className="ml-1"><Badge tone="amber">aussi chez {s.conflict.join(', ')} : à corriger</Badge></span>}</span>
-                          <span className="text-xs text-slate-600">{x.evaluations} devoir{x.evaluations > 1 ? 's' : ''} · {x.got}/{x.expected} notes</span>
+                          <span className="text-xs text-slate-600">{x.evaluations} évaluation{x.evaluations > 1 ? 's' : ''} · {x.got}/{x.expected} notes</span>
                           <Badge tone={x.competencies ? 'emerald' : 'slate'}>{x.competencies ? 'compétences ✓' : 'compétences —'}</Badge>
                           {x.validated && <Badge tone="emerald">validé</Badge>}
                         </li>

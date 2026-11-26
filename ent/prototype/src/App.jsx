@@ -184,7 +184,7 @@ const PROFILES = {
       { group: 'Aujourd\'hui', items: [{ id: 'bureau', label: 'À traiter aujourd\'hui', icon: 'home', screen: BureauHome }] },
       { group: 'Accueil et caisse', items: [ACCOUNTING, { ...ELEVES, label: 'Élèves et certificats' }, SIGNATURES, CARE, MANUALS] }, // le guichet
       { group: 'Vie scolaire', items: [VIE_SCOLAIRE, HOURS, TIMETABLE, FOLLOW_UP] },
-      { group: 'Notes et conseils', items: [...(ONLINE ? [{ id: 'absents-devoirs', label: 'Absents aux devoirs', icon: 'users', screen: AbsentAtTests }] : []), COUNCIL, MOCK_EXAMS, ...OVERSIGHT] }, // grilles : onglet des conseils ; bulletins : Direction seule
+      { group: 'Notes et conseils', items: [...(ONLINE ? [{ id: 'absents-devoirs', label: 'Absents aux évaluations', icon: 'users', screen: AbsentAtTests }] : []), COUNCIL, MOCK_EXAMS, ...OVERSIGHT] }, // grilles : onglet des conseils ; bulletins : Direction seule
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, AGENDA, RESOURCES] },
       { group: 'Matériel et bibliothèque', items: [LIBRARY, BOOKING, INVENTORY] },
       { group: 'Sauvegarde', items: [IMPORT] },

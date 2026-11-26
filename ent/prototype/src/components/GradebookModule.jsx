@@ -44,7 +44,7 @@ function EvaluationForm({ draft, setDraft, settings, competencies, onCreate, onC
   const delay = settings.grading.parentDelayDays;
   return (
     <div className="mb-4 space-y-3 rounded-lg border border-navy-200 bg-navy-50/60 p-4">
-      <p className="text-sm font-semibold text-navy-900">Nouveau devoir</p>
+      <p className="text-sm font-semibold text-navy-900">Nouvelle évaluation</p>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-xs text-slate-600">Type
           <select value={draft.type} onChange={(e) => set({ type: e.target.value })} className={`mt-1 w-full ${inputCls}`}>
@@ -54,7 +54,7 @@ function EvaluationForm({ draft, setDraft, settings, competencies, onCreate, onC
         <label className="block text-xs text-slate-600">Intitulé
           <input value={draft.title} onChange={(e) => set({ title: e.target.value })} placeholder="ex. DS n°2 — Le marketing" className={`mt-1 w-full ${inputCls}`} />
         </label>
-        <DateField label="Devoir du" value={draft.date} onChange={(v) => set({ date: v })} />
+        <DateField label="Évaluation du" value={draft.date} onChange={(v) => set({ date: v })} />
         <DateField label="Note publiée le" value={draft.publishOn} onChange={(v) => set({ publishOn: v })} />
       </div>
       {draft.publishOn && (
@@ -77,7 +77,7 @@ function EvaluationForm({ draft, setDraft, settings, competencies, onCreate, onC
       </div>
       <label className="flex items-center gap-2 text-sm text-slate-700">
         <input type="checkbox" checked={draft.normalize} disabled={draft.scale === 20} onChange={(e) => set({ normalize: e.target.checked })} />
-        Ramener sur 20 les notes du devoir lors du calcul de la moyenne
+        Ramener sur 20 les notes de l'évaluation lors du calcul de la moyenne
         {draft.scale === 20 && <span className="text-xs text-slate-400">(déjà sur 20)</span>}
       </label>
       <label className="block text-xs text-slate-600">Commentaire, visible par les élèves <span className="text-slate-500">(facultatif)</span>
@@ -87,7 +87,7 @@ function EvaluationForm({ draft, setDraft, settings, competencies, onCreate, onC
         <input value={draft.themesText} onChange={(e) => set({ themesText: e.target.value })} placeholder="Séparez les thèmes par une virgule" className={`mt-1 w-full ${inputCls}`} />
       </label>
       <div>
-        <p className="text-xs text-slate-600">Compétences évaluées dans ce devoir <span className="text-slate-400">(facultatif)</span></p>
+        <p className="text-xs text-slate-600">Compétences évaluées dans cette évaluation <span className="text-slate-400">(facultatif)</span></p>
         {competencies.length === 0 ? <p className="mt-1 text-xs text-slate-400">Facultatif. Les compétences de la classe se renseignent à l'étape « 3. Compétences du bulletin ».</p> : (
           <div className="mt-1 space-y-1">
             {competencies.map((c) => (
@@ -101,9 +101,9 @@ function EvaluationForm({ draft, setDraft, settings, competencies, onCreate, onC
         )}
       </div>
       <div className="flex gap-2">
-        <Button disabled={!draft.title.trim() || !draft.date || !draft.publishOn || draft.publishOn < draft.date} onClick={onCreate}>{draft.id ? 'Enregistrer les modifications' : 'Créer le devoir'}</Button>
+        <Button disabled={!draft.title.trim() || !draft.date || !draft.publishOn || draft.publishOn < draft.date} onClick={onCreate}>{draft.id ? 'Enregistrer les modifications' : 'Créer l\'évaluation'}</Button>
         <Button variant="ghost" onClick={onCancel}>Annuler</Button>
-        {draft.publishOn && draft.publishOn < draft.date && <span className="self-center text-xs text-red-700">La publication ne peut précéder le devoir.</span>}
+        {draft.publishOn && draft.publishOn < draft.date && <span className="self-center text-xs text-red-700">La publication ne peut précéder l'évaluation.</span>}
       </div>
     </div>
   );
@@ -155,10 +155,10 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
     <div className="grid gap-5 xl:grid-cols-[1fr_300px] xl:items-start">
       <Card
         title={`Notes — ${service.cls} · ${service.subject}`}
-        subtitle={`${TERM.label} · ${evaluations.length} devoir${evaluations.length > 1 ? 's' : ''} · moyennes sur 20, pondérées par les coefficients`}
+        subtitle={`${TERM.label} · ${evaluations.length} évaluation${evaluations.length > 1 ? 's' : ''} · moyennes sur 20, pondérées par les coefficients`}
         action={<span className="flex flex-wrap gap-2">
           {go && <Button variant="secondary" onClick={() => { setIntent('grade-sheets', { cls: service.cls, service: service.id }); go('grade-sheets'); }}>Imprimer / Excel</Button>}
-          <Button variant="secondary" disabled={validated} onClick={() => setDraft(blank)}><span aria-hidden>＋</span> Nouveau devoir</Button>
+          <Button variant="secondary" disabled={validated} onClick={() => setDraft(blank)}><span aria-hidden>＋</span> Nouvelle évaluation</Button>
         </span>}
       >
         {minimumNoticeDue({ count: evaluations.length + other, min, validated, date: TODAY, stop: TERM.stop }) && <MinimumNotice eps={isEps(service)} />}
@@ -326,7 +326,7 @@ function CompetenciesStep({ service, settings, evaluations, mine, setMine, sibli
               <li key={i} className="flex items-center gap-2">
                 <span className="w-6 text-right text-xs text-slate-400">C{i + 1}</span>
                 <input value={c} onChange={(e) => setMine(mine.map((x, k) => (k === i ? e.target.value : x)))} className={`flex-1 ${inputCls}`} />
-                <Badge tone={n ? 'green' : 'slate'}>{n ? `${n} devoir${n > 1 ? 's' : ''}` : 'non évaluée'}</Badge>
+                <Badge tone={n ? 'green' : 'slate'}>{n ? `${n} évaluation${n > 1 ? 's' : ''}` : 'non évaluée'}</Badge>
                 <button aria-label={`Retirer ${c}`} onClick={() => setMine(mine.filter((_, k) => k !== i))} className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600"><Icon name="x" /></button>
               </li>
             );
@@ -616,7 +616,7 @@ export default function GradebookModule({ settings, go, role }) {
         {ONLINE ? <SyncLine /> : <p className={`text-xs ${savedOk === false ? 'font-medium text-red-700' : 'text-slate-500'}`} role="status">
           {savedOk === false ? 'Ce navigateur refuse l\'enregistrement : vos dernières saisies seront perdues au rechargement.'
             : savedOk ? '✓ Enregistré automatiquement — revenez ajouter vos notes quand vous voulez.'
-            : 'Chaque note est enregistrée dès qu\'elle est saisie : remplissez au fil du trimestre, devoir après devoir.'}
+            : 'Chaque note est enregistrée dès qu\'elle est saisie : remplissez au fil du trimestre, évaluation après évaluation.'}
         </p>}
       </div>
       <div className="flex gap-2 overflow-x-auto pb-1">
@@ -648,7 +648,7 @@ export default function GradebookModule({ settings, go, role }) {
         const need = minEvaluationsFor(service, settings.grading.minEvaluations); const left = Math.max(0, need - total);
         return (
           <div className="rounded-xl bg-violet-50 p-3 text-sm text-violet-900">
-            <p><strong>Classe commune avec {service.coTeachers.join(', ')}</strong> : chacun saisit ses devoirs ; une seule moyenne sur le bulletin, calculée sur tous les devoirs.</p>
+            <p><strong>Classe commune avec {service.coTeachers.join(', ')}</strong> : chacun saisit ses évaluations ; une seule moyenne sur le bulletin, calculée sur toutes les évaluations.</p>
             <p className="mt-1 font-medium">{total} / {need} notes : vous {mine}, {service.coTeachers.join(', ')} {service.otherCount ?? 0}{left ? ` — il manque encore ${left} note${left > 1 ? 's' : ''}` : ' — minimum atteint ✓'}</p>
             <p className="mt-1 text-xs">{service.writer ? (service.noAppreciation ? `Appréciation du bulletin : écrite par ${service.writerName}.` : 'Appréciation du bulletin : c\'est vous qui l\'écrivez, pour les deux.') : 'Une seule appréciation sur le bulletin : le premier qui l\'écrit l\'écrit pour les deux.'}</p>
           </div>
