@@ -2633,3 +2633,18 @@ test('nom court d\'un élève (écrans internes) : initiale du nom + premier pr�
   assert.equal(studentLabel('Mme Mirana'), 'Mme Mirana'); // pas un nom d'élève : inchangé
   assert.equal(studentLabel(''), '');
 });
+
+test('programmes : base officielle par niveau, programmation par trimestre, retard calculé', async () => {
+  const { officialProgram, programLevel } = await import('../src/data/officialPrograms.js');
+  const { progressOf, termOf, partsFor } = await import('../src/rules/programPlan.js');
+  assert.equal(programLevel('Terminale STMG'), 'Tle STMG'); assert.equal(programLevel('1re Générale'), '1re G');
+  assert.ok(officialProgram('Histoire-géographie', '3e').items.length >= 6);
+  assert.equal(officialProgram('Philosophie', 'Terminale STMG').items.includes('La technique'), true);
+  assert.equal(termOf('2026-11-26'), 'T1'); assert.equal(termOf('2027-02-10'), 'T2'); assert.equal(termOf('2027-05-02'), 'T3');
+  const parts = partsFor('Mathématiques', '4e');
+  const data = { plans: { '4e|Mathématiques': { terms: { [parts[0]]: 'T1', [parts[1]]: 'T1', [parts[2]]: 'T2' } } }, done: { '4e|Mathématiques': { [parts[0]]: '2026-10-01' } } };
+  const inT2 = progressOf('4e', 'Mathématiques', data, '2027-02-01');
+  assert.deepEqual(inT2.late, [parts[1]]); assert.equal(inT2.state, 'RETARD'); assert.equal(inT2.due, 3);
+  const corrected = partsFor('Mathématiques', '4e', { base: { 'Mathématiques|4e': ['A', 'B'] } });
+  assert.deepEqual(corrected, ['A', 'B']);
+});

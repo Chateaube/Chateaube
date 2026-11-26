@@ -52,6 +52,7 @@ import AnnouncementsModule from './components/AnnouncementsModule.jsx';
 import AgendaModule from './components/AgendaModule.jsx';
 import BookCatalog from './components/BookCatalog.jsx';
 import TeachingHours from './components/TeachingHours.jsx';
+import ProgramsModule from './components/ProgramsModule.jsx';
 import MockExamsModule from './components/MockExamsModule.jsx';
 import CareModule from './components/CareModule.jsx';
 import InventoryModule from './components/InventoryModule.jsx';
@@ -133,6 +134,8 @@ function StaffHub({ settings }) {
 }
 // en ligne, une fois les élèves en place : la page s'ouvre sur la sauvegarde (l'import est rangé derrière un bouton)
 const IMPORT = { id: 'import', label: ONLINE ? 'Sauvegarder' : 'Importer et sauvegarder', icon: 'swap', screen: ImportModule };
+// en construction : Direction seulement (pas dans le menu des professeurs)
+const PROGRAMS = { id: 'programs', label: 'Programmes et progression', icon: 'cap', screen: ProgramsModule };
 const GRADE_SHEETS = { id: 'grade-sheets', label: 'Grilles de notes', icon: 'pen', screen: GradeSheets };
 const BOOKS_FOR_TEACHER = { id: 'books', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who={me('ENSEIGNANT')} kind="PROF" /> };
 const TT_CHANGES = { id: 'tt-changes', label: 'Changements d\'emploi du temps', icon: 'clock', screen: TimetableChanges };
@@ -168,7 +171,7 @@ const PROFILES = {
     nav: arrangeNav(DIRECTION_TREE, [
       { group: 'Aujourd\'hui', items: [{ id: 'dashboard', label: 'Mes décisions', icon: 'home', screen: DirectionDashboard }, SIGNATURES, FEEDBACK] },
       { group: 'Élèves', items: [ELEVES, ...(ONLINE ? [{ id: 'eleves-portail', label: 'Portail des élèves (comptes)', icon: 'cap', screen: StudentAccounts }] : []), { id: 'students', label: 'Mobilité Tamatave → Tana', icon: 'swap' }] },
-      { group: 'Pédagogie', items: [...(ONLINE ? [{ id: 'notes-recues', label: 'Notes reçues', icon: 'pen', screen: NotesReceived }, { id: 'my-grades', label: 'Mes notes (mes classes)', icon: 'pen', screen: MyGrades }, { id: 'relecture', label: 'Relecture des appréciations', icon: 'pen', screen: AppreciationsReview }] : []), COUNCIL, BULLETINS, MOCK_EXAMS, GRADE_SHEETS, ...OVERSIGHT, TIMETABLE, { id: 'exams', label: 'Examens & Campus France', icon: 'cap' }] },
+      { group: 'Pédagogie', items: [...(ONLINE ? [{ id: 'notes-recues', label: 'Notes reçues', icon: 'pen', screen: NotesReceived }, { id: 'my-grades', label: 'Mes notes (mes classes)', icon: 'pen', screen: MyGrades }, { id: 'relecture', label: 'Relecture des appréciations', icon: 'pen', screen: AppreciationsReview }] : []), COUNCIL, BULLETINS, MOCK_EXAMS, GRADE_SHEETS, PROGRAMS, ...OVERSIGHT, TIMETABLE, { id: 'exams', label: 'Examens & Campus France', icon: 'cap' }] },
       { group: 'Vie scolaire', items: [VIE_SCOLAIRE, CARE, HOURS, FOLLOW_UP, MANDATES] },
       { group: 'Finances', items: [ACCOUNTING] },
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, AGENDA] },
