@@ -156,7 +156,12 @@ function ProfileForm({ initial, kind, onSave, onCancel, role }) {
   const [p, setP] = useState(initial);
   const [speUnlocked, setSpeUnlocked] = useState(false);
   const [tried, setTried] = useState(false);
-  const errors = validateProfile(p, { kind: kind === 'INSCRIPTION' ? 'INSCRIPTION' : 'REINSCRIPTION' });
+  const all = validateProfile(p, { kind: kind === 'INSCRIPTION' ? 'INSCRIPTION' : 'REINSCRIPTION' });
+  // corriger une fiche existante (« Compléter la fiche ») : seuls nom, prénom et classe bloquent ; le reste
+  // (responsables, nationalité, date de naissance…) est signalé « à compléter » sans empêcher d'enregistrer
+  const blocking = (e) => /Nom et prénom|Classe obligatoire/.test(e);
+  const errors = kind === 'COMPLETER' ? all.filter(blocking) : all;
+  const toComplete = kind === 'COMPLETER' ? all.filter((e) => !blocking(e)) : [];
   const set = (patch) => setP({ ...p, ...patch });
   const setG = (i, patch) => set({ guardians: p.guardians.map((g, k) => (k === i ? { ...g, ...patch } : patch.payer ? { ...g, payer: false } : g)) });
   const toggleDoc = (id) => set({ documents: p.documents.includes(id) ? p.documents.filter((d) => d !== id) : [...p.documents, id] });
@@ -299,6 +304,12 @@ function ProfileForm({ initial, kind, onSave, onCancel, role }) {
 
         {tried && errors.length > 0 && (
           <ul className="mt-4 space-y-0.5 rounded-xl bg-red-50 p-3 text-sm text-red-800">{errors.map((e) => <li key={e}>· {e}</li>)}</ul>
+        )}
+        {toComplete.length > 0 && (
+          <div className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
+            <p className="font-medium">À compléter plus tard (n'empêche pas d'enregistrer) :</p>
+            <ul className="mt-1 space-y-0.5">{toComplete.map((e) => <li key={e}>· {e}</li>)}</ul>
+          </div>
         )}
         <div className="mt-4 flex flex-wrap gap-2">
           <Button onClick={() => { setTried(true); if (!errors.length) onSave(p); }}>{{ REINSCRIPTION: 'Valider la réinscription', COMPLETER: 'Enregistrer la fiche' }[kind] ?? 'Créer la fiche et inscrire'}</Button>
