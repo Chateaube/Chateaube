@@ -9,16 +9,73 @@ import { loadRecords } from './AttendanceModule.jsx';
 import { setIntent } from '../navIntent.js';
 import QuickEntry from './QuickEntry.jsx';
 import { me } from '../identity.js';
+import { loadTimetable } from '../timetableStore.js';
+import { mySlot } from './AgendaModule.jsx';
+import { today as todayIso } from '../clock.js';
+import { TERM } from '../data/grades.js';
+import { loadAnnouncements } from '../announcementsStore.js';
+import { receives } from '../rules/announcements.js';
 
 // « Ma journée » de l'enseignant : le cours en cours (appel), ce qu'il reste à faire, puis les cours du jour.
 // L'appel se fait sur un seul écran (Appel), ouvert directement sur la bonne séance.
 const h = (t) => t.replace(':', 'h');
 const STATE_UI = { FAIT: ['green', 'Appel fait'], EN_COURS: ['red', 'Appel à faire'], OUBLIE: ['red', 'Appel oublié'], A_VENIR: ['slate', 'À venir'] };
 
+const DAYS = ['', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+const frStop = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+/** En ligne : la semaine du professeur, tirée de l'emploi du temps de l'école et de ses classes (envoyées par la Direction). */
+function MyWeek({ slots, go }) {
+  const days = [1, 2, 3, 4, 5, 6].filter((d) => d <= 5 || slots.some((s) => s.weekday === d));
+  // deux lectures : par jour (la semaine) ou par classe (chaque classe du professeur, ses heures dans la semaine)
+  const [view, setView] = React.useState('JOUR');
+  const classes = [...new Set(slots.map((s) => s.cls))].sort((a, b) => a.localeCompare(b, 'fr', { numeric: true }));
+  const byTime = (a, b) => a.weekday - b.weekday || a.start.localeCompare(b.start);
+  const hours = (list) => list.reduce((t, s) => t + (Number(s.end.slice(0, 2)) * 60 + Number(s.end.slice(3)) - Number(s.start.slice(0, 2)) * 60 - Number(s.start.slice(3))), 0) / 60;
+  return (
+    <Card title="Ma semaine" subtitle="Mon emploi du temps : seulement mes classes (le détail jour par jour, avec les changements, est dans l'Agenda)"
+      action={slots.length > 0 && <span className="flex rounded-lg bg-slate-100 p-0.5 text-xs" role="tablist">{[['JOUR', 'Par jour'], ['CLASSE', 'Par classe']].map(([k, l]) => <button key={k} type="button" role="tab" aria-selected={view === k} onClick={() => setView(k)} className={`rounded-md px-2.5 py-1 font-medium ${view === k ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-600'}`}>{l}</button>)}</span>}>
+      {!slots.length ? <p className="text-sm text-slate-500">Votre emploi du temps apparaîtra ici dès que la Direction aura envoyé les classes et l'emploi du temps.</p> : view === 'CLASSE' ? (
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {classes.map((c) => {
+            const list = slots.filter((s) => s.cls === c).sort(byTime);
+            return (
+              <div key={c} className="rounded-xl bg-slate-50 p-2">
+                <p className="mb-1 flex justify-between text-xs font-semibold text-navy-900"><span>{c}</span><span className="font-normal text-slate-500">{String(hours(list)).replace('.', ',')} h / semaine</span></p>
+                <ul className="space-y-1">{list.map((s) => <li key={s.id ?? `${s.weekday}${s.start}`} className="rounded-lg bg-white px-2 py-1 text-xs shadow-sm"><span className="font-semibold">{DAYS[s.weekday]}</span> · <span className="tabular-nums">{h(s.start)}–{h(s.end)}</span><span className="block text-slate-700">{s.subject}{s.room ? ` · ${s.room}` : ''}</span></li>)}</ul>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
+          {days.map((d) => (
+            <div key={d} className="rounded-xl bg-slate-50 p-2">
+              <p className="mb-1 text-xs font-semibold text-navy-900">{DAYS[d]}</p>
+              <ul className="space-y-1">
+                {slots.filter((s) => s.weekday === d).sort((a, b) => a.start.localeCompare(b.start)).map((s) => (
+                  <li key={s.id ?? `${d}${s.start}${s.cls}`} className="rounded-lg bg-white px-2 py-1 text-xs shadow-sm"><span className="font-semibold tabular-nums">{h(s.start)}–{h(s.end)}</span><span className="block text-slate-700">{s.cls} · {s.subject}{s.room ? ` · ${s.room}` : ''}</span></li>
+                ))}
+                {!slots.some((s) => s.weekday === d) && <li className="text-xs text-slate-400">—</li>}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+      <Button variant="secondary" className="mt-3 !py-1 text-xs" onClick={() => go('agenda')}>Ouvrir l'agenda</Button>
+    </Card>
+  );
+}
+
 export default function TeacherPortal({ go, settings }) {
+  // en ligne : mes cours réels (emploi du temps de l'école × mes classes) ; démonstration : la semaine type
+  const mine = ONLINE ? loadTimetable().filter(mySlot) : null;
+  const wd = new Date(`${todayIso()}T12:00:00`).getDay();
+  const todayOnline = mine ? mine.filter((s) => s.weekday === wd).sort((a, b) => a.start.localeCompare(b.start)).map((s, i) => ({ ...s, id: s.id ?? `t${i}`, date: todayIso() })) : null;
+  const news = ONLINE ? (loadAnnouncements().list ?? []).filter((a) => receives(a, { role: 'PROFESSEUR', site: 'TMV', classes: [...new Set((mine ?? []).map((s) => s.cls))] })).slice(0, 5) : null;
   const records = loadRecords();
   const stateOf = (s) => sessionState(s, NOW, records[s.id]);
-  const today = WEEK_SESSIONS.filter((s) => s.date === NOW.date);
+  const today = todayOnline ?? WEEK_SESSIONS.filter((s) => s.date === NOW.date);
   const current = today.find((s) => stateOf(s) === 'EN_COURS');
   const forgotten = WEEK_SESSIONS.filter((s) => stateOf(s) === 'OUBLIE');
   const booking = (s) => TEACHER.today.find((x) => x.start === s.start && x.cls === s.cls)?.booking;
@@ -48,7 +105,7 @@ export default function TeacherPortal({ go, settings }) {
 
       <Card title="À faire">
         <ul className="space-y-2">
-          {ONLINE && <li className="text-sm text-slate-700">Notes du 1er trimestre : la saisie en ligne ouvre très prochainement (bouton Notes). L'arrêt des notes reste fixé par la Direction.</li>}
+          {ONLINE && <li className="text-sm text-slate-700">Notes, appréciations et compétences du {TERM.label} : à saisir dans <button type="button" className="font-medium text-navy-700 underline" onClick={() => go('grades')}>Notes et appréciations</button> — arrêt des notes le <strong>{frStop(TERM.stop)}</strong>. Besoin d'aide ? <button type="button" className="font-medium text-navy-700 underline" onClick={() => go('teacher-guide')}>Mode d'emploi</button>.</li>}
           {(ONLINE ? [] : TEACHER.todo).map((t) => (
             <li key={t.label} className="flex items-start gap-3">
               <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${t.tone === 'amber' ? 'bg-amber-500' : 'bg-navy-500'}`} />
@@ -60,10 +117,12 @@ export default function TeacherPortal({ go, settings }) {
 
       {!ONLINE && <QuickEntry role="ENSEIGNANT" go={go} />}
 
+      {ONLINE && <MyWeek slots={mine} go={go} />}
+
       <div className="grid gap-5 xl:grid-cols-[1fr_380px] xl:items-start">
         <Card title="Mes cours aujourd'hui">
           <ol className="space-y-2">
-            {!today.length && <li className="text-sm text-slate-500">{ONLINE ? 'Votre emploi du temps apparaîtra ici après la mise en ligne des classes.' : 'Pas de cours aujourd\'hui.'}</li>}
+            {!today.length && <li className="text-sm text-slate-500">{ONLINE && !mine?.length ? 'Votre emploi du temps apparaîtra ici dès que la Direction aura envoyé les classes et l\'emploi du temps.' : 'Pas de cours aujourd\'hui.'}</li>}
             {today.map((s) => {
               const st = stateOf(s);
               return (
@@ -73,7 +132,7 @@ export default function TeacherPortal({ go, settings }) {
                     <p className="font-medium text-slate-900">{s.cls} · {s.subject}</p>
                     <p className="text-xs text-slate-600">{s.room}{booking(s) && ` · ${booking(s)} réservé`}</p>
                   </div>
-                  <Badge tone={STATE_UI[st][0]}>{STATE_UI[st][1]}</Badge>
+                  {!ONLINE && <Badge tone={STATE_UI[st][0]}>{STATE_UI[st][1]}</Badge>}
                   {/* tout part du cours : appel, cahier de textes, notes de la classe */}
                   <span className="flex w-full flex-wrap gap-1.5 sm:w-auto">
                     {appel && st !== 'A_VENIR' && <Button variant={st === 'FAIT' ? 'secondary' : 'primary'} className="!py-1 text-xs" onClick={() => call(s)}><Icon name="check" />{st === 'FAIT' ? 'Corriger l\'appel' : 'Appel'}</Button>}
@@ -87,7 +146,8 @@ export default function TeacherPortal({ go, settings }) {
         </Card>
         <Card title="Annonces aux professeurs">
           <ul className="space-y-3">
-            {ONLINE && <li className="text-sm text-slate-500">Aucune annonce pour l'instant.</li>}
+            {ONLINE && !news.length && <li className="text-sm text-slate-500">Aucune annonce pour l'instant.</li>}
+            {ONLINE && news.map((n) => <li key={n.id}><p className="text-xs text-slate-600">{String(n.publishedAt ?? n.at ?? '').slice(0, 10).split('-').reverse().join('/')}</p><p className="text-sm font-medium text-slate-800">{n.title}</p><p className="text-sm text-slate-600">{n.text}</p></li>)}
             {(ONLINE ? [] : TEACHER.news).map((n) => (
               <li key={n.title}><p className="text-xs text-slate-600">{n.date}</p><p className="text-sm font-medium text-slate-800">{n.title}</p><p className="text-sm text-slate-600">{n.body}</p></li>
             ))}

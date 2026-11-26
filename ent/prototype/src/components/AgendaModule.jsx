@@ -128,7 +128,7 @@ function DayAgenda({ visible: all, shown, setShown, available, today }) {
 }
 
 // professeur : ses cours (en ligne, d'après ses classes et matières ; en démonstration, Mme Ranaivo)
-const mySlot = (x) => {
+export const mySlot = (x) => {
   if (!ONLINE) return x.teacherId === 'p1';
   const mine = servicesFor(currentRoster(), loadMe()?.id);
   return mine.some((s) => s.cls === x.cls && (sameSubject(x.subject, s.subject) || sameSubject(s.subject, x.subject)));
