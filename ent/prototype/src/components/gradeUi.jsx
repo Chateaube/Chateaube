@@ -65,6 +65,18 @@ export function RulePanel({ result }) {
   );
 }
 
+// Comme dans Excel : Entrée (ou ↓) passe à l'élève suivant dans la même colonne, ↑ à l'élève précédent.
+function moveInColumn(input, step) {
+  const td = input.closest('td'); const tr = td?.parentElement;
+  if (!td || !tr) return;
+  let row = step > 0 ? tr.nextElementSibling : tr.previousElementSibling;
+  while (row) {
+    const next = row.children[td.cellIndex]?.querySelector('input');
+    if (next) { next.focus(); next.select?.(); return; }
+    row = step > 0 ? row.nextElementSibling : row.previousElementSibling;
+  }
+}
+
 export function GradeCell({ value, onChange, max }) {
   const r = normalizeGrade(value, { max });
   const border = { empty: 'border-slate-300', valid: 'border-slate-300', suggest: 'border-amber-400 bg-amber-50', error: 'border-red-400 bg-red-50' }[r.state];
@@ -75,7 +87,11 @@ export function GradeCell({ value, onChange, max }) {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onBlur={() => r.state === 'valid' && r.status === 'NOTE' && onChange(r.display)}
-        onKeyDown={(e) => { if (e.key === 'Enter') accept(); }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && r.state === 'suggest') { e.preventDefault(); accept(); return; } // d'abord accepter la suggestion
+          if (e.key === 'Enter' || e.key === 'ArrowDown') { e.preventDefault(); moveInColumn(e.currentTarget, 1); }
+          if (e.key === 'ArrowUp') { e.preventDefault(); moveInColumn(e.currentTarget, -1); }
+        }}
         aria-invalid={r.state === 'error'}
         aria-label="Note"
         className={`w-16 rounded-md border px-2 py-1 text-center text-sm tabular-nums outline-none focus:ring-2 focus:ring-navy-200 ${border}`}

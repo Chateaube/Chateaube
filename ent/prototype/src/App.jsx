@@ -12,7 +12,7 @@ import ComingSoon from './components/ComingSoon.jsx';
 // Rubriques déjà utilisables en ligne par tout le personnel (les autres : « fonction en cours de création »)
 const STAFF_LATER = ['messages', 'oversight-grades', 'oversight-homework'];
 // professeurs : rubriques ouvertes en ligne en plus du carnet (données partagées : online/shared.js, groupes classe / ecole)
-const TEACHER_READY = ['discipline', 'student-file', 'mock-exams', 'grade-sheets', 'school-life'];
+const TEACHER_READY = ['teacher-guide', 'discipline', 'student-file', 'mock-exams', 'grade-sheets', 'school-life'];
 // rubriques de Tamatave seulement (professeurs, élèves et bulletins en ligne), cachées quand on travaille sur Tana
 const TANA_LATER = ['notes-recues', 'my-grades', 'relecture', 'council', 'bulletins', 'grade-sheets', 'eleves-portail', 'absents-devoirs', 'students'];
 const ONLINE_READY = ['grades', 'absents-devoirs', 'agenda']; // carnet de notes en ligne (le reste suit à la bascule de décembre)
@@ -53,6 +53,7 @@ import AgendaModule from './components/AgendaModule.jsx';
 import BookCatalog from './components/BookCatalog.jsx';
 import TeachingHours from './components/TeachingHours.jsx';
 import ProgramsModule from './components/ProgramsModule.jsx';
+import TeacherGuide from './components/TeacherGuide.jsx';
 import MockExamsModule from './components/MockExamsModule.jsx';
 import CareModule from './components/CareModule.jsx';
 import InventoryModule from './components/InventoryModule.jsx';
@@ -135,6 +136,8 @@ function StaffHub({ settings }) {
 // en ligne, une fois les élèves en place : la page s'ouvre sur la sauvegarde (l'import est rangé derrière un bouton)
 const IMPORT = { id: 'import', label: ONLINE ? 'Sauvegarder' : 'Importer et sauvegarder', icon: 'swap', screen: ImportModule };
 // en construction : Direction seulement (pas dans le menu des professeurs)
+// mode d'emploi des professeurs (notes, appréciations, compétences) : professeurs et Direction
+const TEACHER_GUIDE = { id: 'teacher-guide', label: 'Mode d\'emploi', icon: 'book', screen: TeacherGuide };
 const PROGRAMS = { id: 'programs', label: 'Programmes et progression', icon: 'cap', screen: ProgramsModule };
 const GRADE_SHEETS = { id: 'grade-sheets', label: 'Grilles de notes', icon: 'pen', screen: GradeSheets };
 const BOOKS_FOR_TEACHER = { id: 'books', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who={me('ENSEIGNANT')} kind="PROF" /> };
@@ -171,7 +174,7 @@ const PROFILES = {
     nav: arrangeNav(DIRECTION_TREE, [
       { group: 'Aujourd\'hui', items: [{ id: 'dashboard', label: 'Mes décisions', icon: 'home', screen: DirectionDashboard }, SIGNATURES, FEEDBACK] },
       { group: 'Élèves', items: [ELEVES, ...(ONLINE ? [{ id: 'eleves-portail', label: 'Portail des élèves (comptes)', icon: 'cap', screen: StudentAccounts }] : []), { id: 'students', label: 'Mobilité Tamatave → Tana', icon: 'swap' }] },
-      { group: 'Pédagogie', items: [...(ONLINE ? [{ id: 'notes-recues', label: 'Notes reçues', icon: 'pen', screen: NotesReceived }, { id: 'my-grades', label: 'Mes notes (mes classes)', icon: 'pen', screen: MyGrades }, { id: 'relecture', label: 'Relecture des appréciations', icon: 'pen', screen: AppreciationsReview }] : []), COUNCIL, BULLETINS, MOCK_EXAMS, GRADE_SHEETS, PROGRAMS, ...OVERSIGHT, TIMETABLE, { id: 'exams', label: 'Examens & Campus France', icon: 'cap' }] },
+      { group: 'Pédagogie', items: [...(ONLINE ? [{ id: 'notes-recues', label: 'Notes reçues', icon: 'pen', screen: NotesReceived }, { id: 'my-grades', label: 'Mes notes (mes classes)', icon: 'pen', screen: MyGrades }, { id: 'relecture', label: 'Relecture des appréciations', icon: 'pen', screen: AppreciationsReview }] : []), COUNCIL, BULLETINS, MOCK_EXAMS, GRADE_SHEETS, PROGRAMS, TEACHER_GUIDE, ...OVERSIGHT, TIMETABLE, { id: 'exams', label: 'Examens & Campus France', icon: 'cap' }] },
       { group: 'Vie scolaire', items: [VIE_SCOLAIRE, CARE, HOURS, FOLLOW_UP, MANDATES] },
       { group: 'Finances', items: [ACCOUNTING] },
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, AGENDA] },
@@ -217,6 +220,7 @@ const PROFILES = {
         AGENDA, BOOKING, { ...HOURS, label: 'Mes heures et absences' },
       ] },
       { group: 'Évaluations', items: [{ id: 'grades', label: 'Notes et appréciations', icon: 'pen', screen: GradebookModule }, MOCK_EXAMS, GRADE_SHEETS] },
+      { group: 'Aide', items: [TEACHER_GUIDE] },
       { group: 'Mes élèves', items: [{ id: 'discipline', label: 'Vie de classe', icon: 'alert', screen: VieScolaireModule }, STUDENT_FILE] },
       { group: 'Échanges et ressources', items: [MESSAGES, ro(NEWS), SCHOOL_LIFE, BOOKS_FOR_TEACHER, RESOURCES] }, // annonces : lecture seule
     ],
