@@ -282,7 +282,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
                       <button type="button" disabled={validated || ev.fromMockExam} onClick={() => editEv(ev)} title={`${ev.title}${ev.fromMockExam ? '' : ' — cliquer pour modifier ou supprimer'}`}
                         className="w-full rounded px-1 py-0.5 hover:bg-white disabled:hover:bg-transparent">
                         <span className="block text-slate-600">{fmtDate(ev.date)}</span>
-                        <span className="mx-auto mt-1 block w-fit rounded border border-orange-300 px-2 text-orange-700">{ev.type}</span>
+                        <span className="mx-auto mt-1 block w-fit rounded bg-navy-50 px-2 text-navy-700">{ev.type}</span>
                         <span className="mt-1 block truncate text-[11px] text-slate-700">{ev.title}</span>
                         <span className="block text-[10px] text-slate-500">coef. {String(ev.coef).replace('.', ',')}{ev.scale !== 20 ? ` · /${ev.scale}` : ''}{(ev.publishOn ?? ev.date) > TODAY ? ` · publiée le ${ddmm(ev.publishOn)}` : ''}</span>
                       </button>
