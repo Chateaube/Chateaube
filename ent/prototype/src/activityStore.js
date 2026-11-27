@@ -34,11 +34,14 @@ export function loadJournal() {
 /** Ajoute une ligne au journal (date de démonstration, heure réelle). */
 export function logActivity({ who, role, kind, text, student }) {
   const time = new Date().toTimeString().slice(0, 5);
+  const prof = role === 'ENSEIGNANT';
+  // professeur : le serveur ne le laisse qu'ajouter ses lignes (130_droits_professeurs.sql), d'où pas de coupe des
+  // lignes anciennes (elles peuvent être celles d'un collègue)
   const entry = { id: `j${Date.now()}${Math.random().toString(36).slice(2, 6)}`, at: `${DEMO_TODAY}T${time}`, who, role, kind, text, student };
   try {
-    const key = role === 'ENSEIGNANT' ? PROF_KEY : KEY;
+    const key = prof ? PROF_KEY : KEY;
     const mine = JSON.parse(localStorage.getItem(key)) ?? [];
-    localStorage.setItem(key, JSON.stringify([entry, ...mine].slice(0, 2000)));
+    localStorage.setItem(key, JSON.stringify(prof ? [entry, ...mine] : [entry, ...mine].slice(0, 2000)));
   } catch { /* stockage indisponible */ }
   return entry;
 }

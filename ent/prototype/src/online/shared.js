@@ -10,6 +10,7 @@
 // Un effacement sur un appareil (expiration, « Effacer les données ») reste local : il n'efface rien sur le serveur.
 import { supabase } from './client.js';
 import { activeSite, siteLocalKeys } from '../site.js';
+import { readStored } from '../persist.js';
 
 const GESTION = ['ent-s-hors-comptes', 'ent-s-depenses', 'ent-k-tarifs', 'ent-s-recus', 'ent-s-journal-caisse', 'ent-s-clotures', 'ent-caisse-mouvements-v1', 'ent-k-reductions',
   'ent-k-articles', 'ent-s-fournisseurs', 'ent-s-comptes-', 'ent-s-relances-envoyees', 'ent-s-relances-decisions', 'ent-tarifs-verrou-v1', 'ent-s-taux',
@@ -24,6 +25,10 @@ const EQUIPE = ['ent-import-v1', 'ent-profiles-v2', 'ent-fiche-v1', 'ent-chateau
   'ent-k-parcoursup-2027-ajoute', 'ent-avis-v1'];
 // partagés avec les professeurs : vie de classe (punitions, colles, passeport, objets, absences) et examens blancs
 const CLASSE = ['ent-s-sanctions', 'ent-passeport-v3', 'ent-objets-v1', 'ent-absences-eleves-v1', 'ent-surveillance-colles-v1', 'ent-examens-blancs-v3', 'ent-journal-profs-v1', 'ent-programmes-v1'];
+// ce que les professeurs écrivent (130_droits_professeurs.sql) : dans ces listes, leurs propres lignes seulement
+// (signées de leur compte, « uid »), et les notes des examens blancs ; le reste leur est en lecture seule
+const TEACHER_LINES = ['ent-s-sanctions', 'ent-objets-v1', 'ent-passeport-v3', 'ent-journal-profs-v1'];
+const TEACHER_WRITES = [...TEACHER_LINES, 'ent-examens-blancs-v3'];
 // lus par les professeurs, écrits par la Direction, le secrétariat et la vie scolaire : vie de l'école, annonces, ressources
 const ECOLE = ['ent-vie-ecole-v2', 'ent-annonces-v2', 'ent-ressources-v3'];
 const IMPORT = 'ent-import-v1';
@@ -106,7 +111,7 @@ export function unionKeep(server, local) {
 }
 
 /* ---------------- Synchronisation ---------------- */
-let groups = []; let readOnly = []; let active = false; let applying = false;
+let groups = []; let readOnly = []; let teacher = false; let active = false; let applying = false;
 let suspended = false; // restauration en cours : rien ne part avant le rechargement
 const RESTORE = 'ent-sync-restaure';
 const readRestore = () => { try { return new Set(JSON.parse(localStorage.getItem(RESTORE)) ?? []); } catch { return new Set(); } };
@@ -138,7 +143,7 @@ function writeLocal(k, v) {
   try { window.dispatchEvent(new StorageEvent('storage', { key: k, newValue: raw })); } catch { /* hors navigateur */ }
 }
 const allowed = (k) => groups.includes(groupOf(k));
-const writable = (k) => allowed(k) && !readOnly.includes(groupOf(k));
+const writable = (k) => allowed(k) && !readOnly.includes(groupOf(k)) && (!teacher || TEACHER_WRITES.includes(k));
 
 // Serveur : clé du document → { value, at } (at = updated_at, sert de numéro de version)
 const val = (map, key) => map.get(key)?.value;
@@ -209,6 +214,21 @@ async function writeDocs(docs, map) {
   return true;
 }
 
+// professeur : chaque ligne qu'il ajoute est signée de son compte (le serveur vérifie qu'il ne touche qu'aux siennes)
+const myId = () => readStored('ent-k-moi')?.id ?? null;
+function signLines(v, srv, uid) {
+  if (Array.isArray(v)) {
+    const known = new Set((Array.isArray(srv) ? srv : []).map((x) => String(idOf(x))));
+    return v.map((x) => (isObj(x) && !x.uid && !known.has(String(idOf(x))) ? { ...x, uid } : x));
+  }
+  if (isObj(v)) return Object.fromEntries(Object.entries(v).map(([f, x]) => [f, Array.isArray(x) ? signLines(x, isObj(srv) ? srv[f] : [], uid) : x]));
+  return v;
+}
+const signed = (k, v, srv) => (teacher && TEACHER_LINES.includes(k) && myId() ? signLines(v, srv, myId()) : v);
+// refus du serveur pour une saisie non permise à ce profil : on reprend la version du serveur au lieu de bloquer l'envoi
+const refused = (e) => /PROF_INTERDIT|row-level security|permission denied/i.test(e?.message ?? '');
+let refusedNote = null;
+
 async function sendDirty(known) {
   const dirty = readDirty();
   if (!dirty.size) { setStatus({ state: 'saved', at: new Date() }); return; }
@@ -220,8 +240,19 @@ async function sendDirty(known) {
       if (!writable(k) || local === undefined) { const n = readDirty(); n.delete(k); writeDirty(n); continue; }
       for (let attempt = 0; attempt < 5; attempt += 1) {
         const restoring = readRestore().has(k);
-        const merged = restoring ? unionKeep(fromServer(map, k), local) : merge3(base[k], local, fromServer(map, k));
-        if (await writeDocs(toServer(k, merged), map)) {
+        const srv = fromServer(map, k);
+        const merged = signed(k, restoring ? unionKeep(srv, local) : merge3(base[k], local, srv), srv);
+        let ok;
+        try { ok = await writeDocs(toServer(k, merged), map); } catch (e) {
+          if (!refused(e)) throw e;
+          // non permis : la version du serveur revient sur l'appareil, les autres saisies partent quand même
+          if (srv !== undefined) { writeLocal(k, srv); base[k] = srv; }
+          const n = readDirty(); n.delete(k); writeDirty(n);
+          refusedNote = 'Une modification non permise pour votre compte n\'a pas été enregistrée.';
+          try { window.dispatchEvent(new CustomEvent('ent-refused')); } catch { /* hors navigateur */ }
+          break;
+        }
+        if (ok) {
           base[k] = merged;
           if (restoring) { const r = readRestore(); r.delete(k); writeRestore(r); }
           // une saisie faite pendant l'envoi n'est pas écrasée : elle reste à envoyer
@@ -231,7 +262,8 @@ async function sendDirty(known) {
         map = await fetchAll();
       }
     }
-    setStatus({ state: readDirty().size ? 'pending' : 'saved', at: new Date() });
+    setStatus({ state: readDirty().size ? 'pending' : 'saved', at: new Date(), ...(refusedNote ? { message: refusedNote } : {}) });
+    refusedNote = null;
   } catch (e) {
     setStatus({ state: 'error', at: status.at, message: e.message });
   }
@@ -253,7 +285,7 @@ function markDirty(k) {
  * 30 secondes et au retour sur la page. Sans réseau, tout reste sur l'appareil et repart ensuite.
  */
 export async function startShared(role) {
-  groups = GROUPS_OF[role] ?? []; readOnly = READ_ONLY[role] ?? [];
+  groups = GROUPS_OF[role] ?? []; readOnly = READ_ONLY[role] ?? []; teacher = role === 'ENSEIGNANT';
   if (!groups.length || active) return;
   active = true;
   const set = Storage.prototype.setItem;

@@ -115,3 +115,15 @@ calendrier Parcoursup. Les notes s'ouvrent le 17 décembre ; les autres rubrique
 1. SQL Editor › New query → coller `120_vie_scolaire_eleves.sql` → Run (en bas : 22 règles).
 2. Effet : chaque élève voit sa vie scolaire (absences, retards, oublis, punitions, colles, objets) ; elle est
    mise à jour par les postes de la Direction, du secrétariat et de la vie scolaire, dans la minute.
+
+## 16. Mise à jour 13 — droits des professeurs resserrés (une seule fois, après la 12)
+
+Dans **SQL Editor**, collez tout le fichier `130_droits_professeurs.sql`, puis **Run**. Les deux dernières lignes doivent afficher **ok**.
+
+Ce que cela change :
+- la liste des comptes (noms, identifiants, adresses e-mail) n'est plus lisible que par la Direction ; chacun voit seulement son propre compte ;
+- les professeurs lisent toujours la vie de classe (fiche de l'élève), mais n'écrivent plus que **leurs propres lignes** : leurs punitions, leurs oublis et colles, leurs objets confisqués, leur journal ; et les notes des examens blancs (pas les sessions ni leur publication). Ils ne peuvent plus rien supprimer ni modifier ce qu'un collègue ou la vie scolaire a saisi ;
+- la Direction, le secrétariat et la vie scolaire gardent tous leurs droits. Aucune donnée n'est modifiée ni effacée.
+
+Les lignes saisies par un professeur **avant** cette mise à jour ne portent pas sa signature : il ne pourra plus les corriger lui-même (la vie scolaire ou la Direction le peuvent).
+
