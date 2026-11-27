@@ -446,7 +446,7 @@ function CompetenciesStep({ service, settings, evaluations, mine, setMine, sibli
         </div>
       )}
       <Card title={`Mes compétences — ${service.cls} · ${service.subject}`} subtitle="Ce qui a été travaillé ce trimestre, repris dans la colonne « Compétences » du bulletin (le détail reste dans le cahier de textes)">
-        {mine.length === 0 && <p className="mb-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">Aucune compétence pour l'instant : reprenez la base proposée ou écrivez les vôtres.</p>}
+        {mine.length === 0 && <p className="mb-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">Aucune compétence pour l'instant : reprenez les compétences de l'an dernier (à droite) ou écrivez les vôtres.</p>}
         <ol className="space-y-1.5">
           {mine.map((c, i) => {
             const n = evaluations.filter((ev) => ev.competencies?.includes(c)).length;
@@ -466,10 +466,10 @@ function CompetenciesStep({ service, settings, evaluations, mine, setMine, sibli
         </div>
         <p className="mt-3 text-xs text-slate-500">Pas de bilan individuel par compétence : l'appréciation globale en tient lieu.</p>
       </Card>
-      <Card title="Base proposée par l'établissement" subtitle={`${service.subject} · ${levelOf(service.cls)} — compétences des trimestres précédents`}
+      <Card title="Compétences de l'an dernier" subtitle={`${service.subject} · ${levelOf(service.cls)} — reprises des bulletins 2025-2026 ; cliquez « + » pour en reprendre une`}
         action={proposals.length > 1 && <Button variant="secondary" className="!py-1 text-xs" onClick={() => setMine([...mine, ...proposals])}>Tout reprendre</Button>}>
-        {base.length === 0 ? <p className="text-sm text-slate-500">Pas de base proposée pour cette matière à ce niveau.</p>
-          : proposals.length === 0 ? <p className="text-sm text-emerald-700">Toute la base est reprise dans vos compétences.</p> : (
+        {base.length === 0 ? <p className="text-sm text-slate-500">Pas de compétences de l'an dernier pour cette matière à ce niveau (matière nouvelle ou bulletin non transmis).</p>
+          : proposals.length === 0 ? <p className="text-sm text-emerald-700">Toutes les compétences de l'an dernier sont reprises dans les vôtres.</p> : (
             <div className="space-y-4">
               {groupProposals(proposals, historyFor(service)).map((g) => (
                 <div key={g.label}>
@@ -501,7 +501,7 @@ function groupProposals(proposals, history) {
   const groups = history.map((set, i) => {
     const items = set.items.filter((c) => left.has(c));
     items.forEach((c) => left.delete(c));
-    return { label: `Trimestre précédent ${history.length > 1 ? `n° ${i + 1} ` : ''}${demoOr(`· ${set.teacher}`, '')}`, items };
+    return { label: `${history.length === 3 ? ['1er', '2e', '3e'][i] : `Bulletin n° ${i + 1} —`} trimestre 2025-2026${demoOr(` · ${set.teacher}`, '')}`.replace('— trimestre', '—'), items };
   }).filter((g) => g.items.length);
   if (left.size) groups.push({ label: 'Autres propositions', items: [...left] });
   return groups;

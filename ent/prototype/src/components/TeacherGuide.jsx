@@ -120,7 +120,7 @@ export default function TeacherGuide() {
       <Step n="6" title="Les compétences du bulletin">
         <p>Onglet <strong>Compétences du bulletin</strong> : ce qui a été travaillé pendant le trimestre (une ligne par compétence). Elles apparaissent dans la colonne « Compétences » du bulletin.</p>
         <ul className="list-disc space-y-1 pl-5">
-          <li>Reprenez la <strong>base proposée</strong> (bouton ＋ ou « Tout reprendre »), ou écrivez les vôtres ;</li>
+          <li>Reprenez les <strong>compétences de l'an dernier</strong>, tirées des bulletins 2025-2026 (bouton ＋ ou « Tout reprendre »), ou écrivez les vôtres ;</li>
           <li>vous avez deux classes du même niveau ? Cochez « Mêmes compétences en … » pour ne les écrire qu'une fois.</li>
         </ul>
         <Shot><p className="font-medium">Mes compétences — 3e · Mathématiques</p><p className="mt-1">C1 <span className="rounded border border-slate-300 bg-white px-1.5">Résoudre une équation du premier degré</span></p><p className="mt-1">C2 <span className="rounded border border-slate-300 bg-white px-1.5">Utiliser le théorème de Thalès</span></p></Shot>
