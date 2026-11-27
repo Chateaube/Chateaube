@@ -41,7 +41,7 @@ function DateField({ label, value, onChange, min, max }) {
   );
 }
 
-function EvaluationForm({ draft, setDraft, settings, competencies, onCreate, onCancel, range }) {
+function EvaluationForm({ draft, setDraft, settings, competencies, onCreate, onCancel, range, onDelete }) {
   const outside = Boolean(range && draft.date && (draft.date < range.start || draft.date > range.stop));
   const set = (patch) => setDraft({ ...draft, ...patch });
   const delay = settings.grading.parentDelayDays;
@@ -172,6 +172,7 @@ function EvaluationForm({ draft, setDraft, settings, competencies, onCreate, onC
       <div className="flex gap-2">
         <Button disabled={!draft.title.trim() || !draft.date || !draft.publishOn || draft.publishOn < draft.date || outside} onClick={onCreate}>{draft.id ? 'Enregistrer les modifications' : 'Créer l\'évaluation'}</Button>
         <Button variant="ghost" onClick={onCancel}>Annuler</Button>
+        {onDelete && <Button variant="ghost" className="ml-auto text-red-700" onClick={onDelete}>Supprimer ce devoir</Button>}
         {draft.publishOn && draft.publishOn < draft.date && <span className="self-center text-xs text-red-700">La publication ne peut précéder l'évaluation.</span>}
       </div>
     </div>
@@ -221,6 +222,16 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
   const [openBonus, setOpenBonus] = useState(null); // « élève|devoir » dont le bonus / malus est ouvert
   const stats = classStats(avgs);
   const setCell = (s, ev, v) => { setGrades({ ...grades, [s]: { ...grades[s], [ev]: v } }); setValidated(false); };
+  const removeEv = async (ev) => {
+    const filled = service.students.filter((s) => grades[s]?.[ev.id]).length;
+    if (!(await askConfirm(`Supprimer « ${ev.title} »${filled ? ` et ses ${filled} note${filled > 1 ? 's' : ''}` : ''} ?`))) return false;
+    setEvaluations(evaluations.filter((x) => x.id !== ev.id));
+    setGrades(Object.fromEntries(Object.entries(grades).map(([s, g]) => { const { [ev.id]: _, ...rest } = g ?? {}; return [s, rest]; })));
+    setValidated(false); return true;
+  };
+  const editEv = (ev) => setDraft({ ...blank, ...ev, comment: ev.comment ?? '', themesText: (ev.themes ?? []).join(', '), competencies: ev.competencies ?? [] });
+  // site d'essai : comme dans Pronote, le devoir le plus récent en premier (à côté des noms)
+  const cols = ESSAI ? [...evaluations].sort((a, b) => String(b.date).localeCompare(String(a.date))) : evaluations;
 
   return (
     <div className={`grid gap-5 xl:items-start ${app ? '' : 'xl:grid-cols-[1fr_300px]'}`}>
@@ -236,6 +247,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
           : minimumNoticeDue({ count: evaluations.length + other, min, validated, date: TODAY, stop: TERM.stop })) && <MinimumNotice eps={isEps(service)} />}
         {draft && (
           <EvaluationForm draft={draft} setDraft={setDraft} settings={settings} competencies={competencies} onCancel={() => setDraft(null)} range={ESSAI && termDef.start ? termDef : null}
+            onDelete={ESSAI && draft.id ? async () => { const ev = evaluations.find((x) => x.id === draft.id); if (ev && await removeEv(ev)) setDraft(null); } : null}
             onCreate={() => {
               const { themesText, ...ev } = draft;
               const clean = { ...ev, title: ev.title.trim(), comment: (ev.comment ?? '').trim() || null,
@@ -259,11 +271,23 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
           <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-600">Aucune note pour ce trimestre. Ajoutez une première évaluation (DS, oral, exposé…).</p>
         ) : (
           <div className="-mx-5 overflow-x-auto">
-            <table data-grid className={`${!ESSAI || app ? 'w-full' : 'w-auto'} text-sm`} style={{ minWidth: (ESSAI ? 170 : 260) + evaluations.length * 130 + (app ? 520 : 0) }}>
+            <table data-grid className={`${!ESSAI || app ? 'w-full' : 'w-auto'} text-sm`} style={{ minWidth: ESSAI ? 290 + evaluations.length * 96 + (app ? 400 : 0) : 260 + evaluations.length * 130 }}>
               <thead>
                 <tr className="border-y border-slate-100 bg-slate-50 text-left align-bottom text-xs text-slate-500">
-                  <th className="sticky left-0 z-20 bg-slate-50 px-3 py-2 font-medium shadow-[2px_0_0_#e2e8f0]" style={ESSAI ? { width: 150 } : undefined}>Élève</th>
-                  {evaluations.map((ev) => (
+                  <th className="sticky left-0 z-20 bg-slate-50 px-3 py-2 font-medium shadow-[2px_0_0_#e2e8f0]" style={ESSAI ? { width: 150 } : undefined}>{ESSAI ? `${service.students.length} élèves` : 'Élève'}</th>
+                  {ESSAI && <th className="bg-slate-100 px-2 py-2 text-right font-medium" style={{ width: 64 }}>Moy.</th>}
+                  {ESSAI && <th className="bg-slate-100 px-2 py-2 text-center font-medium" style={{ width: 56 }} title="Notes comptées / devoirs">Notes</th>}
+                  {cols.map((ev) => ESSAI ? (
+                    <th key={ev.id} className="border-l border-slate-200 px-1 py-2 text-center font-normal" style={{ width: 96 }}>
+                      <button type="button" disabled={validated || ev.fromMockExam} onClick={() => editEv(ev)} title={`${ev.title}${ev.fromMockExam ? '' : ' — cliquer pour modifier ou supprimer'}`}
+                        className="w-full rounded px-1 py-0.5 hover:bg-white disabled:hover:bg-transparent">
+                        <span className="block text-slate-600">{fmtDate(ev.date)}</span>
+                        <span className="mx-auto mt-1 block w-fit rounded border border-orange-300 px-2 text-orange-700">{ev.type}</span>
+                        <span className="mt-1 block truncate text-[11px] text-slate-700">{ev.title}</span>
+                        <span className="block text-[10px] text-slate-500">coef. {String(ev.coef).replace('.', ',')}{ev.scale !== 20 ? ` · /${ev.scale}` : ''}{(ev.publishOn ?? ev.date) > TODAY ? ` · publiée le ${ddmm(ev.publishOn)}` : ''}</span>
+                      </button>
+                    </th>
+                  ) : (
                     <th key={ev.id} className="px-2 py-2 font-medium">
                       <Badge tone="navy">{ev.type}</Badge>
                       {ev.competencies?.length > 0 && (
@@ -275,13 +299,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
                       {!validated && !ev.fromMockExam && (
                         <span className="mt-0.5 flex gap-2 text-[11px] font-normal">
                           <button type="button" className="text-navy-600 underline" onClick={() => setDraft({ ...blank, ...ev, comment: ev.comment ?? '', themesText: (ev.themes ?? []).join(', '), competencies: ev.competencies ?? [] })}>Modifier</button>
-                          <button type="button" className="text-red-700 underline" onClick={async () => {
-                            const filled = service.students.filter((s) => grades[s]?.[ev.id]).length;
-                            if (!(await askConfirm(`Supprimer « ${ev.title} »${filled ? ` et ses ${filled} note${filled > 1 ? 's' : ''}` : ''} ?`))) return;
-                            setEvaluations(evaluations.filter((x) => x.id !== ev.id));
-                            setGrades(Object.fromEntries(Object.entries(grades).map(([s, g]) => { const { [ev.id]: _, ...rest } = g ?? {}; return [s, rest]; })));
-                            setValidated(false);
-                          }}>Supprimer</button>
+                          <button type="button" className="text-red-700 underline" onClick={() => removeEv(ev)}>Supprimer</button>
                         </span>
                       )}
                       <p className="font-normal">{fmtDate(ev.date)} · /{ev.scale}{ev.normalize === false ? ' (points)' : ''} · coef. {String(ev.coef).replace('.', ',')}</p>
@@ -290,7 +308,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
                       </p>
                     </th>
                   ))}
-                  <th className="px-3 py-2 text-right font-medium">Moyenne /20</th>
+                  {!ESSAI && <th className="px-3 py-2 text-right font-medium">Moyenne /20</th>}
                   {app && <th className="px-2 py-2 font-medium">Appréciation du bulletin</th>}
                   {app && <th className="px-3 py-2 font-medium">État</th>}
                 </tr>
@@ -302,10 +320,12 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
                     <tr key={s} className="border-b border-slate-100 align-top">
                       <td className="sticky left-0 z-20 bg-white px-3 py-2.5 font-medium text-slate-800 shadow-[2px_0_0_#e2e8f0]" title={s}>
                         {shortName(s)}
-                        {n < min && !(ESSAI && n === 0) && <p className="text-[11px] font-normal text-amber-700">{n} note{n > 1 ? 's' : ''} retenue{n > 1 ? 's' : ''}</p>}
+                        {!ESSAI && n < min && <p className="text-[11px] font-normal text-amber-700">{n} note{n > 1 ? 's' : ''} retenue{n > 1 ? 's' : ''}</p>}
                       </td>
-                      {evaluations.map((ev) => (
-                        <td key={ev.id} className="px-2 py-2" style={ESSAI ? { width: 120 } : undefined}>
+                      {ESSAI && <td className="bg-slate-50 px-2 py-2.5 text-right font-semibold tabular-nums text-navy-900">{fmtAvg(avgs[i])}</td>}
+                      {ESSAI && <td className={`bg-slate-50 px-2 py-2.5 text-center tabular-nums ${n < min ? 'text-amber-700' : 'text-slate-600'}`} title={n < min ? `Minimum : ${min} notes` : undefined}>{n}/{evaluations.length}</td>}
+                      {cols.map((ev) => (
+                        <td key={ev.id} className={ESSAI ? 'border-l border-slate-100 px-1 py-2' : 'px-2 py-2'} style={ESSAI ? { width: 96 } : undefined}>
                           {validated ? <span className="tabular-nums">{grades[s]?.[ev.id] || '—'}</span>
                             : <GradeCell value={grades[s]?.[ev.id] ?? ''} max={ev.scale} onChange={(v) => setCell(s, ev.id, v)} />}
                           {ESSAI && !validated && !grades[s]?.[ev.id] && arrivalOf(s) > ev.date && (
@@ -321,7 +341,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
                           )}
                         </td>
                       ))}
-                      <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-navy-900" style={ESSAI ? { width: 90 } : undefined}>{fmtAvg(avgs[i])}</td>
+                      {!ESSAI && <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-navy-900">{fmtAvg(avgs[i])}</td>}
                       {app && (() => {
                         const c = app.comments[app.keyOf(s)] ?? { text: '', validated: false };
                         const r = c.text.trim() ? app.check(c.text) : null;
@@ -346,11 +366,13 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
               <tfoot>
                 <tr className="bg-slate-50 text-xs text-slate-600">
                   <td className="sticky left-0 z-20 bg-slate-50 px-3 py-2 font-medium shadow-[2px_0_0_#e2e8f0]">Classe</td>
-                  {evaluations.map((ev) => {
+                  {ESSAI && <td className="bg-slate-100 px-2 py-2 text-right font-semibold tabular-nums">{fmtAvg(stats.avg)}</td>}
+                  {ESSAI && <td className="bg-slate-100" />}
+                  {cols.map((ev) => {
                     const st = classStats(service.students.map((s) => studentAverage([ev], grades[s], BONUS_ENABLED ? bonus[s] : undefined)));
                     return <td key={ev.id} className="px-2 py-2 tabular-nums">moy. {fmtAvg(st.avg)}<br />{fmtAvg(st.min)} – {fmtAvg(st.max)}</td>;
                   })}
-                  <td className="px-3 py-2 text-right font-semibold tabular-nums">{fmtAvg(stats.avg)}</td>
+                  {!ESSAI && <td className="px-3 py-2 text-right font-semibold tabular-nums">{fmtAvg(stats.avg)}</td>}
                   {app && <td colSpan={2} />}
                 </tr>
               </tfoot>
@@ -749,7 +771,21 @@ export default function GradebookModule({ settings, go, role }) {
             : 'Chaque note est enregistrée dès qu\'elle est saisie : remplissez au fil du trimestre, évaluation après évaluation.'}
         </p>}
       </div>
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      {ESSAI && (
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="text-xs font-medium text-slate-600">Classe et matière
+            <select value={serviceId} onChange={(e) => setServiceId(e.target.value)} className={`mt-1 block min-w-[260px] ${inputCls}`}>
+              {SERVICES.map((s) => <option key={s.id} value={s.id}>{s.cls} — {s.subject}{tValidated[s.id] ? ' (validées)' : ''}</option>)}
+            </select>
+          </label>
+          <label className="text-xs font-medium text-slate-600">Période
+            <select value={term} onChange={(e) => setTerm(e.target.value)} className={`mt-1 block ${inputCls}`}>
+              {TERMS.filter((t) => t.start <= TODAY).map((t) => <option key={t.id} value={t.id}>{t.label}{lockedFor(t.id) ? ' (fermé)' : ''}</option>)}
+            </select>
+          </label>
+        </div>
+      )}
+      <div className={`${ESSAI ? 'hidden' : 'flex'} gap-2 overflow-x-auto pb-1`}>
         {SERVICES.map((s) => {
           const ok = tValidated[s.id];
           return (
@@ -763,7 +799,7 @@ export default function GradebookModule({ settings, go, role }) {
       </div>
       {ESSAI && (
         <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2 text-sm">
+          <div className="hidden">
             <span className="text-slate-600">Trimestre :</span>
             {TERMS.filter((t) => t.start <= TODAY).map((t) => (
               <button key={t.id} type="button" aria-pressed={term === t.id} onClick={() => setTerm(t.id)}
