@@ -657,6 +657,50 @@ function AppreciationsStep({ service, evaluations, grades, validated, settings, 
 /* ---------------- Vue « tableau unique » (site d'essai) : appréciations de toute la classe ---------------- */
 
 /* ---------------- Module ---------------- */
+function AppreciationsTable({ service, evaluations, grades, settings, comments, setComments }) {
+  const tutoiement = settings?.grading?.allowTutoiement !== false;
+  const keyOf = (s) => `${service.id}:${s}`;
+  const check = (t) => checkAppreciation(t, { mode: service.mode, tutoiement });
+  const ready = service.students.filter((s) => { const c = comments[keyOf(s)]; return c?.text?.trim() && !c.validated && check(c.text).ok; });
+  const done = service.students.filter((s) => comments[keyOf(s)]?.validated).length;
+  return (
+    <Card title={`Appréciations — ${done} / ${service.students.length} validée${done > 1 ? 's' : ''}`}
+      subtitle="Au moins 2 phrases complètes, 450 caractères au plus. « Valider » quand le texte est prêt ; les remarques pour le conseil se notent dans « Élève par élève »."
+      action={ready.length > 0 && <Button variant="secondary" className="!py-1 text-xs" onClick={() => setComments({ ...comments, ...Object.fromEntries(ready.map((s) => [keyOf(s), { ...comments[keyOf(s)], validated: true }])) })}>Valider les {ready.length} conformes</Button>}>
+      <div className="-mx-5 overflow-x-auto">
+        <table className="w-full min-w-[640px] text-sm">
+          <thead><tr className="border-b border-slate-200 text-left text-xs text-slate-500"><th className="px-4 py-2">Élève</th><th className="px-2 py-2 text-center" title="Notes comptées / devoirs">Notes</th><th className="px-2 py-2 text-right">Moy.</th><th className="px-2 py-2">Appréciation</th><th className="px-4 py-2">État</th></tr></thead>
+          <tbody>
+            {service.students.map((s) => {
+              const c = comments[keyOf(s)] ?? { text: '', validated: false };
+              const r = c.text.trim() ? check(c.text) : null;
+              const avg = studentAverage(evaluations, grades[s]);
+              return (
+                <tr key={s} className="border-b border-slate-100 align-top">
+                  <td className="px-4 py-2 font-medium text-slate-800" style={{ width: 150 }} title={s}>{shortName(s)}</td>
+                  <td className="px-2 py-2 text-center tabular-nums text-slate-600">{notesCount(evaluations, grades[s])}/{evaluations.length}</td>
+                  <td className="px-2 py-2 text-right font-semibold tabular-nums text-navy-900">{fmtAvg(avg)}</td>
+                  <td className="px-2 py-2">
+                    <textarea spellCheck lang="fr" rows={2} value={c.text} aria-label={`Appréciation — ${s}`}
+                      onChange={(e) => setComments({ ...comments, [keyOf(s)]: { text: e.target.value, validated: false } })}
+                      className="w-full min-w-[260px] resize-y rounded-lg border border-slate-300 px-2 py-1.5 text-sm leading-snug focus:outline-none focus:ring-2 focus:ring-navy-200" />
+                    {r && !r.ok && <p className="mt-0.5 text-[11px] text-amber-800">À revoir : {r.errors[0]?.message}</p>}
+                  </td>
+                  <td className="px-4 py-2">
+                    {c.validated ? <Badge tone="green">validée</Badge>
+                      : r?.ok ? <Button variant="secondary" className="!px-2 !py-0.5 text-xs" onClick={() => setComments({ ...comments, [keyOf(s)]: { ...c, validated: true } })}>Valider</Button>
+                      : <span className="text-xs text-slate-400">{c.text.trim() ? 'à revoir' : 'à écrire'}</span>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
+}
+
 const STEPS = [['notes', '1. Notes'], ['appreciations', '2. Appréciations'], ['competences', '3. Compétences du bulletin']]; // obligatoires pour le bulletin ; par devoir, facultatives
 
 
@@ -684,8 +728,8 @@ export default function GradebookModule({ settings, go, role }) {
   const [serviceId, setServiceId] = useState(() => { const i = takeIntent('grades'); return SERVICES.find((x) => x.cls === i?.cls && x.subject === i?.subject)?.id ?? SERVICES.find((x) => x.cls === i?.cls)?.id ?? SERVICES[0]?.id; });
   const [step, setStep] = useState('notes');
   // site d'essai : tout sur une page (« Tableau unique », comme le classeur Excel) ou élève par élève (étapes)
-  const [layout, setLayoutState] = useState(() => (ESSAI ? (readStored('ent-k-vue-notes') ?? 'tableau') : 'etapes'));
-  const setLayout = (v) => { writeStored('ent-k-vue-notes', v); setLayoutState(v); };
+  const [appView, setAppViewState] = useState(() => readStored('ent-k-vue-appreciations') ?? 'classe');
+  const setAppView = (v) => { writeStored('ent-k-vue-appreciations', v); setAppViewState(v); };
   // carnet enregistré (saisies précédentes) ; sinon exemples de démonstration, ou vide avec les vraies données
   const [saved] = useState(loadCarnet);
   const [mock] = useState(() => withMockExams(saved?.evaluations ?? demoOr(EVALUATIONS, {}), saved?.grades ?? demoOr(GRADES, {})));
@@ -804,6 +848,23 @@ export default function GradebookModule({ settings, go, role }) {
             : null}
         </div>
       )}
+      {ESSAI && !appOnly && (<>
+        {/* site d'essai : trois onglets — les notes au fil de l'année, l'appréciation du bulletin, les compétences du bulletin */}
+        <div className="flex flex-wrap gap-1 border-b border-slate-200" role="tablist">
+          {[['notes', 'Notes'], ...(noApp ? [] : [['appreciations', 'Appréciations du bulletin']]), ['competences', 'Compétences du bulletin']].map(([id, l]) => (
+            <button key={id} type="button" role="tab" aria-selected={currentStep === id} onClick={() => setStep(id)}
+              className={`-mb-px flex items-center gap-1.5 border-b-2 px-4 py-2 text-sm font-medium ${currentStep === id ? 'border-navy-500 text-navy-900' : 'border-transparent text-slate-600 hover:text-navy-700'}`}>
+              {stepDone[id] && <Icon name="check" className="h-3.5 w-3.5 text-emerald-600" />}{l}
+            </button>
+          ))}
+        </div>
+          {currentStep === 'appreciations' && <div className="flex flex-wrap items-center gap-2 text-sm">
+            {[['classe', 'Toute la classe'], ['eleve', 'Élève par élève (avec les remarques pour le conseil)']].map(([id, l]) => (
+              <button key={id} type="button" aria-pressed={appView === id} onClick={() => setAppView(id)}
+                className={`rounded-full px-3 py-1 font-medium ${appView === id ? 'bg-navy-500 text-white' : 'bg-white text-slate-700 ring-1 ring-slate-200'}`}>{l}</button>
+            ))}
+          </div>}
+      </>)}
       <fieldset disabled={locked} className="min-w-0 space-y-5">
       {taken.length > 0 && (
         <div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
@@ -828,25 +889,18 @@ export default function GradebookModule({ settings, go, role }) {
           </div>
         );
       })()}
-      {ESSAI && !appOnly && (
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-slate-600">Affichage :</span>
-          {[['tableau', 'Tableau unique (comme Excel)'], ['etapes', 'Élève par élève']].map(([id, l]) => (
-            <button key={id} type="button" aria-pressed={layout === id} onClick={() => setLayout(id)}
-              className={`rounded-full px-3 py-1 font-medium ${layout === id ? 'bg-navy-500 text-white' : 'bg-white text-slate-700 ring-1 ring-slate-200'}`}>{l}</button>
-          ))}
-          {layout === 'tableau' && <span className="text-xs text-slate-500">Aller à : <a href="#tab-notes" className="underline">Notes{!noApp && ' et appréciations'}</a> · <a href="#tab-comps" className="underline">Compétences</a></span>}
-        </div>
-      )}
-      {ESSAI && !appOnly && layout === 'tableau' && (<>
-        <section id="tab-notes" className="scroll-mt-24"><NotesStep {...props} go={go} competencies={tComps[serviceId] ?? []}
-          app={noApp ? null : { comments: tComments, setComments: setTComments, keyOf: (s) => `${serviceId}:${s}`, check: (t) => checkAppreciation(t, { mode: service.mode, tutoiement: settings?.grading?.allowTutoiement !== false }) }} /></section>
-        <section id="tab-comps" className="scroll-mt-24"><CompetenciesStep service={service} settings={settings} evaluations={props.evaluations} mine={tComps[serviceId] ?? []}
+      {ESSAI && !appOnly && (<>
+        {currentStep === 'notes' && <NotesStep {...props} go={go} competencies={tComps[serviceId] ?? []} />}
+        {currentStep === 'appreciations' && (<>
+          {appView === 'classe' ? <AppreciationsTable {...props} comments={tComments} setComments={setTComments} />
+            : <AppreciationsStep {...props} go={go} comments={tComments} setComments={setTComments} flags={tFlags} setFlags={setTFlags} />}
+        </>)}
+        {currentStep === 'competences' && <CompetenciesStep service={service} settings={settings} evaluations={props.evaluations} mine={tComps[serviceId] ?? []}
           siblings={siblings} siblingComps={siblings.map((x) => ({ ...x, comps: tComps[x.id] ?? [] }))} linked={!unlinked[serviceId]}
           setLinked={(on) => setUnlinked({ ...unlinked, [serviceId]: !on })}
-          setMine={(v) => setTComps({ ...tComps, [serviceId]: v, ...(unlinked[serviceId] ? {} : Object.fromEntries(siblings.map((x) => [x.id, v]))) })} /></section>
+          setMine={(v) => setTComps({ ...tComps, [serviceId]: v, ...(unlinked[serviceId] ? {} : Object.fromEntries(siblings.map((x) => [x.id, v]))) })} />}
       </>)}
-      {!appOnly && !(ESSAI && layout === 'tableau') && (
+      {!appOnly && !ESSAI && (
         <div className="flex gap-1 rounded-lg bg-slate-100 p-1" role="tablist">
           {STEPS.filter(([id]) => !(noApp && id === 'appreciations')).map(([id, label]) => (
             <button key={id} role="tab" aria-selected={step === id} onClick={() => setStep(id)}
@@ -856,27 +910,12 @@ export default function GradebookModule({ settings, go, role }) {
           ))}
         </div>
       )}
-      {!(ESSAI && !appOnly && layout === 'tableau') && currentStep === 'notes' && <NotesStep {...props} go={go} competencies={tComps[serviceId] ?? []} />}
-      {!(ESSAI && !appOnly && layout === 'tableau') && currentStep === 'competences' && <CompetenciesStep service={service} settings={settings} evaluations={props.evaluations} mine={tComps[serviceId] ?? []}
+      {!(ESSAI && !appOnly) && currentStep === 'notes' && <NotesStep {...props} go={go} competencies={tComps[serviceId] ?? []} />}
+      {!(ESSAI && !appOnly) && currentStep === 'competences' && <CompetenciesStep service={service} settings={settings} evaluations={props.evaluations} mine={tComps[serviceId] ?? []}
         siblings={siblings} siblingComps={siblings.map((x) => ({ ...x, comps: tComps[x.id] ?? [] }))} linked={!unlinked[serviceId]}
         setLinked={(on) => setUnlinked({ ...unlinked, [serviceId]: !on })}
         setMine={(v) => setTComps({ ...tComps, [serviceId]: v, ...(unlinked[serviceId] ? {} : Object.fromEntries(siblings.map((x) => [x.id, v]))) })} />}
-      {!(ESSAI && !appOnly && layout === 'tableau') && currentStep === 'appreciations' && <AppreciationsStep {...props} go={go} comments={tComments} setComments={setTComments} flags={tFlags} setFlags={setTFlags} />}
-      {ESSAI && !appOnly && layout !== 'tableau' && (() => {
-        // bas de chaque étape : on passe à la suivante sans remonter chercher les onglets
-        const order = STEPS.map(([id]) => id).filter((id) => !(noApp && id === 'appreciations'));
-        const i = order.indexOf(currentStep);
-        const prev = order[i - 1]; const next = order[i + 1];
-        const label = (id) => STEPS.find(([x]) => x === id)?.[1];
-        const goStep = (id) => { setStep(id); window.scrollTo({ top: 0, behavior: 'smooth' }); };
-        return (
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-navy-50 p-3">
-            {prev ? <Button variant="secondary" onClick={() => goStep(prev)}>‹ {label(prev)}</Button> : <span />}
-            {next ? <Button onClick={() => goStep(next)}>Étape suivante : {label(next)} ›</Button>
-              : <span className="text-sm text-navy-900">Dernière étape. Quand tout est rempli, cliquez sur « Valider les notes du trimestre », dans l'encadré « Validation du trimestre ».</span>}
-          </div>
-        );
-      })()}
+      {!(ESSAI && !appOnly) && currentStep === 'appreciations' && <AppreciationsStep {...props} go={go} comments={tComments} setComments={setTComments} flags={tFlags} setFlags={setTFlags} />}
       </fieldset>
     </div>
   );

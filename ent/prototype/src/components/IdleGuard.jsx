@@ -2,11 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { signOutAndWipe } from '../online/logout.js';
 import { Button } from './ui.jsx';
 
-// Poste partagé (accueil, salle des professeurs) : après 15 minutes sans activité (clic, frappe, défilement),
+// Poste partagé (accueil, salle des professeurs) : après 30 minutes sans activité (clic, frappe, défilement),
 // l'application demande « Toujours là ? ». Sans réponse pendant 1 minute, elle déconnecte et efface l'appareil.
 // Si des saisies ne sont pas encore parties (pas de réseau), elle ne déconnecte pas : rien n'est perdu.
 // L'activité dans un autre onglet de l'ENT compte aussi.
-const IDLE_MS = 15 * 60 * 1000;
+const IDLE_MS = 30 * 60 * 1000;
 const GRACE_S = 60;
 const KEY = 'ent-derniere-activite';
 const lastSeen = () => { try { return Number(localStorage.getItem(KEY)) || 0; } catch { return 0; } }; // absent (nettoyage de l'appareil) : l'onglet fait foi
@@ -37,7 +37,7 @@ export default function IdleGuard() {
     if (left !== 0) return;
     signOutAndWipe(async () => false).then((done) => {
       if (done) return;
-      setKept(true); // pas déconnecté : on repart pour 15 minutes
+      setKept(true); // pas déconnecté : on repart pour 30 minutes
       last.current = Date.now(); try { localStorage.setItem(KEY, String(last.current)); } catch { /* indisponible */ }
       setLeft(null);
     });
@@ -56,7 +56,7 @@ export default function IdleGuard() {
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 p-4" role="alertdialog" aria-modal="true" aria-labelledby="idle-title">
       <div className="w-full max-w-sm rounded-2xl bg-white p-5 text-center shadow-xl">
         <p id="idle-title" className="text-lg font-semibold text-navy-900">Toujours là ?</p>
-        <p className="mt-2 text-sm text-slate-700">Aucune activité depuis 15 minutes. Pour protéger les données, vous serez déconnecté(e) dans <strong className="tabular-nums">{left} s</strong>.</p>
+        <p className="mt-2 text-sm text-slate-700">Aucune activité depuis 30 minutes. Pour protéger les données, vous serez déconnecté(e) dans <strong className="tabular-nums">{left} s</strong>.</p>
         <Button className="mt-4 w-full" autoFocus onClick={stay}>Je suis là</Button>
       </div>
     </div>

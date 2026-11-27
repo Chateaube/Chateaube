@@ -493,7 +493,7 @@ export default function App() {
           )}
 
           <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-            <SavedBadge />{ONLINE && !['ELEVE', 'PARENT', 'FAMILLE'].includes(profile) && <IdleGuard />}
+            <SavedBadge />{ONLINE && !['ELEVE', 'PARENT', 'FAMILLE', 'DIRECTION'].includes(profile) && <IdleGuard />}
             {staffProfile && <GlobalSearch profile={profile} nav={NAV_SHOWN} go={goTo} />}
             {QUICK.length > 0 && (
               <div className="relative" onClick={(e) => e.stopPropagation()}>
