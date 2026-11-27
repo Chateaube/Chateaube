@@ -39,9 +39,10 @@ export function logActivity({ who, role, kind, text, student }) {
   // lignes anciennes (elles peuvent être celles d'un collègue)
   const entry = { id: `j${Date.now()}${Math.random().toString(36).slice(2, 6)}`, at: `${DEMO_TODAY}T${time}`, who, role, kind, text, student };
   try {
-    const key = prof ? PROF_KEY : KEY;
+    const shared = prof || kind === 'ENCOURAGEMENT'; // encouragements : lus aussi par les professeurs
+    const key = shared ? PROF_KEY : KEY;
     const mine = JSON.parse(localStorage.getItem(key)) ?? [];
-    localStorage.setItem(key, JSON.stringify(prof ? [entry, ...mine] : [entry, ...mine].slice(0, 2000)));
+    localStorage.setItem(key, JSON.stringify(shared ? [entry, ...mine] : [entry, ...mine].slice(0, 2000)));
   } catch { /* stockage indisponible */ }
   return entry;
 }

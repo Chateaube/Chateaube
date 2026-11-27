@@ -2763,3 +2763,12 @@ test('message « notes minimum » : à partir du jour choisi, jusqu\'à la ferme
   assert.equal(minimumNoticeDue({ ...base, date: '2026-12-08' }), false);
   assert.equal(minimumNoticeDue({ ...base, count: 4, date: '2026-12-05' }), false);
 });
+
+import { gradebookTodo } from '../src/rules/teacherTodo.js';
+test('à faire du professeur : devoirs manquants et appréciations', () => {
+  const sv = [{ id: 'a', cls: '6e', subject: 'Maths', students: ['X', 'Y'] }, { id: 'b', cls: '5e', subject: 'Maths', students: ['Z'] }];
+  const c = { evaluations: { a: [{ id: 1 }, { id: 2 }], b: [1, 2, 3, 4].map((id) => ({ id })) }, comments: { 'a:X': { text: 'Bien.', validated: false }, 'b:Z': { text: 'Ok.', validated: true } } };
+  const r = gradebookTodo(sv, c, () => 4);
+  assert.equal(r.length, 1);
+  assert.deepEqual([r[0].missingEvals, r[0].toWrite, r[0].toValidate], [2, 1, 1]);
+});

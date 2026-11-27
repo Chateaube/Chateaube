@@ -15,6 +15,11 @@ import { today as todayIso } from '../clock.js';
 import { TERM } from '../data/grades.js';
 import { loadAnnouncements } from '../announcementsStore.js';
 import { receives } from '../rules/announcements.js';
+import { ESSAI } from '../essai.js';
+import { TERMS, termOfDate, carnetForTerm, termById } from '../rules/terms.js';
+import { gradebookTodo } from '../rules/teacherTodo.js';
+import { loadCarnet, myServices } from '../gradebookStore.js';
+import { minEvaluationsFor } from '../rules/grading.js';
 
 // « Ma journée » de l'enseignant : le cours en cours (appel), ce qu'il reste à faire, puis les cours du jour.
 // L'appel se fait sur un seul écran (Appel), ouvert directement sur la bonne séance.
@@ -105,7 +110,25 @@ export default function TeacherPortal({ go, settings }) {
 
       <Card title="À faire">
         <ul className="space-y-2">
-          {ONLINE && <li className="text-sm text-slate-700">Notes, appréciations et compétences du {TERM.label} : à saisir dans <button type="button" className="font-medium text-navy-700 underline" onClick={() => go('grades')}>Notes et appréciations</button> — arrêt des notes le <strong>{frStop(TERM.stop)}</strong>. Besoin d'aide ? <button type="button" className="font-medium text-navy-700 underline" onClick={() => go('teacher-guide')}>Mode d'emploi</button>.</li>}
+          {ONLINE && <li className="text-sm text-slate-700">Notes, appréciations et compétences du {TERM.label} : à saisir dans <button type="button" className="font-medium text-navy-700 underline" onClick={() => go('grades')}>Notes et appréciations</button> — {ESSAI ? <>arrêt des notes le <strong>{TERMS[0].stopText}</strong>, saisie ouverte jusqu'au <strong>{TERMS[0].closeText}</strong></> : <>arrêt des notes le <strong>{frStop(TERM.stop)}</strong></>}. Besoin d'aide ? <button type="button" className="font-medium text-navy-700 underline" onClick={() => go('teacher-guide')}>Mode d'emploi</button>.</li>}
+          {ESSAI && ONLINE && (() => {
+            // trimestre à finir : le 1er tant que sa saisie est ouverte, sinon celui du jour
+            const t = termById(todayIso() <= TERMS[0].closeAt.slice(0, 10) ? TERMS[0].id : termOfDate(todayIso()));
+            const rows = gradebookTodo(myServices(), carnetForTerm(loadCarnet(), t.id), (sv) => minEvaluationsFor(sv, settings.grading.minEvaluations));
+            const open = (r) => { setIntent('grades', { cls: r.cls, subject: r.subject }); go('grades'); };
+            if (!rows.length) return <li className="text-sm text-emerald-800">✓ {t.label} : rien ne manque dans vos classes (ou tout est validé).</li>;
+            return rows.map((r) => (
+              <li key={r.id} className="flex items-start gap-3">
+                <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-amber-500" />
+                <button type="button" onClick={() => open(r)} className="text-left text-sm text-slate-800 hover:underline">
+                  <strong>{r.cls} · {r.subject}</strong> ({t.label}) :{' '}
+                  {[r.missingEvals && `${r.missingEvals} devoir${r.missingEvals > 1 ? 's' : ''} manquant${r.missingEvals > 1 ? 's' : ''} (${r.evals}/${r.min})`,
+                    r.toWrite && `${r.toWrite} appréciation${r.toWrite > 1 ? 's' : ''} à écrire`,
+                    r.toValidate && `${r.toValidate} à valider`].filter(Boolean).join(' · ')}
+                </button>
+              </li>
+            ));
+          })()}
           {(ONLINE ? [] : TEACHER.todo).map((t) => (
             <li key={t.label} className="flex items-start gap-3">
               <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${t.tone === 'amber' ? 'bg-amber-500' : 'bg-navy-500'}`} />
