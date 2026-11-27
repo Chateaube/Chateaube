@@ -9,6 +9,7 @@ import {
 import CashControl, { methodText } from './CashControl.jsx';
 import Reductions from './Reductions.jsx';
 import Salaries, { cashSalariesPaid } from './Salaries.jsx';
+import OffBooksTab from './OffBooksTab.jsx';
 import { accountStatement, annualCost, cashBalance, monthlyCashReport, cashMonthCsv } from '../rules/accounting.js';
 import { printOnly } from '../print.js';
 import { planMonths, monthName } from '../rules/calendar.js';
@@ -432,8 +433,8 @@ function CashTab({ movements, setMovements, role, account }) {
 const TAB_FEATURE = { fees: 'caisse.tarifs', articles: 'caisse.articles', reductions: 'caisse.reductions' };
 // Ordre : le quotidien d'abord ; le paramétrage de l'année (fixé une fois puis verrouillé) à la fin.
 const DAILY_TABS = ['collect', 'receipts', 'dunning', 'expenses', 'cash'];
-const SETUP_GROUP = ['salaries', 'treasury', 'fees', 'articles', 'reductions'];
-const TABS = [['collect', 'Encaisser'], ['receipts', 'Reçus & clôture'], ['dunning', 'Impayés & relances'], ['expenses', 'Dépenses & fournisseurs'], ['cash', 'Autres mouvements d\'espèces'], ['salaries', 'Salaires'], ['treasury', 'Trésorerie', 'DIRECTION'], ['fees', 'Classes & tarifs'], ['articles', 'Articles & services'], ['reductions', 'Réductions']];
+const SETUP_GROUP = ['salaries', 'treasury', 'offbooks', 'fees', 'articles', 'reductions'];
+const TABS = [['collect', 'Encaisser'], ['receipts', 'Reçus & clôture'], ['dunning', 'Impayés & relances'], ['expenses', 'Dépenses & fournisseurs'], ['cash', 'Autres mouvements d\'espèces'], ['salaries', 'Salaires'], ['treasury', 'Trésorerie', 'DIRECTION'], ['offbooks', 'Hors comptes', 'DIRECTION'], ['fees', 'Classes & tarifs'], ['articles', 'Articles & services'], ['reductions', 'Réductions']];
 const SETUP_TABS = ['fees', 'articles', 'reductions'];
 // Paramétrage verrouillé pour l'année (Direction) : plus de modification jusqu'à la fin de l'année scolaire.
 const LOCK_KEY = 'ent-tarifs-verrou-v1';
@@ -546,6 +547,7 @@ export default function AccountingModule({ settings, role, account }) {
       {tab === 'cash' && <CashTab movements={movements} setMovements={setMovements} role={role} account={account} />}
       {tab === 'expenses' && <ExpensesTab expenses={expenses} setExpenses={setExpenses} suppliers={suppliers} setSuppliers={setSuppliers} onCashOut={cashOut} today={TODAY} canBackdate={role === 'DIRECTION'} />}
       {tab === 'dunning' && <DunningAlerts settings={settings} />}
+      {tab === 'offbooks' && (role === 'DIRECTION' || econome) && <OffBooksTab actor={actor} />}
       {tab === 'treasury' && (role === 'DIRECTION' || econome) && <div className="space-y-5"><TreasuryDashboard tx={tx} opening={realData() ? 0 : Object.values(CASH_YEAR_OPENING).reduce((a, b) => a + b, 0)} months={schoolMonthsTo(TODAY)} /><SeparateJournals settings={settings} /></div>}
     </div>
   );

@@ -11,7 +11,7 @@
 import { supabase } from './client.js';
 import { activeSite, siteLocalKeys } from '../site.js';
 
-const GESTION = ['ent-s-depenses', 'ent-k-tarifs', 'ent-s-recus', 'ent-s-journal-caisse', 'ent-s-clotures', 'ent-caisse-mouvements-v1', 'ent-k-reductions',
+const GESTION = ['ent-s-hors-comptes', 'ent-s-depenses', 'ent-k-tarifs', 'ent-s-recus', 'ent-s-journal-caisse', 'ent-s-clotures', 'ent-caisse-mouvements-v1', 'ent-k-reductions',
   'ent-k-articles', 'ent-s-fournisseurs', 'ent-s-comptes-', 'ent-s-relances-envoyees', 'ent-s-relances-decisions', 'ent-tarifs-verrou-v1', 'ent-s-taux',
   'ent-s-salaires-payes', 'ent-s-paie', 'ent-s-paie-validee', 'ent-s-personnel', 'ent-s-fiches-agents', 'ent-s-pieces-demandees', 'ent-s-pieces-a-recevoir',
   'ent-s-documents-recus', 'ent-s-documents-envoyes', 'ent-campagne-v1', 'ent-remise-v1', 'ent-bulletin-dispo-v1', 'ent-k-tarifs-reels-v1', 'ent-k-message-acces'];
