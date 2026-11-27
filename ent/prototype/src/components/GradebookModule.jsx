@@ -329,8 +329,8 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
                           {validated ? <span className="tabular-nums">{grades[s]?.[ev.id] || '—'}</span>
                             : <GradeCell value={grades[s]?.[ev.id] ?? ''} max={ev.scale} onChange={(v) => setCell(s, ev.id, v)} />}
                           {ESSAI && !validated && !grades[s]?.[ev.id] && arrivalOf(s) > ev.date && (
-                            <button type="button" onClick={() => setCell(s, ev.id, 'NN')} title={`Arrivé.e le ${fmtDate(arrivalOf(s))}, après ce devoir : NN (non noté), sauf s'il l'a rattrapé`}
-                              className="mt-1 block rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-800 ring-1 ring-amber-200">NN ? (arrivé.e le {fmtDate(arrivalOf(s))})</button>
+                            <button type="button" onClick={() => setCell(s, ev.id, 'NN')} title={`Inscrit le ${fmtDate(arrivalOf(s))}, après ce devoir : NN (non noté), sauf s'il l'a rattrapé`}
+                              className="mt-1 block rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-800 ring-1 ring-amber-200">NN ? (inscrit le {fmtDate(arrivalOf(s))})</button>
                           )}
                           {BONUS_ENABLED && <BonusControl b={bonus[s]?.[ev.id]} steps={steps} readOnly={validated} open={openBonus === `${s}|${ev.id}`} label={`${s} — ${ev.title || ev.type}`}
                             onOpen={() => setOpenBonus(openBonus === `${s}|${ev.id}` ? null : `${s}|${ev.id}`)} onChange={(v) => setAdj(s, ev.id, v)} />}
@@ -379,7 +379,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
             </table>
           </div>
         )}
-        <p className="mt-3 text-xs text-slate-500">Saisie contrôlée : « 1O » → 10, « 12.5 » → 12,5 (Entrée pour accepter). Codes (non comptés dans la moyenne) : ABS = absent, DISP = dispensé, NN = non noté (ex. élève arrivé après le devoir, qui pourra le rattraper).</p>
+        <p className="mt-3 text-xs text-slate-500">Saisie contrôlée : « 1O » → 10, « 12.5 » → 12,5 (Entrée pour accepter). Codes (non comptés dans la moyenne) : ABS = absent, DISP = dispensé, NN = non noté (par exemple un élève inscrit tardivement, après la date du devoir ; il pourra le rattraper).</p>
       </Card>
 
       <Card title="Validation du trimestre">
@@ -524,7 +524,7 @@ function ThemePicker({ serviceId, fallback, termDef = TERM }) {
 function MinimumNotice({ eps }) {
   const n = eps ? NOTICE_EPS : NOTICE_GENERAL;
   return (
-    <details open={!ESSAI} className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+    <details open className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
       <summary className="cursor-pointer font-semibold">Message de l'administration : {eps ? '3 notes minimum en EPS' : '4 notes minimum'}</summary>
       <div className="mt-2 space-y-2 leading-relaxed">
         <p>Chères collègues, chers collègues,</p>
@@ -785,7 +785,7 @@ export default function GradebookModule({ settings, go, role }) {
           </label>
         </div>
       )}
-      <div className={`${ESSAI ? 'hidden' : 'flex'} gap-2 overflow-x-auto pb-1`}>
+      {!ESSAI && <div className="flex gap-2 overflow-x-auto pb-1">
         {SERVICES.map((s) => {
           const ok = tValidated[s.id];
           return (
@@ -796,16 +796,9 @@ export default function GradebookModule({ settings, go, role }) {
             </button>
           );
         })}
-      </div>
+      </div>}
       {ESSAI && (
         <div className="space-y-2">
-          <div className="hidden">
-            <span className="text-slate-600">Trimestre :</span>
-            {TERMS.filter((t) => t.start <= TODAY).map((t) => (
-              <button key={t.id} type="button" aria-pressed={term === t.id} onClick={() => setTerm(t.id)}
-                className={`rounded-full px-3 py-1 font-medium ${term === t.id ? 'bg-navy-500 text-white' : 'bg-white text-slate-700 ring-1 ring-slate-200'}`}>{t.label}{lockedFor(t.id) ? ' · fermé' : ''}</button>
-            ))}
-          </div>
           {locked ? <p role="status" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Saisie du {termDef.label} fermée depuis le {termDef.closeText} : vous pouvez consulter, plus modifier. Pour une correction, demandez à la Direction de rouvrir votre saisie.</p>
             : termDef.closeAt && TODAY <= termDef.closeAt.slice(0, 10) ? <p className="rounded-xl bg-navy-50 p-3 text-sm text-navy-900">Arrêt des notes : <strong>{termDef.stopText}</strong> (un devoir daté après compte pour le trimestre suivant) · saisie ouverte jusqu'au <strong>{termDef.closeText}</strong>.</p>
             : null}

@@ -2769,6 +2769,7 @@ test('à faire du professeur : devoirs manquants et appréciations', () => {
   const sv = [{ id: 'a', cls: '6e', subject: 'Maths', students: ['X', 'Y'] }, { id: 'b', cls: '5e', subject: 'Maths', students: ['Z'] }];
   const c = { evaluations: { a: [{ id: 1 }, { id: 2 }], b: [1, 2, 3, 4].map((id) => ({ id })) }, comments: { 'a:X': { text: 'Bien.', validated: false }, 'b:Z': { text: 'Ok.', validated: true } } };
   const r = gradebookTodo(sv, c, () => 4);
-  assert.equal(r.length, 1);
-  assert.deepEqual([r[0].missingEvals, r[0].toWrite, r[0].toValidate], [2, 1, 1]);
+  assert.equal(r.length, 2); assert.equal(r[1].noComps, true); // 5e : seules les compétences manquent
+  assert.deepEqual([r[0].missingEvals, r[0].toWrite, r[0].toValidate, r[0].noComps], [2, 1, 1, true]);
+  assert.equal(gradebookTodo([sv[1]], { ...c, myComps: { b: ['Calculer'] } }, () => 4).length, 0);
 });

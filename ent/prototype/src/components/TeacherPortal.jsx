@@ -124,7 +124,7 @@ export default function TeacherPortal({ go, settings }) {
                   <strong>{r.cls} · {r.subject}</strong> ({t.label}) :{' '}
                   {[r.missingEvals && `${r.missingEvals} devoir${r.missingEvals > 1 ? 's' : ''} manquant${r.missingEvals > 1 ? 's' : ''} (${r.evals}/${r.min})`,
                     r.toWrite && `${r.toWrite} appréciation${r.toWrite > 1 ? 's' : ''} à écrire`,
-                    r.toValidate && `${r.toValidate} à valider`].filter(Boolean).join(' · ')}
+                    r.toValidate && `${r.toValidate} à valider`, r.noComps && 'compétences du bulletin à renseigner'].filter(Boolean).join(' · ')}
                 </button>
               </li>
             ));

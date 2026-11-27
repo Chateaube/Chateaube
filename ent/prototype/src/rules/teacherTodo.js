@@ -1,5 +1,5 @@
 // « À faire » du professeur : pour chaque classe × matière du trimestre en cours, ce qui manque encore
-// (devoirs pour atteindre le minimum, appréciations à écrire ou à valider). carnet : déjà réduit au trimestre.
+// (devoirs pour atteindre le minimum, appréciations à écrire ou à valider, compétences du bulletin). carnet : déjà réduit au trimestre.
 export function gradebookTodo(services, carnet, minFor) {
   return (services ?? []).map((s) => {
     const evals = (carnet?.evaluations?.[s.id] ?? []).filter((e) => !e.fromMockExam).length + (s.common ? (s.otherCount ?? 0) : 0);
@@ -11,7 +11,8 @@ export function gradebookTodo(services, carnet, minFor) {
       missingEvals: Math.max(0, min - evals),
       toWrite: app.filter((c) => !(c?.text ?? '').trim()).length,
       toValidate: app.filter((c) => (c?.text ?? '').trim() && !c.validated).length,
+      noComps: s.mode !== 'APPRECIATION_SEULE' && !(carnet?.myComps?.[s.id]?.length),
       validated: Boolean(carnet?.validated?.[s.id]),
     };
-  }).filter((r) => !r.validated && (r.missingEvals || r.toWrite || r.toValidate));
+  }).filter((r) => !r.validated && (r.missingEvals || r.toWrite || r.toValidate || r.noComps));
 }

@@ -103,7 +103,7 @@ export default function TeacherGuide() {
         <ul className="list-disc space-y-1 pl-5">
           <li><strong>ABS</strong> : absent — ne compte pas dans la moyenne ; la vie scolaire voit l'absence ;</li>
           <li><strong>DISP</strong> : dispensé — ne compte pas ;</li>
-          <li><strong>NN</strong> : non noté (ex. arrivé après l'évaluation) — ne compte pas.</li>
+          <li><strong>NN</strong> : non noté (par exemple un élève inscrit tardivement, après la date du devoir) — ne compte pas.</li>
         </ul>
         <Tip tone="amber">Il faut au moins <strong>4 évaluations par trimestre</strong> (3 en EPS). Le compteur l'affiche : « 3 / 4 évaluations minimum ».</Tip>
         <Tip tone="green">Pas de bouton « Enregistrer » : chaque note est enregistrée aussitôt. Le message <strong>« ✓ Enregistré sur le serveur à 10:42 »</strong> le confirme.</Tip>

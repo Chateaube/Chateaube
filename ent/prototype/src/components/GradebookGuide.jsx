@@ -18,7 +18,7 @@ export default function GradebookGuide({ onClose }) {
         <p className="mt-1 text-slate-600">Choisissez d'abord la classe en haut de l'écran. Ensuite, trois choses à remplir, dans l'ordre que vous voulez :</p>
 
         <div className="mt-4 space-y-4">
-          <Step n="1" title="Notes">Créez une évaluation avec « ＋ Nouvelle évaluation », puis entrez la note de chaque élève. Pour un élève absent, écrivez ABS ; dispensé : DISP ; arrivé après le devoir (il pourra le rattraper) : NN.</Step>
+          <Step n="1" title="Notes">Créez une évaluation avec « ＋ Nouvelle évaluation », puis entrez la note de chaque élève. Pour un élève absent, écrivez ABS ; dispensé : DISP ; non noté : NN (par exemple un élève inscrit tardivement, après la date du devoir ; il pourra le rattraper).</Step>
           <Step n="2" title="Appréciations">Écrivez une appréciation pour chaque élève, quand ses notes sont complètes : vous voyez alors sa moyenne. Elle figurera sur le bulletin.</Step>
           <Step n="3" title="Compétences du bulletin">Indiquez ce qui a été travaillé pendant le trimestre.</Step>
         </div>
