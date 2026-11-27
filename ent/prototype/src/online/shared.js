@@ -19,7 +19,7 @@ const GESTION = ['ent-s-hors-comptes', 'ent-s-depenses', 'ent-k-tarifs', 'ent-s-
 const EQUIPE = ['ent-import-v1', 'ent-profiles-v2', 'ent-fiche-v1', 'ent-chateaubriand-settings-v3', 'ent-s-autorisations', 'ent-sorties-v1',
   'ent-appel-v1', 'ent-passages-v1', 'ent-suivis-v1', 'ent-absences-prof-v1', 'ent-retards-prof-v1', 'ent-remplacements-v1', 'ent-changements-edt-v1', 'ent-s-reprise-absences', 'ent-demandes-v1',
   'ent-signatures-v1', 'ent-taches-v1', 'ent-s-evenements', 'ent-evenements-proposes-v1', 'ent-engagements-v1',
-  'ent-engagements-valides-v1', 'ent-engagements-catalogue-v1', 'ent-fiches-orientation-v1', 'ent-manuels-v2', 'ent-inventaire-v2', 'ent-cdi-v1',
+  'ent-engagements-valides-v1', 'ent-fratries-v1', 'ent-engagements-catalogue-v1', 'ent-fiches-orientation-v1', 'ent-manuels-v2', 'ent-inventaire-v2', 'ent-cdi-v1',
   'ent-s-cdi-rappels', 'ent-s-reservations', 'ent-k-reprise-vie-scolaire', 'ent-journal-v1', 'ent-suggestions-v1',
   'ent-remontees-conseil-v1', 'ent-s-terminales-', 'ent-s-stages-', 'ent-s-conseil-passage', 'ent-themes-parcours-v1',
   'ent-k-parcoursup-2027-ajoute', 'ent-avis-v1'];

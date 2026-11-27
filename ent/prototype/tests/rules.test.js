@@ -2648,3 +2648,19 @@ test('programmes : base officielle par niveau, programmation par trimestre, reta
   const corrected = partsFor('Mathématiques', '4e', { base: { 'Mathématiques|4e': ['A', 'B'] } });
   assert.deepEqual(corrected, ['A', 'B']);
 });
+
+import { siblingIdsOf, linkSiblings, unlinkSibling } from '../src/rules/siblings.js';
+test('fratries : liées à la main, fusionnées, déliées sans toucher les autres', () => {
+  let g = linkSiblings([], 'a', 'b');
+  assert.deepEqual(siblingIdsOf(g, 'a'), ['b']);
+  g = linkSiblings(g, 'c', 'b'); // c rejoint la fratrie de b
+  assert.deepEqual(siblingIdsOf(g, 'c').sort(), ['a', 'b']);
+  g = linkSiblings(g, 'd', 'e');
+  assert.equal(g.length, 2);
+  g = linkSiblings(g, 'a', 'e'); // deux fratries réunies
+  assert.equal(g.length, 1); assert.equal(siblingIdsOf(g, 'd').length, 4);
+  g = unlinkSibling(g, 'e');
+  assert.deepEqual(siblingIdsOf(g, 'e'), []); assert.equal(siblingIdsOf(g, 'a').length, 3);
+  assert.deepEqual(unlinkSibling(linkSiblings([], 'x', 'y'), 'x'), []); // une fratrie d'un seul élève disparaît
+  assert.deepEqual(linkSiblings([], 'x', 'x'), []);
+});

@@ -27,6 +27,9 @@ import { ficheOf, saveFiche } from '../ficheStore.js';
 import { today } from '../clock.js';
 import { askConfirm, tell } from './Dialogs.jsx';
 import { AUTHORIZATIONS, exitCode } from '../data/family.js';
+import { usePersistent } from '../persist.js';
+import { SIBLINGS_KEY } from '../siblingsStore.js';
+import { siblingIdsOf, linkSiblings, unlinkSibling } from '../rules/siblings.js';
 const EXIT_OPTIONS = AUTHORIZATIONS.find((a) => a.id === 'SORTIE').options;
 
 // Inscriptions (Bureau et Direction) : pré-inscriptions, inscription ou réinscription avec
@@ -321,6 +324,45 @@ function ProfileForm({ initial, kind, onSave, onCancel, role }) {
   );
 }
 
+/* ---------- Fratrie à l'école : liens posés à la main (jamais d'après le nom de famille) ---------- */
+function SiblingsSection({ p }) {
+  const [groups, setGroups] = usePersistent(SIBLINGS_KEY, []);
+  const all = useMemo(() => loadProfiles(), []);
+  const byId = (id) => all.find((x) => x.id === id);
+  const linked = siblingIdsOf(groups, p.id).map(byId).filter(Boolean);
+  const [cls, setCls] = useState('');
+  const [pick, setPick] = useState('');
+  const classes = [...new Set(all.map((x) => x.cls))].filter(Boolean);
+  const inClass = all.filter((x) => x.cls === cls && x.id !== p.id && !linked.some((l) => l.id === x.id)).sort((a, b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`));
+  // même nom de famille : seulement une suggestion, à confirmer (ce n'est pas toujours la même famille)
+  const sameName = all.filter((x) => x.id !== p.id && x.lastName === p.lastName && !linked.some((l) => l.id === x.id));
+  const link = (id) => { setGroups(linkSiblings(groups, p.id, id)); setPick(''); };
+  const unlink = async (sib) => {
+    if (!(await askConfirm(`Retirer ${sib.lastName} ${sib.firstName} de la fratrie de ${p.firstName} ?`))) return;
+    setGroups(unlinkSibling(groups, sib.id)); // les autres restent liés entre eux
+  };
+  return (
+    <div className="mt-4 rounded-xl border border-slate-200 p-3">
+      <p className="text-xs font-semibold text-slate-500">Fratrie à l'école</p>
+      {linked.length ? (
+        <ul className="mt-1 flex flex-wrap gap-2 text-sm">
+          {linked.map((x) => <li key={x.id} className="flex items-center gap-1.5 rounded-full bg-navy-50 px-3 py-1">{x.lastName} {x.firstName} <span className="text-xs text-slate-500">· {x.cls}</span>
+            <button type="button" aria-label={`Retirer ${x.firstName} de la fratrie`} onClick={() => unlink(x)} className="text-slate-400 hover:text-red-600"><Icon name="x" /></button></li>)}
+        </ul>
+      ) : <p className="mt-1 text-sm text-slate-600">Aucun frère ou sœur lié dans l'école.</p>}
+      {sameName.length > 0 && (
+        <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-slate-600">Même nom de famille (à vérifier, ce n'est pas forcément la même famille) :
+          {sameName.map((x) => <Button key={x.id} variant="secondary" className="!px-2 !py-0.5 text-xs" onClick={() => link(x.id)}>Lier {x.firstName} ({x.cls})</Button>)}</p>
+      )}
+      <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+        <select value={cls} onChange={(e) => { setCls(e.target.value); setPick(''); }} aria-label="Classe du frère ou de la sœur" className={inputCls}><option value="">Classe…</option>{classes.map((c) => <option key={c}>{c}</option>)}</select>
+        <select value={pick} onChange={(e) => setPick(e.target.value)} disabled={!cls} aria-label="Frère ou sœur" className={inputCls}><option value="">Élève…</option>{inClass.map((x) => <option key={x.id} value={x.id}>{x.lastName} {x.firstName}</option>)}</select>
+        <Button variant="secondary" className="!py-1 text-xs" disabled={!pick} onClick={() => link(pick)}>Lier comme frère / sœur</Button>
+      </div>
+    </div>
+  );
+}
+
 /* ---------- Fiche signalétique en ligne et signatures ---------- */
 function FicheSection({ p }) {
   const key = `${p.lastName} ${p.firstName}`;
@@ -398,6 +440,7 @@ function ProfileCard({ p, onReenrol, onComplete, created }) {
           </ul>
         </div>
       </div>
+      <SiblingsSection p={p} />
       <FicheSection p={p} />
       <p className="mb-1 mt-4 text-xs font-semibold text-slate-500">Comptes de l'ENT · un accès par responsable (deux parents = deux accès, chacun son code)</p>
       <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200 text-sm">

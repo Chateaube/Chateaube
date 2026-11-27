@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, Icon } from './ui.jsx';
 import { DUNNING_CASES, EXAM_FEES, SITE_KPIS, TODAY } from '../data/demo.js';
 import { realData } from '../demoData.js';
-import { CASH_ACCOUNTS, duesStatus } from './CollectPayment.jsx';
+import { CASH_ACCOUNTS, duesStatus, familyText } from './CollectPayment.jsx';
 import { CLASS_FEES, examOf, examKind } from '../data/accounting.js';
 import { dunningStages, splitExamFee, formatAr } from '../rules/finance.js';
 import { dunningSchedule, stageOn, formatDateFr, monthOf, monthName } from '../rules/calendar.js';
@@ -25,6 +25,9 @@ const STAGE_UI = {
   DELAI: { tone: 'violet', label: 'Délai accordé' },
 };
 const shortDate = (iso) => formatDateFr(iso).replace(/ \d{4}$/, '');
+const lateDays = (due, ref) => Math.max(0, Math.round((new Date(ref) - new Date(due)) / 86400000));
+// « octobre » (sans l'année, sauf hors de l'année civile en cours) ; frais non mensuels : leur libellé
+const monthOnly = (i) => (i.month ? (i.short ?? i.label).toLowerCase() : i.label);
 
 /** Prochaine étape du recouvrement et sa date. */
 function nextStep(stage, sch) {
@@ -51,8 +54,8 @@ export function DunningAlerts({ settings, site = 'TMV' }) {
         // responsables : onglet 2 du modèle (nom et téléphone), sinon « Famille NOM »
         const st = currentStudents().find((s) => s.id === x.account.id);
         const g = (st?.guardians ?? [])[0];
-        return { id: x.account.id, student: x.account.name, cls: x.account.cls, site: 'TMV', overdue: x.overdue, due: x.firstDue, months: x.lateItems,
-          guardian: (g && ([g.firstName, g.lastName].filter(Boolean).join(' ') || g.name)) || x.account.family || 'la famille', phone: g?.phone ?? '' };
+        return { id: x.account.id, student: x.account.name, cls: x.account.cls, site: 'TMV', overdue: x.overdue, due: x.firstDue, months: x.lateItems, late: x.late, family: familyText(x.account),
+          guardian: (g && ([g.firstName, g.lastName].filter(Boolean).join(' ') || g.name)) || 'la famille', phone: g?.phone ?? '' };
       })
     : DUNNING_CASES), [settings]);
   const cases = useMemo(() => source.map((c) => {
@@ -116,13 +119,17 @@ export function DunningAlerts({ settings, site = 'TMV' }) {
                     <td className="px-4 py-2.5">
                       <p className="font-medium text-slate-900">{sn(c.student)}</p>
                       <p className="text-xs text-slate-500">{c.cls} · {c.guardian}</p>
+                      {c.late?.length > 0 ? (
+                        <p className="mt-1 flex flex-wrap gap-1 text-[11px]"><span className="text-slate-500">Non payé :</span>
+                          {c.late.map((i) => <span key={i.key} className="rounded-full bg-red-50 px-2 py-0.5 font-medium text-red-800 ring-1 ring-red-200">{monthOnly(i)} · {formatAr(i.amount)}</span>)}</p>
+                      ) : c.months?.length > 0 && <p className="mt-1 text-[11px] text-red-800">Non payé : {c.months.join(', ')}</p>}
+                      {c.family && <p className="text-[11px] text-slate-500">{c.family}</p>}
                     </td>
                     <td className="px-2"><Badge>{c.site === 'TMV' ? 'Tamatave' : 'Tana'}</Badge></td>
                     <td className="whitespace-nowrap px-2 text-right tabular-nums">{formatAr(c.overdue)}</td>
                     <td className="px-2">
                       <Badge tone={STAGE_UI[c.stage].tone}>{STAGE_UI[c.stage].label}</Badge>
-                      <p className="mt-0.5 text-[11px] text-slate-500">Échéance du {shortDate(c.due)}</p>
-                      {c.months?.length > 0 && <p className="text-[11px] text-slate-600">{c.months.join(', ')}</p>}
+                      {c.due && <p className="mt-0.5 text-[11px] text-slate-500">En retard depuis le {shortDate(c.due)} ({lateDays(c.due, refDate)} j)</p>}
                       {c.phone && <p className="text-[11px] text-slate-500">{c.phone}</p>}
                       {notified[c.id] && <p className="text-[11px] text-emerald-700">Relance : {typeof notified[c.id] === 'object' ? `${notified[c.id].how} le ${shortDate(notified[c.id].on)}` : 'faite'}</p>}
                     </td>

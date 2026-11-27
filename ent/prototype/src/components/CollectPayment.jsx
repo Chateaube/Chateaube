@@ -1,4 +1,5 @@
 import { logActivity } from '../activityStore.js';
+import { siblingsOf } from '../siblingsStore.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Badge, Button, Card, Icon } from './ui.jsx';
 import { JOURNALS, CLASS_FEES, STUDENT_ACCOUNTS, BANKS, FAMILIES } from '../data/accounting.js';
@@ -50,7 +51,7 @@ const importedAccounts = () => {
   if (!list?.length) return null;
   return list.filter((s) => CLASS_FEES.some((f) => f.cls === s.cls)).map((s) => ({
     // nouvel élève : frais d'inscription et compte ouvert au mois d'arrivée ; ancien : réinscription
-    id: s.id, name: `${s.lastName} ${s.firstName}`, cls: s.cls, family: `Famille ${s.lastName}`,
+    id: s.id, name: `${s.lastName} ${s.firstName}`, cls: s.cls, family: '', // fratrie : liens posés dans la fiche (familyText), jamais d'après le nom
     isNew: seniority(s.enteredOn)?.isNew ?? false, specialties: s.specialties ?? [], enrolledOn: seniority(s.enteredOn)?.isNew && s.enteredOn > '2026-09-01' ? s.enteredOn : '2026-09-01',
     // frais déjà réglés : onglet « 7 Paiements » du modèle
     // par nom (import d'origine) et par matricule (le nom a pu être corrigé depuis dans l'ENT)
@@ -104,7 +105,7 @@ export function duesStatus(accounts, settings, today, journal) {
     if (!fees) return null;
     const items = studentDues(a, fees, settings, today).filter((i) => (!journal || i.journal === journal) && i.due <= today && i.status !== 'EXONERE');
     const late = items.filter((i) => i.status === 'ECHU');
-    return { account: a, due: sum(items), paid: sum(items.filter((i) => i.status === 'PAYE')), overdue: sum(late), firstDue: late.map((i) => i.due).sort()[0] ?? null, lateItems: late.map((i) => i.short ?? i.label) };
+    return { account: a, due: sum(items), paid: sum(items.filter((i) => i.status === 'PAYE')), overdue: sum(late), firstDue: late.map((i) => i.due).sort()[0] ?? null, lateItems: late.map((i) => i.short ?? i.label), late: late.map(({ key, label, short, amount, due, month }) => ({ key, label, short, amount, due, month })) };
   }).filter(Boolean);
 }
 const cashClasses = () => CLASS_FEES.map((f) => f.cls).filter((c) => CASH_ACCOUNTS.some((a) => a.cls === c));
@@ -120,6 +121,11 @@ export const BEARERS = [
   { id: 'AUTRE', label: 'Autre personne (employé.e de maison, chauffeur…)' },
 ];
 
+// « Fratrie : Lova (3e), Fy (6e) » : frères et sœurs liés dans la fiche de l'élève (pas d'après le nom de famille)
+export const familyText = (a) => {
+  const sib = siblingsOf(a.id).map((id) => CASH_ACCOUNTS.find((x) => x.id === id)).filter(Boolean);
+  return sib.length ? `Fratrie : ${sib.map((x) => `${x.name} (${x.cls})`).join(', ')}` : '';
+};
 const payerOf = (student) => FAMILIES.find((f) => f.name === student.family)?.payer;
 
 // Impression des seuls tickets, sur rouleau de 80 mm
@@ -239,7 +245,7 @@ function CollectPaymentInner({ settings, articles = [], accounts: sharedAccounts
     setBusy(false);
   };
 
-  const matches = accounts.filter((a) => (!cls || a.cls === cls) && `${a.name} ${a.family}`.toLowerCase().includes(query.toLowerCase()));
+  const matches = accounts.filter((a) => (!cls || a.cls === cls) && `${a.name} ${familyText(a)}`.toLowerCase().includes(query.toLowerCase()));
   const defaultPayer = payerOf(student) ?? '';
   const bearerName = bearer.role === 'ELEVE' ? student.name : (bearer.name || (bearer.role === 'PARENT' ? defaultPayer : '')).trim();
   const bearerLabel = bearerName ? `${bearerName} (${BEARERS.find((b) => b.id === bearer.role).label.split(' (')[0].toLowerCase()})` : '';
@@ -269,7 +275,7 @@ function CollectPaymentInner({ settings, articles = [], accounts: sharedAccounts
 
       <Card
         title={student.name}
-        subtitle={`${student.cls} · ${student.family}${isNewStudent(student) ? ` · nouvel élève${student.enrolledOn > '2026-09-01' ? ` : compte ouvert au ${fmtDate(student.enrolledOn)}` : ''}` : ''}`}
+        subtitle={`${student.cls}${familyText(student) ? ` · ${familyText(student)}` : ''}${isNewStudent(student) ? ` · nouvel élève${student.enrolledOn > '2026-09-01' ? ` : compte ouvert au ${fmtDate(student.enrolledOn)}` : ''}` : ''}`}
         action={overdue.length > 0 ? <Badge tone="red">{overdue.length} échéance{overdue.length > 1 ? 's' : ''} échue{overdue.length > 1 ? 's' : ''}</Badge> : <Badge tone="green">À jour</Badge>}
       >
         {reductionOf(student) && (
