@@ -19,7 +19,7 @@ export function buildRoster({ students = [], fiches = {}, teachers = [] }) {
     list.forEach((s) => s.classes.filter((c) => !classes.has(c)).forEach((c) => warnings.push(`${t.name} : la classe « ${c} » n'a aucun élève dans l'import`)));
   });
   return {
-    students: students.filter((s) => s.cls && s.lastName).map((s) => ({ cls: s.cls, lastName: s.lastName, firstName: s.firstName ?? '', usualName: s.usualName ?? '', specialties: s.specialties ?? [] })),
+    students: students.filter((s) => s.cls && s.lastName).map((s) => ({ cls: s.cls, lastName: s.lastName, firstName: s.firstName ?? '', usualName: s.usualName ?? '', specialties: s.specialties ?? [], ...(s.arrivedOn ? { arrivedOn: s.arrivedOn } : {}) })),
     services, names, firsts, warnings, sentAt: new Date().toISOString(),
   };
 }

@@ -13,6 +13,7 @@ import { sameSubject } from '../rules/timetableImport.js';
 import { buildXlsx } from '../xlsx.js';
 import { saveFile } from '../download.js';
 import { askConfirm } from './Dialogs.jsx';
+import { CASH_ACCOUNTS } from './CollectPayment.jsx';
 
 // Notes reçues (Direction, version en ligne) :
 // 1. « Envoyer les classes aux professeurs » : élèves de l'import + matières et classes des fiches des agents ;
@@ -129,7 +130,11 @@ export default function NotesReceived({ settings, go }) {
     if (Object.keys(auto).length) { writeStored('ent-s-fiches-agents', merged); setFiches(merged); }
     const sendTo = staff.filter((t) => t.prof || merged[t.id]?.services?.length);
     // les classes déjà confiées à un seul professeur restent confiées
-    const roster = { ...buildRoster({ students, fiches: merged, teachers: sendTo }), owners: data?.roster?.owners ?? {}, writers: data?.roster?.writers ?? {} };
+    // élève arrivé en cours d'année (date d'entrée, sinon paiement de l'inscription) : le professeur se voit proposer
+    // « NN » pour les devoirs faits avant son arrivée
+    const arrivals = new Map([...CASH_ACCOUNTS].filter((a) => a.enrolledOn > '2026-09-01').map((a) => [a.id, a.enrolledOn]));
+    const withArrival = students.map((st) => ({ ...st, arrivedOn: arrivals.get(st.id) ?? (st.enteredOn > '2026-09-05' ? st.enteredOn : '') }));
+    const roster = { ...buildRoster({ students: withArrival, fiches: merged, teachers: sendTo }), owners: data?.roster?.owners ?? {}, writers: data?.roster?.writers ?? {} };
     if (!(await askConfirm(`Envoyer aux professeurs les ${roster.students.length} élèves et les classes de ${sendTo.length} professeur(s) ?${roster.warnings.length ? ` Attention : ${roster.warnings.length} point(s) à vérifier (affichés ensuite).` : ''}`))) return;
     setBusy(true); setMsg(''); setErr('');
     const { error } = await supabase.from('ent_doc').upsert({ key: 'roster', kind: 'ROSTER', owner: null, value: roster });
