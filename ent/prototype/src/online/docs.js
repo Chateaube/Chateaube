@@ -4,6 +4,7 @@
 // tant que l'appareil n'a pas confirmé l'envoi.
 import { supabase, ONLINE } from './client.js';
 import { siteLocalKeys } from '../site.js';
+import { merge3 } from './shared.js';
 
 const PENDING = (key) => `ent-pending-${key}`;
 const listeners = new Set();
@@ -34,6 +35,11 @@ export function pendingOf(key) {
 const keepPending = (key, doc) => { try { localStorage.setItem(PENDING(key), JSON.stringify(doc)); return true; } catch { return false; } };
 const dropPending = (key, stamp) => { try { if (pendingOf(key)?.stamp === stamp) localStorage.removeItem(PENDING(key)); } catch { /* rien */ } };
 
+// Carnets : dernière version connue de cet appareil (lue au chargement, puis envoyée). À l'envoi, on fusionne
+// avec ce qui est sur le serveur : si la Direction saisit « à la place » d'un professeur pendant que lui saisit
+// aussi, les notes des deux sont gardées (avant : le dernier qui enregistrait remplaçait tout le carnet).
+const bases = {};
+export const setBase = (key, value) => { bases[key] = value; };
 const timers = {};
 const inflight = {};
 /** Enregistre : tout de suite sur l'appareil, puis sur le serveur (regroupé : une seconde après la dernière frappe). */
@@ -51,8 +57,25 @@ async function push(key) {
   if (inflight[key]) { timers[key] = setTimeout(() => push(key), 800); return; }
   inflight[key] = true;
   try {
-    const { error } = await supabase.from('ent_doc').upsert({ key: doc.key, kind: doc.kind, owner: doc.owner, value: doc.value });
-    if (error) throw new Error(error.message);
+    if (key in bases) {
+      // fusion avec la version du serveur, écrite seulement si personne n'a écrit entre-temps (sinon on recommence)
+      let done = false;
+      for (let attempt = 0; attempt < 5 && !done; attempt += 1) {
+        const cur = await fetchDoc(key);
+        const value = cur ? merge3(bases[key], doc.value, cur.value) : doc.value;
+        const q = cur
+          ? supabase.from('ent_doc').update({ value }).eq('key', key).eq('updated_at', cur.at).select('key')
+          : supabase.from('ent_doc').insert({ key: doc.key, kind: doc.kind, owner: doc.owner, value }).select('key');
+        const { data, error } = await q;
+        if (error && !/duplicate|23505/i.test(`${error.code} ${error.message}`)) throw new Error(error.message);
+        done = !error && data?.length > 0;
+      }
+      if (!done) throw new Error('le carnet change sans arrêt sur le serveur ; nouvel essai');
+      bases[key] = doc.value; // la prochaine saisie de cet appareil part de ce qu'il a envoyé
+    } else {
+      const { error } = await supabase.from('ent_doc').upsert({ key: doc.key, kind: doc.kind, owner: doc.owner, value: doc.value });
+      if (error) throw new Error(error.message);
+    }
     dropPending(key, doc.stamp);
     emit(key, { status: pendingOf(key) ? 'pending' : 'saved', at: new Date() });
     if (pendingOf(key)) timers[key] = setTimeout(() => push(key), 300);

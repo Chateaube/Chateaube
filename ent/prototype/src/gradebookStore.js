@@ -3,7 +3,7 @@
 // pour remplir les notes au fil du trimestre. Les épreuves d'examen blanc ne sont pas enregistrées ici : elles
 // sont recalculées depuis les examens blancs (termGrades.js).
 import { ONLINE } from './online/client.js';
-import { fetchDoc, saveDoc, pendingOf } from './online/docs.js';
+import { fetchDoc, saveDoc, pendingOf, setBase } from './online/docs.js';
 import { servicesFor, currentRoster } from './online/roster.js';
 import { SERVICES as DEMO_SERVICES } from './data/grades.js';
 
@@ -16,6 +16,7 @@ export const carnetKey = (id) => `carnet:${id}`;
 export async function loadRemoteCarnet(id) {
   const doc = await fetchDoc(carnetKey(id)); // lève une erreur si le serveur ne répond pas : on ne part jamais d'un carnet vide par erreur
   const pending = pendingOf(carnetKey(id));
+  setBase(carnetKey(id), doc?.value ?? null); // point de départ de la fusion à l'enregistrement (voir online/docs.js)
   remote = { loaded: true, id, value: pending?.value ?? doc?.value ?? null };
   if (pending) saveDoc(carnetKey(id), 'CARNET', id, pending.value, { delay: 0 });
   return remote.value;

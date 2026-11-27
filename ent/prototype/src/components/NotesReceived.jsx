@@ -178,7 +178,7 @@ export default function NotesReceived({ settings, go }) {
   if (actingFor) return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
-        <span>Vous saisissez les notes <strong>à la place de {actingFor.name}</strong> : tout est enregistré dans son carnet, sur le serveur.</span>
+        <span>Carnet de <strong>{actingFor.name}</strong> : consulter ne change rien. Une note que vous saisissez s'ajoute à son carnet, sans effacer ce qu'il saisit de son côté.</span>
         <Button variant="secondary" className="!py-1 text-xs" onClick={() => { setActingFor(null); load(); }}>← Retour à Notes reçues</Button>
       </div>
       <GradebookModule key={actingFor.id} settings={settings} go={go} />
