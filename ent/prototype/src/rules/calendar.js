@@ -76,16 +76,28 @@ export function addMonths(iso, n) {
   return ymd(t.getUTCFullYear(), t.getUTCMonth() + 1, Math.min(d, last));
 }
 export const dunningMode = (settings) => settings.dunning.mode ?? 'MOIS';
+/** Premier jour de classe à partir de cette date (pas un week-end, ni un jour férié, ni les vacances). */
+export function nextSchoolDay(iso, settings) {
+  let d = iso;
+  for (let i = 0; i < 120; i += 1) {
+    const st = dayStatus(d, settings);
+    if (st.counted || st.kind === 'GEL') return d; // le « gel » d'octobre ne compte plus dans cette règle
+    d = addDays(d, 1);
+  }
+  return iso;
+}
 
 export function dunningSchedule(due, settings, { lastMonth = false } = {}) {
   if (dunningMode(settings) === 'MOIS' && !(lastMonth && settings.dunning.lastMonth?.enabled)) {
     const [y, m] = due.split('-').map(Number);
+    // une date qui tombe un week-end, un jour férié ou pendant les vacances passe au premier jour de classe suivant
+    const sd = (iso) => nextSchoolDay(iso, settings);
     return {
       due,
-      rappel: addDays(due, 14),
-      relance: addMonths(ymd(y, m, 1), 1), // le mois de l'échéance est fini
-      warning: addDays(addMonths(due, 1), 15),
-      suspension: addMonths(due, 2),
+      rappel: sd(addDays(due, 14)),
+      relance: sd(addMonths(ymd(y, m, 1), 1)), // le mois de l'échéance est fini
+      warning: sd(addDays(addMonths(due, 1), 15)),
+      suspension: sd(addMonths(due, 2)),
     };
   }
   const { countFrom } = settings.dunning;

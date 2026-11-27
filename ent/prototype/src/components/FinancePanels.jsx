@@ -5,7 +5,7 @@ import { realData } from '../demoData.js';
 import { CASH_ACCOUNTS, duesStatus, familyText } from './CollectPayment.jsx';
 import { CLASS_FEES, examOf, examKind } from '../data/accounting.js';
 import { dunningStages, splitExamFee, formatAr } from '../rules/finance.js';
-import { dunningSchedule, stageOn, formatDateFr, monthOf, monthName } from '../rules/calendar.js';
+import { dunningSchedule, stageOn, formatDateFr, monthOf, monthName, isLastPlanMonth } from '../rules/calendar.js';
 import { usePersistent } from '../persist.js';
 import { currentStudents } from '../importStore.js';
 import { printOnly } from '../print.js';
@@ -56,12 +56,13 @@ export function DunningAlerts({ settings, site = 'TMV' }) {
         // responsables : onglet 2 du modèle (nom et téléphone), sinon « Famille NOM »
         const st = currentStudents().find((s) => s.id === x.account.id);
         const g = (st?.guardians ?? [])[0];
-        return { id: x.account.id, student: x.account.name, cls: x.account.cls, site: 'TMV', overdue: x.overdue, due: x.firstDue, months: x.lateItems, late: x.late, family: familyText(x.account),
+        return { id: x.account.id, student: x.account.name, cls: x.account.cls, site: 'TMV', plan: x.plan, overdue: x.overdue, due: x.firstDue, months: x.lateItems, late: x.late, family: familyText(x.account),
           guardian: (g && ([g.firstName, g.lastName].filter(Boolean).join(' ') || g.name)) || 'la famille', phone: g?.phone ?? '' };
       })
     : DUNNING_CASES), [settings]);
   const cases = useMemo(() => source.map((c) => {
-    const schedule = dunningSchedule(c.due, settings);
+    // dernier mois du plan de la classe (juin ; mai pour 1re et Terminale, classes d'examen) : délais courts
+    const schedule = dunningSchedule(c.due, settings, { lastMonth: c.plan != null && isLastPlanMonth(c.due, c.plan, settings) });
     const decision = { VALIDEE: 'MISE_A_PIED', DELAI: 'DELAI' }[decisions[c.id]];
     return { ...c, schedule, stage: decision ?? stageOn(refDate, schedule, settings) };
   }), [source, settings, refDate, decisions]);

@@ -5,7 +5,7 @@ import { normalizeGrade } from '../src/rules/gradeInput.js';
 import { checkAppreciation, autoFix, decisionText } from '../src/rules/appreciation.js';
 import { validateSlot, findConflicts, suggestAlternatives } from '../src/rules/booking.js';
 import { splitExamFee, dunningStages } from '../src/rules/finance.js';
-import { dayStatus, dunningSchedule, stageOn, pausesBetween, planMonths, madagascarHolidays, easterSunday } from '../src/rules/calendar.js';
+import { dayStatus, dunningSchedule, stageOn, pausesBetween, planMonths, madagascarHolidays, easterSunday, addMonths } from '../src/rules/calendar.js';
 import { DEFAULT_SETTINGS } from '../src/data/settings.js';
 import { generateDraft } from '../src/rules/assistant.js';
 
@@ -2680,15 +2680,18 @@ test('corrections : la forme ne compte pas, le fond oui', () => {
 
 test('relances, règle de l\'école : rappel 2 semaines, relance le mois fini, avertissement 1 mois ½, mise à pied 2 mois', () => {
   const sch = dunningSchedule('2026-11-05', S);
-  assert.deepEqual(sch, { due: '2026-11-05', rappel: '2026-11-19', relance: '2026-12-01', warning: '2026-12-20', suspension: '2027-01-05' });
+  // avertissement le 20/12 : vacances de Noël → premier jour de classe (4 janvier)
+  assert.deepEqual(sch, { due: '2026-11-05', rappel: '2026-11-19', relance: '2026-12-01', warning: '2027-01-04', suspension: '2027-01-05' });
   assert.equal(stageOn('2026-11-18', sch, S), 'DANS_LES_DELAIS');
   assert.equal(stageOn('2026-11-27', sch, S), 'RAPPEL');
   assert.equal(stageOn('2026-12-02', sch, S), 'RELANCE');
-  assert.equal(stageOn('2026-12-21', sch, S), 'AVERTISSEMENT');
+  assert.equal(stageOn('2026-12-21', sch, S), 'RELANCE'); // pas de lettre pendant les vacances
+  assert.equal(stageOn('2027-01-04', sch, S), 'AVERTISSEMENT');
   assert.equal(stageOn('2027-01-05', sch, S), 'A_VALIDER');
   const oct = dunningSchedule('2026-10-05', S); // octobre impayé, vu le 27 novembre : avertissement
   assert.equal(stageOn('2026-11-27', oct, S), 'AVERTISSEMENT');
-  assert.equal(dunningSchedule('2027-01-31', S).suspension, '2027-03-31'); // fin de mois tenue
+  assert.equal(addMonths('2027-01-31', 2), '2027-03-31'); // fin de mois tenue
+  assert.equal(dunningSchedule('2026-12-05', S).relance, '2027-01-04'); // 1er janvier férié, vacances → rentrée
   assert.equal(dunningStages(S).length, 4);
   // dernier mois du plan : délais courts en jours comptés, comme avant
   assert.equal(dunningSchedule('2027-05-05', S, { lastMonth: true }).rappel, undefined);
