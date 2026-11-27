@@ -428,11 +428,44 @@ function ProjectionTab({ data, setData }) {
   );
 }
 
+/**
+ * Professeur : notes officielles de 1re (épreuves anticipées et de fin de 1re, relevé de juin) de SES élèves de
+ * Terminale, dans SA matière seulement, en lecture seule — pour situer chaque élève avant le bac.
+ */
+export function teacherOfficialRows(data, classes, subjects) {
+  return classes.filter((c) => /^Terminale/.test(c)).map((cls) => {
+    const parts = EXAMS[EXAMS[bacKindOf(cls)].first].parts.filter((p) => subjects.includes(foldS(p.subject)));
+    return { cls, parts, students: (CLASSES[cls] ?? []).map((st) => ({ st, marks: parts.map((p) => data.official?.[st]?.[p.id] ?? null) })) };
+  }).filter((x) => x.parts.length);
+}
+function TeacherOfficialTab({ data }) {
+  const rows = teacherOfficialRows(data, myClasses(), mySubjects());
+  const show = (v) => (v == null ? '—' : v === 'ABS' ? 'Abs.' : String(v).replace('.', ','));
+  return (
+    <div className="space-y-5">
+      {rows.map(({ cls, parts, students }) => (
+        <Card key={cls} title={`${cls} — notes officielles de 1re`} subtitle="Relevé de juin, dans votre matière seulement · consultation">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[420px] text-sm">
+              <thead><tr className="border-b border-slate-200 text-left text-xs text-slate-500"><th className="py-2 pr-2">Élève</th>{parts.map((p) => <th key={p.id} className="px-2 text-center">{p.label}<span className="block font-normal">coef. {p.coef}</span></th>)}</tr></thead>
+              <tbody>{students.map(({ st, marks }) => (
+                <tr key={st} className="border-b border-slate-100 last:border-0"><td className="py-1.5 pr-2">{st}</td>{marks.map((m, i) => <td key={parts[i].id} className="px-2 text-center tabular-nums">{show(m)}</td>)}</tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </Card>
+      ))}
+      <p className="text-xs text-slate-500">Les notes des autres matières et la projection au bac restent réservées à la Direction et au secrétariat.</p>
+    </div>
+  );
+}
+
 const TABS = [['entry', 'Saisie des notes'], ['official', 'Notes de 1re (relevés officiels)'], ['transcripts', 'Relevés de notes'], ['projection', 'Projection au bac']];
 export default function MockExamsModule({ role }) {
-  const tabs = role === 'ENSEIGNANT' ? TABS.slice(0, 1) : TABS;
-  const [tab, setTab] = useState('entry');
   const [data, setData] = useState(loadMockExams);
+  // professeur : sa saisie, et les notes officielles de 1re dans sa matière s'il a des Terminales
+  const tabs = role === 'ENSEIGNANT' ? [TABS[0], ...(teacherOfficialRows(data, myClasses(), mySubjects()).length ? [['official-mine', 'Notes officielles de 1re']] : [])] : TABS;
+  const [tab, setTab] = useState('entry');
   return (
     <div className="space-y-5">
       <div>
@@ -448,6 +481,7 @@ export default function MockExamsModule({ role }) {
       {tab === 'entry' && <EntryTab data={data} setData={setData} role={role} />}
       {tab === 'transcripts' && <TranscriptsTab data={data} setData={setData} role={role} />}
       {tab === 'official' && <OfficialTab data={data} setData={setData} />}
+      {tab === 'official-mine' && role === 'ENSEIGNANT' && <TeacherOfficialTab data={data} />}
       {tab === 'projection' && <ProjectionTab data={data} setData={setData} />}
     </div>
   );
