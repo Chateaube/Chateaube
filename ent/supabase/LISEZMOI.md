@@ -133,3 +133,9 @@ Dans **SQL Editor**, collez tout le fichier `140_connexion_progressive.sql`, pui
 
 Codes faux sur un même identifiant (dans l'heure) : 3 → bloqué 1 minute ; 4 → 5 minutes ; 5 → **bloqué jusqu'à ce que la Direction donne un nouveau code** (Comptes › « Nouveau code » ; l'identifiant y est marqué « bloqué »). Les comptes de la Direction ne sont jamais bloqués plus de 15 minutes (sinon personne ne pourrait les débloquer). Aucune donnée de l'école n'est modifiée.
 
+## 18. Mise à jour 15 — suivi des mises à jour (une seule fois, après la 14)
+
+Dans **SQL Editor**, collez tout le fichier `150_suivi_mises_a_jour.sql`, puis **Run**. La dernière ligne affiche la liste des mises à jour installées ; elle doit finir par **150**. Un numéro absent = ce fichier est à lancer.
+
+Ensuite, l'accueil de la Direction indique lui-même, dans l'ordre, les fichiers qui manqueraient. Lecture seule : aucune donnée n'est modifiée.
+
