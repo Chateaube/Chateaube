@@ -2719,3 +2719,22 @@ test('menu court : regroupe sans rien perdre', () => {
     assert.equal(new Set(ids).size, ids.length);
   });
 });
+
+import { parseIneList, matchIne } from '../src/rules/ine.js';
+test('INE : liste collée, version ignorée, rattachement par date de naissance et nom ou prénoms', () => {
+  const text = '01234567890\t002 Version 01\tTESTA\tLova Fy\t10/10/2009\t1E\tInscrit\tSTMG\n'
+    + '01234567891\t001 Version 02\tTESTB\tAina Kanto\t05/03/2010\t\tInscrit\tGénéral 01234567892\t003 Version 01\tAUTRE NOM\tMiora Soa\t01/01/2009\t\tInscrit\tSTMG\n'
+    + '01234567890\t002 Version 02\tTESTA\tLova Fy\t10/10/2009\t1E\tInscrit\tSTMG\n'
+    + '09999999999\t001 Version 01\tTANA\tInconnu\t02/02/2010\t\tInscrit\tSTMG';
+  const list = parseIneList(text);
+  assert.deepEqual(list.map((x) => x.ine), ['01234567890', '01234567891', '01234567892', '09999999999']); // doublon de version ignoré
+  assert.equal(list[0].birthDate, '2009-10-10');
+  const profiles = [{ id: 'a', lastName: 'TESTA', firstName: 'Lova Fy', birthDate: '2009-10-10' }, { id: 'b', lastName: 'TESTB', firstName: 'Aina Kanto', birthDate: '2010-03-05' },
+    { id: 'c', lastName: 'NOUVEAU', firstName: 'Miora Soa', birthDate: '2009-01-01' }, { id: 'd', lastName: 'TESTA', firstName: 'Lova Fy', birthDate: '2011-01-01' }];
+  const r = matchIne(list, profiles);
+  assert.deepEqual(r.matched.map((x) => [x.id, x.ine]), [['a', '01234567890'], ['b', '01234567891'], ['c', '01234567892']]); // c : nom changé, prénoms et date identiques
+  assert.deepEqual(r.unknown.map((x) => x.ine), ['09999999999']);
+  // même nom complet, date différente : rattaché avec l'écart signalé
+  const r2 = matchIne(parseIneList('01234567893\t002 Version 01\tTESTE\tNiry Soa\t15/04/2007\t\tInscrit\tSTMG'), [{ id: 'e', lastName: 'TESTE', firstName: 'Niry Soa', birthDate: '2007-07-15' }]);
+  assert.equal(r2.matched[0].id, 'e'); assert.equal(r2.matched[0].dateMismatch, '2007-07-15');
+});

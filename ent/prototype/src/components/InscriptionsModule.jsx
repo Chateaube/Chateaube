@@ -30,6 +30,7 @@ import { AUTHORIZATIONS, exitCode } from '../data/family.js';
 import { usePersistent } from '../persist.js';
 import { SIBLINGS_KEY } from '../siblingsStore.js';
 import { siblingIdsOf, linkSiblings, unlinkSibling } from '../rules/siblings.js';
+import { parseIneList, matchIne } from '../rules/ine.js';
 const EXIT_OPTIONS = AUTHORIZATIONS.find((a) => a.id === 'SORTIE').options;
 
 // Inscriptions (Bureau et Direction) : pré-inscriptions, inscription ou réinscription avec
@@ -216,6 +217,9 @@ function ProfileForm({ initial, kind, onSave, onCancel, role }) {
           </Field>
           <Field label="Entrée dans l'établissement">{input('enteredOn', { type: 'date' })}
             <span className="mt-1 block text-[11px] text-slate-500">{seniority(p.enteredOn)?.label ?? 'Nouveau ou ancien : indiquer la date d\'entrée'}</span></Field>
+          <Field label="Code INE (candidats aux examens)">
+            <input value={p.ine ?? ''} onChange={(e) => set({ ine: e.target.value.replace(/\s/g, '').toUpperCase() })} inputMode="numeric" placeholder="ex. 0254801…" className={`w-full font-mono ${inputCls}`} />
+          </Field>
           <Field label="Établissement d'origine">
             <input value={p.previousSchool} onChange={(e) => setSchool(e.target.value)} list="ecoles-origine" className={`w-full ${inputCls}`} />
             <datalist id="ecoles-origine">{directory.map((e) => <option key={e.name} value={e.name}>{e.system ? SCHOOL_SYSTEMS[e.system] : ''}</option>)}</datalist>
@@ -324,6 +328,38 @@ function ProfileForm({ initial, kind, onSave, onCancel, role }) {
   );
 }
 
+/* ---------- Codes INE : liste des candidats collée depuis le site des inscriptions aux examens ---------- */
+function IneImport({ profiles, onSave, onClose }) {
+  const [text, setText] = useState('');
+  const list = useMemo(() => parseIneList(text), [text]);
+  const r = useMemo(() => matchIne(list, profiles), [list, profiles]);
+  const nameOf = (id) => { const p = profiles.find((x) => x.id === id); return p ? `${p.lastName} ${p.firstName} (${p.cls})` : id; };
+  const changed = r.matched.filter((m) => profiles.find((p) => p.id === m.id)?.ine !== m.ine);
+  const fr = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
+  return (
+    <Card title="Codes INE des candidats" subtitle="Collez la liste des candidats (INE, version, nom, prénoms, date de naissance…) : chaque INE est rattaché à l'élève de même date de naissance et de même nom ou prénoms"
+      action={<Button variant="secondary" className="!py-1 text-xs" onClick={onClose}>Fermer</Button>}>
+      <textarea value={text} onChange={(e) => setText(e.target.value)} rows={5} aria-label="Liste des candidats" placeholder="Collez ici la liste copiée depuis le site des inscriptions (une ligne par candidat)"
+        className="w-full rounded-lg border border-slate-300 px-2 py-1.5 font-mono text-xs" />
+      {list.length > 0 && (
+        <div className="mt-3 space-y-2 text-sm">
+          <p><strong>{list.length}</strong> candidat{list.length > 1 ? 's' : ''} lu{list.length > 1 ? 's' : ''} (les « Version 01, 02… » sont ignorées) · <strong className="text-emerald-700">{r.matched.length}</strong> rattaché{r.matched.length > 1 ? 's' : ''} à un élève de {siteName()}{changed.length !== r.matched.length ? ` (${changed.length} nouveau${changed.length > 1 ? 'x' : ''} ou modifié${changed.length > 1 ? 's' : ''})` : ''}.</p>
+          {r.matched.some((m) => m.dateMismatch) && (
+            <div className="rounded-lg bg-amber-50 p-2 text-amber-900"><p className="font-medium">Date de naissance différente, à vérifier (l'examen retient celle de la liste) :</p>
+              <ul className="list-disc pl-5">{r.matched.filter((m) => m.dateMismatch).map((m) => <li key={m.ine}>{nameOf(m.id)} : {fr(m.entry.birthDate)} sur la liste, {fr(m.dateMismatch)} dans l'ENT</li>)}</ul></div>
+          )}
+          {r.unknown.length > 0 && (
+            <details className="rounded-lg bg-slate-50 p-2"><summary className="cursor-pointer">{r.unknown.length} candidat{r.unknown.length > 1 ? 's' : ''} sans élève correspondant ici (autre site, ou pas encore inscrit)</summary>
+              <ul className="mt-1 columns-1 text-xs text-slate-600 sm:columns-2">{r.unknown.map((e) => <li key={e.ine}>{e.lastName} {e.firstName} · {fr(e.birthDate)}</li>)}</ul></details>
+          )}
+          <Button disabled={!changed.length} onClick={() => { const by = Object.fromEntries(r.matched.map((m) => [m.id, m.ine])); onSave(profiles.map((p) => (by[p.id] ? { ...p, ine: by[p.id] } : p)), changed.length); }}>
+            Enregistrer {changed.length} code{changed.length > 1 ? 's' : ''} INE</Button>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 /* ---------- Fratrie à l'école : liens posés à la main (jamais d'après le nom de famille) ---------- */
 function SiblingsSection({ p }) {
   const [groups, setGroups] = usePersistent(SIBLINGS_KEY, []);
@@ -413,6 +449,7 @@ function ProfileCard({ p, onReenrol, onComplete, created }) {
           : <button type="button" onClick={() => onComplete?.(p)} className="flex h-28 w-[84px] items-center justify-center rounded-lg border border-dashed border-amber-400 bg-amber-50 text-center text-[11px] text-amber-800">Pas de photo<br />d'identité</button>}
         <div className="space-y-1 text-sm">
           {p.number && <p><span className="text-slate-500">N° :</span> {p.number}{p.exam ? ` · ${p.exam}` : ''}</p>}
+          {(p.ine || /^(1|Tle|Term|3)/.test(p.cls ?? '')) && <p><span className="text-slate-500">INE :</span> {p.ine ? <span className="font-mono">{p.ine}</span> : <Badge tone="amber">à renseigner</Badge>}</p>}
           {(p.email || p.phones?.length > 0) && <p><span className="text-slate-500">Contact de l'élève :</span> {[p.email, ...(p.phones ?? [])].filter(Boolean).join(' · ')}</p>}
           <p><span className="text-slate-500">Entrée :</span> {fmt(p.enteredOn)} · {p.previousSchool || '—'}{' '}
             {seniority(p.enteredOn) ? <Badge tone={seniority(p.enteredOn).isNew ? 'green' : 'navy'}>{seniority(p.enteredOn).label}</Badge> : <Badge tone="amber">ancienneté à renseigner</Badge>}</p>
@@ -474,6 +511,7 @@ export default function InscriptionsModule({ role }) {
   const [selected, setSelected] = useState(fromIntent?.id ?? null);
   const [dossierTab, setDossierTab] = useState(intent?.view ?? (fromIntent ? 'fil' : 'fiche'));
   const [created, setCreated] = useState(null);
+  const [ineOpen, setIneOpen] = useState(false);
   // en dehors de la campagne de pré-inscription, on ouvre sur les demandes des familles s'il y en a, sinon sur la liste
   const [tab, setTab] = useState(intent?.tab ?? (pendingOnline > 0 ? 'online' : 'list'));
   const canFollow = ['DIRECTION', 'VIE_SCOLAIRE'].includes(role);
@@ -520,8 +558,14 @@ export default function InscriptionsModule({ role }) {
           <p className="text-sm font-semibold text-navy-500">Année 2026-2027 · réinscriptions 2027-2028 · {siteName()}</p>
           <h1 className="text-2xl font-semibold text-navy-900">Élèves</h1>
         </div>
-        {canEdit && <Button onClick={() => startNew(null)}>＋ Inscrire un élève</Button>}
+        {canEdit && <span className="flex flex-wrap gap-2"><Button variant="secondary" onClick={() => setIneOpen(!ineOpen)}>Codes INE</Button><Button onClick={() => startNew(null)}>＋ Inscrire un élève</Button></span>}
       </div>
+      {ineOpen && !current && <IneImport profiles={profiles} onClose={() => setIneOpen(false)} onSave={(next, n) => {
+        setProfiles(next);
+        if (!saveProfiles(next)) tell('Le navigateur manque de place : les codes sont gardés pour cette session seulement.');
+        else tell(`${n} code${n > 1 ? 's' : ''} INE enregistré${n > 1 ? 's' : ''} dans les fiches.`);
+        setIneOpen(false);
+      }} />}
 
       {current ? (
         <div className="space-y-4">
