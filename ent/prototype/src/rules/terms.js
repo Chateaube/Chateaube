@@ -4,11 +4,11 @@
 // le rouvrir pour un professeur ou pour tous). Message « notes minimum » affiché à partir de noticeFrom.
 export const TERMS = [
   { id: 'T1', label: '1er trimestre', start: '2026-09-01', stop: '2026-11-27', noticeFrom: '2026-12-04', closeAt: '2026-12-07T07:00:00+03:00',
-    closeText: 'lundi 7 décembre à 7 h', stopText: 'vendredi 27 novembre', council: 'vendredi 11 et samedi 12 décembre 2026' },
-  { id: 'T2', label: '2e trimestre', start: '2026-11-28', stop: '2027-03-19', noticeFrom: '2027-03-19', closeAt: '2027-03-27T00:00:00+03:00',
-    closeText: 'vendredi 26 mars au soir', stopText: 'vendredi 19 mars', council: 'du mardi 30 mars au vendredi 2 avril 2027' },
-  { id: 'T3', label: '3e trimestre', start: '2027-03-20', stop: '2027-06-11', noticeFrom: '2027-06-11', closeAt: '2027-06-19T00:00:00+03:00',
-    closeText: 'vendredi 18 juin au soir', stopText: 'vendredi 11 juin', council: 'du lundi 21 au vendredi 25 juin 2027' },
+    closeText: 'lundi 7 décembre à 7 h', stopText: 'vendredi 27 novembre', council: 'vendredi 11 et samedi 12 décembre 2026', councilFrom: '2026-12-11' },
+  { id: 'T2', label: '2e trimestre', start: '2026-11-28', stop: '2027-03-19', noticeFrom: '2027-03-19', closeAt: '2027-03-26T23:59:00+03:00',
+    closeText: 'vendredi 26 mars au soir', stopText: 'vendredi 19 mars', council: 'du mardi 30 mars au vendredi 2 avril 2027', councilFrom: '2027-03-30' },
+  { id: 'T3', label: '3e trimestre', start: '2027-03-20', stop: '2027-06-11', noticeFrom: '2027-06-11', closeAt: '2027-06-18T23:59:00+03:00',
+    closeText: 'vendredi 18 juin au soir', stopText: 'vendredi 11 juin', council: 'du lundi 21 au vendredi 25 juin 2027', councilFrom: '2027-06-21' },
 ];
 export const termById = (id) => TERMS.find((t) => t.id === id) ?? TERMS[0];
 

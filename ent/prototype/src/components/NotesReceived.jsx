@@ -17,6 +17,7 @@ import { CASH_ACCOUNTS } from './CollectPayment.jsx';
 import { termCarnets } from '../termView.js';
 import { ESSAI } from '../essai.js';
 import { TERMS } from '../rules/terms.js';
+import TeacherPortal from './TeacherPortal.jsx';
 
 // Notes reçues (Direction, version en ligne) :
 // 1. « Envoyer les classes aux professeurs » : élèves de l'import + matières et classes des fiches des agents ;
@@ -188,18 +189,20 @@ export default function NotesReceived({ settings, go }) {
     setMsg(`${text} Le professeur le voit en rechargeant la page.`);
     load();
   };
-  const actFor = async (r) => {
+  const actFor = async (r, view = 'grades') => {
     setErr('');
-    try { setCurrentRoster(roster); await loadRemoteCarnet(r.id); setActingFor({ id: r.id, name: r.name }); window.scrollTo(0, 0); }
+    try { setCurrentRoster(roster); await loadRemoteCarnet(r.id); setActingFor({ id: r.id, name: r.name, view }); window.scrollTo(0, 0); }
     catch (e) { setErr(`Carnet de ${r.name} illisible pour l'instant (${e.message}). Réessayez.`); }
   };
   if (actingFor) return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
-        <span>Carnet de <strong>{actingFor.name}</strong> : consulter ne change rien. Une note que vous saisissez s'ajoute à son carnet, sans effacer ce qu'il saisit de son côté.</span>
+        <span>{actingFor.view === 'home' ? <>Vous voyez l'accueil de <strong>{actingFor.name}</strong> comme ce professeur. Un clic sur une ligne « À faire » ouvre son carnet.</> : <>Carnet de <strong>{actingFor.name}</strong> : consulter ne change rien.</>} Une note que vous saisissez s'ajoute à son carnet, sans effacer ce qu'il saisit de son côté.</span>
         <Button variant="secondary" className="!py-1 text-xs" onClick={() => { setActingFor(null); load(); }}>← Retour à Notes reçues</Button>
       </div>
-      <GradebookModule key={actingFor.id} settings={settings} go={go} />
+      {actingFor.view === 'home'
+        ? <TeacherPortal settings={settings} as={actingFor} go={(id) => { if (id === 'grades') setActingFor({ ...actingFor, view: 'grades' }); }} />
+        : <GradebookModule key={actingFor.id} settings={settings} go={go} />}
     </div>
   );
 
@@ -264,7 +267,8 @@ export default function NotesReceived({ settings, go }) {
               <div key={r.id} className="rounded-lg border border-slate-200 p-3">
                 <p className="flex flex-wrap items-center justify-between gap-2 text-sm"><strong className="text-slate-900">{r.name}</strong>
                   <span className="flex items-center gap-2 text-xs text-slate-500">{r.carnet ? `dernière saisie : ${when(r.at)}` : 'pas encore commencé'}
-                    {r.services.length > 0 && roster && <Button variant="secondary" className="!py-0.5 text-xs" onClick={() => actFor(r)}>Saisir à sa place</Button>}</span></p>
+                    {r.services.length > 0 && roster && <Button variant="secondary" className="!py-0.5 text-xs" onClick={() => actFor(r)}>Saisir à sa place</Button>}
+                    {ESSAI && r.services.length > 0 && roster && <Button variant="secondary" className="ml-1 !py-0.5 text-xs" onClick={() => actFor(r, 'home')}>Voir comme {r.name.split(' ')[0]}</Button>}</span></p>
                 {r.services.length === 0 ? <p className="mt-1 text-xs text-amber-800">Aucune classe : son nom n'a pas été trouvé dans l'onglet 3 Personnel de l'import. Ajoutez ses enseignements sur sa fiche (Gestion des agents) puis renvoyez les classes.</p> : (
                   <ul className="mt-2 divide-y divide-slate-100 text-sm">
                     {r.services.map((s) => {

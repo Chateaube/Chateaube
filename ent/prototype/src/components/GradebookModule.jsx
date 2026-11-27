@@ -719,7 +719,7 @@ export default function GradebookModule({ settings, go, role }) {
   const first = useRef(true);
   useEffect(() => {
     if (first.current) { first.current = false; return; }
-    setSavedOk(saveCarnet({ evaluations, grades, remarks, myComps, validated, comments, flags, adjust, bonus, unlinked, byTerm }));
+    setSavedOk(saveCarnet({ ...(loadCarnet() ?? {}), evaluations, grades, remarks, myComps, validated, comments, flags, adjust, bonus, unlinked, byTerm }));
     // classes à deux professeurs : nombre de devoirs (classe commune) et premier qui écrit l'appréciation, lus par l'autre
     if (ONLINE) SERVICES.forEach((sv) => {
       if (sv.common) claimClass(remoteCarnetId(), sv.id, 'COUNT', (evaluations[sv.id] ?? []).filter(inTerm).length);

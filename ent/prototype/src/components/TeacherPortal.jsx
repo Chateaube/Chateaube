@@ -18,7 +18,8 @@ import { receives } from '../rules/announcements.js';
 import { ESSAI } from '../essai.js';
 import { TERMS, termOfDate, carnetForTerm, termById } from '../rules/terms.js';
 import { gradebookTodo } from '../rules/teacherTodo.js';
-import { loadCarnet, myServices } from '../gradebookStore.js';
+import { loadCarnet, myServices, saveCarnet } from '../gradebookStore.js';
+import { sameSubject } from '../rules/timetableImport.js';
 import { minEvaluationsFor } from '../rules/grading.js';
 
 // « Ma journée » de l'enseignant : le cours en cours (appel), ce qu'il reste à faire, puis les cours du jour.
@@ -72,9 +73,20 @@ function MyWeek({ slots, go }) {
   );
 }
 
-export default function TeacherPortal({ go, settings }) {
+export default function TeacherPortal({ go, settings, as = null }) {
+  // as : la Direction voit l'accueil d'un professeur (site d'essai, « Voir comme… »)
+  const slotOf = as ? (x) => myServices().some((s) => s.cls === x.cls && (sameSubject(x.subject, s.subject) || sameSubject(s.subject, x.subject))) : mySlot;
   // en ligne : mes cours réels (emploi du temps de l'école × mes classes) ; démonstration : la semaine type
-  const mine = ONLINE ? loadTimetable().filter(mySlot) : null;
+  const mine = ONLINE ? loadTimetable().filter((x) => slotOf(x)) : null;
+  // pense-bête : gardé dans le carnet du professeur (le même sur l'ordinateur et le téléphone)
+  const [memo, setMemo] = React.useState(() => (ESSAI && ONLINE ? loadCarnet()?.memo ?? '' : ''));
+  const saveMemo = (v) => { setMemo(v); saveCarnet({ ...(loadCarnet() ?? {}), memo: v }); };
+  // dates à retenir (éphéméride) : les 4 prochaines
+  const dates = TERMS.flatMap((t) => [
+    [t.stop, `Arrêt des notes du ${t.label}`],
+    [t.closeAt?.slice(0, 10), `Fin de la saisie du ${t.label} (${t.closeText})`],
+    [t.councilFrom, `Conseils de classe du ${t.label} : ${t.council}`],
+  ]).filter(([d]) => d && d >= todayIso()).sort(([a], [b]) => a.localeCompare(b)).slice(0, 4);
   const wd = new Date(`${todayIso()}T12:00:00`).getDay();
   const todayOnline = mine ? mine.filter((s) => s.weekday === wd).sort((a, b) => a.start.localeCompare(b.start)).map((s, i) => ({ ...s, id: s.id ?? `t${i}`, date: todayIso() })) : null;
   const news = ONLINE ? (loadAnnouncements().list ?? []).filter((a) => receives(a, { role: 'PROFESSEUR', site: 'TMV', classes: [...new Set((mine ?? []).map((s) => s.cls))] })).slice(0, 5) : null;
@@ -91,7 +103,7 @@ export default function TeacherPortal({ go, settings }) {
     <div className="space-y-5 pb-16 sm:pb-0">
       <div>
         <p className="text-sm font-semibold text-navy-500">Ma journée</p>
-        <h1 className="text-2xl font-semibold text-navy-900">Bonjour {me('ENSEIGNANT')}</h1>
+        <h1 className="text-2xl font-semibold text-navy-900">Bonjour {as?.name ?? me('ENSEIGNANT')}</h1>
         {!ONLINE && <p className="text-sm text-slate-600">{TEACHER.subjects}</p>}
       </div>
 
@@ -137,6 +149,22 @@ export default function TeacherPortal({ go, settings }) {
           ))}
         </ul>
       </Card>
+
+      {ESSAI && ONLINE && (
+        <div className="grid gap-5 md:grid-cols-2">
+          <Card title="Pense-bête" subtitle="Votre aide-mémoire : une idée, un rappel, un devoir à préparer (la Direction peut le lire, comme votre carnet).">
+            <textarea rows={4} value={memo} readOnly={Boolean(as)} onChange={(e) => saveMemo(e.target.value)} placeholder="ex. Rendre les copies de la 6e jeudi" className="w-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-slate-800" />
+          </Card>
+          <Card title="Dates à retenir">
+            <ul className="space-y-2 text-sm">
+              {dates.map(([d, label]) => (
+                <li key={d + label} className="flex gap-3"><span className="w-24 shrink-0 font-semibold text-navy-700">{new Date(`${d}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}</span><span className="text-slate-700">{label}</span></li>
+              ))}
+              {!dates.length && <li className="text-slate-500">Aucune date à venir.</li>}
+            </ul>
+          </Card>
+        </div>
+      )}
 
       {!ONLINE && <QuickEntry role="ENSEIGNANT" go={go} />}
 
