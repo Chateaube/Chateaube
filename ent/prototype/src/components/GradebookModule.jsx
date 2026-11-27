@@ -19,6 +19,7 @@ import { BONUS_ENABLED, isEps, minEvaluationsFor, studentAverage, notesCount, te
 import { checkAppreciation, autoFix, rephrase } from '../rules/appreciation.js';
 import { today } from '../clock.js';
 import { askConfirm } from './Dialogs.jsx';
+import { ESSAI } from '../essai.js';
 
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
 const fmtDate = (iso) => iso.split('-').reverse().slice(0, 2).join('/');
@@ -45,6 +46,70 @@ function EvaluationForm({ draft, setDraft, settings, competencies, onCreate, onC
   return (
     <div className="mb-4 space-y-3 rounded-lg border border-navy-200 bg-navy-50/60 p-4">
       <p className="text-sm font-semibold text-navy-900">Nouvelle évaluation</p>
+      {ESSAI ? (<>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block text-xs text-slate-600">Intitulé
+            <input value={draft.title} onChange={(e) => set({ title: e.target.value })} placeholder="ex. DS n°2 — Le marketing" className={`mt-1 w-full ${inputCls}`} />
+          </label>
+          <DateField label="Date de l'évaluation" value={draft.date} onChange={(v) => set({ date: v, publishOn: draft.publishOn && draft.publishOn > v ? draft.publishOn : v })} />
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:max-w-sm">
+          <label className="block text-xs text-slate-600">Notation sur
+            <input type="number" min={1} max={100} value={draft.scale} onChange={(e) => set({ scale: Math.max(1, Number(e.target.value)) })} className={`mt-1 w-full ${inputCls}`} />
+          </label>
+          <label className="block text-xs text-slate-600">Coefficient
+            <input type="number" min={0.5} max={10} step={0.5} value={draft.coef} onChange={(e) => set({ coef: Math.max(0.5, Number(e.target.value)) })} className={`mt-1 w-full ${inputCls}`} />
+          </label>
+        </div>
+        <details className="rounded-lg bg-white/70 px-3 py-2">
+          <summary className="cursor-pointer text-sm font-medium text-navy-700">Plus d'options (type, publication, remarques, commentaire, thèmes, compétences)</summary>
+          <div className="mt-3 space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block text-xs text-slate-600">Type
+                <select value={draft.type} onChange={(e) => set({ type: e.target.value })} className={`mt-1 w-full ${inputCls}`}>
+                  {settings.grading.evaluationTypes.map((t) => <option key={t}>{t}</option>)}
+                </select>
+              </label>
+              <DateField label="Note publiée le" value={draft.publishOn} onChange={(v) => set({ publishOn: v })} />
+            </div>
+      {draft.publishOn && (
+        <p className="rounded-md bg-white px-3 py-2 text-xs text-slate-600">
+          Conformément au paramétrage de l'Espace Parents, la note sera publiée aux parents {delay} jour{delay > 1 ? 's' : ''} après
+          la publication aux élèves, soit le <span className="font-semibold">{ddmm(parentPublishOn(draft, settings))}</span>.
+        </p>
+      )}
+      <label className="flex items-center gap-2 text-sm text-slate-700">
+        <input type="checkbox" checked={draft.remarksEnabled} onChange={(e) => set({ remarksEnabled: e.target.checked })} />
+        Activer la saisie des remarques sur les notes (publiées aux parents et aux élèves)
+      </label>
+      <label className="flex items-center gap-2 text-sm text-slate-700">
+        <input type="checkbox" checked={draft.normalize} disabled={draft.scale === 20} onChange={(e) => set({ normalize: e.target.checked })} />
+        Ramener sur 20 les notes de l'évaluation lors du calcul de la moyenne
+        {draft.scale === 20 && <span className="text-xs text-slate-400">(déjà sur 20)</span>}
+      </label>
+      <label className="block text-xs text-slate-600">Commentaire, visible par les élèves <span className="text-slate-500">(facultatif)</span>
+        <textarea spellCheck lang="fr" rows={2} value={draft.comment} onChange={(e) => set({ comment: e.target.value })} placeholder="Rédigez votre commentaire…" className={`mt-1 w-full ${inputCls}`} />
+      </label>
+      <label className="block text-xs text-slate-600">Thème(s) <span className="text-slate-500">(facultatif)</span>
+        <input value={draft.themesText} onChange={(e) => set({ themesText: e.target.value })} placeholder="Séparez les thèmes par une virgule" className={`mt-1 w-full ${inputCls}`} />
+      </label>
+      <div>
+        <p className="text-xs text-slate-600">Compétences évaluées dans cette évaluation <span className="text-slate-400">(facultatif)</span></p>
+        {competencies.length === 0 ? <p className="mt-1 text-xs text-slate-400">Facultatif. Les compétences de la classe se renseignent à l'étape « 3. Compétences du bulletin ».</p> : (
+          <div className="mt-1 space-y-1">
+            {competencies.map((c) => (
+              <label key={c} className="flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" checked={draft.competencies.includes(c)}
+                  onChange={() => set({ competencies: draft.competencies.includes(c) ? draft.competencies.filter((x) => x !== c) : [...draft.competencies, c] })} />
+                {c}
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+          </div>
+        </details>
+      </>) : (<>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-xs text-slate-600">Type
           <select value={draft.type} onChange={(e) => set({ type: e.target.value })} className={`mt-1 w-full ${inputCls}`}>
@@ -100,6 +165,7 @@ function EvaluationForm({ draft, setDraft, settings, competencies, onCreate, onC
           </div>
         )}
       </div>
+      </>)}
       <div className="flex gap-2">
         <Button disabled={!draft.title.trim() || !draft.date || !draft.publishOn || draft.publishOn < draft.date} onClick={onCreate}>{draft.id ? 'Enregistrer les modifications' : 'Créer l\'évaluation'}</Button>
         <Button variant="ghost" onClick={onCancel}>Annuler</Button>
@@ -218,7 +284,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
                     <tr key={s} className="border-b border-slate-100 align-top">
                       <td className="sticky left-0 z-20 bg-white px-3 py-2.5 font-medium text-slate-800 shadow-[2px_0_0_#e2e8f0]" title={s}>
                         {shortName(s)}
-                        {n < min && <p className="text-[11px] font-normal text-amber-700">{n} note{n > 1 ? 's' : ''} retenue{n > 1 ? 's' : ''}</p>}
+                        {n < min && !(ESSAI && n === 0) && <p className="text-[11px] font-normal text-amber-700">{n} note{n > 1 ? 's' : ''} retenue{n > 1 ? 's' : ''}</p>}
                       </td>
                       {evaluations.map((ev) => (
                         <td key={ev.id} className="px-2 py-2">
@@ -396,7 +462,7 @@ function ThemePicker({ serviceId, fallback }) {
 function MinimumNotice({ eps }) {
   const n = eps ? NOTICE_EPS : NOTICE_GENERAL;
   return (
-    <details open className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+    <details open={!ESSAI} className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
       <summary className="cursor-pointer font-semibold">Message de l'administration : {eps ? '3 notes minimum en EPS' : '4 notes minimum'}</summary>
       <div className="mt-2 space-y-2 leading-relaxed">
         <p>Chères collègues, chers collègues,</p>
@@ -480,7 +546,7 @@ function AppreciationsStep({ service, evaluations, grades, validated, settings, 
           <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">Les notes du trimestre ne sont pas encore validées : vous pouvez rédiger, la validation de l'appréciation sera possible ensuite.</p>
         )}
         <textarea spellCheck lang="fr" rows={6} value={entry.text} onChange={(e) => setText(e.target.value)} placeholder="Appréciation du trimestre (au moins deux phrases complètes, à la 3e personne)…"
-          className={`w-full resize-y rounded-lg border px-3 py-2 text-sm leading-relaxed outline-none focus:ring-2 ${result.ok ? 'border-slate-300 focus:ring-navy-200' : 'border-red-300 focus:ring-red-200'}`} />
+          className={`w-full resize-y rounded-lg border px-3 py-2 text-sm leading-relaxed outline-none focus:ring-2 ${result.ok || (ESSAI && !entry.text.trim()) ? 'border-slate-300 focus:ring-navy-200' : 'border-red-300 focus:ring-red-200'}`} />
         {entry.text.trim() && (result.errors.length > 0 || result.warnings.length > 0) && (
           <div className="mt-2 rounded-lg bg-slate-50 p-3 text-sm leading-relaxed text-slate-700">
             <p className="mb-1 text-[11px] font-semibold text-slate-500">Aperçu annoté</p>
@@ -520,7 +586,7 @@ function AppreciationsStep({ service, evaluations, grades, validated, settings, 
 
       </div>
       <Card title="Contrôleur de rédaction" subtitle="Règles de l'établissement, vérifiées à chaque frappe" className="xl:sticky xl:top-6">
-        <RulePanel result={result} />
+        {ESSAI && !entry.text.trim() ? <p className="text-sm text-slate-600">Commencez à écrire : les règles de rédaction (2 phrases au moins, 450 caractères au plus, pas de formule décourageante) se vérifient ici au fil de la frappe.</p> : <RulePanel result={result} />}
       </Card>
     </div>
   );
@@ -670,6 +736,21 @@ export default function GradebookModule({ settings, go, role }) {
         setLinked={(on) => setUnlinked({ ...unlinked, [serviceId]: !on })}
         setMine={(v) => setMyComps({ ...myComps, [serviceId]: v, ...(unlinked[serviceId] ? {} : Object.fromEntries(siblings.map((x) => [x.id, v]))) })} />}
       {currentStep === 'appreciations' && <AppreciationsStep {...props} go={go} comments={comments} setComments={setComments} flags={flags} setFlags={setFlags} />}
+      {ESSAI && !appOnly && (() => {
+        // bas de chaque étape : on passe à la suivante sans remonter chercher les onglets
+        const order = STEPS.map(([id]) => id).filter((id) => !(noApp && id === 'appreciations'));
+        const i = order.indexOf(currentStep);
+        const prev = order[i - 1]; const next = order[i + 1];
+        const label = (id) => STEPS.find(([x]) => x === id)?.[1];
+        const goStep = (id) => { setStep(id); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+        return (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-navy-50 p-3">
+            {prev ? <Button variant="secondary" onClick={() => goStep(prev)}>‹ {label(prev)}</Button> : <span />}
+            {next ? <Button onClick={() => goStep(next)}>Étape suivante : {label(next)} ›</Button>
+              : <span className="text-sm text-navy-900">Dernière étape. Quand tout est rempli, cliquez sur « Valider les notes du trimestre », dans l'encadré « Validation du trimestre ».</span>}
+          </div>
+        );
+      })()}
     </div>
   );
 }
