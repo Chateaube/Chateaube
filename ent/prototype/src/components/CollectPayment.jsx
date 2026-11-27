@@ -2,7 +2,7 @@ import { logActivity } from '../activityStore.js';
 import { siblingsOf } from '../siblingsStore.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Badge, Button, Card, Icon } from './ui.jsx';
-import { JOURNALS, CLASS_FEES, STUDENT_ACCOUNTS, BANKS, FAMILIES } from '../data/accounting.js';
+import { JOURNALS, CLASS_FEES, STUDENT_ACCOUNTS, BANKS, FAMILIES, REDUCTION_TYPES } from '../data/accounting.js';
 import { studentDues, defaultSelection, validateInstrument, buildReceipts, PAYMENT_METHODS, lastReceiptNumbers, RECEIPT_PREFIX, isNewStudent } from '../rules/billing.js';
 import { supabase, ONLINE } from '../online/client.js';
 import { activeSite, SITE_CODES } from '../site.js';
@@ -109,12 +109,18 @@ export const accountsKey = () => `ent-s-comptes-${loadImport()?.importedAt ?? 'd
  * Situation de chaque compte à une date : dû à date, réglé, en retard (premier mois en retard).
  * journal : 'ECOLAGE' pour les frais de scolarité seuls ; rien pour tous les frais. Réductions non comptées.
  */
+/** Réduction accordée par la Direction (Caisse › Réductions) : { label, rates } ou null. */
+export function reductionFor(a, types = REDUCTION_TYPES) {
+  const t = a?.reduction && (types ?? []).find((x) => x.id === a.reduction.typeId);
+  return t && (t.rates.ECOLAGE || t.rates.INSCRIPTION) ? { label: t.label, rates: t.rates } : null;
+}
 export function duesStatus(accounts, settings, today, journal) {
   const sum = (l) => l.reduce((s, i) => s + i.amount, 0);
   return accounts.map((a) => {
     const fees = feesFor(a);
     if (!fees) return null;
-    const items = studentDues(a, fees, settings, today).filter((i) => (!journal || i.journal === journal) && i.due <= today && i.status !== 'EXONERE');
+    // réductions et exonérations comprises (avant : oubliées ici, l'exonéré paraissait en retard)
+    const items = studentDues({ ...a, reduction: reductionFor(a) }, fees, settings, today).filter((i) => (!journal || i.journal === journal) && i.due <= today && i.status !== 'EXONERE');
     const late = items.filter((i) => i.status === 'ECHU');
     return { account: a, due: sum(items), paid: sum(items.filter((i) => i.status === 'PAYE')), overdue: sum(late), firstDue: late.map((i) => i.due).sort()[0] ?? null, lateItems: late.map((i) => i.short ?? i.label), late: late.map(({ key, label, short, amount, due, month }) => ({ key, label, short, amount, due, month })) };
   }).filter(Boolean);
@@ -189,10 +195,7 @@ function CollectPaymentInner({ settings, articles = [], accounts: sharedAccounts
 
   const student = accounts.find((a) => a.id === studentId);
   // Réduction accordée par la Direction : type (taux) + motif, appliquée aux frais de scolarité
-  const reductionOf = (a) => {
-    const t = a.reduction && reductionTypes.find((x) => x.id === a.reduction.typeId);
-    return t && (t.rates.ECOLAGE || t.rates.INSCRIPTION) ? { label: t.label, rates: t.rates } : null;
-  };
+  const reductionOf = (a) => reductionFor(a, reductionTypes);
   const manuals = useMemo(() => loadManuals().manuals, []);
   const fees = feesFor(student, manuals);
   // Articles et services vendus à l'élève : prix fixé au catalogue, réglés comme les autres échéances
