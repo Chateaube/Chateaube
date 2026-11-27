@@ -249,3 +249,6 @@ main label { min-width: 0; max-width: 100%; }
 }
 /* Petites mentions à l'écran : jamais sous 12 px (l'impression garde ses tailles) */
 @media screen { main .text-\[10px\], main .text-\[11px\] { font-size: 12px; } }
+
+/* écran ouvert dans une rubrique à onglets : son petit sur-titre (« Pédagogie · en ligne ») ferait doublon avec les onglets */
+.hub-screen p.text-sm.font-semibold.text-navy-500:has(+ h1) { display: none; }
