@@ -4,11 +4,14 @@ import { CLASS_LIST } from './people.js';
 import { COMPETENCY_HISTORY } from './competencyHistory.js';
 import { CLASSES } from './schoollife.js';
 import { demoOr } from '../demoData.js';
+import { bulletinTermAt } from '../rules/terms.js';
+import { today } from '../clock.js';
 
 // Élèves d'un service : la liste fictive en démonstration, la classe importée avec les vraies données
 const svc = (s, demo) => Object.defineProperty(s, 'students', { get: () => demoOr(demo, CLASSES[s.cls] ?? []), enumerable: true });
 
-export const TERM = { id: 'T1', label: '1er trimestre', council: 'jeudi 10 décembre 2026', stop: '2026-11-27' }; // stop : arrêt des notes (toutes les classes)
+// trimestre des bulletins et des conseils : le dernier dont l'arrêt des notes est passé (dates dans rules/terms.js)
+export const TERM = (() => { const t = bulletinTermAt(today()); return { id: t.id, label: t.label, council: t.council, stop: t.stop, start: t.start }; })();
 
 const TLE_STMG = ['ANDRIANARIVO Tojo', 'RABEMANANJARA Lina', 'RAKOTONDRABE Fanilo', 'RAMANANTSOA Nathan', 'RANDRIANASOLO Ony', 'RAZANAMPARANY Sarobidy'];
 const PREMIERE_G = ['ANDRIAMANANTENA Ravo', 'RABARY Tiavina', 'RAHERIMALALA Anja', 'RAKOTOMANGA Hasina', 'RALAMBO Mendrika', 'RATSIMBA Kevin', 'RAZAFINDRAKOTO Ny Aina'];

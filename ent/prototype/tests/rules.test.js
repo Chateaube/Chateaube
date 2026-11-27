@@ -2738,3 +2738,28 @@ test('INE : liste collée, version ignorée, rattachement par date de naissance 
   const r2 = matchIne(parseIneList('01234567893\t002 Version 01\tTESTE\tNiry Soa\t15/04/2007\t\tInscrit\tSTMG'), [{ id: 'e', lastName: 'TESTE', firstName: 'Niry Soa', birthDate: '2007-07-15' }]);
   assert.equal(r2.matched[0].id, 'e'); assert.equal(r2.matched[0].dateMismatch, '2007-07-15');
 });
+
+import { termOfDate, bulletinTermAt, termClosed, carnetForTerm } from '../src/rules/terms.js';
+test('trimestres : date de l\'évaluation, bulletin du trimestre arrêté, fermeture de la saisie', () => {
+  assert.equal(termOfDate('2026-11-27'), 'T1'); assert.equal(termOfDate('2026-11-30'), 'T2'); assert.equal(termOfDate('2027-03-08'), 'T2'); assert.equal(termOfDate('2027-03-22'), 'T3');
+  assert.equal(bulletinTermAt('2026-11-20').id, 'T1'); assert.equal(bulletinTermAt('2026-12-02').id, 'T1'); assert.equal(bulletinTermAt('2027-03-22').id, 'T2');
+  assert.equal(termClosed('T1', new Date('2026-12-07T06:59:00+03:00')), false);
+  assert.equal(termClosed('T1', new Date('2026-12-07T07:00:00+03:00')), true);
+  assert.equal(termClosed('T1', new Date('2026-12-08T10:00:00+03:00'), { T1: ['p1'] }, 'p1'), false); // rouvert pour lui
+  assert.equal(termClosed('T1', new Date('2026-12-08T10:00:00+03:00'), { T1: ['ALL'] }, 'p2'), false);
+  assert.equal(termClosed('T2', new Date('2027-03-26T18:00:00+03:00')), false); assert.equal(termClosed('T2', new Date('2027-03-27T08:00:00+03:00')), true); // échéance : vendredi 26 mars au soir
+  const c = { evaluations: { s: [{ id: 'a', date: '2026-11-20' }, { id: 'b', date: '2026-12-01' }] }, comments: { 's:X': { text: 'T1' } }, byTerm: { T2: { comments: { 's:X': { text: 'T2' } } } } };
+  assert.deepEqual(carnetForTerm(c, 'T1').evaluations.s.map((e) => e.id), ['a']);
+  assert.equal(carnetForTerm(c, 'T1').comments['s:X'].text, 'T1');
+  assert.deepEqual(carnetForTerm(c, 'T2').evaluations.s.map((e) => e.id), ['b']);
+  assert.equal(carnetForTerm(c, 'T2').comments['s:X'].text, 'T2');
+});
+
+import { minimumNoticeDue } from '../src/data/minimumNotice.js';
+test('message « notes minimum » : à partir du jour choisi, jusqu\'à la fermeture', () => {
+  const base = { count: 2, min: 4, validated: false, from: '2026-12-04', stop: '2026-12-07' };
+  assert.equal(minimumNoticeDue({ ...base, date: '2026-12-03' }), false);
+  assert.equal(minimumNoticeDue({ ...base, date: '2026-12-04' }), true);
+  assert.equal(minimumNoticeDue({ ...base, date: '2026-12-08' }), false);
+  assert.equal(minimumNoticeDue({ ...base, count: 4, date: '2026-12-05' }), false);
+});

@@ -15,6 +15,7 @@ import { saveFile } from '../download.js';
 // pour toutes (une feuille par classe), compétences du bulletin comprises (une ligne par matière, une compétence par ligne).
 const ORDER = ['6e', '5e', '4e', '3e', '2de', '1re STMG', '1re Générale', 'Terminale STMG', 'Terminale Générale'];
 import { correctionKey, finalText, compCorrectionKey, finalComps } from '../rules/onlineBulletins.js';
+import { termCarnets } from '../termView.js';
 
 export default function AppreciationsReview() {
   const [data, setData] = useState(null); const [err, setErr] = useState(''); const [msg, setMsg] = useState('');
@@ -24,7 +25,7 @@ export default function AppreciationsReview() {
   const load = async () => {
     setErr('');
     try {
-      const [carnets, roster, corr] = await Promise.all([fetchDocs('CARNET'), fetchRoster(), fetchDoc('corrections')]);
+      const [carnets, roster, corr] = await Promise.all([fetchDocs('CARNET').then(termCarnets), fetchRoster(), fetchDoc('corrections')]);
       setCurrentRoster(roster?.value ?? null);
       setData({ carnets: Object.fromEntries(carnets.map((c) => [c.owner, c.value])), roster: roster?.value ?? null, corrections: corr?.value ?? {} });
     } catch (e) { setErr(`Lecture impossible (${e.message}).`); }

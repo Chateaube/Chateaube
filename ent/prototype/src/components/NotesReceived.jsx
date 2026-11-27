@@ -14,6 +14,9 @@ import { buildXlsx } from '../xlsx.js';
 import { saveFile } from '../download.js';
 import { askConfirm } from './Dialogs.jsx';
 import { CASH_ACCOUNTS } from './CollectPayment.jsx';
+import { termCarnets } from '../termView.js';
+import { ESSAI } from '../essai.js';
+import { TERMS } from '../rules/terms.js';
 
 // Notes reçues (Direction, version en ligne) :
 // 1. « Envoyer les classes aux professeurs » : élèves de l'import + matières et classes des fiches des agents ;
@@ -78,7 +81,7 @@ export default function NotesReceived({ settings, go }) {
     setErr('');
     try {
       const [carnets, roster, users] = await Promise.all([
-        fetchDocs('CARNET'), fetchRoster(),
+        fetchDocs('CARNET').then(termCarnets), fetchRoster(),
         supabase.from('app_user').select('id, first_name, last_name, is_active, user_role(role)').order('last_name').then(({ data: d, error }) => { if (error) throw new Error(error.message); return d; }),
       ]);
       setData({ carnets: Object.fromEntries(carnets.map((c) => [c.owner, c])), roster: roster?.value ?? null, users });
@@ -134,7 +137,7 @@ export default function NotesReceived({ settings, go }) {
     // « NN » pour les devoirs faits avant son arrivée
     const arrivals = new Map([...CASH_ACCOUNTS].filter((a) => a.enrolledOn > '2026-09-01').map((a) => [a.id, a.enrolledOn]));
     const withArrival = students.map((st) => ({ ...st, arrivedOn: arrivals.get(st.id) ?? (st.enteredOn > '2026-09-05' ? st.enteredOn : '') }));
-    const roster = { ...buildRoster({ students: withArrival, fiches: merged, teachers: sendTo }), owners: data?.roster?.owners ?? {}, writers: data?.roster?.writers ?? {} };
+    const roster = { ...buildRoster({ students: withArrival, fiches: merged, teachers: sendTo }), owners: data?.roster?.owners ?? {}, writers: data?.roster?.writers ?? {}, reopen: data?.roster?.reopen ?? {} };
     if (!(await askConfirm(`Envoyer aux professeurs les ${roster.students.length} élèves et les classes de ${sendTo.length} professeur(s) ?${roster.warnings.length ? ` Attention : ${roster.warnings.length} point(s) à vérifier (affichés ensuite).` : ''}`))) return;
     setBusy(true); setMsg(''); setErr('');
     const { error } = await supabase.from('ent_doc').upsert({ key: 'roster', kind: 'ROSTER', owner: null, value: roster });
@@ -175,6 +178,16 @@ export default function NotesReceived({ settings, go }) {
     setMsg(`${g.cls} · ${g.subject} : confiée à ${t.name}.`);
     load();
   };
+  // saisie d'un trimestre fermée : la Direction la rouvre pour un professeur (ou pour tous), puis la referme
+  const setReopen = async (termId, list, text) => {
+    setBusy(true); setErr('');
+    const latest = (await fetchDoc('roster'))?.value ?? roster;
+    const { error } = await supabase.from('ent_doc').upsert({ key: 'roster', kind: 'ROSTER', owner: null, value: { ...latest, reopen: { ...(latest.reopen ?? {}), [termId]: list } } });
+    setBusy(false);
+    if (error) { setErr(`Enregistrement impossible : ${error.message}`); return; }
+    setMsg(`${text} Le professeur le voit en rechargeant la page.`);
+    load();
+  };
   const actFor = async (r) => {
     setErr('');
     try { setCurrentRoster(roster); await loadRemoteCarnet(r.id); setActingFor({ id: r.id, name: r.name }); window.scrollTo(0, 0); }
@@ -198,6 +211,7 @@ export default function NotesReceived({ settings, go }) {
         <p className="text-sm text-slate-600">Ce que chaque professeur a saisi, en direct. Les notes sont sur le serveur dès leur saisie ; un historique garde les versions précédentes.</p>
       </div>
       {err && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{err}</p>}
+      {ESSAI && roster && <TermClosing roster={roster} teachers={teachers} busy={busy} onChange={setReopen} />}
       {msg && <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{msg}</p>}
 
       <Card title="1. Classes envoyées aux professeurs" subtitle="Élèves de votre import + matières et classes de chaque professeur. Une fiche sans enseignements est remplie toute seule depuis l'onglet 3 Personnel de votre import. À refaire après un nouvel import ou une fiche modifiée.">
@@ -274,5 +288,38 @@ export default function NotesReceived({ settings, go }) {
       </Card>
       <AbsentAtTests embedded />
     </div>
+  );
+}
+
+/** Fermeture de la saisie d'un trimestre (professeurs) et réouverture par la Direction, pour un professeur ou pour tous. */
+function TermClosing({ roster, teachers, busy, onChange }) {
+  const [pick, setPick] = useState('');
+  const now = new Date();
+  const list = TERMS.filter((t) => t.closeAt && t.start <= new Date().toISOString().slice(0, 10));
+  if (!list.length) return null;
+  return (
+    <Card title="Fermeture de la saisie des notes" subtitle="À la date de fermeture, les professeurs ne peuvent plus modifier le trimestre (consultation seulement). Vous pouvez rouvrir pour un professeur qui le demande.">
+      {list.map((t) => {
+        const open = roster.reopen?.[t.id] ?? [];
+        const closed = now >= new Date(t.closeAt);
+        const names = open.filter((x) => x !== 'ALL').map((id) => teachers.find((x) => x.id === id)?.name ?? roster.names?.[id] ?? id);
+        return (
+          <div key={t.id} className="space-y-2 text-sm text-slate-700">
+            <p><strong>{t.label}</strong> : arrêt des notes le {t.stopText} · saisie {closed ? 'fermée depuis' : 'fermée automatiquement le'} {t.closeText}.</p>
+            {open.includes('ALL') ? <p className="text-emerald-800">Rouverte pour tous les professeurs.</p>
+              : names.length > 0 && <p className="text-emerald-800">Rouverte pour : {names.join(', ')}.</p>}
+            <div className="flex flex-wrap items-center gap-2">
+              <select value={pick} onChange={(e) => setPick(e.target.value)} aria-label="Professeur" className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm">
+                <option value="">Choisir un professeur…</option>
+                {teachers.filter((x) => !open.includes(x.id)).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+              </select>
+              <Button variant="secondary" disabled={busy || !pick} onClick={() => { const n = teachers.find((x) => x.id === pick)?.name; onChange(t.id, [...open, pick], `${t.label} rouvert pour ${n}.`); setPick(''); }}>Rouvrir pour ce professeur</Button>
+              {!open.includes('ALL') && <Button variant="secondary" disabled={busy} onClick={() => onChange(t.id, ['ALL'], `${t.label} rouvert pour tous.`)}>Rouvrir pour tous</Button>}
+              {open.length > 0 && <Button variant="ghost" disabled={busy} onClick={() => onChange(t.id, [], `${t.label} refermé pour tous.`)}>Refermer pour tous</Button>}
+            </div>
+          </div>
+        );
+      })}
+    </Card>
   );
 }

@@ -20,6 +20,7 @@ import { checkAppreciation, autoFix, rephrase } from '../rules/appreciation.js';
 import { today } from '../clock.js';
 import { askConfirm } from './Dialogs.jsx';
 import { ESSAI } from '../essai.js';
+import { TERMS, termById, termOfDate, termClosed } from '../rules/terms.js';
 
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
 const fmtDate = (iso) => iso.split('-').reverse().slice(0, 2).join('/');
@@ -29,18 +30,19 @@ const firstName = (full) => shortName(full).replace(/^\S+\.\s/, ''); // prénom 
 const TODAY = today();
 const ddmm = (iso) => iso.split('-').reverse().slice(0, 2).join('/');
 
-function DateField({ label, value, onChange }) {
+function DateField({ label, value, onChange, min, max }) {
   return (
     <label className="block text-xs text-slate-600">{label}
       <div className="mt-1 flex gap-1">
-        <input type="date" value={value} onChange={(e) => onChange(e.target.value)} className={`min-w-0 flex-1 ${inputCls}`} />
+        <input type="date" value={value} min={min} max={max} onChange={(e) => onChange(e.target.value)} className={`min-w-0 flex-1 ${inputCls}`} />
         <Button variant="secondary" className="!px-2 text-xs" onClick={() => onChange(TODAY)}>Aujourd'hui</Button>
       </div>
     </label>
   );
 }
 
-function EvaluationForm({ draft, setDraft, settings, competencies, onCreate, onCancel }) {
+function EvaluationForm({ draft, setDraft, settings, competencies, onCreate, onCancel, range }) {
+  const outside = Boolean(range && draft.date && (draft.date < range.start || draft.date > range.stop));
   const set = (patch) => setDraft({ ...draft, ...patch });
   const delay = settings.grading.parentDelayDays;
   return (
@@ -56,8 +58,9 @@ function EvaluationForm({ draft, setDraft, settings, competencies, onCreate, onC
           <label className="block text-xs text-slate-600">Intitulé
             <input value={draft.title} onChange={(e) => set({ title: e.target.value })} placeholder="ex. DS n°2 — Le marketing" className={`mt-1 w-full ${inputCls}`} />
           </label>
-          <DateField label="Date de l'évaluation" value={draft.date} onChange={(v) => set({ date: v, publishOn: draft.publishOn && draft.publishOn > v ? draft.publishOn : v })} />
+          <DateField label="Date de l'évaluation" min={range?.start} max={range?.stop} value={draft.date} onChange={(v) => set({ date: v, publishOn: draft.publishOn && draft.publishOn > v ? draft.publishOn : v })} />
         </div>
+        {outside && <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900">Cette date n'est pas dans le {range.label} (du {fmtDate(range.start)} au {fmtDate(range.stop)}). Pour un devoir d'un autre trimestre, choisissez ce trimestre en haut de la page.</p>}
         <div className="grid grid-cols-2 gap-3 sm:max-w-sm">
           <label className="block text-xs text-slate-600">Notation sur
             <input type="number" min={1} max={100} value={draft.scale} onChange={(e) => set({ scale: Math.max(1, Number(e.target.value)) })} className={`mt-1 w-full ${inputCls}`} />
@@ -167,7 +170,7 @@ function EvaluationForm({ draft, setDraft, settings, competencies, onCreate, onC
       </div>
       </>)}
       <div className="flex gap-2">
-        <Button disabled={!draft.title.trim() || !draft.date || !draft.publishOn || draft.publishOn < draft.date} onClick={onCreate}>{draft.id ? 'Enregistrer les modifications' : 'Créer l\'évaluation'}</Button>
+        <Button disabled={!draft.title.trim() || !draft.date || !draft.publishOn || draft.publishOn < draft.date || outside} onClick={onCreate}>{draft.id ? 'Enregistrer les modifications' : 'Créer l\'évaluation'}</Button>
         <Button variant="ghost" onClick={onCancel}>Annuler</Button>
         {draft.publishOn && draft.publishOn < draft.date && <span className="self-center text-xs text-red-700">La publication ne peut précéder l'évaluation.</span>}
       </div>
@@ -198,10 +201,12 @@ function BonusControl({ b, steps, readOnly, open, onOpen, onChange, label }) {
   );
 }
 
-function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, remarks, setRemarks, bonus = {}, setBonus, validated, setValidated, settings, competencies = [], go }) {
+function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, remarks, setRemarks, bonus = {}, setBonus, validated, setValidated, settings, competencies = [], go, termDef = TERM, app = null }) {
+  // app (site d'essai, « Tableau unique ») : appréciation et état sur la même ligne que les notes, comme le classeur Excel
   const min = minEvaluationsFor(service, settings.grading.minEvaluations); // EMC et matière partagée : 2
+  const day = ESSAI && termDef.start ? (TODAY < termDef.start ? termDef.start : TODAY > termDef.stop ? termDef.stop : TODAY) : TODAY; // date proposée : dans le trimestre choisi
   const blank = {
-    type: settings.grading.evaluationTypes[0], title: '', date: TODAY, publishOn: TODAY, remarksEnabled: false,
+    type: settings.grading.evaluationTypes[0], title: '', date: day, publishOn: TODAY < day ? day : TODAY, remarksEnabled: false,
     scale: settings.grading.defaultScale, coef: settings.grading.defaultCoef, normalize: true, comment: '', themesText: '', competencies: [],
   };
   const [draft, setDraft] = useState(null);
@@ -218,18 +223,19 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
   const setCell = (s, ev, v) => { setGrades({ ...grades, [s]: { ...grades[s], [ev]: v } }); setValidated(false); };
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[1fr_300px] xl:items-start">
+    <div className={`grid gap-5 xl:items-start ${app ? '' : 'xl:grid-cols-[1fr_300px]'}`}>
       <Card
         title={`Notes — ${service.cls} · ${service.subject}`}
-        subtitle={`${TERM.label} · ${evaluations.length} évaluation${evaluations.length > 1 ? 's' : ''} · moyennes sur 20, pondérées par les coefficients`}
+        subtitle={`${termDef.label} · ${evaluations.length} évaluation${evaluations.length > 1 ? 's' : ''} · moyennes sur 20, pondérées par les coefficients`}
         action={<span className="flex flex-wrap gap-2">
           {go && <Button variant="secondary" onClick={() => { setIntent('grade-sheets', { cls: service.cls, service: service.id }); go('grade-sheets'); }}>Imprimer / Excel</Button>}
           <Button variant="secondary" disabled={validated} onClick={() => setDraft(blank)}><span aria-hidden>＋</span> Nouvelle évaluation</Button>
         </span>}
       >
-        {minimumNoticeDue({ count: evaluations.length + other, min, validated, date: TODAY, stop: TERM.stop }) && <MinimumNotice eps={isEps(service)} />}
+        {(ESSAI ? minimumNoticeDue({ count: evaluations.length + other, min, validated, date: TODAY, from: termDef.noticeFrom, stop: termDef.closeAt?.slice(0, 10) })
+          : minimumNoticeDue({ count: evaluations.length + other, min, validated, date: TODAY, stop: TERM.stop })) && <MinimumNotice eps={isEps(service)} />}
         {draft && (
-          <EvaluationForm draft={draft} setDraft={setDraft} settings={settings} competencies={competencies} onCancel={() => setDraft(null)}
+          <EvaluationForm draft={draft} setDraft={setDraft} settings={settings} competencies={competencies} onCancel={() => setDraft(null)} range={ESSAI && termDef.start ? termDef : null}
             onCreate={() => {
               const { themesText, ...ev } = draft;
               const clean = { ...ev, title: ev.title.trim(), comment: (ev.comment ?? '').trim() || null,
@@ -239,14 +245,24 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
               setDraft(null); setValidated(false);
             }} />
         )}
-        {evaluations.length === 0 ? (
+        {app && (() => {
+          const ready = service.students.filter((s) => { const c = app.comments[app.keyOf(s)]; return c?.text?.trim() && !c.validated && app.check(c.text).ok; });
+          const done = service.students.filter((s) => app.comments[app.keyOf(s)]?.validated).length;
+          return (
+            <p className="mb-3 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+              Appréciations : {done} / {service.students.length} validée{done > 1 ? 's' : ''} (2 phrases complètes au moins, 450 caractères au plus).
+              {ready.length > 0 && <Button variant="secondary" className="!py-1 text-xs" onClick={() => app.setComments({ ...app.comments, ...Object.fromEntries(ready.map((s) => [app.keyOf(s), { ...app.comments[app.keyOf(s)], validated: true }])) })}>{ready.length > 1 ? `Valider les ${ready.length} conformes` : 'Valider celle qui est conforme'}</Button>}
+            </p>
+          );
+        })()}
+        {evaluations.length === 0 && !app ? (
           <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-600">Aucune note pour ce trimestre. Ajoutez une première évaluation (DS, oral, exposé…).</p>
         ) : (
           <div className="-mx-5 overflow-x-auto">
-            <table data-grid className="w-full text-sm" style={{ minWidth: 260 + evaluations.length * 130 }}>
+            <table data-grid className={`${!ESSAI || app ? 'w-full' : 'w-auto'} text-sm`} style={{ minWidth: (ESSAI ? 170 : 260) + evaluations.length * 130 + (app ? 520 : 0) }}>
               <thead>
                 <tr className="border-y border-slate-100 bg-slate-50 text-left align-bottom text-xs text-slate-500">
-                  <th className="sticky left-0 z-20 bg-slate-50 px-3 py-2 font-medium shadow-[2px_0_0_#e2e8f0]">Élève</th>
+                  <th className="sticky left-0 z-20 bg-slate-50 px-3 py-2 font-medium shadow-[2px_0_0_#e2e8f0]" style={ESSAI ? { width: 150 } : undefined}>Élève</th>
                   {evaluations.map((ev) => (
                     <th key={ev.id} className="px-2 py-2 font-medium">
                       <Badge tone="navy">{ev.type}</Badge>
@@ -275,6 +291,8 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
                     </th>
                   ))}
                   <th className="px-3 py-2 text-right font-medium">Moyenne /20</th>
+                  {app && <th className="px-2 py-2 font-medium">Appréciation du bulletin</th>}
+                  {app && <th className="px-3 py-2 font-medium">État</th>}
                 </tr>
               </thead>
               <tbody>
@@ -287,7 +305,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
                         {n < min && !(ESSAI && n === 0) && <p className="text-[11px] font-normal text-amber-700">{n} note{n > 1 ? 's' : ''} retenue{n > 1 ? 's' : ''}</p>}
                       </td>
                       {evaluations.map((ev) => (
-                        <td key={ev.id} className="px-2 py-2">
+                        <td key={ev.id} className="px-2 py-2" style={ESSAI ? { width: 120 } : undefined}>
                           {validated ? <span className="tabular-nums">{grades[s]?.[ev.id] || '—'}</span>
                             : <GradeCell value={grades[s]?.[ev.id] ?? ''} max={ev.scale} onChange={(v) => setCell(s, ev.id, v)} />}
                           {ESSAI && !validated && !grades[s]?.[ev.id] && arrivalOf(s) > ev.date && (
@@ -303,7 +321,24 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
                           )}
                         </td>
                       ))}
-                      <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-navy-900">{fmtAvg(avgs[i])}</td>
+                      <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-navy-900" style={ESSAI ? { width: 90 } : undefined}>{fmtAvg(avgs[i])}</td>
+                      {app && (() => {
+                        const c = app.comments[app.keyOf(s)] ?? { text: '', validated: false };
+                        const r = c.text.trim() ? app.check(c.text) : null;
+                        return (<>
+                          <td className="px-2 py-2">
+                            <textarea spellCheck lang="fr" rows={2} value={c.text} aria-label={`Appréciation — ${s}`}
+                              onChange={(e) => app.setComments({ ...app.comments, [app.keyOf(s)]: { text: e.target.value, validated: false } })}
+                              className="w-full min-w-[300px] resize-y rounded-lg border border-slate-300 px-2 py-1.5 text-sm leading-snug focus:outline-none focus:ring-2 focus:ring-navy-200" />
+                            {r && !r.ok && <p className="mt-0.5 text-[11px] text-amber-800">À revoir : {r.errors[0]?.message}</p>}
+                          </td>
+                          <td className="px-3 py-2" style={{ width: 90 }}>
+                            {c.validated ? <Badge tone="green">validée</Badge>
+                              : r?.ok ? <Button variant="secondary" className="!px-2 !py-0.5 text-xs" onClick={() => app.setComments({ ...app.comments, [app.keyOf(s)]: { ...c, validated: true } })}>Valider</Button>
+                              : <span className="text-xs text-slate-400">{c.text.trim() ? 'à revoir' : 'à écrire'}</span>}
+                          </td>
+                        </>);
+                      })()}
                     </tr>
                   );
                 })}
@@ -316,6 +351,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
                     return <td key={ev.id} className="px-2 py-2 tabular-nums">moy. {fmtAvg(st.avg)}<br />{fmtAvg(st.min)} – {fmtAvg(st.max)}</td>;
                   })}
                   <td className="px-3 py-2 text-right font-semibold tabular-nums">{fmtAvg(stats.avg)}</td>
+                  {app && <td colSpan={2} />}
                 </tr>
               </tfoot>
             </table>
@@ -364,7 +400,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
             {(!check.ok || !competencies.length) && <p className="mt-1.5 text-xs text-red-800">Pas encore possible : {[check.missing && `il manque ${check.missing} évaluation${check.missing > 1 ? 's' : ''}`, check.pending.length && `${check.pending.length} saisie(s) à corriger`, check.empty.length && `${check.empty.length} case(s) vide(s)`, !competencies.length && 'compétences du bulletin à renseigner'].filter(Boolean).join(', ')}.</p>}
           </>
         )}
-        <p className="mt-3 text-xs text-slate-600">Arrêt des notes du 1er trimestre : <strong>vendredi 27 novembre</strong> (même date pour toutes les classes).</p>
+        <p className="mt-3 text-xs text-slate-600">Arrêt des notes du {termDef.label} : <strong>{termDef.stopText ?? 'vendredi 27 novembre'}</strong> (même date pour toutes les classes).</p>
       </Card>
     </div>
   );
@@ -450,12 +486,12 @@ function groupProposals(proposals, history) {
 }
 
 /** Parcours d'ouverture : thème du trimestre, choisi par le professeur (il peut changer chaque trimestre). */
-function ThemePicker({ serviceId, fallback }) {
-  const [theme, setTheme] = useState(() => themeOf(serviceId, TERM.id, fallback));
-  const set = (t) => { setTheme(t); saveTheme(serviceId, TERM.id, t); };
+function ThemePicker({ serviceId, fallback, termDef = TERM }) {
+  const [theme, setTheme] = useState(() => themeOf(serviceId, termDef.id, fallback));
+  const set = (t) => { setTheme(t); saveTheme(serviceId, termDef.id, t); };
   return (
     <div className="rounded-lg bg-violet-50 p-2 text-sm">
-      <label className="block text-xs font-medium text-violet-900">Thème abordé ce trimestre ({TERM.label}) : il peut changer d'un trimestre à l'autre
+      <label className="block text-xs font-medium text-violet-900">Thème abordé ce trimestre ({termDef.label}) : il peut changer d'un trimestre à l'autre
         <input value={theme} onChange={(e) => set(e.target.value)} className="mt-1 w-full rounded-md border border-violet-200 bg-white px-2 py-1 text-sm" />
       </label>
       <div className="mt-1.5 flex flex-wrap gap-1">{THEME_SUGGESTIONS.map((t) => <button key={t} type="button" onClick={() => set(t)} className={`rounded-full px-2 py-0.5 text-xs ring-1 ${theme === t ? 'bg-violet-600 text-white ring-violet-600' : 'bg-white text-violet-900 ring-violet-200'}`}>{t}</button>)}</div>
@@ -480,7 +516,7 @@ function MinimumNotice({ eps }) {
 }
 
 /* ---------------- 3. Appréciations ---------------- */
-function AppreciationsStep({ service, evaluations, grades, validated, settings, comments, setComments, flags, setFlags, go }) {
+function AppreciationsStep({ service, evaluations, grades, validated, settings, comments, setComments, flags, setFlags, go, termDef = TERM }) {
   const [student, setStudent] = useState(service.students[0]);
 
   const [aiNote, setAiNote] = useState(null);
@@ -527,7 +563,7 @@ function AppreciationsStep({ service, evaluations, grades, validated, settings, 
         {appOnly ? (
           <div className="mb-3 space-y-2">
             <Badge tone="violet">Appréciation seule · sans note</Badge>
-            <ThemePicker serviceId={service.id} fallback={service.subject.split(' — ')[1] ?? ''} />
+            <ThemePicker key={termDef.id} serviceId={service.id} termDef={termDef} fallback={service.subject.split(' — ')[1] ?? ''} />
           </div>
         ) : (
           <div className="mb-3 grid gap-2 sm:grid-cols-2">
@@ -597,48 +633,6 @@ function AppreciationsStep({ service, evaluations, grades, validated, settings, 
 }
 
 /* ---------------- Vue « tableau unique » (site d'essai) : appréciations de toute la classe ---------------- */
-function AppreciationsTable({ service, evaluations, grades, settings, comments, setComments }) {
-  const tutoiement = settings?.grading?.allowTutoiement !== false;
-  const keyOf = (s) => `${service.id}:${s}`;
-  const check = (t) => checkAppreciation(t, { mode: service.mode, tutoiement });
-  const ready = service.students.filter((s) => { const c = comments[keyOf(s)]; return c?.text?.trim() && !c.validated && check(c.text).ok; });
-  const done = service.students.filter((s) => comments[keyOf(s)]?.validated).length;
-  return (
-    <Card title={`Appréciations — ${done} / ${service.students.length} validée${done > 1 ? 's' : ''}`}
-      subtitle="Au moins 2 phrases complètes, 450 caractères au plus. « Valider » quand le texte est prêt ; le détail élève par élève (remarques pour le conseil) reste dans l'affichage « Élève par élève »."
-      action={ready.length > 0 && <Button variant="secondary" className="!py-1 text-xs" onClick={() => setComments({ ...comments, ...Object.fromEntries(ready.map((s) => [keyOf(s), { ...comments[keyOf(s)], validated: true }])) })}>Valider les {ready.length} conformes</Button>}>
-      <div className="-mx-5 overflow-x-auto">
-        <table className="w-full min-w-[640px] text-sm">
-          <thead><tr className="border-b border-slate-200 text-left text-xs text-slate-500"><th className="px-4 py-2">Élève</th><th className="px-2 py-2 text-right">Moy.</th><th className="px-2 py-2">Appréciation</th><th className="px-4 py-2">État</th></tr></thead>
-          <tbody>
-            {service.students.map((s) => {
-              const c = comments[keyOf(s)] ?? { text: '', validated: false };
-              const r = c.text.trim() ? check(c.text) : null;
-              const avg = studentAverage(evaluations, grades[s]);
-              return (
-                <tr key={s} className="border-b border-slate-100 align-top">
-                  <td className="px-4 py-2 font-medium text-slate-800" title={s}>{shortName(s)}</td>
-                  <td className="px-2 py-2 text-right tabular-nums text-slate-600">{fmtAvg(avg)}</td>
-                  <td className="px-2 py-2">
-                    <textarea spellCheck lang="fr" rows={2} value={c.text} aria-label={`Appréciation — ${s}`}
-                      onChange={(e) => setComments({ ...comments, [keyOf(s)]: { text: e.target.value, validated: false } })}
-                      className="w-full min-w-[260px] resize-y rounded-lg border border-slate-300 px-2 py-1.5 text-sm leading-snug focus:outline-none focus:ring-2 focus:ring-navy-200" />
-                    {r && !r.ok && <p className="mt-0.5 text-[11px] text-amber-800">À revoir : {r.errors[0]?.message}</p>}
-                  </td>
-                  <td className="px-4 py-2">
-                    {c.validated ? <Badge tone="green">validée</Badge>
-                      : r?.ok ? <Button variant="secondary" className="!px-2 !py-0.5 text-xs" onClick={() => setComments({ ...comments, [keyOf(s)]: { ...c, validated: true } })}>Valider</Button>
-                      : <span className="text-xs text-slate-400">{c.text.trim() ? 'à revoir' : 'à écrire'}</span>}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </Card>
-  );
-}
 
 /* ---------------- Module ---------------- */
 const STEPS = [['notes', '1. Notes'], ['appreciations', '2. Appréciations'], ['competences', '3. Compétences du bulletin']]; // obligatoires pour le bulletin ; par devoir, facultatives
@@ -683,18 +677,33 @@ export default function GradebookModule({ settings, go, role }) {
   const [unlinked, setUnlinked] = useState(saved?.unlinked ?? {}); // compétences propres à une classe (sinon partagées 1re STMG / 1re G…)
   const [bonus, setBonus] = useState(saved?.bonus ?? {}); // bonus / malus par devoir : service → élève → devoir
   const [flags, setFlags] = useState(saved?.flags ?? demoOr({ 's1:RAJAONARIVELO Tsiry': { ids: ['BAVARD'], note: '' } }, {}));
+  // trimestres suivants : appréciations, compétences, validations et remarques du conseil dans byTerm (le 1er reste à la racine)
+  const [byTerm, setByTerm] = useState(saved?.byTerm ?? {});
+  // saisie fermée (professeurs) : après la date de fermeture, sauf si la Direction a rouvert (liste des classes, reopen)
+  const lockedFor = (id) => ESSAI && role === 'ENSEIGNANT' && termClosed(id, new Date(), currentRoster()?.reopen, remoteCarnetId());
+  // trimestre affiché : le 1er tant que sa saisie est ouverte (le conseil approche), sinon celui du jour
+  const [term, setTerm] = useState(() => (!ESSAI ? TERMS[0].id : lockedFor(TERMS[0].id) || TODAY > TERMS[0].closeAt.slice(0, 10) ? termOfDate(TODAY) : TERMS[0].id));
+  const termDef = ESSAI ? termById(term) : TERM;
+  const locked = lockedFor(term);
+  const inTerm = (e) => !ESSAI || termOfDate(e.date) === term;
+  const ofTerm = (field, root, setRoot) => (!ESSAI || term === TERMS[0].id ? [root, setRoot]
+    : [byTerm[term]?.[field] ?? {}, (v) => setByTerm((b) => ({ ...b, [term]: { ...(b[term] ?? {}), [field]: v } }))]);
+  const [tComments, setTComments] = ofTerm('comments', comments, setComments);
+  const [tComps, setTComps] = ofTerm('myComps', myComps, setMyComps);
+  const [tValidated, setTValidated] = ofTerm('validated', validated, setValidated);
+  const [tFlags, setTFlags] = ofTerm('flags', flags, setFlags);
   // chaque saisie est enregistrée tout de suite : on remplit les notes au fil du trimestre
   const [savedOk, setSavedOk] = useState(null);
   const first = useRef(true);
   useEffect(() => {
     if (first.current) { first.current = false; return; }
-    setSavedOk(saveCarnet({ evaluations, grades, remarks, myComps, validated, comments, flags, adjust, bonus, unlinked }));
+    setSavedOk(saveCarnet({ evaluations, grades, remarks, myComps, validated, comments, flags, adjust, bonus, unlinked, byTerm }));
     // classes à deux professeurs : nombre de devoirs (classe commune) et premier qui écrit l'appréciation, lus par l'autre
     if (ONLINE) SERVICES.forEach((sv) => {
-      if (sv.common) claimClass(remoteCarnetId(), sv.id, 'COUNT', (evaluations[sv.id] ?? []).length);
-      if ((sv.shared || sv.common) && !sv.writer && sv.students.some((st) => (comments[`${sv.id}:${st}`]?.text ?? '').trim())) claimClass(remoteCarnetId(), sv.id, 'APP');
+      if (sv.common) claimClass(remoteCarnetId(), sv.id, 'COUNT', (evaluations[sv.id] ?? []).filter(inTerm).length);
+      if ((sv.shared || sv.common) && !sv.writer && sv.students.some((st) => (tComments[`${sv.id}:${st}`]?.text ?? '').trim())) claimClass(remoteCarnetId(), sv.id, 'APP');
     });
-  }, [evaluations, grades, remarks, myComps, validated, comments, flags, adjust, bonus, unlinked]);
+  }, [evaluations, grades, remarks, myComps, validated, comments, flags, adjust, bonus, unlinked, byTerm]);
 
   const service = SERVICES.find((s) => s.id === serviceId);
   const taken = ONLINE ? takenFrom(currentRoster(), remoteCarnetId()) : [];
@@ -713,22 +722,24 @@ export default function GradebookModule({ settings, go, role }) {
   const currentStep = appOnly ? 'appreciations' : noApp && step === 'appreciations' ? 'notes' : step;
   const props = {
     service, settings,
-    evaluations: evaluations[serviceId] ?? [], setEvaluations: (v) => setEvaluations({ ...evaluations, [serviceId]: v }),
+    termDef,
+    evaluations: (evaluations[serviceId] ?? []).filter(inTerm),
+    setEvaluations: (v) => setEvaluations({ ...evaluations, [serviceId]: [...(evaluations[serviceId] ?? []).filter((e) => !inTerm(e)), ...v] }),
     grades: grades[serviceId] ?? {}, setGrades: (v) => setGrades({ ...grades, [serviceId]: v }),
-    validated: Boolean(validated[serviceId]), setValidated: (v) => setValidated({ ...validated, [serviceId]: v }),
+    validated: Boolean(tValidated[serviceId]), setValidated: (v) => setTValidated({ ...tValidated, [serviceId]: v }),
     remarks: remarks[serviceId] ?? {}, setRemarks: (v) => setRemarks({ ...remarks, [serviceId]: v }),
     bonus: bonus[serviceId] ?? {}, setBonus: (v) => setBonus({ ...bonus, [serviceId]: v }),
   };
   const stepDone = {
-    notes: Boolean(validated[serviceId]),
-    competences: (myComps[serviceId]?.length ?? 0) > 0,
-    appreciations: noApp || service.students.every((s) => comments[`${serviceId}:${s}`]?.validated),
+    notes: Boolean(tValidated[serviceId]),
+    competences: (tComps[serviceId]?.length ?? 0) > 0,
+    appreciations: noApp || service.students.every((s) => tComments[`${serviceId}:${s}`]?.validated),
   };
 
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-semibold text-navy-500">{TERM.label} · conseil de classe le {TERM.council}</p>
+        <p className="text-sm font-semibold text-navy-500">{termDef.label}{termDef.council ? ` · conseil de classe le ${termDef.council}` : ''}</p>
         <h1 className="flex flex-wrap items-center gap-2 text-2xl font-semibold text-navy-900">Notes et appréciations
           <button type="button" onClick={() => setGuide(true)} className="rounded-full px-2.5 py-1 font-sans text-xs font-medium text-navy-700 ring-1 ring-navy-200">Comment ça marche ?</button></h1>
         {guide && <GradebookGuide onClose={closeGuide} />}
@@ -740,7 +751,7 @@ export default function GradebookModule({ settings, go, role }) {
       </div>
       <div className="flex gap-2 overflow-x-auto pb-1">
         {SERVICES.map((s) => {
-          const ok = validated[s.id];
+          const ok = tValidated[s.id];
           return (
             <button key={s.id} onClick={() => setServiceId(s.id)}
               className={`nav-control shrink-0 rounded-lg border px-3 py-2 text-left text-sm ${s.id === serviceId ? 'border-navy-500 bg-navy-50 ring-1 ring-navy-500' : 'border-slate-200 bg-white hover:border-navy-200'}`}>
@@ -750,6 +761,21 @@ export default function GradebookModule({ settings, go, role }) {
           );
         })}
       </div>
+      {ESSAI && (
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-slate-600">Trimestre :</span>
+            {TERMS.filter((t) => t.start <= TODAY).map((t) => (
+              <button key={t.id} type="button" aria-pressed={term === t.id} onClick={() => setTerm(t.id)}
+                className={`rounded-full px-3 py-1 font-medium ${term === t.id ? 'bg-navy-500 text-white' : 'bg-white text-slate-700 ring-1 ring-slate-200'}`}>{t.label}{lockedFor(t.id) ? ' · fermé' : ''}</button>
+            ))}
+          </div>
+          {locked ? <p role="status" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Saisie du {termDef.label} fermée depuis le {termDef.closeText} : vous pouvez consulter, plus modifier. Pour une correction, demandez à la Direction de rouvrir votre saisie.</p>
+            : termDef.closeAt && TODAY <= termDef.closeAt.slice(0, 10) ? <p className="rounded-xl bg-navy-50 p-3 text-sm text-navy-900">Arrêt des notes : <strong>{termDef.stopText}</strong> (un devoir daté après compte pour le trimestre suivant) · saisie ouverte jusqu'au <strong>{termDef.closeText}</strong>.</p>
+            : null}
+        </div>
+      )}
+      <fieldset disabled={locked} className="min-w-0 space-y-5">
       {taken.length > 0 && (
         <div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
           {taken.map((x) => <p key={`${x.cls}|${x.subject}`}>ℹ {x.cls} · {x.subject} : <strong>{x.byName}</strong> a commencé la saisie des notes. Cette classe ne figure plus dans votre carnet (un seul professeur par classe).</p>)}
@@ -763,7 +789,7 @@ export default function GradebookModule({ settings, go, role }) {
         </div>
       )}
       {service.common && (() => {
-        const mine = (evaluations[serviceId] ?? []).length; const total = mine + (service.otherCount ?? 0);
+        const mine = (evaluations[serviceId] ?? []).filter(inTerm).length; const total = mine + (service.otherCount ?? 0);
         const need = minEvaluationsFor(service, settings.grading.minEvaluations); const left = Math.max(0, need - total);
         return (
           <div className="rounded-xl bg-violet-50 p-3 text-sm text-violet-900">
@@ -780,16 +806,16 @@ export default function GradebookModule({ settings, go, role }) {
             <button key={id} type="button" aria-pressed={layout === id} onClick={() => setLayout(id)}
               className={`rounded-full px-3 py-1 font-medium ${layout === id ? 'bg-navy-500 text-white' : 'bg-white text-slate-700 ring-1 ring-slate-200'}`}>{l}</button>
           ))}
-          {layout === 'tableau' && <span className="text-xs text-slate-500">Aller à : <a href="#tab-notes" className="underline">Notes</a>{!noApp && <> · <a href="#tab-apps" className="underline">Appréciations</a></>} · <a href="#tab-comps" className="underline">Compétences</a></span>}
+          {layout === 'tableau' && <span className="text-xs text-slate-500">Aller à : <a href="#tab-notes" className="underline">Notes{!noApp && ' et appréciations'}</a> · <a href="#tab-comps" className="underline">Compétences</a></span>}
         </div>
       )}
       {ESSAI && !appOnly && layout === 'tableau' && (<>
-        <section id="tab-notes" className="scroll-mt-24"><NotesStep {...props} go={go} competencies={myComps[serviceId] ?? []} /></section>
-        {!noApp && <section id="tab-apps" className="scroll-mt-24"><AppreciationsTable {...props} comments={comments} setComments={setComments} /></section>}
-        <section id="tab-comps" className="scroll-mt-24"><CompetenciesStep service={service} settings={settings} evaluations={evaluations[serviceId] ?? []} mine={myComps[serviceId] ?? []}
-          siblings={siblings} siblingComps={siblings.map((x) => ({ ...x, comps: myComps[x.id] ?? [] }))} linked={!unlinked[serviceId]}
+        <section id="tab-notes" className="scroll-mt-24"><NotesStep {...props} go={go} competencies={tComps[serviceId] ?? []}
+          app={noApp ? null : { comments: tComments, setComments: setTComments, keyOf: (s) => `${serviceId}:${s}`, check: (t) => checkAppreciation(t, { mode: service.mode, tutoiement: settings?.grading?.allowTutoiement !== false }) }} /></section>
+        <section id="tab-comps" className="scroll-mt-24"><CompetenciesStep service={service} settings={settings} evaluations={props.evaluations} mine={tComps[serviceId] ?? []}
+          siblings={siblings} siblingComps={siblings.map((x) => ({ ...x, comps: tComps[x.id] ?? [] }))} linked={!unlinked[serviceId]}
           setLinked={(on) => setUnlinked({ ...unlinked, [serviceId]: !on })}
-          setMine={(v) => setMyComps({ ...myComps, [serviceId]: v, ...(unlinked[serviceId] ? {} : Object.fromEntries(siblings.map((x) => [x.id, v]))) })} /></section>
+          setMine={(v) => setTComps({ ...tComps, [serviceId]: v, ...(unlinked[serviceId] ? {} : Object.fromEntries(siblings.map((x) => [x.id, v]))) })} /></section>
       </>)}
       {!appOnly && !(ESSAI && layout === 'tableau') && (
         <div className="flex gap-1 rounded-lg bg-slate-100 p-1" role="tablist">
@@ -801,12 +827,12 @@ export default function GradebookModule({ settings, go, role }) {
           ))}
         </div>
       )}
-      {!(ESSAI && !appOnly && layout === 'tableau') && currentStep === 'notes' && <NotesStep {...props} go={go} competencies={myComps[serviceId] ?? []} />}
-      {!(ESSAI && !appOnly && layout === 'tableau') && currentStep === 'competences' && <CompetenciesStep service={service} settings={settings} evaluations={evaluations[serviceId] ?? []} mine={myComps[serviceId] ?? []}
-        siblings={siblings} siblingComps={siblings.map((x) => ({ ...x, comps: myComps[x.id] ?? [] }))} linked={!unlinked[serviceId]}
+      {!(ESSAI && !appOnly && layout === 'tableau') && currentStep === 'notes' && <NotesStep {...props} go={go} competencies={tComps[serviceId] ?? []} />}
+      {!(ESSAI && !appOnly && layout === 'tableau') && currentStep === 'competences' && <CompetenciesStep service={service} settings={settings} evaluations={props.evaluations} mine={tComps[serviceId] ?? []}
+        siblings={siblings} siblingComps={siblings.map((x) => ({ ...x, comps: tComps[x.id] ?? [] }))} linked={!unlinked[serviceId]}
         setLinked={(on) => setUnlinked({ ...unlinked, [serviceId]: !on })}
-        setMine={(v) => setMyComps({ ...myComps, [serviceId]: v, ...(unlinked[serviceId] ? {} : Object.fromEntries(siblings.map((x) => [x.id, v]))) })} />}
-      {!(ESSAI && !appOnly && layout === 'tableau') && currentStep === 'appreciations' && <AppreciationsStep {...props} go={go} comments={comments} setComments={setComments} flags={flags} setFlags={setFlags} />}
+        setMine={(v) => setTComps({ ...tComps, [serviceId]: v, ...(unlinked[serviceId] ? {} : Object.fromEntries(siblings.map((x) => [x.id, v]))) })} />}
+      {!(ESSAI && !appOnly && layout === 'tableau') && currentStep === 'appreciations' && <AppreciationsStep {...props} go={go} comments={tComments} setComments={setTComments} flags={tFlags} setFlags={setTFlags} />}
       {ESSAI && !appOnly && layout !== 'tableau' && (() => {
         // bas de chaque étape : on passe à la suivante sans remonter chercher les onglets
         const order = STEPS.map(([id]) => id).filter((id) => !(noApp && id === 'appreciations'));
@@ -822,6 +848,7 @@ export default function GradebookModule({ settings, go, role }) {
           </div>
         );
       })()}
+      </fieldset>
     </div>
   );
 }

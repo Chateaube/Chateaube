@@ -6,6 +6,7 @@ import { EXAMS } from './rules/mockExam.js';
 import { EVALUATIONS, GRADES } from './data/grades.js';
 import { loadCarnet, carnetRaw, myServices } from './gradebookStore.js';
 import { demoOr } from './demoData.js';
+import { termCarnet } from './termView.js';
 import { studentAverage, BONUS_ENABLED } from './rules/grading.js';
 
 /** Épreuves d'examen blanc que le professeur a choisi de compter dans son carnet (avec son coefficient). */
@@ -29,7 +30,7 @@ export function termGrades() {
   // notes des professeurs (carnet enregistré) + examens blancs comptés
   let raw = null; try { raw = `${localStorage.getItem('ent-examens-blancs-v3')}|${carnetRaw()}|${demoOr('demo', 'real')}`; } catch { /* stockage indisponible */ }
   if (cache.value && cache.raw === raw) return cache.value;
-  const carnet = loadCarnet();
+  const carnet = termCarnet(loadCarnet()); // trimestre des bulletins (site d'essai)
   const { ev, gr } = withMockExams(carnet?.evaluations ?? demoOr(EVALUATIONS, {}), carnet?.grades ?? demoOr(GRADES, {}));
   myServices().forEach((s) => { ev[s.id] ??= []; gr[s.id] ??= {}; }); // un service sans devoir : liste vide
   cache = { raw, value: { EVALUATIONS: ev, GRADES: gr, BONUS: carnet?.bonus ?? {} } };

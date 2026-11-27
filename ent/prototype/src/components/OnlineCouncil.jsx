@@ -15,6 +15,7 @@ import { sheetKind } from '../rules/orientationSheet.js';
 import CouncilOrientation from './CouncilOrientation.jsx';
 import { setSheetOwner } from './OrientationSheet.jsx';
 import { studentLabel as sn } from '../studentNames.js';
+import { termCarnets } from '../termView.js';
 
 // Conseils de classe en ligne (Direction et secrétariat) : la grille se remplit toute seule avec les notes que
 // les professeurs saisissent dans leur carnet. La décision et l'appréciation générale de chaque élève sont
@@ -35,7 +36,7 @@ export default function OnlineCouncil({ settings, role, go }) {
   const [sync, setSync] = useState(null);
   const load = () => {
     setErr('');
-    Promise.all([fetchDocs('CARNET'), fetchRoster(), fetchDocs('CONSEIL'), fetchDocs('ORIENTATION').catch(() => [])]).then(([carnets, roster, conseil, orientation]) => {
+    Promise.all([fetchDocs('CARNET').then(termCarnets), fetchRoster(), fetchDocs('CONSEIL'), fetchDocs('ORIENTATION').catch(() => [])]).then(([carnets, roster, conseil, orientation]) => {
       // fiches d'orientation remplies par les élèves (2de, Terminale) : reprises pour la séance
       orientation.forEach((d) => d.value?.student && setSheetOwner(d.value.student, d.owner, d.value.sheet));
       const r = roster?.value ?? null;

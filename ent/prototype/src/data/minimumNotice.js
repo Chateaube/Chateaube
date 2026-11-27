@@ -25,8 +25,10 @@ export const NOTICE_EPS = {
 /** Le message s'affiche à partir de 15 jours avant l'arrêt des notes, tant que le minimum n'est pas atteint. */
 export const NOTICE_FROM_DAYS = 15;
 /** Faut-il afficher le message ? count : devoirs saisis ; min : minimum de la matière (4, EPS 3) ; stop : arrêt des notes. */
-export function minimumNoticeDue({ count, min, validated, date, stop }) {
+// from (facultatif) : premier jour d'affichage choisi par la Direction (sinon 15 jours avant stop)
+export function minimumNoticeDue({ count, min, validated, date, stop, from: first }) {
   if (validated || min < 3 || count >= min || !stop || date > stop) return false;
+  if (first) return date >= first;
   const from = new Date(`${stop}T00:00:00Z`); from.setUTCDate(from.getUTCDate() - NOTICE_FROM_DAYS);
   return date >= from.toISOString().slice(0, 10);
 }

@@ -27,6 +27,7 @@ import { teacherLabel } from './NotesReceived.jsx';
 import { loadGA } from '../appreciationStore.js';
 import { loadEngagements, loadCatalogue, loadValidation } from '../engagementsStore.js';
 import { engagementLabels, attestationLabels } from '../rules/engagements.js';
+import { termCarnets } from '../termView.js';
 
 
 // Bulletins du trimestre (Direction, Bureau) : une page A4 par élève, selon la matrice de l'établissement.
@@ -325,7 +326,7 @@ function OnlineBulletins(props) {
     Object.keys(r.names ?? {}).forEach((id) => { if (fiches[id]) firsts[id] = teacherLabel(fiches[id]) || firsts[id]; });
     return { ...r, firsts };
   };
-  const load = () => { setErr(''); Promise.all([fetchDocs('CARNET'), fetchRoster(), fetchDoc('corrections'), fetchDocs('CONSEIL').catch(() => [])]).then(([carnets, roster, corr, conseil]) => setData({ carnets: Object.fromEntries(carnets.map((c) => [c.owner, c.value])), roster: liveFirsts(roster?.value ?? null), corrections: corr?.value ?? {}, ga: Object.fromEntries(conseil.map((d) => [d.key, d.value])) }), (e) => setErr(e.message)); };
+  const load = () => { setErr(''); Promise.all([fetchDocs('CARNET').then(termCarnets), fetchRoster(), fetchDoc('corrections'), fetchDocs('CONSEIL').catch(() => [])]).then(([carnets, roster, corr, conseil]) => setData({ carnets: Object.fromEntries(carnets.map((c) => [c.owner, c.value])), roster: liveFirsts(roster?.value ?? null), corrections: corr?.value ?? {}, ga: Object.fromEntries(conseil.map((d) => [d.key, d.value])) }), (e) => setErr(e.message)); };
   useEffect(load, []);
   if (err) return <Card title="Bulletins"><p className="text-sm text-red-800">Les carnets n'ont pas pu être lus ({err}).</p><Button className="mt-3" onClick={load}>Réessayer</Button></Card>;
   if (!data) return <Card title="Bulletins"><p className="text-sm text-slate-600">Chargement des notes des professeurs…</p></Card>;
