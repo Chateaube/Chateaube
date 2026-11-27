@@ -45,7 +45,7 @@ export default function TeacherGuide() {
         <div>
           <p className="text-sm font-semibold text-navy-500">Professeurs · aide</p>
           <h1 className="text-2xl font-semibold text-navy-900">Mode d'emploi : notes, appréciations et compétences</h1>
-          <p className="text-sm text-slate-600">Tout ce qu'il faut pour remplir les bulletins du trimestre dans l'ENT, étape par étape.</p>
+          <p className="text-sm text-slate-600">Tout ce qu'il faut pour remplir les bulletins du trimestre dans l'ENT, rubrique par rubrique.</p>
         </div>
         <Button variant="secondary" className="print:hidden" onClick={() => printOnly('.teacher-guide-print', 'size: A4 portrait; margin: 12mm;', 'Mode d\'emploi des professeurs')}>Imprimer le mode d'emploi</Button>
       </div>
@@ -80,12 +80,12 @@ export default function TeacherGuide() {
 
       <Step n="2" title="Ouvrir ses notes et choisir la classe">
         <p>Dans le menu : <strong>Évaluations › Notes et appréciations</strong>. En haut de l'écran, choisissez la <strong>classe et la matière</strong>. Notes, appréciations et compétences se remplissent dans l'ordre que vous voulez.</p>
-        <Shot><span className="mr-2 rounded border border-slate-300 bg-white px-2 py-1">3e · Mathématiques ▾</span> <Btn primary>1. Notes</Btn> <Btn>2. Appréciations</Btn> <Btn>3. Compétences du bulletin</Btn></Shot>
+        <Shot><span className="mr-2 rounded border border-slate-300 bg-white px-2 py-1">3e · Mathématiques ▾</span> <Btn primary>Notes</Btn> <Btn>Appréciations du bulletin</Btn> <Btn>Compétences du bulletin</Btn></Shot>
         <p>Le bouton <strong>« Comment ça marche ? »</strong> rouvre un résumé à tout moment.</p>
       </Step>
 
       <Step n="3" title="Créer une évaluation">
-        <p>Onglet <strong>1. Notes</strong>, bouton <strong>« ＋ Nouvelle évaluation »</strong>. Remplissez :</p>
+        <p>Onglet <strong>Notes</strong>, bouton <strong>« ＋ Nouvelle évaluation »</strong>. Remplissez :</p>
         <ul className="list-disc space-y-1 pl-5">
           <li><strong>Type</strong> (devoir surveillé, interrogation, devoir maison, oral…) et <strong>intitulé</strong> (ex. « DS n°2 — Les fractions ») ;</li>
           <li><strong>Évaluation du</strong> : la date où les élèves l'ont faite ; <strong>Note publiée le</strong> : à partir de quand les élèves la voient (les parents quelques jours après) ;</li>
@@ -110,7 +110,7 @@ export default function TeacherGuide() {
       </Step>
 
       <Step n="5" title="Écrire les appréciations">
-        <p>Onglet <strong>2. Appréciations</strong> : une appréciation par élève, qui figurera sur son bulletin. Sa moyenne et ses notes sont affichées à côté pour vous aider.</p>
+        <p>Onglet <strong>Appréciations du bulletin</strong> : une appréciation par élève, qui figurera sur son bulletin. Sa moyenne et ses notes sont affichées à côté pour vous aider.</p>
         <p>Le <strong>contrôleur de rédaction</strong>, à droite, vérifie pendant que vous écrivez (longueur, majuscule, ponctuation, mots à éviter) et propose des corrections.</p>
         <Shot><p className="font-medium">E. Éléa — 13,40</p><p className="mt-1 rounded border border-slate-300 bg-white p-1.5">Trimestre sérieux. Les méthodes sont acquises ; il faut maintenant gagner en rigueur dans la rédaction des solutions. Continuez ainsi.</p></Shot>
         <Tip>Une bonne appréciation : <strong>ce qui va</strong>, <strong>ce qui reste à travailler</strong>, <strong>un conseil</strong>. Précise et bienveillante, adressée à l'élève ou à sa famille.</Tip>
@@ -118,7 +118,7 @@ export default function TeacherGuide() {
       </Step>
 
       <Step n="6" title="Les compétences du bulletin">
-        <p>Onglet <strong>3. Compétences du bulletin</strong> : ce qui a été travaillé pendant le trimestre (une ligne par compétence). Elles apparaissent dans la colonne « Compétences » du bulletin.</p>
+        <p>Onglet <strong>Compétences du bulletin</strong> : ce qui a été travaillé pendant le trimestre (une ligne par compétence). Elles apparaissent dans la colonne « Compétences » du bulletin.</p>
         <ul className="list-disc space-y-1 pl-5">
           <li>Reprenez la <strong>base proposée</strong> (bouton ＋ ou « Tout reprendre »), ou écrivez les vôtres ;</li>
           <li>vous avez deux classes du même niveau ? Cochez « Mêmes compétences en … » pour ne les écrire qu'une fois.</li>

@@ -19,7 +19,7 @@ import { BONUS_ENABLED, isEps, minEvaluationsFor, studentAverage, notesCount, te
 import { checkAppreciation, autoFix, rephrase } from '../rules/appreciation.js';
 import { today } from '../clock.js';
 import { askConfirm } from './Dialogs.jsx';
-import { ESSAI } from '../essai.js';
+import { NOUVEAU } from '../essai.js';
 import { TERMS, termById, termOfDate, termClosed } from '../rules/terms.js';
 
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
@@ -48,7 +48,7 @@ function EvaluationForm({ draft, setDraft, settings, competencies, onCreate, onC
   return (
     <div className="mb-4 space-y-3 rounded-lg border border-navy-200 bg-navy-50/60 p-4">
       <p className="text-sm font-semibold text-navy-900">Nouvelle évaluation</p>
-      {ESSAI ? (<>
+      {NOUVEAU ? (<>
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="block text-xs text-slate-600">Type
             <select value={draft.type} onChange={(e) => set({ type: e.target.value })} className={`mt-1 w-full ${inputCls}`}>
@@ -98,7 +98,7 @@ function EvaluationForm({ draft, setDraft, settings, competencies, onCreate, onC
       </label>
       <div>
         <p className="text-xs text-slate-600">Compétences évaluées dans cette évaluation <span className="text-slate-400">(facultatif)</span></p>
-        {competencies.length === 0 ? <p className="mt-1 text-xs text-slate-400">Facultatif. Les compétences de la classe se renseignent à l'étape « 3. Compétences du bulletin ».</p> : (
+        {competencies.length === 0 ? <p className="mt-1 text-xs text-slate-400">Facultatif. Les compétences de la classe se renseignent dans l'onglet « Compétences du bulletin ».</p> : (
           <div className="mt-1 space-y-1">
             {competencies.map((c) => (
               <label key={c} className="flex items-center gap-2 text-sm text-slate-700">
@@ -156,7 +156,7 @@ function EvaluationForm({ draft, setDraft, settings, competencies, onCreate, onC
       </label>
       <div>
         <p className="text-xs text-slate-600">Compétences évaluées dans cette évaluation <span className="text-slate-400">(facultatif)</span></p>
-        {competencies.length === 0 ? <p className="mt-1 text-xs text-slate-400">Facultatif. Les compétences de la classe se renseignent à l'étape « 3. Compétences du bulletin ».</p> : (
+        {competencies.length === 0 ? <p className="mt-1 text-xs text-slate-400">Facultatif. Les compétences de la classe se renseignent dans l'onglet « Compétences du bulletin ».</p> : (
           <div className="mt-1 space-y-1">
             {competencies.map((c) => (
               <label key={c} className="flex items-center gap-2 text-sm text-slate-700">
@@ -205,7 +205,7 @@ function BonusControl({ b, steps, readOnly, open, onOpen, onChange, label }) {
 function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, remarks, setRemarks, bonus = {}, setBonus, validated, setValidated, settings, competencies = [], go, termDef = TERM, app = null }) {
   // app (site d'essai, « Tableau unique ») : appréciation et état sur la même ligne que les notes, comme le classeur Excel
   const min = minEvaluationsFor(service, settings.grading.minEvaluations); // EMC et matière partagée : 2
-  const day = ESSAI && termDef.start ? (TODAY < termDef.start ? termDef.start : TODAY > termDef.stop ? termDef.stop : TODAY) : TODAY; // date proposée : dans le trimestre choisi
+  const day = NOUVEAU && termDef.start ? (TODAY < termDef.start ? termDef.start : TODAY > termDef.stop ? termDef.stop : TODAY) : TODAY; // date proposée : dans le trimestre choisi
   const blank = {
     type: settings.grading.evaluationTypes[0], title: '', date: day, publishOn: TODAY < day ? day : TODAY, remarksEnabled: false,
     scale: settings.grading.defaultScale, coef: settings.grading.defaultCoef, normalize: true, comment: '', themesText: '', competencies: [],
@@ -231,7 +231,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
   };
   const editEv = (ev) => setDraft({ ...blank, ...ev, comment: ev.comment ?? '', themesText: (ev.themes ?? []).join(', '), competencies: ev.competencies ?? [] });
   // site d'essai : comme dans Pronote, le devoir le plus récent en premier (à côté des noms)
-  const cols = ESSAI ? [...evaluations].sort((a, b) => String(b.date).localeCompare(String(a.date))) : evaluations;
+  const cols = NOUVEAU ? [...evaluations].sort((a, b) => String(b.date).localeCompare(String(a.date))) : evaluations;
 
   return (
     <div className={`grid gap-5 xl:items-start ${app ? '' : 'xl:grid-cols-[1fr_300px]'}`}>
@@ -243,11 +243,11 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
           <Button variant="secondary" disabled={validated} onClick={() => setDraft(blank)}><span aria-hidden>＋</span> Nouvelle évaluation</Button>
         </span>}
       >
-        {(ESSAI ? minimumNoticeDue({ count: evaluations.length + other, min, validated, date: TODAY, from: termDef.noticeFrom, stop: termDef.closeAt?.slice(0, 10) })
+        {(NOUVEAU ? minimumNoticeDue({ count: evaluations.length + other, min, validated, date: TODAY, from: termDef.noticeFrom, stop: termDef.closeAt?.slice(0, 10) })
           : minimumNoticeDue({ count: evaluations.length + other, min, validated, date: TODAY, stop: TERM.stop })) && <MinimumNotice eps={isEps(service)} />}
         {draft && (
-          <EvaluationForm draft={draft} setDraft={setDraft} settings={settings} competencies={competencies} onCancel={() => setDraft(null)} range={ESSAI && termDef.start ? termDef : null}
-            onDelete={ESSAI && draft.id ? async () => { const ev = evaluations.find((x) => x.id === draft.id); if (ev && await removeEv(ev)) setDraft(null); } : null}
+          <EvaluationForm draft={draft} setDraft={setDraft} settings={settings} competencies={competencies} onCancel={() => setDraft(null)} range={NOUVEAU && termDef.start ? termDef : null}
+            onDelete={NOUVEAU && draft.id ? async () => { const ev = evaluations.find((x) => x.id === draft.id); if (ev && await removeEv(ev)) setDraft(null); } : null}
             onCreate={() => {
               const { themesText, ...ev } = draft;
               const clean = { ...ev, title: ev.title.trim(), comment: (ev.comment ?? '').trim() || null,
@@ -271,13 +271,13 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
           <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-600">Aucune note pour ce trimestre. Ajoutez une première évaluation (DS, oral, exposé…).</p>
         ) : (
           <div className="-mx-5 overflow-x-auto">
-            <table data-grid className={`${!ESSAI || app ? 'w-full' : 'w-auto'} text-sm`} style={{ minWidth: ESSAI ? 290 + evaluations.length * 96 + (app ? 400 : 0) : 260 + evaluations.length * 130 }}>
+            <table data-grid className={`${!NOUVEAU || app ? 'w-full' : 'w-auto'} text-sm`} style={{ minWidth: NOUVEAU ? 290 + evaluations.length * 96 + (app ? 400 : 0) : 260 + evaluations.length * 130 }}>
               <thead>
                 <tr className="border-y border-slate-100 bg-slate-50 text-left align-bottom text-xs text-slate-500">
-                  <th className="sticky left-0 z-20 bg-slate-50 px-3 py-2 font-medium shadow-[2px_0_0_#e2e8f0]" style={ESSAI ? { width: 150 } : undefined}>{ESSAI ? `${service.students.length} élèves` : 'Élève'}</th>
-                  {ESSAI && <th className="bg-slate-100 px-2 py-2 text-right font-medium" style={{ width: 64 }}>Moy.</th>}
-                  {ESSAI && <th className="bg-slate-100 px-2 py-2 text-center font-medium" style={{ width: 56 }} title="Notes comptées / devoirs">Notes</th>}
-                  {cols.map((ev) => ESSAI ? (
+                  <th className="sticky left-0 z-20 bg-slate-50 px-3 py-2 font-medium shadow-[2px_0_0_#e2e8f0]" style={NOUVEAU ? { width: 150 } : undefined}>{NOUVEAU ? `${service.students.length} élèves` : 'Élève'}</th>
+                  {NOUVEAU && <th className="bg-slate-100 px-2 py-2 text-right font-medium" style={{ width: 64 }}>Moy.</th>}
+                  {NOUVEAU && <th className="bg-slate-100 px-2 py-2 text-center font-medium" style={{ width: 56 }} title="Notes comptées / devoirs">Notes</th>}
+                  {cols.map((ev) => NOUVEAU ? (
                     <th key={ev.id} className="border-l border-slate-200 px-1 py-2 text-center font-normal" style={{ width: 96 }}>
                       <button type="button" disabled={validated || ev.fromMockExam} onClick={() => editEv(ev)} title={`${ev.title}${ev.fromMockExam ? '' : ' — cliquer pour modifier ou supprimer'}`}
                         className="w-full rounded px-1 py-0.5 hover:bg-white disabled:hover:bg-transparent">
@@ -308,7 +308,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
                       </p>
                     </th>
                   ))}
-                  {!ESSAI && <th className="px-3 py-2 text-right font-medium">Moyenne /20</th>}
+                  {!NOUVEAU && <th className="px-3 py-2 text-right font-medium">Moyenne /20</th>}
                   {app && <th className="px-2 py-2 font-medium">Appréciation du bulletin</th>}
                   {app && <th className="px-3 py-2 font-medium">État</th>}
                 </tr>
@@ -320,15 +320,15 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
                     <tr key={s} className="border-b border-slate-100 align-top">
                       <td className="sticky left-0 z-20 bg-white px-3 py-2.5 font-medium text-slate-800 shadow-[2px_0_0_#e2e8f0]" title={s}>
                         {shortName(s)}
-                        {!ESSAI && n < min && <p className="text-[11px] font-normal text-amber-700">{n} note{n > 1 ? 's' : ''} retenue{n > 1 ? 's' : ''}</p>}
+                        {!NOUVEAU && n < min && <p className="text-[11px] font-normal text-amber-700">{n} note{n > 1 ? 's' : ''} retenue{n > 1 ? 's' : ''}</p>}
                       </td>
-                      {ESSAI && <td className="bg-slate-50 px-2 py-2.5 text-right font-semibold tabular-nums text-navy-900">{fmtAvg(avgs[i])}</td>}
-                      {ESSAI && <td className={`bg-slate-50 px-2 py-2.5 text-center tabular-nums ${n < min ? 'text-amber-700' : 'text-slate-600'}`} title={n < min ? `Minimum : ${min} notes` : undefined}>{n}/{evaluations.length}</td>}
+                      {NOUVEAU && <td className="bg-slate-50 px-2 py-2.5 text-right font-semibold tabular-nums text-navy-900">{fmtAvg(avgs[i])}</td>}
+                      {NOUVEAU && <td className={`bg-slate-50 px-2 py-2.5 text-center tabular-nums ${n < min ? 'text-amber-700' : 'text-slate-600'}`} title={n < min ? `Minimum : ${min} notes` : undefined}>{n}/{evaluations.length}</td>}
                       {cols.map((ev) => (
-                        <td key={ev.id} className={ESSAI ? 'border-l border-slate-100 px-1 py-2' : 'px-2 py-2'} style={ESSAI ? { width: 96 } : undefined}>
+                        <td key={ev.id} className={NOUVEAU ? 'border-l border-slate-100 px-1 py-2' : 'px-2 py-2'} style={NOUVEAU ? { width: 96 } : undefined}>
                           {validated ? <span className="tabular-nums">{grades[s]?.[ev.id] || '—'}</span>
                             : <GradeCell value={grades[s]?.[ev.id] ?? ''} max={ev.scale} onChange={(v) => setCell(s, ev.id, v)} />}
-                          {ESSAI && !validated && !grades[s]?.[ev.id] && arrivalOf(s) > ev.date && (
+                          {NOUVEAU && !validated && !grades[s]?.[ev.id] && arrivalOf(s) > ev.date && (
                             <button type="button" onClick={() => setCell(s, ev.id, 'NN')} title={`Inscrit le ${fmtDate(arrivalOf(s))}, après ce devoir : NN (non noté), sauf s'il l'a rattrapé`}
                               className="mt-1 block rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-800 ring-1 ring-amber-200">NN ? (inscrit le {fmtDate(arrivalOf(s))})</button>
                           )}
@@ -341,7 +341,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
                           )}
                         </td>
                       ))}
-                      {!ESSAI && <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-navy-900">{fmtAvg(avgs[i])}</td>}
+                      {!NOUVEAU && <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-navy-900">{fmtAvg(avgs[i])}</td>}
                       {app && (() => {
                         const c = app.comments[app.keyOf(s)] ?? { text: '', validated: false };
                         const r = c.text.trim() ? app.check(c.text) : null;
@@ -366,13 +366,13 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
               <tfoot>
                 <tr className="bg-slate-50 text-xs text-slate-600">
                   <td className="sticky left-0 z-20 bg-slate-50 px-3 py-2 font-medium shadow-[2px_0_0_#e2e8f0]">Classe</td>
-                  {ESSAI && <td className="bg-slate-100 px-2 py-2 text-right font-semibold tabular-nums">{fmtAvg(stats.avg)}</td>}
-                  {ESSAI && <td className="bg-slate-100" />}
+                  {NOUVEAU && <td className="bg-slate-100 px-2 py-2 text-right font-semibold tabular-nums">{fmtAvg(stats.avg)}</td>}
+                  {NOUVEAU && <td className="bg-slate-100" />}
                   {cols.map((ev) => {
                     const st = classStats(service.students.map((s) => studentAverage([ev], grades[s], BONUS_ENABLED ? bonus[s] : undefined)));
                     return <td key={ev.id} className="px-2 py-2 tabular-nums">moy. {fmtAvg(st.avg)}<br />{fmtAvg(st.min)} – {fmtAvg(st.max)}</td>;
                   })}
-                  {!ESSAI && <td className="px-3 py-2 text-right font-semibold tabular-nums">{fmtAvg(stats.avg)}</td>}
+                  {!NOUVEAU && <td className="px-3 py-2 text-right font-semibold tabular-nums">{fmtAvg(stats.avg)}</td>}
                   {app && <td colSpan={2} />}
                 </tr>
               </tfoot>
@@ -398,7 +398,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
           </li>
           <li className={`flex gap-2 ${competencies.length ? 'text-emerald-800' : 'text-red-800'}`}>
             <Icon name={competencies.length ? 'check' : 'x'} className="mt-0.5 h-4 w-4 shrink-0" />
-            {competencies.length ? `${competencies.length} compétence(s) pour le bulletin` : 'Compétences du bulletin à renseigner (étape 3)'}
+            {competencies.length ? `${competencies.length} compétence(s) pour le bulletin` : 'Compétences du bulletin à renseigner (onglet « Compétences du bulletin »)'}
           </li>
           {adjErrors.length > 0 && (
             <li className="flex gap-2 text-red-800"><Icon name="x" className="mt-0.5 h-4 w-4 shrink-0" /><span>Bonus / malus : {adjErrors.join(' ')}</span></li>
@@ -608,7 +608,7 @@ function AppreciationsStep({ service, evaluations, grades, validated, settings, 
           <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">Les notes du trimestre ne sont pas encore validées : vous pouvez rédiger, la validation de l'appréciation sera possible ensuite.</p>
         )}
         <textarea spellCheck lang="fr" rows={6} value={entry.text} onChange={(e) => setText(e.target.value)} placeholder="Appréciation du trimestre (au moins deux phrases complètes, à la 3e personne)…"
-          className={`w-full resize-y rounded-lg border px-3 py-2 text-sm leading-relaxed outline-none focus:ring-2 ${result.ok || (ESSAI && !entry.text.trim()) ? 'border-slate-300 focus:ring-navy-200' : 'border-red-300 focus:ring-red-200'}`} />
+          className={`w-full resize-y rounded-lg border px-3 py-2 text-sm leading-relaxed outline-none focus:ring-2 ${result.ok || (NOUVEAU && !entry.text.trim()) ? 'border-slate-300 focus:ring-navy-200' : 'border-red-300 focus:ring-red-200'}`} />
         {entry.text.trim() && (result.errors.length > 0 || result.warnings.length > 0) && (
           <div className="mt-2 rounded-lg bg-slate-50 p-3 text-sm leading-relaxed text-slate-700">
             <p className="mb-1 text-[11px] font-semibold text-slate-500">Aperçu annoté</p>
@@ -648,7 +648,7 @@ function AppreciationsStep({ service, evaluations, grades, validated, settings, 
 
       </div>
       <Card title="Contrôleur de rédaction" subtitle="Règles de l'établissement, vérifiées à chaque frappe" className="xl:sticky xl:top-6">
-        {ESSAI && !entry.text.trim() ? <p className="text-sm text-slate-600">Commencez à écrire : les règles de rédaction (2 phrases au moins, 450 caractères au plus, pas de formule décourageante) se vérifient ici au fil de la frappe.</p> : <RulePanel result={result} />}
+        {NOUVEAU && !entry.text.trim() ? <p className="text-sm text-slate-600">Commencez à écrire : les règles de rédaction (2 phrases au moins, 450 caractères au plus, pas de formule décourageante) se vérifient ici au fil de la frappe.</p> : <RulePanel result={result} />}
       </Card>
     </div>
   );
@@ -746,13 +746,13 @@ export default function GradebookModule({ settings, go, role }) {
   // trimestres suivants : appréciations, compétences, validations et remarques du conseil dans byTerm (le 1er reste à la racine)
   const [byTerm, setByTerm] = useState(saved?.byTerm ?? {});
   // saisie fermée (professeurs) : après la date de fermeture, sauf si la Direction a rouvert (liste des classes, reopen)
-  const lockedFor = (id) => ESSAI && role === 'ENSEIGNANT' && termClosed(id, new Date(), currentRoster()?.reopen, remoteCarnetId());
+  const lockedFor = (id) => NOUVEAU && role === 'ENSEIGNANT' && termClosed(id, new Date(), currentRoster()?.reopen, remoteCarnetId());
   // trimestre affiché : le 1er tant que sa saisie est ouverte (le conseil approche), sinon celui du jour
-  const [term, setTerm] = useState(() => (!ESSAI ? TERMS[0].id : lockedFor(TERMS[0].id) || TODAY > TERMS[0].closeAt.slice(0, 10) ? termOfDate(TODAY) : TERMS[0].id));
-  const termDef = ESSAI ? termById(term) : TERM;
+  const [term, setTerm] = useState(() => (!NOUVEAU ? TERMS[0].id : lockedFor(TERMS[0].id) || TODAY > TERMS[0].closeAt.slice(0, 10) ? termOfDate(TODAY) : TERMS[0].id));
+  const termDef = NOUVEAU ? termById(term) : TERM;
   const locked = lockedFor(term);
-  const inTerm = (e) => !ESSAI || termOfDate(e.date) === term;
-  const ofTerm = (field, root, setRoot) => (!ESSAI || term === TERMS[0].id ? [root, setRoot]
+  const inTerm = (e) => !NOUVEAU || termOfDate(e.date) === term;
+  const ofTerm = (field, root, setRoot) => (!NOUVEAU || term === TERMS[0].id ? [root, setRoot]
     : [byTerm[term]?.[field] ?? {}, (v) => setByTerm((b) => ({ ...b, [term]: { ...(b[term] ?? {}), [field]: v } }))]);
   const [tComments, setTComments] = ofTerm('comments', comments, setComments);
   const [tComps, setTComps] = ofTerm('myComps', myComps, setMyComps);
@@ -815,7 +815,7 @@ export default function GradebookModule({ settings, go, role }) {
             : 'Chaque note est enregistrée dès qu\'elle est saisie : remplissez au fil du trimestre, évaluation après évaluation.'}
         </p>}
       </div>
-      {ESSAI && (
+      {NOUVEAU && (
         <div className="flex flex-wrap items-end gap-3">
           <label className="text-xs font-medium text-slate-600">Classe et matière
             <select value={serviceId} onChange={(e) => setServiceId(e.target.value)} className={`mt-1 block min-w-[260px] ${inputCls}`}>
@@ -829,7 +829,7 @@ export default function GradebookModule({ settings, go, role }) {
           </label>
         </div>
       )}
-      {!ESSAI && <div className="flex gap-2 overflow-x-auto pb-1">
+      {!NOUVEAU && <div className="flex gap-2 overflow-x-auto pb-1">
         {SERVICES.map((s) => {
           const ok = tValidated[s.id];
           return (
@@ -841,14 +841,14 @@ export default function GradebookModule({ settings, go, role }) {
           );
         })}
       </div>}
-      {ESSAI && (
+      {NOUVEAU && (
         <div className="space-y-2">
           {locked ? <p role="status" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Saisie du {termDef.label} fermée depuis le {termDef.closeText} : vous pouvez consulter, plus modifier. Pour une correction, demandez à la Direction de rouvrir votre saisie.</p>
             : termDef.closeAt && TODAY <= termDef.closeAt.slice(0, 10) ? <p className="rounded-xl bg-navy-50 p-3 text-sm text-navy-900">Arrêt des notes : <strong>{termDef.stopText}</strong> (un devoir daté après compte pour le trimestre suivant) · saisie ouverte jusqu'au <strong>{termDef.closeText}</strong>.</p>
             : null}
         </div>
       )}
-      {ESSAI && !appOnly && (<>
+      {NOUVEAU && !appOnly && (<>
         {/* site d'essai : trois onglets — les notes au fil de l'année, l'appréciation du bulletin, les compétences du bulletin */}
         <div className="flex flex-wrap gap-1 border-b border-slate-200" role="tablist">
           {[['notes', 'Notes'], ...(noApp ? [] : [['appreciations', 'Appréciations du bulletin']]), ['competences', 'Compétences du bulletin']].map(([id, l]) => (
@@ -889,7 +889,7 @@ export default function GradebookModule({ settings, go, role }) {
           </div>
         );
       })()}
-      {ESSAI && !appOnly && (<>
+      {NOUVEAU && !appOnly && (<>
         {currentStep === 'notes' && <NotesStep {...props} go={go} competencies={tComps[serviceId] ?? []} />}
         {currentStep === 'appreciations' && (<>
           {appView === 'classe' ? <AppreciationsTable {...props} comments={tComments} setComments={setTComments} />
@@ -900,7 +900,7 @@ export default function GradebookModule({ settings, go, role }) {
           setLinked={(on) => setUnlinked({ ...unlinked, [serviceId]: !on })}
           setMine={(v) => setTComps({ ...tComps, [serviceId]: v, ...(unlinked[serviceId] ? {} : Object.fromEntries(siblings.map((x) => [x.id, v]))) })} />}
       </>)}
-      {!appOnly && !ESSAI && (
+      {!appOnly && !NOUVEAU && (
         <div className="flex gap-1 rounded-lg bg-slate-100 p-1" role="tablist">
           {STEPS.filter(([id]) => !(noApp && id === 'appreciations')).map(([id, label]) => (
             <button key={id} role="tab" aria-selected={step === id} onClick={() => setStep(id)}
@@ -910,12 +910,12 @@ export default function GradebookModule({ settings, go, role }) {
           ))}
         </div>
       )}
-      {!(ESSAI && !appOnly) && currentStep === 'notes' && <NotesStep {...props} go={go} competencies={tComps[serviceId] ?? []} />}
-      {!(ESSAI && !appOnly) && currentStep === 'competences' && <CompetenciesStep service={service} settings={settings} evaluations={props.evaluations} mine={tComps[serviceId] ?? []}
+      {!(NOUVEAU && !appOnly) && currentStep === 'notes' && <NotesStep {...props} go={go} competencies={tComps[serviceId] ?? []} />}
+      {!(NOUVEAU && !appOnly) && currentStep === 'competences' && <CompetenciesStep service={service} settings={settings} evaluations={props.evaluations} mine={tComps[serviceId] ?? []}
         siblings={siblings} siblingComps={siblings.map((x) => ({ ...x, comps: tComps[x.id] ?? [] }))} linked={!unlinked[serviceId]}
         setLinked={(on) => setUnlinked({ ...unlinked, [serviceId]: !on })}
         setMine={(v) => setTComps({ ...tComps, [serviceId]: v, ...(unlinked[serviceId] ? {} : Object.fromEntries(siblings.map((x) => [x.id, v]))) })} />}
-      {!(ESSAI && !appOnly) && currentStep === 'appreciations' && <AppreciationsStep {...props} go={go} comments={tComments} setComments={setTComments} flags={tFlags} setFlags={setTFlags} />}
+      {!(NOUVEAU && !appOnly) && currentStep === 'appreciations' && <AppreciationsStep {...props} go={go} comments={tComments} setComments={setTComments} flags={tFlags} setFlags={setTFlags} />}
       </fieldset>
     </div>
   );

@@ -6,7 +6,7 @@ import { loadObjects } from '../objectsStore.js';
 import { loadVisits } from '../careStore.js';
 import { loadPassport } from './PassportTab.jsx';
 import { loadJournal, logActivity, ACTOR } from '../activityStore.js';
-import { ESSAI } from '../essai.js';
+import { NOUVEAU } from '../essai.js';
 import { justificationState } from '../rules/attendance.js';
 import { MEASURES, objectOf } from '../rules/discipline.js';
 import { formatDateFr } from '../rules/calendar.js';
@@ -52,7 +52,7 @@ export default function StudentTimeline({ role, student: fixed, embedded = false
   const [, setTick] = useState(0);
   const all = student ? studentEvents(student, { health }) : [];
   const events = all.filter((e) => kind === 'ALL' || e.kind === kind);
-  const kinds = Object.keys(KIND).filter((k) => (health || !['SOIN', 'JOURNAL'].includes(k)) && (ESSAI || k !== 'ENCOURAGEMENT'));
+  const kinds = Object.keys(KIND).filter((k) => (health || !['SOIN', 'JOURNAL'].includes(k)) && (NOUVEAU || k !== 'ENCOURAGEMENT'));
   const count = (k) => all.filter((e) => e.kind === k).length;
   // élève précédent / suivant dans sa classe
   const mates = student ? (CLASSES[classOf(student)] ?? []) : [];
@@ -70,7 +70,7 @@ export default function StudentTimeline({ role, student: fixed, embedded = false
         {!fixed && <div className="flex flex-col gap-2">
           {student && <div className="flex flex-wrap items-center gap-2">
             <p className="text-base"><strong className="text-navy-900">{sn(student)}</strong> · {classOf(student)}</p>
-            {ESSAI && at >= 0 && <span className="ml-auto flex items-center gap-1">
+            {NOUVEAU && at >= 0 && <span className="ml-auto flex items-center gap-1">
               <Button variant="secondary" className="!px-3 !py-1" aria-label="Élève précédent" disabled={at <= 0} onClick={() => setStudent(mates[at - 1])}>‹</Button>
               <span className="text-xs tabular-nums text-slate-500">{at + 1} / {mates.length}</span>
               <Button variant="secondary" className="!px-3 !py-1" aria-label="Élève suivant" disabled={at >= mates.length - 1} onClick={() => setStudent(mates[at + 1])}>›</Button>
@@ -87,11 +87,11 @@ export default function StudentTimeline({ role, student: fixed, embedded = false
         </div>}
         <div className="mt-3 flex flex-wrap gap-1.5">
           {['ALL', ...kinds].map((k) => (
-            <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)} className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${kind === k ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-700 ring-slate-300'}`}>{k === 'ALL' ? `Tout${ESSAI && student ? ` (${all.length})` : ''}` : `${KIND[k][1]}${ESSAI && student ? ` (${count(k)})` : ''}`}</button>
+            <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)} className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${kind === k ? 'bg-navy-500 text-white ring-navy-500' : 'bg-white text-slate-700 ring-slate-300'}`}>{k === 'ALL' ? `Tout${NOUVEAU && student ? ` (${all.length})` : ''}` : `${KIND[k][1]}${NOUVEAU && student ? ` (${count(k)})` : ''}`}</button>
           ))}
         </div>
       </Card>
-      {ESSAI && student && (praise === null
+      {NOUVEAU && student && (praise === null
         ? <Button variant="secondary" onClick={() => setPraise('')}>＋ Encouragement</Button>
         : <Card title="Encouragement" subtitle="Un progrès, un effort, une bonne attitude : visible par l'équipe dans le fil de l'élève.">
           <textarea rows={2} value={praise} onChange={(e) => setPraise(e.target.value)} placeholder="ex. Très bonne participation à l'oral cette semaine" className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm" />

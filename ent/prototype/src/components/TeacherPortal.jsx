@@ -15,7 +15,7 @@ import { today as todayIso } from '../clock.js';
 import { TERM } from '../data/grades.js';
 import { loadAnnouncements } from '../announcementsStore.js';
 import { receives } from '../rules/announcements.js';
-import { ESSAI } from '../essai.js';
+import { NOUVEAU } from '../essai.js';
 import { TERMS, termOfDate, carnetForTerm, termById } from '../rules/terms.js';
 import { gradebookTodo } from '../rules/teacherTodo.js';
 import { loadCarnet, myServices, saveCarnet } from '../gradebookStore.js';
@@ -79,7 +79,7 @@ export default function TeacherPortal({ go, settings, as = null }) {
   // en ligne : mes cours réels (emploi du temps de l'école × mes classes) ; démonstration : la semaine type
   const mine = ONLINE ? loadTimetable().filter((x) => slotOf(x)) : null;
   // pense-bête : gardé dans le carnet du professeur (le même sur l'ordinateur et le téléphone)
-  const [memo, setMemo] = React.useState(() => (ESSAI && ONLINE ? loadCarnet()?.memo ?? '' : ''));
+  const [memo, setMemo] = React.useState(() => (NOUVEAU && ONLINE ? loadCarnet()?.memo ?? '' : ''));
   const saveMemo = (v) => { setMemo(v); saveCarnet({ ...(loadCarnet() ?? {}), memo: v }); };
   // dates à retenir (éphéméride) : les 4 prochaines
   const dates = TERMS.flatMap((t) => [
@@ -122,8 +122,8 @@ export default function TeacherPortal({ go, settings, as = null }) {
 
       <Card title="À faire">
         <ul className="space-y-2">
-          {ONLINE && <li className="text-sm text-slate-700">Notes, appréciations et compétences du {TERM.label} : à saisir dans <button type="button" className="font-medium text-navy-700 underline" onClick={() => go('grades')}>Notes et appréciations</button> — {ESSAI ? <>arrêt des notes le <strong>{TERMS[0].stopText}</strong>, saisie ouverte jusqu'au <strong>{TERMS[0].closeText}</strong></> : <>arrêt des notes le <strong>{frStop(TERM.stop)}</strong></>}. Besoin d'aide ? <button type="button" className="font-medium text-navy-700 underline" onClick={() => go('teacher-guide')}>Mode d'emploi</button>.</li>}
-          {ESSAI && ONLINE && (() => {
+          {ONLINE && <li className="text-sm text-slate-700">Notes, appréciations et compétences du {TERM.label} : à saisir dans <button type="button" className="font-medium text-navy-700 underline" onClick={() => go('grades')}>Notes et appréciations</button> — {NOUVEAU ? <>arrêt des notes le <strong>{TERMS[0].stopText}</strong>, saisie ouverte jusqu'au <strong>{TERMS[0].closeText}</strong></> : <>arrêt des notes le <strong>{frStop(TERM.stop)}</strong></>}. Besoin d'aide ? <button type="button" className="font-medium text-navy-700 underline" onClick={() => go('teacher-guide')}>Mode d'emploi</button>.</li>}
+          {NOUVEAU && ONLINE && (() => {
             // trimestre à finir : le 1er tant que sa saisie est ouverte, sinon celui du jour
             const t = termById(todayIso() <= TERMS[0].closeAt.slice(0, 10) ? TERMS[0].id : termOfDate(todayIso()));
             const rows = gradebookTodo(myServices(), carnetForTerm(loadCarnet(), t.id), (sv) => minEvaluationsFor(sv, settings.grading.minEvaluations));
@@ -150,7 +150,7 @@ export default function TeacherPortal({ go, settings, as = null }) {
         </ul>
       </Card>
 
-      {ESSAI && ONLINE && (
+      {NOUVEAU && ONLINE && (
         <div className="grid gap-5 md:grid-cols-2">
           <Card title="Pense-bête" subtitle="Votre aide-mémoire : une idée, un rappel, un devoir à préparer (la Direction peut le lire, comme votre carnet).">
             <textarea rows={4} value={memo} readOnly={Boolean(as)} onChange={(e) => saveMemo(e.target.value)} placeholder="ex. Rendre les copies de la 6e jeudi" className="w-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-slate-800" />

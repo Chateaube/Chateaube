@@ -15,7 +15,7 @@ import { saveFile } from '../download.js';
 import { askConfirm } from './Dialogs.jsx';
 import { CASH_ACCOUNTS } from './CollectPayment.jsx';
 import { termCarnets } from '../termView.js';
-import { ESSAI } from '../essai.js';
+import { NOUVEAU } from '../essai.js';
 import { TERMS } from '../rules/terms.js';
 import TeacherPortal from './TeacherPortal.jsx';
 
@@ -214,7 +214,7 @@ export default function NotesReceived({ settings, go }) {
         <p className="text-sm text-slate-600">Ce que chaque professeur a saisi, en direct. Les notes sont sur le serveur dès leur saisie ; un historique garde les versions précédentes.</p>
       </div>
       {err && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{err}</p>}
-      {ESSAI && roster && <TermClosing roster={roster} teachers={teachers} busy={busy} onChange={setReopen} />}
+      {NOUVEAU && roster && <TermClosing roster={roster} teachers={teachers} busy={busy} onChange={setReopen} />}
       {msg && <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{msg}</p>}
 
       <Card title="1. Classes envoyées aux professeurs" subtitle="Élèves de votre import + matières et classes de chaque professeur. Une fiche sans enseignements est remplie toute seule depuis l'onglet 3 Personnel de votre import. À refaire après un nouvel import ou une fiche modifiée.">
@@ -268,7 +268,7 @@ export default function NotesReceived({ settings, go }) {
                 <p className="flex flex-wrap items-center justify-between gap-2 text-sm"><strong className="text-slate-900">{r.name}</strong>
                   <span className="flex items-center gap-2 text-xs text-slate-500">{r.carnet ? `dernière saisie : ${when(r.at)}` : 'pas encore commencé'}
                     {r.services.length > 0 && roster && <Button variant="secondary" className="!py-0.5 text-xs" onClick={() => actFor(r)}>Saisir à sa place</Button>}
-                    {ESSAI && r.services.length > 0 && roster && <Button variant="secondary" className="ml-1 !py-0.5 text-xs" onClick={() => actFor(r, 'home')}>Voir comme {r.name.split(' ')[0]}</Button>}</span></p>
+                    {NOUVEAU && r.services.length > 0 && roster && <Button variant="secondary" className="ml-1 !py-0.5 text-xs" onClick={() => actFor(r, 'home')}>Voir comme {r.name.split(' ')[0]}</Button>}</span></p>
                 {r.services.length === 0 ? <p className="mt-1 text-xs text-amber-800">Aucune classe : son nom n'a pas été trouvé dans l'onglet 3 Personnel de l'import. Ajoutez ses enseignements sur sa fiche (Gestion des agents) puis renvoyez les classes.</p> : (
                   <ul className="mt-2 divide-y divide-slate-100 text-sm">
                     {r.services.map((s) => {
