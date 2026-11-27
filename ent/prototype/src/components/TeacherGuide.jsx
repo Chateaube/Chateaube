@@ -61,16 +61,16 @@ export default function TeacherGuide() {
           <table className="w-full min-w-[480px] text-sm">
             <thead><tr className="text-left text-xs text-slate-500"><th className="py-1 pr-3">Avant (fichier Excel)</th><th className="py-1">Maintenant (ENT)</th></tr></thead>
             <tbody className="divide-y divide-slate-100">
-              {[['Un fichier par classe, à remplir puis à envoyer', 'Tout se saisit dans l\'ENT : rien à envoyer'],
-                ['La Direction recopiait les notes', 'La Direction voit vos notes en direct ; les bulletins se font à partir de vos saisies'],
+              {[['Un fichier par classe, à remplir en une semaine sur les ordinateurs de l\'école', 'Tout se saisit dans l\'ENT, même depuis chez soi'],
+                ['Vous saisissiez vos notes dans le fichier Excel', 'La Direction et les élèves voient vos notes en direct (les élèves à partir de la date de publication que vous choisissez)'],
                 ['Le fichier pouvait se perdre ou être écrasé', 'Chaque saisie est enregistrée tout de suite sur le serveur de l\'école'],
-                ['Moyennes calculées par des formules', 'Moyennes calculées par l\'ENT (coefficients, barèmes, absences)'],
-                ['Appréciations relues à part', 'Un contrôleur vérifie l\'appréciation pendant que vous l\'écrivez'],
+                ['Moyennes calculées par vous pour chaque élève', 'Moyennes calculées par l\'ENT (coefficients, barèmes, absences)'],
+                ['Appréciations relues par l\'administration', 'Un contrôleur vérifie l\'appréciation pendant que vous l\'écrivez'],
                 ['Ordinateur seulement', 'Ordinateur ou téléphone, avec le même compte']].map(([a, b]) => <tr key={a}><td className="py-1.5 pr-3 text-slate-500">{a}</td><td className="py-1.5 font-medium text-slate-800">{b}</td></tr>)}
             </tbody>
           </table>
         </div>
-        <Tip tone="green">Le principe : <strong>3 étapes par classe</strong> — 1. Notes, 2. Appréciations, 3. Compétences — puis <strong>« Valider les notes du trimestre »</strong>.</Tip>
+        <Tip tone="green">Le principe : pour chaque classe, les <strong>notes</strong>, les <strong>appréciations</strong> et les <strong>compétences</strong>, dans l'ordre que vous voulez. L'appréciation s'écrit quand les notes sont complètes : vous voyez alors la moyenne de l'élève. Pour finir : <strong>« Valider les notes du trimestre »</strong>.</Tip>
       </Step>
 
       <Step n="1" title="Se connecter">
@@ -79,7 +79,7 @@ export default function TeacherGuide() {
       </Step>
 
       <Step n="2" title="Ouvrir ses notes et choisir la classe">
-        <p>Dans le menu : <strong>Évaluations › Notes et appréciations</strong>. En haut de l'écran, choisissez la <strong>classe et la matière</strong>. Les trois étapes apparaissent sous forme d'onglets.</p>
+        <p>Dans le menu : <strong>Évaluations › Notes et appréciations</strong>. En haut de l'écran, choisissez la <strong>classe et la matière</strong>. Notes, appréciations et compétences se remplissent dans l'ordre que vous voulez.</p>
         <Shot><span className="mr-2 rounded border border-slate-300 bg-white px-2 py-1">3e · Mathématiques ▾</span> <Btn primary>1. Notes</Btn> <Btn>2. Appréciations</Btn> <Btn>3. Compétences du bulletin</Btn></Shot>
         <p>Le bouton <strong>« Comment ça marche ? »</strong> rouvre un résumé à tout moment.</p>
       </Step>

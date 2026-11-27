@@ -15,11 +15,11 @@ export default function GradebookGuide({ onClose }) {
     <div className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-900/40 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="guide-notes-titre">
       <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-t-2xl bg-white p-6 text-[15px] leading-relaxed shadow-xl sm:rounded-2xl">
         <h2 id="guide-notes-titre" className="font-display text-xl font-semibold text-navy-900">Bienvenue dans vos notes</h2>
-        <p className="mt-1 text-slate-600">Choisissez d'abord la classe en haut de l'écran. Ensuite, trois étapes :</p>
+        <p className="mt-1 text-slate-600">Choisissez d'abord la classe en haut de l'écran. Ensuite, trois choses à remplir, dans l'ordre que vous voulez :</p>
 
         <div className="mt-4 space-y-4">
           <Step n="1" title="Notes">Créez une évaluation avec « ＋ Nouvelle évaluation », puis entrez la note de chaque élève. Pour un élève absent, écrivez ABS ; dispensé : DISP ; arrivé après le devoir (il pourra le rattraper) : NN.</Step>
-          <Step n="2" title="Appréciations">Écrivez une appréciation pour chaque élève. Elle figurera sur le bulletin.</Step>
+          <Step n="2" title="Appréciations">Écrivez une appréciation pour chaque élève, quand ses notes sont complètes : vous voyez alors sa moyenne. Elle figurera sur le bulletin.</Step>
           <Step n="3" title="Compétences du bulletin">Indiquez ce qui a été travaillé pendant le trimestre.</Step>
         </div>
 
