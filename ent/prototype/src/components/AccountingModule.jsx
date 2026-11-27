@@ -325,6 +325,8 @@ function CashTab({ movements, setMovements, role, account }) {
   const balance = cashBalance(CASH_OPENING, counted(movements));
   const sum = (dir) => counted(movements).filter((m) => m.dir === dir).reduce((s, m) => s + m.amount, 0);
   const isWithdrawal = draft.dir === 'OUT' && draft.nature === 'Prélèvement Direction';
+  const isTransfer = draft.dir === 'OUT' && draft.nature === TRANSFER;
+  const toJournal = draft.toJournal && draft.toJournal !== draft.journal ? draft.toJournal : Object.keys(JOURNALS).find((k) => k !== draft.journal);
   const ok = draft.label.trim() && draft.amount > 0 && (draft.dir === 'IN' || (balance[draft.journal] ?? 0) >= draft.amount);
   const decide = (m, status) => setMovements(movements.map((x) => (x.id === m.id ? { ...x, status, decidedAt: new Date().toISOString().slice(0, 16) } : x)));
   // correction d'une écriture (Direction) : ligne inverse avec motif, rien n'est modifié ni effacé
@@ -406,6 +408,11 @@ function CashTab({ movements, setMovements, role, account }) {
           <label className="text-xs text-slate-600">Montant (Ar)
             <div className="mt-1"><AmountInput value={draft.amount} onChange={(v) => setDraft({ ...draft, amount: v })} className="w-full bg-white py-1.5" /></div>
           </label>
+          {isTransfer && (
+            <label className="text-xs text-slate-600">Vers la caisse
+              <select value={toJournal} onChange={(e) => setDraft({ ...draft, toJournal: e.target.value })} className={`mt-1 w-full bg-white ${inputCls}`}>{Object.entries(JOURNALS).filter(([k]) => k !== draft.journal).map(([k, j]) => <option key={k} value={k}>{j.label}</option>)}</select>
+            </label>
+          )}
           {isWithdrawal && (
             <label className="text-xs text-slate-600">Prélevé par
               <select value={draft.withdrawnBy} onChange={(e) => setDraft({ ...draft, withdrawnBy: e.target.value })} className={`mt-1 w-full bg-white ${inputCls}`}>{WITHDRAWERS.map((w) => <option key={w}>{w}</option>)}</select>
@@ -414,7 +421,17 @@ function CashTab({ movements, setMovements, role, account }) {
           <Button disabled={!ok} onClick={() => {
             const { withdrawnBy, ...base } = draft;
             const extra = isWithdrawal ? { withdrawnBy, status: withdrawalStatus({ role, accountName: account?.name, who: withdrawnBy }) } : {};
-            setMovements([...movements, { ...base, ...extra, agent, id: `c${Date.now()}`, date: TODAY, time: nowTime() }]);
+            const id = `c${Date.now()}`; const time = nowTime();
+            if (isTransfer) {
+              const { toJournal: _t, ...b } = base; const label = base.label.trim();
+              // deux lignes liées : la sortie de la caisse qui avance, l'entrée dans la caisse qui reçoit
+              setMovements([...movements,
+                { ...b, agent, id, date: TODAY, time, transfer: id, label: `Avance à la caisse ${JOURNALS[toJournal].label.toLowerCase()} — ${label}` },
+                { ...b, agent, id: `${id}-r`, date: TODAY, time, transfer: id, dir: 'IN', nature: 'Avance reçue d\'une autre caisse', journal: toJournal, label: `Avance de la caisse ${JOURNALS[b.journal].label.toLowerCase()} — ${label}` }]);
+              setDraft({ ...draft, label: '', amount: null });
+              return;
+            }
+            setMovements([...movements, { ...base, ...extra, agent, id, date: TODAY, time }]);
             setDraft({ ...draft, label: '', amount: null });
           }}>Enregistrer</Button>
         </div>
@@ -442,7 +459,8 @@ const loadLock = () => { try { return JSON.parse(localStorage.getItem(LOCK_KEY))
 const saveLock = (v) => { try { if (v) localStorage.setItem(LOCK_KEY, JSON.stringify(v)); else localStorage.removeItem(LOCK_KEY); } catch { /* stockage indisponible */ } };
 // Saisie libre d'un mouvement : ni encaissement d'une famille (onglet Encaisser, avec reçu) ni dépense
 // avec facture (onglet Dépenses & fournisseurs) ; seulement fond de caisse, banque, remboursement…
-const MANUAL_NATURES = { IN: CASH_NATURES.IN.filter((n) => n !== 'Encaissement famille'), OUT: CASH_NATURES.OUT.filter((n) => n !== 'Dépense de fonctionnement') };
+const TRANSFER = 'Avance à une autre caisse';
+const MANUAL_NATURES = { IN: CASH_NATURES.IN.filter((n) => n !== 'Encaissement famille' && n !== 'Avance reçue d\'une autre caisse'), OUT: CASH_NATURES.OUT.filter((n) => n !== 'Dépense de fonctionnement') };
 
 export default function AccountingModule({ settings, role, account }) {
   const [lock, setLock] = useState(loadLock);

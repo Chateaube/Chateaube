@@ -107,9 +107,11 @@ const DEMO_FAMILIES = [
 
 // Caisse de Tamatave : entrées / sorties du jour
 export const CASH_NATURES = {
-  IN: ['Encaissement famille', 'Apport banque', 'Autre entrée'],
+  IN: ['Encaissement famille', 'Apport banque', 'Avance reçue d\'une autre caisse', 'Autre entrée'],
   // les salaires ont leur propre rubrique (onglet Salaires, avec émargement) : pas de saisie libre ici
-  OUT: ['Dépense de fonctionnement', 'Prélèvement Direction', 'Reversement centre d\'examen', 'Remboursement famille', 'Dépôt en banque', 'Autre sortie'],
+  // avance d'une caisse à une autre (ex. l'école avance les droits du Bac d'un élève qui n'a pas encore payé) :
+  // une sortie d'un journal et une entrée dans l'autre, liées ; remboursée de la même façon dans l'autre sens
+  OUT: ['Dépense de fonctionnement', 'Prélèvement Direction', 'Reversement centre d\'examen', 'Avance à une autre caisse', 'Remboursement famille', 'Dépôt en banque', 'Autre sortie'],
 };
 const DEMO_CASH_MOVEMENTS = [
   { id: 'c1', date: '2026-10-13', time: '07:42', dir: 'IN', nature: 'Encaissement famille', journal: 'ECOLAGE', label: 'Frais de scolarité octobre — RAZAFY Kanto', method: 'Espèces', amount: 420_000, agent: 'Mme Soa', receipt: 'ECO-TMV-00410' },
