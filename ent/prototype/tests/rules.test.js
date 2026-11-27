@@ -2331,7 +2331,7 @@ test('bulletins en ligne : matières de la classe, spécialités, ES à deux pro
 test('identifiant : prénom d\'usage composé en entier', async () => {
   const { loginFor } = await import('../src/rules/logins.js');
   assert.equal(loginFor('Ny Fitia Hasina', 'RAZAFITEST', new Set(), 'Ny Fitia'), 'ra.nyfitia');
-  assert.equal(loginFor('Ida\'s Fanja', 'RAKOTOMALALA', new Set(), 'Ida\'s'), 'ra.idas');
+  assert.equal(loginFor('Ana\'s Fanja', 'RAKOTOMALALA', new Set(), 'Ana\'s'), 'ra.anas');
   assert.equal(loginFor('Jean Tsiry', 'RAKOTO'), 'ra.jean');
 });
 
