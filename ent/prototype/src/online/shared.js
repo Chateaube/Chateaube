@@ -163,10 +163,23 @@ function toServer(k, v) {
 // la vie scolaire ne reçoit pas les paiements : on ne compare / fusionne que ce qu'elle voit
 const visible = (k, v) => (k === IMPORT && !groups.includes('gestion') && isObj(v) ? (({ payments, ...r }) => r)(v) : v);
 
+// Dossiers déjà reçus (clé → { value, at }) : à chaque passage, on demande seulement la liste des dossiers et
+// leur date de modification (quelques centaines d'octets), puis le contenu de ceux qui ont changé. Avant, tout
+// le contenu de tous les dossiers repartait toutes les 30 secondes, même sans aucun changement.
+let known = new Map();
 async function fetchAll() {
-  const { data, error } = await supabase.from('ent_doc').select('key, value, updated_at').eq('kind', 'PARTAGE');
+  const { data, error } = await supabase.from('ent_doc').select('key, updated_at').eq('kind', 'PARTAGE');
   if (error) throw new Error(error.message);
-  return new Map((data ?? []).filter((d) => ofThisSite(d.key)).map((d) => [d.key, { value: d.value, at: d.updated_at }]));
+  const rows = (data ?? []).filter((d) => ofThisSite(d.key));
+  const changed = rows.filter((d) => known.get(d.key)?.at !== d.updated_at).map((d) => d.key);
+  const next = new Map(rows.filter((d) => known.get(d.key)?.at === d.updated_at).map((d) => [d.key, known.get(d.key)]));
+  for (let i = 0; i < changed.length; i += 40) { // par paquets, pour garder des adresses courtes
+    const { data: docs, error: e } = await supabase.from('ent_doc').select('key, value, updated_at').eq('kind', 'PARTAGE').in('key', changed.slice(i, i + 40));
+    if (e) throw new Error(e.message);
+    (docs ?? []).forEach((d) => next.set(d.key, { value: d.value, at: d.updated_at }));
+  }
+  known = next;
+  return next;
 }
 const localKeys = () => siteLocalKeys().filter((k) => allowed(k));
 const serverKeys = (map) => [...map.keys()].map((dk) => dk.slice(prefix().length).split(':').slice(1).join(':').replace(PAY, '')).filter((k) => allowed(k));
@@ -210,6 +223,7 @@ async function writeDocs(docs, map) {
     if (error) { if (error.code === '23505' || /duplicate/i.test(error.message)) return false; throw new Error(error.message); }
     if (!data?.length) return false; // version changée entre-temps
     map.set(d.key, { value: d.value, at: data[0].updated_at });
+    known.set(d.key, { value: d.value, at: data[0].updated_at }); // déjà connu : pas besoin de le retélécharger
   }
   return true;
 }
