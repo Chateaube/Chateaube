@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "test": "node --test tests/*.test.js",
-    "build:app": "vite build --mode app && node scripts/build-app.mjs && vite build"
+    "build:app": "vite build --mode app && node scripts/build-app.mjs && vite build",
+    "check:ecrans": "node tests/ecrans.cjs"
   },
   "dependencies": {
     "@fontsource-variable/quicksand": "^5.3.0",
