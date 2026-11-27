@@ -63,7 +63,7 @@ export function parsePayments(rows, studentKey, known) {
     const method = METHODS.find(([re]) => re.test(fold(r.Mode)))?.[1] ?? (r.Mode || 'Espèces');
     movements.push({
       id: `rep${r.line}`, date, time: '08:00', agent: 'Reprise de l\'existant', dir: 'IN', nature: 'Encaissement famille', journal: journalOf(keys),
-      label: `${r.Article} — ${name}`, method: r['N° de reçu'] ? `${method} — reçu n° ${r['N° de reçu']}` : method, amount, student: who, payer: r['Payé par'] ?? '',
+      label: `${r.Article} — ${name}`, ...(mat ? { mat } : {}), method: r['N° de reçu'] ? `${method} — reçu n° ${r['N° de reçu']}` : method, amount, student: who, payer: r['Payé par'] ?? '',
     });
   });
   movements.sort((a, b) => a.date.localeCompare(b.date));

@@ -102,11 +102,10 @@ export function DunningAlerts({ settings, site = 'TMV' }) {
           </ol>
 
           <div className="-mx-5 overflow-x-auto">
-            <table className="w-full min-w-[760px] text-sm">
+            <table className="w-full min-w-[680px] text-sm">
               <thead>
                 <tr className="border-y border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
                   <th className="px-4 py-2 font-medium">Élève</th>
-                  <th className="px-2 py-2 font-medium">Site</th>
                   <th className="px-2 py-2 text-right font-medium">Impayé</th>
                   <th className="px-2 py-2 font-medium">Étape</th>
                   <th className="px-2 py-2 font-medium">Prochaine étape</th>
@@ -125,7 +124,6 @@ export function DunningAlerts({ settings, site = 'TMV' }) {
                       ) : c.months?.length > 0 && <p className="mt-1 text-[11px] text-red-800">Non payé : {c.months.join(', ')}</p>}
                       {c.family && <p className="text-[11px] text-slate-500">{c.family}</p>}
                     </td>
-                    <td className="px-2"><Badge>{c.site === 'TMV' ? 'Tamatave' : 'Tana'}</Badge></td>
                     <td className="whitespace-nowrap px-2 text-right tabular-nums">{formatAr(c.overdue)}</td>
                     <td className="px-2">
                       <Badge tone={STAGE_UI[c.stage].tone}>{STAGE_UI[c.stage].label}</Badge>

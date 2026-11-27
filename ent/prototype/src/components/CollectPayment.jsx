@@ -49,10 +49,21 @@ const importedAccounts = () => {
   const imp = loadImport();
   const list = imp?.profiles ?? imp?.students;
   if (!list?.length) return null;
+  const keyOf = (s) => `${s.lastName} ${s.firstName}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
+  // arrivée en cours d'année sans date d'entrée dans la fiche : la date du paiement de l'inscription fait foi
+  // (ex. inscrit le 16 novembre → scolarité due à partir de novembre, pas depuis septembre)
+  const arrival = (s) => (imp.payments?.movements ?? [])
+    .filter((m) => (m.student === keyOf(s) || (m.mat && m.mat === String(s.number ?? s.id ?? '').trim().toUpperCase())) && /^Inscription\b/i.test(m.label ?? ''))
+    .map((m) => m.date).sort()[0] ?? null;
+  const enrolledOn = (s) => {
+    if (s.enteredOn) return seniority(s.enteredOn)?.isNew && s.enteredOn > '2026-09-01' ? s.enteredOn : '2026-09-01';
+    const a = arrival(s);
+    return a && a > '2026-09-01' ? a : '2026-09-01';
+  };
   return list.filter((s) => CLASS_FEES.some((f) => f.cls === s.cls)).map((s) => ({
     // nouvel élève : frais d'inscription et compte ouvert au mois d'arrivée ; ancien : réinscription
     id: s.id, name: `${s.lastName} ${s.firstName}`, cls: s.cls, family: '', // fratrie : liens posés dans la fiche (familyText), jamais d'après le nom
-    isNew: seniority(s.enteredOn)?.isNew ?? false, specialties: s.specialties ?? [], enrolledOn: seniority(s.enteredOn)?.isNew && s.enteredOn > '2026-09-01' ? s.enteredOn : '2026-09-01',
+    isNew: seniority(s.enteredOn)?.isNew ?? false, specialties: s.specialties ?? [], enrolledOn: enrolledOn(s),
     // frais déjà réglés : onglet « 7 Paiements » du modèle
     // par nom (import d'origine) et par matricule (le nom a pu être corrigé depuis dans l'ENT)
     paid: [...new Set([...(imp.payments?.paid?.[`${s.lastName} ${s.firstName}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim()] ?? []),
@@ -85,7 +96,7 @@ export function mergeAccounts(stored, fresh) {
   if (!stored?.length) return fresh ?? [];
   if (!fresh?.length) return stored;
   const byId = new Map(stored.map((a) => [a.id, a]));
-  const out = fresh.map((f) => { const s0 = byId.get(f.id); return s0 ? { ...f, ...s0, name: f.name, cls: f.cls, specialties: f.specialties, paid: [...new Set([...(s0.paid ?? []), ...(f.paid ?? [])])] } : f; });
+  const out = fresh.map((f) => { const s0 = byId.get(f.id); return s0 ? { ...f, ...s0, name: f.name, cls: f.cls, specialties: f.specialties, enrolledOn: [f.enrolledOn, s0.enrolledOn].filter(Boolean).sort().at(-1), paid: [...new Set([...(s0.paid ?? []), ...(f.paid ?? [])])] } : f; });
   stored.forEach((s0) => { if (!fresh.some((f) => f.id === s0.id)) out.push(s0); });
   return out;
 }
