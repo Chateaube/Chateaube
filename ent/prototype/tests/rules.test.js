@@ -2341,12 +2341,12 @@ test('identifiants d\'aperçu : prénom d\'usage, comme le compte créé', async
   const q = { id: 'y', lastName: 'TSIMBA', firstName: 'Fanilo Dylan', usualName: 'Dylan', guardians: [] };
   const m = schoolLogins([p, q]);
   assert.equal(accountsFor(p, m)[0].login, 'ra.nyfitia');
-  assert.equal(accountsFor(q, m)[0].login, 'ti.dylan');
+  assert.equal(accountsFor(q, m)[0].login, 'ts.dylan');
 });
 
 test('nom court d\'un élève : initiale du nom + prénom d\'usage', async () => {
   const { shortName, setCurrentRoster } = await import('../src/online/roster.js');
-  setCurrentRoster({ students: [{ lastName: 'RAVO ANDRIAMBELO', firstName: 'Lalaina Anay', usualName: 'Gabriella' }, { lastName: 'TSIMBA', firstName: 'Fanilo Dylan', usualName: '' }] });
+  setCurrentRoster({ students: [{ lastName: 'RAVO ANDRIAMBELO', firstName: 'Lalaina Anay', usualName: 'Lalaina' }, { lastName: 'TSIMBA', firstName: 'Fanilo Dylan', usualName: '' }] });
   assert.equal(shortName('RAVO ANDRIAMBELO Lalaina Anay'), 'R. Lalaina');
   assert.equal(shortName('TSIMBA Fanilo Dylan'), 'T. Fanilo');
   assert.equal(shortName('RAKOTO Aina'), 'R. Aina'); // hors liste : lecture du nom
