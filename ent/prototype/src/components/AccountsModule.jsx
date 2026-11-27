@@ -96,12 +96,16 @@ export default function AccountsModule({ embedded = false, settings }) {
   const [edit, setEdit] = useState(null); // { id, value }
   const [docsFor, setDocsFor] = useState(null);
   const [bulk, setBulk] = useState(false);
+  const [locked, setLocked] = useState([]);
   const [slips, setSlips] = useState(null); // nouveaux codes en série
   // codes en série : jamais les comptes de la Direction (on ne se retire pas son propre accès par erreur)
   const toRenew = (u) => u.must_change_code && u.is_active && !(u.user_role ?? []).some((r) => r.role === 'DIRECTION');
   const load = async () => {
     const { data, error } = await supabase.from('app_user').select('id, first_name, last_name, login, email, is_active, last_login_at, must_change_code, user_role(role, title, site_id)').order('last_name');
     if (error) setErr('La liste des comptes n\'a pas pu être chargée.'); else setList(data);
+    // identifiants bloqués après 5 codes faux (140_connexion_progressive.sql) : « Nouveau code » les débloque
+    const { data: lk } = await supabase.rpc('ent_locked_logins');
+    setLocked(Array.isArray(lk) ? lk : []);
   };
   useEffect(() => { load(); }, []);
   const run = async (fn) => { setBusy(true); setErr(''); try { await fn(); await load(); } catch (x) { setErr(x.message); } setBusy(false); };
@@ -254,6 +258,7 @@ export default function AccountsModule({ embedded = false, settings }) {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       {u.must_change_code && u.is_active && <Badge tone="amber">code provisoire</Badge>}
+                      {locked.includes(String(u.login ?? '').toLowerCase()) && <Badge tone="red">bloqué : 5 codes faux · donner un nouveau code</Badge>}
                       {!u.is_active && <Badge tone="slate">désactivé</Badge>}
                       <Button variant="ghost" className="!py-1 text-xs" onClick={() => setEdit(edit?.id === u.id ? null : { id: u.id, value: f })}>{edit?.id === u.id ? 'Fermer la fiche' : 'Fiche'}</Button>
                       <Button variant="ghost" className="!py-1 text-xs" onClick={() => setDocsFor(docsFor === u.id ? null : u.id)}>Documents</Button>

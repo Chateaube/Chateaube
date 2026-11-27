@@ -8,6 +8,7 @@ const CHECKS = [
   ['90_sites.sql', 'deux sites (Tamatave / Tana)', () => supabase.rpc('ent_my_sites')],
   ['100_connexion.sql', 'connexion protégée et numéros de reçus', () => supabase.rpc('ent_login_check', { p_login: '', p_code: '' })],
   ['130_droits_professeurs.sql', 'droits des professeurs resserrés', () => supabase.rpc('ent_prof_lines_ok', { o: null, n: null, me: '' })],
+  ['140_connexion_progressive.sql', 'blocage progressif de la connexion', () => supabase.rpc('ent_locked_logins')],
 ];
 
 export default function ServerUpdates() {

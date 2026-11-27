@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import SavedBadge from './components/SavedBadge.jsx';
+import IdleGuard from './components/IdleGuard.jsx';
 import NotesReceived from './components/NotesReceived.jsx';
 import MyGrades from './components/MyGrades.jsx';
 import OnlineStudentPortal from './components/OnlineStudentPortal.jsx';
@@ -479,7 +480,7 @@ export default function App() {
           )}
 
           <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-            <SavedBadge />
+            <SavedBadge />{ONLINE && !['ELEVE', 'PARENT', 'FAMILLE'].includes(profile) && <IdleGuard />}
             {staffProfile && <GlobalSearch profile={profile} nav={NAV_SHOWN} go={goTo} />}
             {QUICK.length > 0 && (
               <div className="relative" onClick={(e) => e.stopPropagation()}>

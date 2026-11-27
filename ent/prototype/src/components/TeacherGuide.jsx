@@ -75,7 +75,7 @@ export default function TeacherGuide() {
 
       <Step n="1" title="Se connecter">
         <p>Ouvrez <strong>chateaubriand.pro/ent</strong>, choisissez l'espace <strong>Professeurs</strong>, puis entrez votre <strong>identifiant</strong> (ex. ra.mirana) et votre <strong>code</strong>. À la première connexion, vous choisissez votre propre code (8 caractères au moins, avec des lettres et des chiffres).</p>
-        <Tip tone="amber">Au bout de 3 codes faux, l'identifiant est bloqué 15 minutes. Code oublié : demandez-en un nouveau à la Direction.</Tip>
+        <Tip tone="amber">Après 3 codes faux, l'identifiant est bloqué 1 minute ; après 4, 5 minutes ; au 5e, il reste bloqué jusqu'à ce que la Direction vous donne un nouveau code. Code oublié : demandez-en un nouveau à la Direction.</Tip>
       </Step>
 
       <Step n="2" title="Ouvrir ses notes et choisir la classe">

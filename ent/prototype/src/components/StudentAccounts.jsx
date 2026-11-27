@@ -31,11 +31,13 @@ export default function StudentAccounts({ settings }) {
   const [cls, setCls] = useState(() => classes.find((c) => /^Terminale/.test(c)) ?? classes[0] ?? '');
   const [accounts, setAccounts] = useState(null); const [school, setSchool] = useState(null);
   const [busy, setBusy] = useState(false); const [msg, setMsg] = useState(''); const [err, setErr] = useState(''); const [slips, setSlips] = useState(null);
+  const [locked, setLocked] = useState([]); // bloqués après 5 codes faux : « Nouveau code » les débloque
   const load = async () => {
     try {
       const [{ data, error }, ecole] = await Promise.all([supabase.from('app_user').select('id, first_name, last_name, login, is_active, must_change_code, user_role(role)').order('last_name'), fetchDoc('ecole')]);
       if (error) throw new Error(error.message);
       setAccounts((data ?? []).filter((u) => (u.user_role ?? []).some((r) => r.role === 'ELEVE'))); setSchool(ecole?.value ?? null);
+      supabase.rpc('ent_locked_logins').then(({ data: lk }) => setLocked(Array.isArray(lk) ? lk : []), () => {});
     } catch (e) { setErr(`Lecture impossible (${e.message}). Avez-vous lancé le script 40_eleves.sql ?`); }
   };
   useEffect(() => { load(); }, []);
@@ -130,7 +132,7 @@ export default function StudentAccounts({ settings }) {
                 {list.map((s) => { const u = accountOf(s); return (
                   <li key={`${s.lastName}-${s.firstName}`} className="flex flex-wrap items-center justify-between gap-2 py-1.5">
                     <span className="font-medium text-slate-900">{s.lastName} {s.firstName}</span>
-                    {u ? <span className="flex items-center gap-2"><span className="font-mono text-xs">{u.login}</span>{u.must_change_code ? <Badge tone="amber">code provisoire</Badge> : <Badge tone="green">connecté·e</Badge>}
+                    {u ? <span className="flex items-center gap-2"><span className="font-mono text-xs">{u.login}</span>{u.must_change_code ? <Badge tone="amber">code provisoire</Badge> : <Badge tone="green">connecté·e</Badge>}{locked.includes(String(u.login ?? '').toLowerCase()) && <Badge tone="red">bloqué</Badge>}
                       <Button variant="secondary" className="!py-0.5 text-xs" disabled={busy} onClick={() => reset(s, u)}>Nouveau code</Button>
                       <button type="button" disabled={busy} onClick={() => remove([u])} className="text-xs text-red-700 underline">Supprimer</button></span>
                       : <span className="flex items-center gap-2"><span className="font-mono text-xs text-slate-500" title="Identifiant qui sera créé">{loginFor(s.firstName, s.lastName, new Set((accounts ?? []).map((a) => a.login)), s.usualName)}</span><Badge tone="slate">pas de compte</Badge></span>}

@@ -127,3 +127,9 @@ Ce que cela change :
 
 Les lignes saisies par un professeur **avant** cette mise à jour ne portent pas sa signature : il ne pourra plus les corriger lui-même (la vie scolaire ou la Direction le peuvent).
 
+## 17. Mise à jour 14 — blocage progressif de la connexion (une seule fois, après la 13)
+
+Dans **SQL Editor**, collez tout le fichier `140_connexion_progressive.sql`, puis **Run**. La dernière ligne doit afficher **ok**.
+
+Codes faux sur un même identifiant (dans l'heure) : 3 → bloqué 1 minute ; 4 → 5 minutes ; 5 → **bloqué jusqu'à ce que la Direction donne un nouveau code** (Comptes › « Nouveau code » ; l'identifiant y est marqué « bloqué »). Les comptes de la Direction ne sont jamais bloqués plus de 15 minutes (sinon personne ne pourrait les débloquer). Aucune donnée de l'école n'est modifiée.
+

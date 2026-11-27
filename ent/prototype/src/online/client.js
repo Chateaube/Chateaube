@@ -14,15 +14,20 @@ export const supabase = ONLINE ? createClient(URL, KEY, { auth: { persistSession
 const PROFILE_OF = { DIRECTION: 'DIRECTION', BUREAU: 'BUREAU', VIE_SCOLAIRE: 'VIE_SCOLAIRE', PROFESSEUR: 'ENSEIGNANT', PARENT: 'PARENT', ELEVE: 'ELEVE' };
 const RANK = ['DIRECTION', 'BUREAU', 'VIE_SCOLAIRE', 'PROFESSEUR', 'PARENT', 'ELEVE'];
 
+/** Message de blocage après plusieurs codes faux. */
+export const blockedText = (min) => `Trop de codes faux avec cet identifiant : réessayez dans ${min} minute${min > 1 ? 's' : ''}, ou demandez un nouveau code à la Direction.`;
+
 /** Connexion par identifiant + code ; message unique en cas d'échec (on ne dit pas lequel des deux est faux). */
 export async function signIn(login, code) {
   const fail = new Error('Identifiant ou code incorrect.');
   const l = login.trim().toLowerCase();
-  // le serveur ne donne l'adresse du compte que si le code est juste (100_connexion.sql) ; 5 essais ratés en
-  // 15 minutes bloquent l'identifiant. Avant cette mise à jour du serveur : ancienne fonction.
-  const blocked = new Error('Trop d\'essais avec cet identifiant (3 codes faux) : réessayez dans 15 minutes, ou demandez un nouveau code à la Direction.');
+  // le serveur ne donne l'adresse du compte que si le code est juste (100_connexion.sql) ; codes faux sur un même
+  // identifiant : 3 → 1 minute de blocage, 4 → 5 minutes, 5 → bloqué jusqu'au nouveau code donné par la Direction
+  // (140_connexion_progressive.sql ; Direction : 15 minutes).
   let { data: email, error } = await supabase.rpc('ent_login_check', { p_login: l, p_code: code });
-  if (email === 'TROP_ESSAIS' || (error && /TROP_ESSAIS/.test(error.message))) throw blocked;
+  const tooMany = String(email ?? '').match(/^TROP_ESSAIS\s*(\d+)?/) ?? (error && String(error.message ?? '').match(/TROP_ESSAIS\s*(\d+)?/));
+  if (email === 'BLOQUE' || (error && /BLOQUE/.test(error.message ?? ''))) throw new Error('Identifiant bloqué après 5 codes faux : demandez un nouveau code à la Direction.');
+  if (tooMany) throw new Error(blockedText(tooMany[1] ? Number(tooMany[1]) : 15));
   // fonction absente du serveur (mise à jour 100 pas installée) : ancienne méthode
   if (error && error.code === 'PGRST202') ({ data: email, error } = await supabase.rpc('ent_login_email', { p_login: l }));
   if (error) {
