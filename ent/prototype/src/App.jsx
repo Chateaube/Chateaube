@@ -77,6 +77,8 @@ import TimetableView from './components/TimetableView.jsx';
 import ReadOnlyGuard from './components/ReadOnlyGuard.jsx';
 import { applyAccess, DIRECTION_ONLY } from './rules/access.js';
 import { DIRECTION_TREE, arrangeNav } from './rules/navigation.js';
+import { MENU_LAYOUT, buildMenu, hubOf } from './rules/menuLayout.js';
+import { today } from './clock.js';
 import StudentTimeline from './components/StudentTimeline.jsx';
 import { loadLargeText, applyLargeText } from './textSize.js';
 import GlobalSearch, { loadFavorites, toggleFavorite } from './components/GlobalSearch.jsx';
@@ -147,7 +149,7 @@ const TT_CHANGES = { id: 'tt-changes', label: 'Changements d\'emploi du temps', 
 const HOURS = { id: 'hours', label: 'Heures et absences des profs', icon: 'clock', screen: TeachingHours };
 const RESOURCES = { id: 'resources', label: 'Ressources et idées', icon: 'pen', screen: InternalResources };
 const MOCK_EXAMS = { id: 'mock-exams', label: 'Examens blancs', icon: 'cap', screen: MockExamsModule, feature: 'examens-blancs' };
-const CARE = { id: 'care', label: 'Soins (secrétariat)', icon: 'care', screen: CareModule, feature: 'soins' };
+const CARE = { id: 'care', label: 'Soins', icon: 'care', screen: CareModule, feature: 'soins' };
 const INVENTORY = { id: 'inventory', label: 'Inventaire du matériel', icon: 'box', screen: InventoryModule, feature: 'inventaire' };
 const AGENDA = { id: 'agenda', label: 'Agendas', icon: 'calendar', screen: AgendaModule };
 const NEWS = { id: 'news', label: 'Annonces', icon: 'megaphone', screen: AnnouncementsModule };
@@ -301,6 +303,11 @@ export default function App() {
     && (['BUREAU', 'VIE_SCOLAIRE'].includes(profile) ? STAFF_LATER.includes(it.id) : profile === 'ENSEIGNANT' ? !TEACHER_READY.includes(it.id) : true);
   // rubriques pas encore ouvertes : masquées du menu (plutôt qu'un écran vide « en cours de création »)
   const NAV_SHOWN = NAV.map((g) => ({ ...g, items: g.items.filter((it) => !notYet(it)) })).filter((g) => g.items.length);
+  // menu court : rubriques regroupées (onglets en haut de l'écran) ; les écrans eux-mêmes ne changent pas
+  const MENU = buildMenu(MENU_LAYOUT[profile], NAV_SHOWN);
+  // écran réellement affiché (au démarrage, l'identifiant mémorisé peut être celui d'un autre profil)
+  const shownId = (NAV.flatMap((g) => g.items).find((i) => i.id === screen) ?? NAV[0].items[0]).id;
+  const currentHub = hubOf(MENU, shownId);
   const screenOf = (it) => (notYet(it) ? () => <ComingSoon title={it.label} text={COMING_TEXT[it.id] ?? COMING_TEXT.default} /> : it.screen);
   const Current = screenOf(NAV.flatMap((g) => g.items).find((i) => i.id === screen) ?? NAV[0].items[0]);
   const switchProfile = (p) => { setProfile(p); setScreen(PROFILES[p].home); };
@@ -346,9 +353,14 @@ export default function App() {
   useEffect(() => { applyLargeText(largeText); }, [largeText]);
   const [favorites, setFavorites] = useState(() => loadFavorites(profile));
   useEffect(() => { setFavorites(loadFavorites(profile)); }, [profile]);
+  // bandeau « nouveau menu » : jusqu'au 20 décembre 2026, tant qu'il n'a pas été fermé sur cet appareil
+  const [menuNote, setMenuNote] = useState(() => { try { return today() <= '2026-12-20' && !localStorage.getItem('ent-menu-court-vu'); } catch { return false; } });
   const [tick, setTick] = useState(0); // recalcul des notifications après « J'ai vu »
   // anciens écrans regroupés dans « Élèves » : on y arrive avec la même intention (élève, onglet)
   const ALIASES = { enrol: 'eleves', 'students-list': 'eleves', 'student-followups': 'eleves', 'student-file': 'eleves' };
+  const lastTab = (hubId) => { try { return JSON.parse(sessionStorage.getItem('ent-onglets') ?? '{}')[hubId]; } catch { return undefined; } };
+  const rememberTab = (hubId, id) => { try { sessionStorage.setItem('ent-onglets', JSON.stringify({ ...JSON.parse(sessionStorage.getItem('ent-onglets') ?? '{}'), [hubId]: id })); } catch { /* indisponible */ } };
+  const openItem = (item) => (item.tabs ? goTo(item.tabs.some((t) => t.id === lastTab(item.hub)) ? lastTab(item.hub) : item.tabs[0].id) : goTo(item.id));
   const goTo = (raw) => { const id = NAV.some((g) => g.items.some((i) => i.id === raw)) ? raw : (ALIASES[raw] ?? raw); setScreen(id); setNavSeq((n) => n + 1); setMobileOpen(false); setBellOpen(false); setQuickOpen(false); setTick((t) => t + 1); };
   const staffProfile = !['PARENT', 'ELEVE', 'VISITEUR'].includes(profile);
   const notes = staffProfile ? notificationsFor(profile, { account }) : { urgent: [], todo: [], info: [] };
@@ -356,7 +368,7 @@ export default function App() {
   const bellCount = notes.urgent.length + notes.todo.length;
   const { ambiance, animations } = useAmbiance(settings); // classe de palette posée sur <html>
   const currentItem = NAV.flatMap((g) => g.items).find((i) => i.id === screen);
-  const activeGroup = NAV.find((g) => g.items.some((i) => i.id === screen))?.group;
+  const activeGroup = MENU.find((g) => g.items.some((i) => i.id === shownId || i.tabs?.some((t) => t.id === shownId)))?.group;
   const screenLabel = currentItem?.label ?? screen;
   void tick;
 
@@ -380,12 +392,12 @@ export default function App() {
 
   const navItem = (item, fav = false) => {
     const enabled = Boolean(item.screen);
-    const active = item.id === screen;
-    const n = counts[item.id];
+    const active = item.id === shownId || Boolean(item.tabs?.some((t) => t.id === shownId));
+    const n = item.tabs ? item.tabs.reduce((t, x) => t + (counts[x.id] ?? 0), 0) : counts[item.id];
     const pinned = favorites.includes(item.id);
     return (
       <div key={`${fav ? 'fav-' : ''}${item.id}`} className="group flex items-center">
-        <button data-nav={fav ? `fav-${item.id}` : item.id} onClick={() => enabled && goTo(item.id)} disabled={!enabled} aria-current={active && !fav ? 'page' : undefined}
+        <button data-nav={fav ? `fav-${item.id}` : item.id} onClick={() => enabled && openItem(item)} disabled={!enabled} aria-current={active && !fav ? 'page' : undefined}
           title={enabled ? undefined : 'Prévu plus tard'}
           className={`flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition
             ${active ? 'bg-navy-50 font-semibold text-navy-900' : enabled ? 'text-slate-700 hover:bg-slate-100' : 'text-slate-400'}`}>
@@ -403,7 +415,7 @@ export default function App() {
       </div>
     );
   };
-  const favItems = favorites.map((id) => NAV_SHOWN.flatMap((g) => g.items).find((i) => i.id === id && i.screen)).filter(Boolean);
+  const favItems = favorites.map((id) => [...MENU.flatMap((g) => g.items), ...NAV_SHOWN.flatMap((g) => g.items)].find((i) => i.id === id && i.screen)).filter(Boolean);
   const sidebar = (
     <div className="space-y-3">
       {favItems.length > 0 && (
@@ -412,9 +424,9 @@ export default function App() {
           <div className="space-y-0.5">{favItems.map((it) => navItem(it, true))}</div>
         </div>
       )}
-      {NAV_SHOWN.map((g) => {
+      {MENU.map((g) => {
         const isOpen = !(collapsed[g.group] ?? false) || g.group === activeGroup;
-        const n = g.items.reduce((t, it) => t + (counts[it.id] ?? 0), 0);
+        const n = g.items.reduce((t, it) => t + (it.tabs ? it.tabs.reduce((u, x) => u + (counts[x.id] ?? 0), 0) : (counts[it.id] ?? 0)), 0);
         return (
           <div key={g.group}>
             <button type="button" onClick={() => setCollapsed({ ...collapsed, [g.group]: isOpen })} aria-expanded={isOpen}
@@ -571,6 +583,23 @@ export default function App() {
               <span className="min-w-0 flex-1 truncate sm:whitespace-normal">{notes.urgent.map((u) => u.text).join(' · ')}</span>
               <button onClick={() => goTo(notes.urgent[0].to)} className="shrink-0 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white">Voir</button>
               <button onClick={() => { markSeen(notes.urgent.map((u) => u.id)); setTick((t) => t + 1); }} className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold text-red-800 ring-1 ring-red-300">J'ai vu</button>
+            </div>
+          )}
+          {staffProfile && menuNote && (
+            <div role="status" className="print:hidden mb-4 flex flex-wrap items-center gap-2 rounded-2xl bg-navy-50 px-4 py-3 text-sm text-navy-900">
+              <span className="min-w-0 flex-1"><strong>Nouveau menu, plus court :</strong> les écrans sont regroupés par rubrique, avec des onglets en haut de l'écran. Rien n'a disparu : tapez l'ancien nom dans <strong>Rechercher</strong> (Ctrl K) pour le retrouver.</span>
+              <button type="button" onClick={() => { try { localStorage.setItem('ent-menu-court-vu', '1'); } catch { /* indisponible */ } setMenuNote(false); }} className="shrink-0 rounded-lg px-3 py-1 text-xs font-semibold ring-1 ring-navy-200">J'ai compris</button>
+            </div>
+          )}
+          {currentHub && (
+            <div role="tablist" aria-label={currentHub.label} className="print:hidden mb-4 flex gap-1 overflow-x-auto border-b border-slate-200">
+              {currentHub.tabs.map((t) => (
+                <button key={t.id} type="button" role="tab" aria-selected={t.id === shownId} data-nav={`rubrique-${t.id}`}
+                  onClick={() => { rememberTab(currentHub.hub, t.id); goTo(t.id); }}
+                  className={`-mb-px shrink-0 whitespace-nowrap rounded-t-lg border-b-2 px-3 py-2 text-sm font-medium ${t.id === shownId ? 'border-navy-700 text-navy-900' : 'border-transparent text-slate-600 hover:text-navy-900'}`}>
+                  {t.label}{counts[t.id] > 0 && <span className="ml-1.5 rounded-full bg-amber-400 px-1.5 text-[10px] font-semibold text-slate-900">{counts[t.id]}</span>}
+                </button>
+              ))}
             </div>
           )}
           {currentItem?.readOnly && <p className="mb-3 inline-block rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">Consultation seulement</p>}

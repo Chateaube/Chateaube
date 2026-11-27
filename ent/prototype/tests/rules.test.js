@@ -2696,3 +2696,26 @@ test('relances, règle de l\'école : rappel 2 semaines, relance le mois fini, a
   // dernier mois du plan : délais courts en jours comptés, comme avant
   assert.equal(dunningSchedule('2027-05-05', S, { lastMonth: true }).rappel, undefined);
 });
+
+import { buildMenu, hubOf, MENU_LAYOUT } from '../src/rules/menuLayout.js';
+test('menu court : regroupe sans rien perdre', () => {
+  const s = (id, label = id) => ({ id, label, screen: () => null });
+  const shown = [{ group: 'X', items: [s('dashboard', 'Mes décisions'), s('signatures'), s('messages'), s('vs'), s('care', 'Soins (secrétariat)'), s('accounting'), s('extra')] }];
+  const menu = buildMenu(MENU_LAYOUT.DIRECTION, shown);
+  const flat = menu.flatMap((g) => g.items);
+  const accueil = flat.find((i) => i.id === 'hub:accueil');
+  assert.deepEqual(accueil.tabs.map((t) => [t.id, t.label]), [['dashboard', 'Mes décisions'], ['signatures', 'signatures']]);
+  assert.equal(flat.find((i) => i.id === 'hub:vie-scolaire').tabs[1].label, 'Soins');
+  assert.ok(flat.some((i) => i.id === 'accounting')); // écran seul
+  assert.equal(menu.at(-1).group, 'Autres'); assert.equal(menu.at(-1).items[0].id, 'extra'); // jamais perdu
+  // rubrique avec un seul écran visible : l'écran lui-même
+  const one = buildMenu(MENU_LAYOUT.DIRECTION, [{ group: 'X', items: [s('vs')] }]);
+  assert.equal(one[0].items[0].id, 'vs');
+  assert.equal(hubOf(menu, 'care').id, 'hub:vie-scolaire');
+  assert.equal(hubOf(menu, 'accounting'), null);
+  // chaque identifiant n'apparaît qu'une fois par profil
+  Object.values(MENU_LAYOUT).forEach((layout) => {
+    const ids = layout.flatMap((g) => g.items.flatMap((e) => (typeof e === 'string' ? [e] : e.tabs.map((t) => (Array.isArray(t) ? t[0] : t)))));
+    assert.equal(new Set(ids).size, ids.length);
+  });
+});

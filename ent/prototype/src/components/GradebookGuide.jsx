@@ -30,7 +30,7 @@ export default function GradebookGuide({ onClose }) {
         <p className="mt-2 text-slate-700">L'exigence dépend de la classe. En 6e et en 5e, on guide l'élève pas à pas. En 4e et en 3e, il gagne en autonomie et prépare le brevet. En 2de, il apprend à s'organiser. En 1re et en Terminale, il travaille seul et s'entraîne aux épreuves du bac.</p>
         <p className="mt-2 text-slate-700">Les appréciations sont précises et bienveillantes : ce qui va, ce qui reste à travailler, un conseil.</p>
 
-        <p className="mt-4 text-sm text-slate-500">Le mode d'emploi complet, avec des exemples, est dans le menu : <strong>Aide › Mode d'emploi</strong>. Ce résumé se rouvre avec « Comment ça marche ? ».</p>
+        <p className="mt-4 text-sm text-slate-500">Le mode d'emploi complet, avec des exemples, est dans le menu : <strong>École › Mode d'emploi</strong>. Ce résumé se rouvre avec « Comment ça marche ? ».</p>
         <Button className="mt-4 w-full" onClick={onClose}>J'ai compris</Button>
       </div>
     </div>
