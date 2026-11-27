@@ -11,7 +11,7 @@ const UPDATES = [
   ['90', '90_sites.sql', 'deux sites (Tamatave / Tana)'], ['100', '100_connexion.sql', 'connexion protégée et numéros de reçus'],
   ['110', '110_connexion_3_essais.sql', 'connexion : essais limités'], ['120', '120_vie_scolaire_eleves.sql', 'vie scolaire dans le portail des élèves'],
   ['130', '130_droits_professeurs.sql', 'droits des professeurs resserrés'], ['140', '140_connexion_progressive.sql', 'blocage progressif de la connexion'],
-  ['150', '150_suivi_mises_a_jour.sql', 'suivi des mises à jour'],
+  ['150', '150_suivi_mises_a_jour.sql', 'suivi des mises à jour'], ['160', '160_controle_donnees.sql', 'contrôle des données par le serveur'],
 ];
 const missing = (e) => e && /PGRST202|Could not find the function|does not exist|404/i.test(`${e.code} ${e.message}`);
 // avant la mise à jour 15 : quelques fonctions témoins

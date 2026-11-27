@@ -139,3 +139,9 @@ Dans **SQL Editor**, collez tout le fichier `150_suivi_mises_a_jour.sql`, puis *
 
 Ensuite, l'accueil de la Direction indique lui-même, dans l'ordre, les fichiers qui manqueraient. Lecture seule : aucune donnée n'est modifiée.
 
+## 19. Mise à jour 16 — contrôle des données par le serveur (une seule fois, après la 15)
+
+Dans **SQL Editor**, collez tout le fichier `160_controle_donnees.sql`, puis **Run**. La dernière ligne doit finir par **160**.
+
+Le serveur refuse désormais, pour les rubriques partagées : une liste remplacée par autre chose, une liste d'au moins 20 lignes qui en perdrait plus de la moitié d'un coup, et un dossier de plus de 8 Mo. L'application reprend alors la version du serveur et l'indique (« Modification refusée par le serveur… »). Aucune donnée existante n'est modifiée.
+

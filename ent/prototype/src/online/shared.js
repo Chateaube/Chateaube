@@ -240,7 +240,8 @@ function signLines(v, srv, uid) {
 }
 const signed = (k, v, srv) => (teacher && TEACHER_LINES.includes(k) && myId() ? signLines(v, srv, myId()) : v);
 // refus du serveur pour une saisie non permise à ce profil : on reprend la version du serveur au lieu de bloquer l'envoi
-const refused = (e) => /PROF_INTERDIT|row-level security|permission denied/i.test(e?.message ?? '');
+// et contrôles du serveur (160_controle_donnees.sql) : perte massive, forme ou taille anormale
+const refused = (e) => /PROF_INTERDIT|PERTE_DONNEES|FORME_INVALIDE|TROP_GROS|row-level security|permission denied/i.test(e?.message ?? '');
 let refusedNote = null;
 
 async function sendDirty(known) {
@@ -263,7 +264,7 @@ async function sendDirty(known) {
           if (srv !== undefined) { writeLocal(k, srv); base[k] = srv; }
           const n = readDirty(); n.delete(k); writeDirty(n);
           refusedNote = 'Une modification non permise pour votre compte n\'a pas été enregistrée.';
-          try { window.dispatchEvent(new CustomEvent('ent-refused')); } catch { /* hors navigateur */ }
+          try { window.dispatchEvent(new CustomEvent('ent-refused', { detail: /PROF_INTERDIT|row-level|permission/i.test(e.message ?? '') ? 'droits' : 'controle' })); } catch { /* hors navigateur */ }
           break;
         }
         if (ok) {
