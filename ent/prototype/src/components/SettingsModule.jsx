@@ -71,12 +71,18 @@ function Simulation({ settings }) {
   } catch (e) {
     result = { error: e.message };
   }
-  const rows = result.sch && [
+  const rows = result.sch && (result.sch.rappel ? [
+    ['Échéance', result.sch.due, 'slate'],
+    ['Rappel (2 semaines après l\'échéance)', result.sch.rappel, 'slate'],
+    ['Relance (le mois fini)', result.sch.relance, 'navy'],
+    ['Avertissement (1 mois et demi après l\'échéance)', result.sch.warning, 'amber'],
+    ['Mise à pied (2 mois après l\'échéance)', result.sch.suspension, 'red'],
+  ] : [
     ['Échéance', result.sch.due, 'slate'],
     [`Relance (J+${delays.relanceAfter}${settings.dunning.countFrom === 'ETAPE_PRECEDENTE' ? ' après l\'échéance' : ''})`, result.sch.relance, 'navy'],
     [`Avertissement (J+${delays.warningAfter}${settings.dunning.countFrom === 'ETAPE_PRECEDENTE' ? ' après relance' : ''})`, result.sch.warning, 'amber'],
     [`Mise à pied (J+${delays.suspensionAfter}${settings.dunning.countFrom === 'ETAPE_PRECEDENTE' ? ' après avertissement' : ''})`, result.sch.suspension, 'red'],
-  ];
+  ]);
 
   return (
     <Card title="Simulation" subtitle="Dates calculées avec les paramètres en cours" className="xl:sticky xl:top-6">

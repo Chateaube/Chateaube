@@ -13,6 +13,15 @@ export function splitExamFee(amount, retained = EXAM_RETAINED_FEE) {
 /** Étapes du recouvrement, libellées à partir des paramètres. */
 export function dunningStages(settings) {
   const d = settings.dunning;
+  if ((d.mode ?? 'MOIS') === 'MOIS') {
+    const last = d.lastMonth?.enabled ? ' (dernier mois : délais courts)' : '';
+    return [
+      { key: 'RAPPEL', label: 'Rappel', delay: `2 semaines après l'échéance${last}` },
+      { key: 'RELANCE', label: 'Relance', delay: `le mois de l'échéance fini${last}` },
+      { key: 'AVERTISSEMENT', label: 'Avertissement', delay: `1 mois et demi après l'échéance${last}` },
+      { key: 'MISE_A_PIED', label: 'Notification de mise à pied', delay: `2 mois après l'échéance${last}${d.suspensionRequiresDirection ? ' — validation Direction' : ''}` },
+    ];
+  }
   const ref = d.countFrom === 'ECHEANCE' ? 'après l\'échéance' : 'après l\'étape précédente';
   const unit = (n) => `${n} jour${n > 1 ? 's' : ''} compté${n > 1 ? 's' : ''}`;
   const last = (k) => (d.lastMonth?.enabled ? ` (dernier mois : ${d.lastMonth[k]})` : '');

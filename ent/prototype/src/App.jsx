@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import SavedBadge from './components/SavedBadge.jsx';
 import IdleGuard from './components/IdleGuard.jsx';
+import BulletinChanges from './components/BulletinChanges.jsx';
 import NotesReceived from './components/NotesReceived.jsx';
 import MyGrades from './components/MyGrades.jsx';
 import OnlineStudentPortal from './components/OnlineStudentPortal.jsx';
@@ -16,7 +17,7 @@ const STAFF_LATER = ['messages', 'oversight-grades', 'oversight-homework'];
 const TEACHER_READY = ['teacher-guide', 'discipline', 'student-file', 'mock-exams', 'grade-sheets', 'school-life'];
 // rubriques de Tamatave seulement (professeurs, élèves et bulletins en ligne), cachées quand on travaille sur Tana
 const TANA_LATER = ['notes-recues', 'my-grades', 'relecture', 'council', 'bulletins', 'grade-sheets', 'eleves-portail', 'absents-devoirs', 'students'];
-const ONLINE_READY = ['grades', 'absents-devoirs', 'agenda']; // carnet de notes en ligne (le reste suit à la bascule de décembre)
+const ONLINE_READY = ['grades', 'bulletin-changes', 'absents-devoirs', 'agenda']; // carnet de notes en ligne (le reste suit à la bascule de décembre)
 const COMING_TEXT = {
   grades: 'La saisie des notes en ligne ouvre très prochainement. En attendant, gardez vos notes comme d\'habitude : vous les recopierez ici évaluation par évaluation.',
   'grade-sheets': 'Les grilles de notes arrivent avec la saisie des notes en ligne.',
@@ -220,7 +221,7 @@ const PROFILES = {
         { id: 'homework', label: 'Cahier de textes', icon: 'calendar', feature: 'cahier-textes', screen: HomeworkModule },
         AGENDA, BOOKING, { ...HOURS, label: 'Mes heures et absences' },
       ] },
-      { group: 'Évaluations', items: [{ id: 'grades', label: 'Notes et appréciations', icon: 'pen', screen: GradebookModule }, MOCK_EXAMS, GRADE_SHEETS] },
+      { group: 'Évaluations', items: [{ id: 'grades', label: 'Notes et appréciations', icon: 'pen', screen: GradebookModule }, ...(ONLINE ? [{ id: 'bulletin-changes', label: 'Modifications du bulletin', icon: 'pen', screen: BulletinChanges }] : []), MOCK_EXAMS, GRADE_SHEETS] },
       { group: 'Aide', items: [TEACHER_GUIDE] },
       { group: 'Mes élèves', items: [{ id: 'discipline', label: 'Vie de classe', icon: 'alert', screen: VieScolaireModule }, STUDENT_FILE] },
       { group: 'Échanges et ressources', items: [MESSAGES, ro(NEWS), SCHOOL_LIFE, BOOKS_FOR_TEACHER, RESOURCES] }, // annonces : lecture seule

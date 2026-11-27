@@ -18,6 +18,7 @@ import { studentLabel as sn } from '../studentNames.js';
 
 const STAGE_UI = {
   DANS_LES_DELAIS: { tone: 'slate', label: 'Dans les délais' },
+  RAPPEL: { tone: 'slate', label: 'Rappel' },
   RELANCE: { tone: 'navy', label: 'Relance' },
   AVERTISSEMENT: { tone: 'amber', label: 'Avertissement' },
   A_VALIDER: { tone: 'red', label: 'Mise à pied à valider' },
@@ -31,7 +32,8 @@ const monthOnly = (i) => (i.month ? (i.short ?? i.label).toLowerCase() : i.label
 
 /** Prochaine étape du recouvrement et sa date. */
 function nextStep(stage, sch) {
-  if (stage === 'DANS_LES_DELAIS') return `Relance le ${shortDate(sch.relance)}`;
+  if (stage === 'DANS_LES_DELAIS') return sch.rappel ? `Rappel le ${shortDate(sch.rappel)}` : `Relance le ${shortDate(sch.relance)}`;
+  if (stage === 'RAPPEL') return `Relance le ${shortDate(sch.relance)}`;
   if (stage === 'RELANCE') return `Avertissement le ${shortDate(sch.warning)}`;
   if (stage === 'AVERTISSEMENT') return `Mise à pied le ${shortDate(sch.suspension)}`;
   return '—';
@@ -86,11 +88,11 @@ export function DunningAlerts({ settings, site = 'TMV' }) {
             </label>
           }
         >
-          <ol className="mb-4 grid grid-cols-3 gap-2">
+          <ol className={`mb-4 grid gap-2 ${stages.length > 3 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
             {stages.map((s, i) => {
               const keys = s.key === 'MISE_A_PIED' ? ['A_VALIDER', 'MISE_A_PIED'] : [s.key];
               const n = visibleCases.filter((c) => keys.includes(c.stage)).length;
-              const tone = ['border-navy-200 bg-navy-50', 'border-amber-200 bg-amber-50', 'border-red-200 bg-red-50'][i];
+              const tone = { RAPPEL: 'border-slate-200 bg-slate-50', RELANCE: 'border-navy-200 bg-navy-50', AVERTISSEMENT: 'border-amber-200 bg-amber-50' }[s.key] ?? 'border-red-200 bg-red-50';
               return (
                 <li key={s.key} className={`rounded-xl border p-3 ${tone}`}>
                   <p className="text-xs font-medium text-slate-600">{i + 1}. {s.label}</p>

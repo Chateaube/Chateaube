@@ -142,7 +142,8 @@ test('alternatives : même site uniquement, créneaux libres', () => {
 
 // --- Finances ----------------------------------------------------------------
 const S = DEFAULT_SETTINGS;
-const withDunning = (patch) => ({ ...S, dunning: { ...S.dunning, ...patch } });
+const withDunning = (patch) => ({ ...S, dunning: { ...S.dunning, mode: 'JOURS', ...patch } });
+const SJ = withDunning({}); // ancienne règle en jours comptés (gardée pour le dernier mois)
 // Politique précédente (J+5 / J+10 / J+25 depuis l'échéance) : mêmes cas que db/tests.sql T9-T11
 const OLD = withDunning({ relanceAfter: 5, warningAfter: 10, suspensionAfter: 25, countFrom: 'ECHEANCE', lastMonth: { enabled: false } });
 const withOld = (patch) => ({ ...OLD, dunning: { ...OLD.dunning, ...patch } });
@@ -483,12 +484,12 @@ test('reçu : montant en toutes lettres', () => {
 import { isLastPlanMonth } from '../src/rules/calendar.js';
 test('relances : 10 j, puis 15 j, puis 10 j après l\'étape précédente ; dernier mois 5 / 5 / 5', () => {
   // 5 novembre : relance le 19/11, avertissement le 10/12, mise à pied le 7/01 (vacances de Noël non comptées)
-  assert.deepEqual(dunningSchedule('2026-11-05', S), { due: '2026-11-05', relance: '2026-11-19', warning: '2026-12-10', suspension: '2027-01-07' });
+  assert.deepEqual(dunningSchedule('2026-11-05', SJ), { due: '2026-11-05', relance: '2026-11-19', warning: '2026-12-10', suspension: '2027-01-07' });
   // Mai = dernier mois des 1re/Tle (plan 3) : 5 jours à chaque étape, Ascension (6 mai) non comptée
   assert.equal(isLastPlanMonth('2027-05-05', 3, S), true);
   assert.equal(isLastPlanMonth('2027-05-05', 0, S), false); // collège : dernier mois = juin
   assert.deepEqual(dunningSchedule('2027-05-05', S, { lastMonth: true }), { due: '2027-05-05', relance: '2027-05-13', warning: '2027-05-21', suspension: '2027-05-28' });
-  assert.match(dunningStages(S)[0].delay, /10 jours comptés après l'étape précédente \(dernier mois : 5\)/);
+  assert.match(dunningStages(SJ)[0].delay, /10 jours comptés après l'étape précédente \(dernier mois : 5\)/);
 });
 
 import { monthlyCashReport, cashMonthCsv, methodOf } from '../src/rules/accounting.js';
@@ -2663,4 +2664,32 @@ test('fratries : liées à la main, fusionnées, déliées sans toucher les autr
   assert.deepEqual(siblingIdsOf(g, 'e'), []); assert.equal(siblingIdsOf(g, 'a').length, 3);
   assert.deepEqual(unlinkSibling(linkSiblings([], 'x', 'y'), 'x'), []); // une fratrie d'un seul élève disparaît
   assert.deepEqual(linkSiblings([], 'x', 'x'), []);
+});
+
+import { isRealChange } from '../src/rules/textChange.js';
+test('corrections : la forme ne compte pas, le fond oui', () => {
+  assert.equal(isRealChange('bon trimestre continuez ainsi', 'Bon trimestre, continuez ainsi.'), false);
+  assert.equal(isRealChange('Eleve serieux et apliqué.', 'Élève sérieux et appliqué.'), false); // accents + faute de frappe
+  assert.equal(isRealChange('Des progrés en orale', 'Des progrès en oral.'), false);
+  assert.equal(isRealChange('Ensemble satisfaisant', 'Ensemble  satisfaisant !'), false);
+  assert.equal(isRealChange('Bon travail.', 'Travail insuffisant.'), true);
+  assert.equal(isRealChange('Bon trimestre.', 'Bon trimestre, mais attention aux bavardages.'), true);
+  assert.equal(isRealChange('Élève sérieux.', 'Élève discret.'), true);
+  assert.equal(isRealChange('', 'Bon trimestre.'), true);
+});
+
+test('relances, règle de l\'école : rappel 2 semaines, relance le mois fini, avertissement 1 mois ½, mise à pied 2 mois', () => {
+  const sch = dunningSchedule('2026-11-05', S);
+  assert.deepEqual(sch, { due: '2026-11-05', rappel: '2026-11-19', relance: '2026-12-01', warning: '2026-12-20', suspension: '2027-01-05' });
+  assert.equal(stageOn('2026-11-18', sch, S), 'DANS_LES_DELAIS');
+  assert.equal(stageOn('2026-11-27', sch, S), 'RAPPEL');
+  assert.equal(stageOn('2026-12-02', sch, S), 'RELANCE');
+  assert.equal(stageOn('2026-12-21', sch, S), 'AVERTISSEMENT');
+  assert.equal(stageOn('2027-01-05', sch, S), 'A_VALIDER');
+  const oct = dunningSchedule('2026-10-05', S); // octobre impayé, vu le 27 novembre : avertissement
+  assert.equal(stageOn('2026-11-27', oct, S), 'AVERTISSEMENT');
+  assert.equal(dunningSchedule('2027-01-31', S).suspension, '2027-03-31'); // fin de mois tenue
+  assert.equal(dunningStages(S).length, 4);
+  // dernier mois du plan : délais courts en jours comptés, comme avant
+  assert.equal(dunningSchedule('2027-05-05', S, { lastMonth: true }).rappel, undefined);
 });

@@ -25,6 +25,14 @@ const nameOf = (s) => `${s.lastName} ${s.firstName}`.trim();
 const textOf = (c) => (c?.validated || c?.text ? (c.text ?? '').trim() : '');
 /** Corrections de la Direction (relecture) : clé compte|service:élève. */
 export const correctionKey = (tid, sid, student) => `${tid}|${sid}:${student}`;
+/** Compétences d'une classe × matière corrigées par la Direction (relecture) : clé dans le document « corrections ». */
+export const compCorrectionKey = (tid, sid) => `comp|${tid}|${sid}`;
+const sameList = (a, b) => JSON.stringify(a ?? []) === JSON.stringify(b ?? []);
+/** Compétences retenues pour le bulletin : la version corrigée si elle porte sur la liste actuelle du professeur. */
+export function finalComps(original, correction) {
+  if (correction && sameList(correction.original, original)) return correction.text ?? [];
+  return original ?? [];
+}
 /** Texte retenu pour le bulletin : la correction de la Direction si elle porte sur le texte actuel du professeur. */
 export function finalText(original, correction) {
   if (correction && (correction.original ?? '') === (original ?? '')) return correction.text;
@@ -46,7 +54,7 @@ export function buildClassBulletins({ cls, students = [], roster, carnets = {}, 
   const rowFor = (subject, name) => {
     const parts = bySubject[subject].filter((p) => p.service.students.includes(name)).map((p) => {
       const c = p.carnet ?? {}; const sid = p.service.id;
-      return { teacher: p.teacher, average: studentAverage(c.evaluations?.[sid] ?? [], c.grades?.[sid]?.[name], BONUS_ENABLED ? c.bonus?.[sid]?.[name] : undefined), appreciation: (p.service.writer && p.service.writer !== p.tid) ? '' : finalText(textOf(c.comments?.[`${sid}:${name}`]), corrections[correctionKey(p.tid, sid, name)]).trim(), competencies: c.myComps?.[sid] ?? [] };
+      return { teacher: p.teacher, average: studentAverage(c.evaluations?.[sid] ?? [], c.grades?.[sid]?.[name], BONUS_ENABLED ? c.bonus?.[sid]?.[name] : undefined), appreciation: (p.service.writer && p.service.writer !== p.tid) ? '' : finalText(textOf(c.comments?.[`${sid}:${name}`]), corrections[correctionKey(p.tid, sid, name)]).trim(), competencies: finalComps(c.myComps?.[sid] ?? [], corrections[compCorrectionKey(p.tid, sid)]) };
     });
     if (!parts.length) return null; // matière que l'élève ne suit pas (spécialité)
     const x = combineTeachers(parts);

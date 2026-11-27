@@ -65,7 +65,29 @@ export function dueDateOf(year, month, settings) {
  * `lastMonth` : échéance du dernier mois du plan (juin, ou mai pour 1re/Tle) — délais
  * raccourcis s'ils sont paramétrés (settings.dunning.lastMonth).
  */
+// Règle de l'école (« MOIS », par défaut) : 2 semaines après l'échéance, rappel ; le mois fini, relance ;
+// 1 mois et demi après l'échéance, avertissement ; 2 mois après, mise à pied (validée par la Direction).
+// Le dernier mois du plan garde ses délais courts en jours comptés (« JOURS »), comme avant.
+const ymd = (y, m, d) => `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+export function addMonths(iso, n) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const t = new Date(Date.UTC(y, m - 1 + n, 1));
+  const last = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() + 1, 0)).getUTCDate();
+  return ymd(t.getUTCFullYear(), t.getUTCMonth() + 1, Math.min(d, last));
+}
+export const dunningMode = (settings) => settings.dunning.mode ?? 'MOIS';
+
 export function dunningSchedule(due, settings, { lastMonth = false } = {}) {
+  if (dunningMode(settings) === 'MOIS' && !(lastMonth && settings.dunning.lastMonth?.enabled)) {
+    const [y, m] = due.split('-').map(Number);
+    return {
+      due,
+      rappel: addDays(due, 14),
+      relance: addMonths(ymd(y, m, 1), 1), // le mois de l'échéance est fini
+      warning: addDays(addMonths(due, 1), 15),
+      suspension: addMonths(due, 2),
+    };
+  }
   const { countFrom } = settings.dunning;
   const delays = lastMonth && settings.dunning.lastMonth?.enabled ? settings.dunning.lastMonth : settings.dunning;
   const { relanceAfter, warningAfter, suspensionAfter } = delays;
@@ -92,6 +114,7 @@ export function stageOn(date, schedule, settings) {
   }
   if (date >= schedule.warning) return 'AVERTISSEMENT';
   if (date >= schedule.relance) return 'RELANCE';
+  if (schedule.rappel && date >= schedule.rappel) return 'RAPPEL';
   return 'DANS_LES_DELAIS';
 }
 
