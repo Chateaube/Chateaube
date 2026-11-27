@@ -586,20 +586,23 @@ export default function App() {
             </div>
           )}
           {staffProfile && menuNote && (
-            <div role="status" className="print:hidden mb-4 flex flex-wrap items-center gap-2 rounded-2xl bg-navy-50 px-4 py-3 text-sm text-navy-900">
+            <div role="status" className="print:hidden mb-4 flex flex-wrap items-center gap-3 rounded-2xl bg-navy-50 px-4 py-3 text-[15px] text-navy-900 ring-1 ring-navy-200">
               <span className="min-w-0 flex-1"><strong>Nouveau menu, plus court :</strong> les écrans sont regroupés par rubrique, avec des onglets en haut de l'écran. Rien n'a disparu : tapez l'ancien nom dans <strong>Rechercher</strong> (Ctrl K) pour le retrouver.</span>
               <button type="button" onClick={() => { try { localStorage.setItem('ent-menu-court-vu', '1'); } catch { /* indisponible */ } setMenuNote(false); }} className="shrink-0 rounded-lg px-3 py-1 text-xs font-semibold ring-1 ring-navy-200">J'ai compris</button>
             </div>
           )}
           {currentHub && (
-            <div role="tablist" aria-label={currentHub.label} className="print:hidden mb-4 flex gap-1 overflow-x-auto border-b border-slate-200">
-              {currentHub.tabs.map((t) => (
-                <button key={t.id} type="button" role="tab" aria-selected={t.id === shownId} data-nav={`rubrique-${t.id}`}
-                  onClick={() => { rememberTab(currentHub.hub, t.id); goTo(t.id); }}
-                  className={`-mb-px shrink-0 whitespace-nowrap rounded-t-lg border-b-2 px-3 py-2 text-sm font-medium ${t.id === shownId ? 'border-navy-700 text-navy-900' : 'border-transparent text-slate-600 hover:text-navy-900'}`}>
-                  {t.label}{counts[t.id] > 0 && <span className="ml-1.5 rounded-full bg-amber-400 px-1.5 text-[10px] font-semibold text-slate-900">{counts[t.id]}</span>}
-                </button>
-              ))}
+            <div className="print:hidden mb-5 rounded-2xl bg-white/90 p-3 shadow-soft ring-1 ring-slate-200/70">
+              <p className="mb-2 flex items-center gap-2 px-1 text-lg font-semibold text-navy-900"><Icon name={currentHub.icon} className="h-5 w-5 text-navy-500" />{currentHub.label}</p>
+              <div role="tablist" aria-label={currentHub.label} className="flex gap-2 overflow-x-auto pb-0.5">
+                {currentHub.tabs.map((t) => (
+                  <button key={t.id} type="button" role="tab" aria-selected={t.id === shownId} data-nav={`rubrique-${t.id}`}
+                    onClick={() => { rememberTab(currentHub.hub, t.id); goTo(t.id); }}
+                    className={`shrink-0 whitespace-nowrap rounded-xl px-4 py-2 text-[15px] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-navy-400 ${t.id === shownId ? 'bg-navy-500 text-white shadow-sm' : 'bg-slate-100 text-slate-700 hover:bg-navy-50 hover:text-navy-900'}`}>
+                    {t.label}{counts[t.id] > 0 && <span className="ml-2 rounded-full bg-amber-400 px-1.5 text-[11px] font-semibold text-slate-900">{counts[t.id]}</span>}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
           {currentItem?.readOnly && <p className="mb-3 inline-block rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">Consultation seulement</p>}
