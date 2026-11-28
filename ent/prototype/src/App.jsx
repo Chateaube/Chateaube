@@ -493,7 +493,7 @@ export default function App() {
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white p-1 shadow-sm"><img src={pillar} alt="" className="h-full" /></span>
             <span className="hidden text-left leading-tight sm:block">
               <span className="block font-display text-[15px] font-semibold tracking-wide">CHATEAUBRIAND</span>
-              <span className="block text-[11px]" style={{ color: 'var(--topbar-muted)' }}>{(activeSite() === 'TANA' && myself?.title) || PROFILES[profile].title}</span>
+              {profile !== 'ENSEIGNANT' && <span className="block text-[11px]" style={{ color: 'var(--topbar-muted)' }}>{(activeSite() === 'TANA' && myself?.title) || PROFILES[profile].title}</span>}
             </span>
           </button>
           {staffProfile && (
@@ -618,7 +618,7 @@ export default function App() {
           <div className={currentHub ? 'hub-screen' : undefined}>
           <ReadOnlyGuard key={`${profile}-${screen}-guard`} active={!!currentItem?.readOnly}>
           {profile === 'ENSEIGNANT'
-            ? <TermsGate viewer="ENSEIGNANT" account="mme-ranaivo"><ScreenBoundary key={`b-${profile}-${screen}-${navSeq}`} onHome={() => goTo(PROFILES[profile].home)}><Current key={`${profile}-${screen}-${navSeq}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={goTo} role={profile} site={site} /></ScreenBoundary></TermsGate>
+            ? <TermsGate viewer="ENSEIGNANT" account={ONLINE ? (loadMe()?.id ?? 'prof') : 'mme-ranaivo'}><ScreenBoundary key={`b-${profile}-${screen}-${navSeq}`} onHome={() => goTo(PROFILES[profile].home)}><Current key={`${profile}-${screen}-${navSeq}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={goTo} role={profile} site={site} /></ScreenBoundary></TermsGate>
             : <ScreenBoundary key={`b-${profile}-${screen}-${navSeq}`} onHome={() => goTo(PROFILES[profile].home)}><Current key={`${profile}-${screen}-${navSeq}`} account={account} settings={settings} onChange={setSettings} onReset={() => setSettings(DEFAULT_SETTINGS)} go={goTo} role={profile} site={site} ambiance={ambiance} readOnly={!!currentItem?.readOnly} /></ScreenBoundary>}
           </ReadOnlyGuard>
           </div>

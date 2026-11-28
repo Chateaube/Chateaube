@@ -5,7 +5,7 @@ import { ONLINE } from '../online/client.js';
 import GradebookGuide from './GradebookGuide.jsx';
 import { readStored, writeStored } from '../persist.js';
 import { onSync, syncState } from '../online/docs.js';
-import { currentRoster, servicesFor, shortName, claimClass, takenFrom } from '../online/roster.js';
+import { currentRoster, servicesFor, shortName, nameParts, claimClass, takenFrom } from '../online/roster.js';
 import { demoOr } from '../demoData.js';
 import { Badge, Button, Card, Icon, StudentSelect } from './ui.jsx';
 import { Annotated, RulePanel, GradeCell } from './gradeUi.jsx';
@@ -26,6 +26,19 @@ import { TERMS, termById, termOfDate, termClosed } from '../rules/terms.js';
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
 const fmtDate = (iso) => iso.split('-').reverse().slice(0, 2).join('/');
 const firstName = (full) => shortName(full).replace(/^\S+\.\s/, ''); // prénom d'usage
+// nom complet dans la saisie (évite les erreurs entre homonymes) : NOM, prénoms, prénom d'usage en gras bleu
+function StudentName({ full }) {
+  const { last, first, usual } = nameParts(full);
+  const words = first.split(/\s+/).filter(Boolean);
+  const inFirst = usual && words.includes(usual);
+  return (
+    <span className="leading-tight">
+      <span className="uppercase">{last}</span>{' '}
+      {inFirst ? words.map((w, i) => <React.Fragment key={i}>{i > 0 && ' '}{w === usual ? <strong className="font-bold text-navy-700">{w}</strong> : <span className="font-normal text-slate-600">{w}</span>}</React.Fragment>)
+        : <><span className="font-normal text-slate-600">{first}</span>{usual && <> (<strong className="font-bold text-navy-700">{usual}</strong>)</>}</>}
+    </span>
+  );
+}
 
 /* ---------------- Création d'un devoir ---------------- */
 const TODAY = today();
@@ -272,10 +285,10 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
           <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-600">Aucune note pour ce trimestre. Ajoutez une première évaluation (DS, oral, exposé…).</p>
         ) : (
           <div className="-mx-5 overflow-x-auto">
-            <table data-grid className={`${!NOUVEAU || app ? 'w-full' : 'w-auto'} text-sm`} style={{ minWidth: NOUVEAU ? 290 + evaluations.length * 96 + (app ? 400 : 0) : 260 + evaluations.length * 130 }}>
+            <table data-grid className={`${!NOUVEAU || app ? 'w-full' : 'w-auto'} text-sm`} style={{ minWidth: NOUVEAU ? 370 + evaluations.length * 96 + (app ? 400 : 0) : 260 + evaluations.length * 130 }}>
               <thead>
                 <tr className="border-y border-slate-100 bg-slate-50 text-left align-bottom text-xs text-slate-500">
-                  <th className="sticky left-0 z-20 bg-slate-50 px-3 py-2 font-medium shadow-[2px_0_0_#e2e8f0]" style={NOUVEAU ? { width: 150 } : undefined}>{NOUVEAU ? `${service.students.length} élèves` : 'Élève'}</th>
+                  <th className="sticky left-0 z-20 bg-slate-50 px-3 py-2 font-medium shadow-[2px_0_0_#e2e8f0]" style={NOUVEAU ? { width: 230 } : undefined}>{NOUVEAU ? `${service.students.length} élèves` : 'Élève'}</th>
                   {NOUVEAU && <th className="bg-slate-100 px-2 py-2 text-right font-medium" style={{ width: 64 }}>Moy.</th>}
                   {NOUVEAU && <th className="bg-slate-100 px-2 py-2 text-center font-medium" style={{ width: 56 }} title="Notes comptées / devoirs">Notes</th>}
                   {cols.map((ev) => NOUVEAU ? (
@@ -320,7 +333,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
                   return (
                     <tr key={s} className="border-b border-slate-100 align-top">
                       <td className="sticky left-0 z-20 bg-white px-3 py-2.5 font-medium text-slate-800 shadow-[2px_0_0_#e2e8f0]" title={s}>
-                        {shortName(s)}
+                        <StudentName full={s} />
                         {!NOUVEAU && n < min && <p className="text-[11px] font-normal text-amber-700">{n} note{n > 1 ? 's' : ''} retenue{n > 1 ? 's' : ''}</p>}
                       </td>
                       {NOUVEAU && <td className="bg-slate-50 px-2 py-2.5 text-right font-semibold tabular-nums text-navy-900">{fmtAvg(avgs[i])}</td>}
@@ -584,7 +597,7 @@ function AppreciationsStep({ service, evaluations, grades, validated, settings, 
           suffix={(s) => ({ valid: '  ✓ validée', ready: '  · conforme', error: '  ⚠ à corriger', empty: '' }[statusOf(s)])}
         />
       </Card>
-      <Card title={shortName(student)} subtitle={`${student} · ${service.subject}`}
+      <Card title={<StudentName full={student} />} subtitle={service.subject}
         action={go && <Button variant="secondary" className="!py-1 text-xs" onClick={() => { setIntent('messages', { to: `Parents de ${student} (${service.cls})` }); go('messages'); }}><Icon name="bell" />Écrire aux parents</Button>}>
         {appOnly ? (
           <div className="mb-3 space-y-2">
@@ -681,7 +694,7 @@ function AppreciationsTable({ service, evaluations, grades, settings, comments, 
               const avg = studentAverage(evaluations, grades[s]);
               return (
                 <tr key={s} className="border-b border-slate-100 align-top">
-                  <td className="px-4 py-2 font-medium text-slate-800" style={{ width: 150 }} title={s}>{shortName(s)}</td>
+                  <td className="px-4 py-2 font-medium text-slate-800" style={{ width: 230 }} title={s}><StudentName full={s} /></td>
                   <td className="px-2 py-2 text-center tabular-nums text-slate-600">{notesCount(evaluations, grades[s])}/{evaluations.length}</td>
                   <td className="px-2 py-2 text-right font-semibold tabular-nums text-navy-900">{fmtAvg(avg)}</td>
                   <td className="px-2 py-2">

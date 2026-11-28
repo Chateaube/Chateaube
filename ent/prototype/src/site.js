@@ -67,7 +67,10 @@ export function setAllowedSites(sites) {
 export const siteName = () => SITE_NAMES[current];
 
 // préférences de l'appareil, sans donnée personnelle : gardées à la déconnexion
-const DEVICE_PREFS = ['ent-texte-grand-v1', 'ent-ambiance-prefs-v1', 'ent-ambiance-vue', 'ent-site', 'ent-impression-auto'];
+// gardés à la déconnexion : réglages de l'appareil, et ce qui ne doit pas être redemandé à chaque connexion
+// (charte acceptée, par compte ; messages « J'ai compris » déjà lus)
+const DEVICE_PREFS = ['ent-texte-grand-v1', 'ent-ambiance-prefs-v1', 'ent-ambiance-vue', 'ent-site', 'ent-impression-auto',
+  'ent-conditions-v1', 'ent-k-guide-notes-vu', 'ent-menu-court-vu'];
 /**
  * Déconnexion : efface de l'appareil toutes les données de l'ENT, des deux sites (élèves, caisse, salaires, notes…),
  * pour qu'un poste partagé ne garde rien. Tout est sur le serveur et revient à la prochaine connexion.

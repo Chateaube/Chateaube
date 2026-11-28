@@ -111,6 +111,18 @@ export function shortName(full) {
   const words = String(full ?? '').split(/\s+/); const caps = []; while (words.length > 1 && words[0] === words[0].toUpperCase()) caps.push(words.shift());
   return caps.length && words.length ? `${caps[0].charAt(0)}. ${words[0]}` : full;
 }
+/** Nom complet d'un élève découpé pour l'affichage : nom, prénoms, et le prénom d'usage (mis en avant). */
+export function nameParts(full) {
+  if (!nameMap) shortName(full); // remplit la table des élèves
+  const s = nameMap.get(full);
+  if (s) {
+    const first = String(s.firstName ?? '').trim();
+    const usual = s.usualName?.trim() || first.split(/\s+/)[0] || '';
+    return { last: s.lastName, first, usual };
+  }
+  const words = String(full ?? '').split(/\s+/); const caps = []; while (words.length > 1 && words[0] === words[0].toUpperCase()) caps.push(words.shift());
+  return { last: caps.join(' '), first: words.join(' '), usual: words[0] ?? '' };
+}
 export const currentRoster = () => current;
 /** Direction : utilise la liste envoyée sans remplacer son propre import (saisie à la place d'un professeur). */
 export const setCurrentRoster = (r) => { current = r; nameMap = null; };
