@@ -85,6 +85,9 @@ import { loadLargeText, applyLargeText } from './textSize.js';
 import GlobalSearch, { loadFavorites, toggleFavorite } from './components/GlobalSearch.jsx';
 import pillar from './assets/pilier.png';
 import { useScreenGuard } from './screenGuard.js';
+import { ESSAI } from './essai.js';
+// pages masquées en cas de capture d'écran ou de changement d'application (voir screenGuard.js)
+const GUARDED_SCREENS = new Set(['teacher-guide', 'resources', 'programs', 'new-programs']);
 import { useOnline } from './online.js';
 
 import { DEFAULT_SETTINGS } from './data/settings.js';
@@ -336,9 +339,10 @@ export default function App() {
   const site = activeSite() === 'TANA' ? 'TNR' : 'TMV';
   const canSwitch = profile === 'DIRECTION' && allowedSites().length > 1;
 
-  // Protection d'écran : tous les profils sauf Direction et Bureau
+  // Protection d'écran : seulement sur les pages qui contiennent le travail propre à l'école (mode d'emploi, documents
+  // internes, programmes et progressions), pour les profils autres que Direction et Bureau ; jamais sur le site d'essai
   const [protection, setProtection] = useState(true);
-  const protectedProfile = protection && !['DIRECTION', 'BUREAU'].includes(profile);
+  const protectedProfile = protection && !ESSAI && !['DIRECTION', 'BUREAU'].includes(profile) && GUARDED_SCREENS.has(shownId);
   const hidden = useScreenGuard(protectedProfile);
   const online = useOnline();
 
@@ -446,7 +450,10 @@ export default function App() {
   const QUICK = profile === 'BUREAU' ? [['accounting', 'Encaisser'], ['vs', 'Noter une absence'], ['care', 'Enregistrer un passage (soins)'], ['enrol', 'Imprimer un certificat']] : [];
 
   return (
-    <div className={`min-h-screen ${protectedProfile ? 'screen-guard' : ''}`} onClick={() => { setAccountOpen(false); setBellOpen(false); setQuickOpen(false); }}>
+    <div className={`min-h-screen ${protectedProfile ? 'screen-guard select-none' : ''}`}
+      // pages protégées : pas de sélection ni de copier-coller du texte (programmes, mode d'emploi, documents internes)
+      onCopy={protectedProfile ? (e) => e.preventDefault() : undefined} onCut={protectedProfile ? (e) => e.preventDefault() : undefined}
+      onContextMenu={protectedProfile ? (e) => e.preventDefault() : undefined} onClick={() => { setAccountOpen(false); setBellOpen(false); setQuickOpen(false); }}>
       {/* Bandeau du prototype : changer de profil, protection d'écran */}
       <a href="#contenu" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[60] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-navy-900 focus:shadow-lg">Aller au contenu</a>
       {/* en ligne : pas de bandeau du prototype (ni changement de profil, ni « données fictives ») */}
@@ -462,7 +469,7 @@ export default function App() {
               ))}
             </span>
           </span>
-          <label className="flex items-center gap-1.5"><input type="checkbox" checked={protection} onChange={(e) => setProtection(e.target.checked)} />Protection d'écran (sauf Direction et Secrétariat)</label>
+          <label className="flex items-center gap-1.5"><input type="checkbox" checked={protection} onChange={(e) => setProtection(e.target.checked)} />Protection d'écran et anti-copie (mode d'emploi, documents internes, programmes ; sauf Direction et Secrétariat)</label>
           {realData && <span className="flex items-center gap-2 text-amber-200">Données réelles sur cet ordinateur : changement de profil bloqué, effacement automatique après {REAL_DATA_IDLE_DAYS} jours sans utilisation.
             <button type="button" onClick={wipe} className="rounded-full bg-amber-400 px-2.5 py-0.5 font-semibold text-slate-900">Effacer maintenant</button></span>}
           {purged && <span role="status" className="text-emerald-300">Données inutilisées depuis plus de {REAL_DATA_IDLE_DAYS} jours effacées de cet ordinateur.</span>}
