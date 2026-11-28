@@ -525,9 +525,11 @@ function StatusCard({ p, profiles, onSave }) {
   const [reason, setReason] = useState('');
   const [target, setTarget] = useState('');
   const [keepThis, setKeepThis] = useState(false); // true : cette fiche est la bonne, on choisit le doublon à retirer
-  // toutes les fiches actives, celles de la même classe d'abord (la bonne fiche peut avoir une autre classe dans l'import)
+  // toutes les fiches actives : même nom de famille en tête (doublon probable), puis la même classe
+  const rank = (x) => (x.lastName?.trim().toUpperCase() === p.lastName?.trim().toUpperCase() ? 0 : x.cls === p.cls ? 1 : 2);
+  // (la bonne fiche peut avoir une autre classe dans l'import) (la bonne fiche peut avoir une autre classe dans l'import)
   const mates = profiles.filter((x) => x.id !== p.id && !x.duplicateOf && !x.leftOn)
-    .sort((a, b) => (a.cls === p.cls ? 0 : 1) - (b.cls === p.cls ? 0 : 1) || fullNameOf(a).localeCompare(fullNameOf(b)));
+    .sort((a, b) => rank(a) - rank(b) || fullNameOf(a).localeCompare(fullNameOf(b)));
   const nameOf = (id) => { const x = profiles.find((y) => y.id === id); return x ? fullNameOf(x) : id; };
   const note = 'Pour que les professeurs ne le voient plus dans leurs classes : Notes et bulletins › Notes reçues › « Envoyer les classes ».';
   if (p.duplicateOf) return (
