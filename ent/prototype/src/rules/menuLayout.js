@@ -9,13 +9,13 @@ export const MENU_LAYOUT = {
   DIRECTION: [
     { group: 'Aujourd\'hui', items: [hub('accueil', 'Accueil', 'home', [['dashboard', 'Mes décisions'], 'signatures']), 'messages'] },
     { group: 'Élèves', items: [
-      hub('eleves', 'Élèves', 'users', [['eleves', 'Liste et fiches'], ['eleves-portail', 'Comptes du portail'], 'mandates', 'followup']),
+      hub('eleves', 'Élèves', 'users', [['eleves', 'Liste et fiches'], ['eleves-portail', 'Comptes du portail'], ['faq', 'Questions fréquentes'], 'mandates', 'followup']),
       hub('vie-scolaire', 'Vie scolaire', 'alert', ['vs', ['care', 'Soins']]),
     ] },
     { group: 'Pédagogie', items: [
       hub('notes', 'Notes et bulletins', 'pen', ['notes-recues', ['relecture', 'Relecture'], 'council', 'bulletins', ['my-grades', 'Mes notes']]),
       'mock-exams',
-      hub('professeurs', 'Professeurs', 'clock', ['timetable', ['hours', 'Heures et absences'], 'oversight-grades', 'programs', 'new-programs', 'faq', 'teacher-guide']),
+      hub('professeurs', 'Professeurs', 'clock', ['timetable', ['hours', 'Heures et absences'], 'oversight-grades', 'programs', 'new-programs', 'teacher-guide']),
     ] },
     { group: 'École', items: [hub('communication', 'Communication', 'megaphone', ['news', 'school-life', 'agenda', ['resources', 'Ressources'], 'feedback'])] },
     { group: 'Gestion', items: [

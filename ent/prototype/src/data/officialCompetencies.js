@@ -20,7 +20,7 @@ const ENTRIES = [
     'Acquérir des éléments de culture littéraire et artistique'], 'Programme de français du cycle 4 (2026 en 5e ; 2020 en 4e et 3e)'],
   ['Anglais', ALL, LV, 'Programme d\'anglais pour les classes de collège'],
   ['Espagnol', ALL, LV, 'Programme d\'espagnol pour les classes de collège'],
-  ['Mandarin', ALL, LV, 'Programme de chinois pour les classes de collège'],
+  ['Mandarin', ['6e', '5e', '4e'], LV, 'Programme de chinois pour les classes de collège (pas de mandarin en 3e à l\'école)'],
   ['Histoire-géographie', ALL, HG, 'Programmes d\'histoire et géographie des cycles 3 et 4 (2020)'],
   ['Enseignement moral et civique', ALL, ['Écouter, observer, réfléchir et exercer son esprit critique', 'Exprimer ce que l\'on ressent et faire preuve d\'empathie',
     'Apprendre de manière autonome', 'S\'impliquer dans un projet collectif et coopérer', 'Participer à un débat pour résoudre un conflit ou prendre une décision'],

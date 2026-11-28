@@ -185,8 +185,8 @@ const PROFILES = {
     home: 'dashboard',
     nav: arrangeNav(DIRECTION_TREE, [
       { group: 'Aujourd\'hui', items: [{ id: 'dashboard', label: 'Mes décisions', icon: 'home', screen: DirectionDashboard }, SIGNATURES, FEEDBACK] },
-      { group: 'Élèves', items: [ELEVES, ...(ONLINE ? [{ id: 'eleves-portail', label: 'Portail des élèves (comptes)', icon: 'cap', screen: StudentAccounts }] : []), { id: 'students', label: 'Mobilité Tamatave → Tana', icon: 'swap' }] },
-      { group: 'Pédagogie', items: [...(ONLINE ? [{ id: 'notes-recues', label: 'Notes reçues', icon: 'pen', screen: NotesReceived }, { id: 'my-grades', label: 'Mes notes (mes classes)', icon: 'pen', screen: MyGrades }, { id: 'relecture', label: 'Relecture des appréciations', icon: 'pen', screen: AppreciationsReview }] : []), COUNCIL, BULLETINS, MOCK_EXAMS, GRADE_SHEETS, PROGRAMS, NEW_PROGRAMS, ...(ESSAI ? [FAQ] : []), TEACHER_GUIDE, ...OVERSIGHT, TIMETABLE, { id: 'exams', label: 'Examens & Campus France', icon: 'cap' }] },
+      { group: 'Élèves', items: [ELEVES, ...(ONLINE ? [{ id: 'eleves-portail', label: 'Portail des élèves (comptes)', icon: 'cap', screen: StudentAccounts }] : []), ...(ESSAI ? [FAQ] : []), { id: 'students', label: 'Mobilité Tamatave → Tana', icon: 'swap' }] },
+      { group: 'Pédagogie', items: [...(ONLINE ? [{ id: 'notes-recues', label: 'Notes reçues', icon: 'pen', screen: NotesReceived }, { id: 'my-grades', label: 'Mes notes (mes classes)', icon: 'pen', screen: MyGrades }, { id: 'relecture', label: 'Relecture des appréciations', icon: 'pen', screen: AppreciationsReview }] : []), COUNCIL, BULLETINS, MOCK_EXAMS, GRADE_SHEETS, PROGRAMS, NEW_PROGRAMS, TEACHER_GUIDE, ...OVERSIGHT, TIMETABLE, { id: 'exams', label: 'Examens & Campus France', icon: 'cap' }] },
       { group: 'Vie scolaire', items: [VIE_SCOLAIRE, CARE, HOURS, FOLLOW_UP, MANDATES] },
       { group: 'Finances', items: [ACCOUNTING] },
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, AGENDA] },
