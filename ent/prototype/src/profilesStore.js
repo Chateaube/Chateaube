@@ -30,7 +30,11 @@ export const fromImport = (s) => ({
 
 export function loadProfiles() {
   const imp = loadImport();
-  if (imp?.profiles?.length) return imp.profiles;
+  // fiches déjà modifiées dans l'ENT, plus les élèves arrivés dans l'import depuis (avant : ils manquaient à la liste)
+  if (imp?.profiles?.length) {
+    const known = new Set(imp.profiles.map((p) => p.id));
+    return [...imp.profiles, ...(imp.students ?? []).filter((s) => !known.has(s.id)).map(fromImport)];
+  }
   if (imp?.students?.length) return imp.students.map(fromImport);
   try { return JSON.parse(localStorage.getItem(KEY)) ?? demoOr(DEMO_PROFILES, []); } catch { return demoOr(DEMO_PROFILES, []); }
 }

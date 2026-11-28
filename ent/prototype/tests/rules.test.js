@@ -2800,3 +2800,10 @@ test('fusion d\'un doublon dans un carnet : notes et appréciation passent sur l
   assert.equal(r.comments['s1:X Mathias'].text, 'Bien.');
   assert.equal(mergeStudentInCarnet(c, 'Y', 'Z'), c);
 });
+
+test('fiches : un élève arrivé dans l\'import après les premières modifications apparaît quand même', async () => {
+  const store = {}; globalThis.localStorage = { getItem: (k) => store[k] ?? null, setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } };
+  store['ent-import-v1'] = JSON.stringify({ importedAt: 'x', students: [{ id: 'a', lastName: 'X', firstName: 'Un', cls: '6e' }, { id: 'b', lastName: 'X', firstName: 'Deux', cls: '6e' }], profiles: [{ id: 'a', lastName: 'X', firstName: 'Un', cls: '6e' }] });
+  const { loadProfiles } = await import('../src/profilesStore.js');
+  assert.deepEqual(loadProfiles().map((p) => p.id), ['a', 'b']);
+});

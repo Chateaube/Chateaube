@@ -47,7 +47,9 @@ export function feesFor(account, manuals = loadManuals().manuals) {
 // Élèves importés : un compte par élève ; les frais déjà payés viennent de l'onglet « 7 Paiements »
 const importedAccounts = () => {
   const imp = loadImport();
-  const list = imp?.profiles ?? imp?.students;
+  // fiches modifiées dans l'ENT, plus les élèves de l'import qui n'en ont pas encore (ajoutés depuis)
+  const known = new Set((imp?.profiles ?? []).map((p) => p.id));
+  const list = imp?.profiles ? [...imp.profiles, ...(imp.students ?? []).filter((s) => !known.has(s.id))] : imp?.students;
   if (!list?.length) return null;
   const keyOf = (s) => `${s.lastName} ${s.firstName}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
   // arrivée en cours d'année sans date d'entrée dans la fiche : la date du paiement de l'inscription fait foi
