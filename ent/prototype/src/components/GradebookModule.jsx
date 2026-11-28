@@ -398,45 +398,39 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
         <p className="mt-3 text-xs text-slate-500">Saisie contrôlée : « 1O » → 10, « 12.5 » → 12,5 (Entrée pour accepter). Codes (non comptés dans la moyenne) : ABS = absent, DISP = dispensé (EPS seulement), NN = non noté (par exemple un élève inscrit tardivement, après la date du devoir ; il pourra le rattraper).</p>
       </Card>
 
-      <Card title="Validation du trimestre">
-        <ul className="space-y-2 text-sm">
-          <li className={`flex gap-2 ${check.missing ? 'text-red-800' : 'text-emerald-800'}`}>
-            <Icon name={check.missing ? 'x' : 'check'} className="mt-0.5 h-4 w-4 shrink-0" />
-            {evaluations.length + other} / {min} évaluations minimum{other ? ` (dont ${other} chez ${service.coTeachers.join(', ')})` : ''}{check.missing ? ` — il en manque ${check.missing}` : ''}
-          </li>
-          <li className={`flex gap-2 ${check.pending.length ? 'text-red-800' : 'text-emerald-800'}`}>
-            <Icon name={check.pending.length ? 'x' : 'check'} className="mt-0.5 h-4 w-4 shrink-0" />
-            {check.pending.length ? `${check.pending.length} saisie(s) à corriger` : 'Aucune saisie à corriger'}
-          </li>
-          <li className={`flex gap-2 ${check.empty.length ? 'text-red-800' : 'text-emerald-800'}`}>
-            <Icon name={check.empty.length ? 'x' : 'check'} className="mt-0.5 h-4 w-4 shrink-0" />
-            {check.empty.length ? `${check.empty.length} case(s) vide(s) : saisir une note ou ABS / DISP / NN` : 'Toutes les cases sont remplies'}
-          </li>
-          <li className={`flex gap-2 ${competencies.length ? 'text-emerald-800' : 'text-red-800'}`}>
-            <Icon name={competencies.length ? 'check' : 'x'} className="mt-0.5 h-4 w-4 shrink-0" />
-            {competencies.length ? `${competencies.length} compétence(s) pour le bulletin` : 'Compétences du bulletin à renseigner (onglet « Compétences du bulletin »)'}
-          </li>
-          {dispOutsideEps > 0 && <p className="mt-2 text-sm text-red-700">✗ {dispOutsideEps} « DISP » à remplacer : la dispense n'existe qu'en EPS (écrire ABS ou NN).</p>}
-          {adjErrors.length > 0 && (
-            <li className="flex gap-2 text-red-800"><Icon name="x" className="mt-0.5 h-4 w-4 shrink-0" /><span>Bonus / malus : {adjErrors.join(' ')}</span></li>
-          )}
-          {check.below.length > 0 && (
-            <li className="flex gap-2 text-amber-800">
-              <Icon name="alert" className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>Moins de {min} notes retenues (absences, dispenses) : {check.below.map(firstName).join(', ')}. Signalé au conseil, non bloquant.</span>
+      <Card title="Avant de valider le trimestre">
+        {evaluations.length === 0 && !validated ? (
+          <p className="text-sm text-slate-600">Quand les notes du trimestre seront saisies, vous les validerez ici. Minimum : {min} évaluations{other ? ` (avec celles de ${service.coTeachers.join(', ')})` : ''}.</p>
+        ) : (<>
+        {(() => {
+          // étapes à faire en gris (pas en rouge) ; seul ce qui est à corriger est signalé en orange
+          const Item = ({ done, warn, children }) => (
+            <li className={`flex gap-2 ${done ? 'text-emerald-800' : warn ? 'text-amber-800' : 'text-slate-600'}`}>
+              {done ? <Icon name="check" className="mt-0.5 h-4 w-4 shrink-0" /> : <span aria-hidden className="mt-0.5 inline-block h-4 w-4 shrink-0 text-center leading-4">{warn ? '!' : '○'}</span>}<span>{children}</span>
             </li>
-          )}
-        </ul>
+          );
+          return (
+            <ul className="space-y-2 text-sm">
+              <Item done={!check.missing}>{evaluations.length + other} / {min} évaluations{other ? ` (dont ${other} chez ${service.coTeachers.join(', ')})` : ''}</Item>
+              {check.pending.length > 0 && <Item warn>{check.pending.length} saisie(s) à corriger</Item>}
+              <Item done={!check.empty.length}>{check.empty.length ? `${check.empty.length} case(s) encore vide(s)` : 'Toutes les cases sont remplies'}</Item>
+              <Item done={competencies.length > 0}>{competencies.length ? `${competencies.length} compétence(s) pour le bulletin` : 'Compétences du bulletin (onglet « Compétences du bulletin »)'}</Item>
+              {dispOutsideEps > 0 && <Item warn>{dispOutsideEps} « DISP » à remplacer par ABS ou NN (la dispense n'existe qu'en EPS)</Item>}
+              {adjErrors.length > 0 && <Item warn>Bonus / malus : {adjErrors.join(' ')}</Item>}
+              {check.below.length > 0 && <Item warn>Moins de {min} notes retenues : {check.below.map(firstName).join(', ')}. Signalé au conseil, non bloquant.</Item>}
+            </ul>
+          );
+        })()}
+        </>)}
         {validated ? (
           <div className="mt-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
             <p className="flex items-center gap-1.5 font-medium"><Icon name="check" />Notes validées</p>
             <p className="text-xs">Transmises à la grille du conseil de classe.</p>
             <Button variant="ghost" className="mt-1 !px-0" onClick={() => setValidated(false)}>Rouvrir la saisie</Button>
           </div>
-        ) : (
+        ) : evaluations.length > 0 && (
           <>
             <Button className="mt-4 w-full" disabled={!check.ok || adjErrors.length > 0 || !competencies.length || dispOutsideEps > 0} onClick={() => setValidated(true)}>Valider les notes du trimestre</Button>
-            {(!check.ok || !competencies.length) && <p className="mt-1.5 text-xs text-red-800">Pas encore possible : {[check.missing && `il manque ${check.missing} évaluation${check.missing > 1 ? 's' : ''}`, check.pending.length && `${check.pending.length} saisie(s) à corriger`, check.empty.length && `${check.empty.length} case(s) vide(s)`, !competencies.length && 'compétences du bulletin à renseigner'].filter(Boolean).join(', ')}.</p>}
           </>
         )}
         <p className="mt-3 text-xs text-slate-600">Arrêt des notes du {termDef.label} : <strong>{termDef.stopText ?? 'vendredi 27 novembre'}</strong> (même date pour toutes les classes).</p>
