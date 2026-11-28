@@ -6,6 +6,7 @@ import { CLASSES } from './schoollife.js';
 import { demoOr } from '../demoData.js';
 import { bulletinTermAt } from '../rules/terms.js';
 import { today } from '../clock.js';
+import { officialCompetencies } from './officialCompetencies.js';
 
 // Élèves d'un service : la liste fictive en démonstration, la classe importée avec les vraies données
 const svc = (s, demo) => Object.defineProperty(s, 'students', { get: () => demoOr(demo, CLASSES[s.cls] ?? []), enumerable: true });
@@ -84,7 +85,7 @@ export function levelOf(cls) {
   return `${lvl} ${/^g/i.test(serie) ? 'G' : serie}`;
 }
 export const historyFor = (service) => COMPETENCY_HISTORY[`${service.subject}|${levelOf(service.cls)}`] ?? [];
-export const competenciesFor = (service, settings) => settings.competencies?.[`${service.subject}|${levelOf(service.cls)}`] ?? [];
+export const competenciesFor = (service, settings) => [...new Set([...(settings.competencies?.[`${service.subject}|${levelOf(service.cls)}`] ?? []), ...officialCompetencies(service.subject, levelOf(service.cls))])];
 
 // Compétences retenues par l'enseignant pour chaque classe × matière :
 // reprises de la base proposée et/ou écrites par lui-même

@@ -3,7 +3,7 @@ import { Badge, Button, Card } from './ui.jsx';
 import { usePersistent } from '../persist.js';
 import { CLASSES } from '../data/schoollife.js';
 import { loadImport } from '../importStore.js';
-import { ReformsCard } from './NewPrograms.jsx';
+import { ReformsCard, StudyPointsCard } from './NewPrograms.jsx';
 import { OFFICIAL_PROGRAMS, PROGRAM_STATUS, officialProgram, programLevel, programSubject } from '../data/officialPrograms.js';
 import { TERMS, TERM_LABEL, PLAN_STATUS, PROGRESS_STATE, partsFor, planKey, baseKey, progressOf, termOf } from '../rules/programPlan.js';
 import { today } from '../clock.js';
@@ -138,6 +138,7 @@ function BaseTab({ data, setData }) {
           </>
         )}
       </Card>
+      <StudyPointsCard />
       <ReformsCard />
     </div>
   );
@@ -163,6 +164,7 @@ export default function ProgramsModule() {
       </div>
       {tab === 'overview' && <Overview data={safe} open={(c, s) => { setCls(c); setSubject(s); setTab('plan'); }} />}
       {tab === 'plan' && cls && <PlanTab data={safe} setData={setData} cls={cls} setCls={setCls} subject={subject} setSubject={setSubject} />}
+      {tab === 'plan' && <StudyPointsCard subject={subject} />}
       {tab === 'base' && <BaseTab data={safe} setData={setData} />}
     </div>
   );
