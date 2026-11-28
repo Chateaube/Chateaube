@@ -10,12 +10,51 @@
 
 const P = (status, ref, items, note = '') => ({ status, ref, items, note });
 
-// Calendrier des réformes en cours (sources : education.gouv.fr, Eduscol ; à vérifier au BO avant de figer)
+// Calendrier des nouveaux programmes (sources : Eduscol « Enseigner au cycle 3 / 4 / au lycée », BO ; vérifié le 28/11/2026,
+// à revérifier : les pages Eduscol sont mises à jour régulièrement)
 export const REFORMS = [
   { when: 'Rentrée 2025', what: 'Français et mathématiques : nouveaux programmes en 6e (cycle 3, BO n°16 du 17 avril 2025).' },
-  { when: 'Rentrée 2026', what: 'Français, mathématiques, langues vivantes : nouveaux programmes du cycle 4 en 5e (BO n°10 du 5 mars 2026) ; mathématiques et enseignement scientifique : nouveaux programmes en 2de et 1re (BO n°14 du 2 avril 2026).' },
-  { when: 'Rentrée 2027', what: 'Cycle 4 en 4e ; mathématiques : nouveau programme en Terminale.' },
-  { when: 'Rentrée 2028', what: 'Cycle 4 en 3e (le DNB suivra ces nouveaux programmes).' },
+  { when: 'Rentrée 2026', what: 'Collège : français, mathématiques et langues vivantes, nouveaux programmes du cycle 4 en 5e (BO n°10 du 5 mars 2026) ; enseignement moral et civique (BO du 13 juin 2024) à tous les niveaux. Lycée : mathématiques et enseignement scientifique, nouveaux programmes en 2de et 1re (BO n°14 du 2 avril 2026) ; langues vivantes, nouveau programme en 2de (BO n°22 du 29 mai 2025). En 4e et en 3e, les programmes de 2020 restent en vigueur.' },
+  { when: 'Rentrée 2027', what: 'Collège : cycle 4 en 4e (français, mathématiques, langues vivantes) ; histoire-géographie, nouveau programme en 6e. Lycée : langues vivantes en 1re ; mathématiques, nouveau programme en Terminale.' },
+  { when: 'Rentrée 2028', what: 'Collège : cycle 4 en 3e (le DNB suivra ces nouveaux programmes). Lycée : langues vivantes en Terminale.' },
+  { when: 'En attente', what: 'Collège, autres matières du cycle 4 (arts plastiques, éducation musicale, EPS, histoire-géographie, SVT, physique-chimie, technologie) : projets soumis à consultation jusqu\'au 19 juin 2026, pas encore publiés au BO.' },
+];
+
+// Liens officiels (Eduscol) : programmes en vigueur et ressources, par niveau puis par matière
+export const PROGRAM_LINKS = [
+  { group: 'Collège', links: [
+    ['6e (cycle 3) : toutes les matières, tableau des programmes en vigueur', 'https://eduscol.education.gouv.fr/4356/enseigner-au-cycle-3'],
+    ['5e, 4e, 3e (cycle 4) : toutes les matières, tableau des programmes en vigueur', 'https://eduscol.education.gouv.fr/4362/enseigner-au-cycle-4'],
+    ['Nouveaux programmes de français et de mathématiques du cycle 4 (BO n°10 du 5 mars 2026)', 'https://www.education.gouv.fr/bo/2026/Hebdo10/MENE2602912A'],
+    ['Repères annuels de progression et attendus de fin d\'année (6e à 3e)', 'https://eduscol.education.gouv.fr/6910/reperes-annuels-de-progression-et-attendus-de-fin-d-annee-du-cp-la-troisieme'],
+    ['Français, cycle 3', 'https://eduscol.education.gouv.fr/4800/ressources-d-accompagnement-du-programme-de-francais-au-cycle-3'],
+    ['Français, cycle 4', 'https://eduscol.education.gouv.fr/5733/ressources-d-accompagnement-du-programme-de-francais-au-cycle-4'],
+    ['Mathématiques, cycle 3', 'https://eduscol.education.gouv.fr/5712/ressources-d-accompagnement-du-programme-de-mathematiques-au-cycle-3'],
+    ['Mathématiques, cycle 4', 'https://eduscol.education.gouv.fr/5736/ressources-d-accompagnement-du-programme-de-mathematiques-au-cycle-4'],
+    ['Histoire-géographie, cycle 3', 'https://eduscol.education.gouv.fr/4791/ressources-d-accompagnement-du-programme-d-histoire-et-geographie-au-cycle-3'],
+    ['SVT, cycle 4', 'https://eduscol.education.gouv.fr/5742/ressources-d-accompagnement-du-programme-de-sciences-de-la-vie-et-de-la-terre-au-cycle-4'],
+    ['EPS, cycle 4', 'https://eduscol.education.gouv.fr/5724/ressources-d-accompagnement-du-programme-d-education-physique-et-sportive-au-cycle-4'],
+    ['Langues vivantes, collège', 'https://eduscol.education.gouv.fr/4758/ressources-d-accompagnement-pour-les-langues-vivantes-etrangeres-et-regionales-au-college'],
+    ['Enseignement moral et civique, collège', 'https://eduscol.education.gouv.fr/4752/ressources-d-accompagnement-pour-l-enseignement-moral-et-civique-au-college'],
+  ] },
+  { group: 'Lycée (2de, 1re, Terminale)', links: [
+    ['Toutes les matières du lycée général et technologique', 'https://eduscol.education.gouv.fr/4368/enseigner-au-lycee-generaltechnologique'],
+    ['Seconde générale et technologique', 'https://eduscol.education.gouv.fr/5466/seconde-generale-et-technologique'],
+    ['Cycle terminal de la voie générale (1re, Terminale, spécialités)', 'https://eduscol.education.gouv.fr/5418/cycle-terminal-de-la-voie-generale'],
+    ['Série STMG (management, sciences de gestion, droit et économie)', 'https://eduscol.education.gouv.fr/5862/programmes-et-ressources-en-serie-stmg'],
+    ['Français', 'https://eduscol.education.gouv.fr/5793/programmes-et-ressources-en-francais-voie-gt'],
+    ['Mathématiques', 'https://eduscol.education.gouv.fr/5817/programmes-et-ressources-en-mathematiques-voie-gt'],
+    ['Histoire-géographie', 'https://eduscol.education.gouv.fr/5799/programmes-et-ressources-en-histoire-geographie-voie-gt'],
+    ['Langues vivantes', 'https://eduscol.education.gouv.fr/5811/programmes-et-ressources-en-langues-vivantes-voie-gt'],
+    ['Physique-chimie', 'https://eduscol.education.gouv.fr/5829/programmes-et-ressources-en-physique-chimie-voie-gt'],
+    ['SVT', 'https://eduscol.education.gouv.fr/5835/programmes-et-ressources-en-sciences-de-la-vie-et-de-la-terre-voie-gt'],
+    ['Enseignement scientifique', 'https://eduscol.education.gouv.fr/5790/programmes-et-ressources-en-enseignement-scientifique-voie-g'],
+    ['Philosophie', 'https://eduscol.education.gouv.fr/5826/programmes-et-ressources-en-philosophie-voie-gt'],
+    ['Sciences numériques et technologie (SNT)', 'https://eduscol.education.gouv.fr/5841/programmes-et-ressources-en-sciences-numeriques-et-technologie-voie-gt'],
+    ['EPS', 'https://eduscol.education.gouv.fr/5784/programmes-et-ressources-en-education-physique-et-sportive-eps-voie-gt'],
+    ['Enseignement moral et civique', 'https://eduscol.education.gouv.fr/5787/programmes-et-ressources-en-enseignement-moral-et-civique-voie-gt'],
+    ['Droit et grands enjeux du monde contemporain', 'https://eduscol.education.gouv.fr/5781/programmes-et-ressources-en-droit-et-grands-enjeux-du-monde-contemporain-voie-gt'],
+  ] },
 ];
 
 /** Niveau d'une classe pour la base : « 1re Générale » → « 1re G », « Terminale STMG » → « Tle STMG ». */

@@ -3,7 +3,8 @@ import { Badge, Button, Card } from './ui.jsx';
 import { usePersistent } from '../persist.js';
 import { CLASSES } from '../data/schoollife.js';
 import { loadImport } from '../importStore.js';
-import { OFFICIAL_PROGRAMS, PROGRAM_STATUS, REFORMS, officialProgram, programLevel, programSubject } from '../data/officialPrograms.js';
+import { ReformsCard } from './NewPrograms.jsx';
+import { OFFICIAL_PROGRAMS, PROGRAM_STATUS, officialProgram, programLevel, programSubject } from '../data/officialPrograms.js';
 import { TERMS, TERM_LABEL, PLAN_STATUS, PROGRESS_STATE, partsFor, planKey, baseKey, progressOf, termOf } from '../rules/programPlan.js';
 import { today } from '../clock.js';
 import { me } from '../identity.js';
@@ -137,9 +138,7 @@ function BaseTab({ data, setData }) {
           </>
         )}
       </Card>
-      <Card title="Réformes en cours" subtitle="À vérifier au Bulletin officiel avant de figer une programmation">
-        <ul className="space-y-2 text-sm">{REFORMS.map((r) => <li key={r.when}><span className="font-semibold text-navy-900">{r.when}</span><span className="block text-slate-700">{r.what}</span></li>)}</ul>
-      </Card>
+      <ReformsCard />
     </div>
   );
 }

@@ -15,7 +15,7 @@ export const MENU_LAYOUT = {
     { group: 'Pédagogie', items: [
       hub('notes', 'Notes et bulletins', 'pen', ['notes-recues', ['relecture', 'Relecture'], 'council', 'bulletins', ['my-grades', 'Mes notes']]),
       'mock-exams',
-      hub('professeurs', 'Professeurs', 'clock', ['timetable', ['hours', 'Heures et absences'], 'oversight-grades', 'programs', 'teacher-guide']),
+      hub('professeurs', 'Professeurs', 'clock', ['timetable', ['hours', 'Heures et absences'], 'oversight-grades', 'programs', 'new-programs', 'teacher-guide']),
     ] },
     { group: 'École', items: [hub('communication', 'Communication', 'megaphone', ['news', 'school-life', 'agenda', ['resources', 'Ressources'], 'feedback'])] },
     { group: 'Gestion', items: [
@@ -46,7 +46,7 @@ export const MENU_LAYOUT = {
     { group: 'Ma journée', items: [hub('journee', 'Ma journée', 'home', [['teacher', 'Mes cours'], 'appel', 'homework', 'agenda', ['booking', 'Réservations'], ['hours', 'Mes heures']])] },
     { group: 'Évaluations', items: [hub('notes', 'Notes et appréciations', 'pen', [['grades', 'Notes et appréciations'], 'grade-sheets', 'bulletin-changes']), 'mock-exams'] },
     { group: 'Mes élèves', items: [hub('eleves', 'Mes élèves', 'alert', [['discipline', 'Vie de classe'], 'student-file'])] },
-    { group: 'École', items: ['messages', 'school-life', 'news', 'books', 'resources', 'teacher-guide'] },
+    { group: 'École', items: ['messages', 'school-life', 'news', 'books', 'resources', 'new-programs', 'teacher-guide'] },
   ],
 };
 
