@@ -26,18 +26,10 @@ import { TERMS, termById, termOfDate, termClosed } from '../rules/terms.js';
 const inputCls = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm';
 const fmtDate = (iso) => iso.split('-').reverse().slice(0, 2).join('/');
 const firstName = (full) => shortName(full).replace(/^\S+\.\s/, ''); // prénom d'usage
-// nom complet dans la saisie (évite les erreurs entre homonymes) : NOM, prénoms, prénom d'usage en gras bleu
+// nom complet dans la saisie (évite les erreurs entre homonymes) : NOM en capitales, puis tous les prénoms
 function StudentName({ full }) {
-  const { last, first, usual } = nameParts(full);
-  const words = first.split(/\s+/).filter(Boolean);
-  const inFirst = usual && words.includes(usual);
-  return (
-    <span className="leading-tight">
-      <span className="uppercase">{last}</span>{' '}
-      {inFirst ? words.map((w, i) => <React.Fragment key={i}>{i > 0 && ' '}{w === usual ? <strong className="font-bold text-navy-700">{w}</strong> : <span className="font-normal text-slate-600">{w}</span>}</React.Fragment>)
-        : <><span className="font-normal text-slate-600">{first}</span>{usual && <> (<strong className="font-bold text-navy-700">{usual}</strong>)</>}</>}
-    </span>
-  );
+  const { last, first } = nameParts(full);
+  return <span className="leading-tight"><span className="uppercase">{last}</span> <span className="font-normal">{first}</span></span>;
 }
 
 /* ---------------- Création d'un devoir ---------------- */
