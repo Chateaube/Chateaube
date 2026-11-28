@@ -244,7 +244,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
         </span>}
       >
         {(NOUVEAU ? minimumNoticeDue({ count: evaluations.length + other, min, validated, date: TODAY, from: termDef.noticeFrom, stop: termDef.closeAt?.slice(0, 10) })
-          : minimumNoticeDue({ count: evaluations.length + other, min, validated, date: TODAY, stop: TERM.stop })) && <MinimumNotice eps={isEps(service)} />}
+          : minimumNoticeDue({ count: evaluations.length + other, min, validated, date: TODAY, stop: TERM.stop })) && <MinimumNotice eps={isEps(service)} min={min} />}
         {draft && (
           <EvaluationForm draft={draft} setDraft={setDraft} settings={settings} competencies={competencies} onCancel={() => setDraft(null)} range={NOUVEAU && termDef.start ? termDef : null}
             onDelete={NOUVEAU && draft.id ? async () => { const ev = evaluations.find((x) => x.id === draft.id); if (ev && await removeEv(ev)) setDraft(null); } : null}
@@ -521,11 +521,12 @@ function ThemePicker({ serviceId, fallback, termDef = TERM }) {
   );
 }
 
-function MinimumNotice({ eps }) {
-  const n = eps ? NOTICE_EPS : NOTICE_GENERAL;
+function MinimumNotice({ eps, min = 4 }) {
+  const base = eps ? NOTICE_EPS : NOTICE_GENERAL;
+  const n = eps ? base : { ...base, intro: base.intro.replace('minimum réglementaire de 4 notes', `minimum de ${min} notes`) };
   return (
     <details open className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-      <summary className="cursor-pointer font-semibold">Message de l'administration : {eps ? '3 notes minimum en EPS' : '4 notes minimum'}</summary>
+      <summary className="cursor-pointer font-semibold">Message de l'administration : {eps ? '3 notes minimum en EPS' : `${min} notes minimum`}</summary>
       <div className="mt-2 space-y-2 leading-relaxed">
         <p>Chères collègues, chers collègues,</p>
         {n.intro.split('\n').map((p) => <p key={p}>{p}</p>)}

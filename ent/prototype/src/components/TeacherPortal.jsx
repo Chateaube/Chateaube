@@ -32,6 +32,7 @@ const frStop = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR', 
 
 /** En ligne : la semaine du professeur, tirée de l'emploi du temps de l'école et de ses classes (envoyées par la Direction). */
 function MyWeek({ slots, go }) {
+  const todayWd = new Date(`${todayIso()}T12:00:00`).getDay();
   const days = [1, 2, 3, 4, 5, 6].filter((d) => d <= 5 || slots.some((s) => s.weekday === d));
   // deux lectures : par jour (la semaine) ou par classe (chaque classe du professeur, ses heures dans la semaine)
   const [view, setView] = React.useState('JOUR');
@@ -56,8 +57,8 @@ function MyWeek({ slots, go }) {
       ) : (
         <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
           {days.map((d) => (
-            <div key={d} className="rounded-xl bg-slate-50 p-2">
-              <p className="mb-1 text-xs font-semibold text-navy-900">{DAYS[d]}</p>
+            <div key={d} className={`rounded-xl p-2 ${d === todayWd ? 'bg-navy-50 ring-2 ring-navy-400' : 'bg-slate-50'}`}>
+              <p className="mb-1 text-xs font-semibold text-navy-900">{DAYS[d]}{d === todayWd && <span className="ml-1 rounded-full bg-navy-500 px-2 py-0.5 text-[10px] font-semibold text-white">Aujourd'hui</span>}</p>
               <ul className="space-y-1">
                 {slots.filter((s) => s.weekday === d).sort((a, b) => a.start.localeCompare(b.start)).map((s) => (
                   <li key={s.id ?? `${d}${s.start}${s.cls}`} className="rounded-lg bg-white px-2 py-1 text-xs shadow-sm"><span className="font-semibold tabular-nums">{h(s.start)}–{h(s.end)}</span><span className="block text-slate-700">{s.cls} · {s.subject}{s.room ? ` · ${s.room}` : ''}</span></li>
@@ -152,7 +153,7 @@ export default function TeacherPortal({ go, settings, as = null }) {
 
       {NOUVEAU && ONLINE && (
         <div className="grid gap-5 md:grid-cols-2">
-          <Card title="Pense-bête" subtitle="Votre aide-mémoire : une idée, un rappel, un devoir à préparer (la Direction peut le lire, comme votre carnet).">
+          <Card title="Pense-bête" subtitle="Votre aide-mémoire : une idée, un rappel, un devoir à préparer">
             <textarea rows={4} value={memo} readOnly={Boolean(as)} onChange={(e) => saveMemo(e.target.value)} placeholder="ex. Rendre les copies de la 6e jeudi" className="w-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-slate-800" />
           </Card>
           <Card title="Dates à retenir">
@@ -171,7 +172,7 @@ export default function TeacherPortal({ go, settings, as = null }) {
       {ONLINE && <MyWeek slots={mine} go={go} />}
 
       <div className="grid gap-5 xl:grid-cols-[1fr_380px] xl:items-start">
-        <Card title="Mes cours aujourd'hui">
+        {!ONLINE && <Card title="Mes cours aujourd'hui">
           <ol className="space-y-2">
             {!today.length && <li className="text-sm text-slate-500">{ONLINE && !mine?.length ? 'Votre emploi du temps apparaîtra ici dès que la Direction aura envoyé les classes et l\'emploi du temps.' : 'Pas de cours aujourd\'hui.'}</li>}
             {today.map((s) => {
@@ -194,7 +195,7 @@ export default function TeacherPortal({ go, settings, as = null }) {
               );
             })}
           </ol>
-        </Card>
+        </Card>}
         <Card title="Annonces aux professeurs">
           <ul className="space-y-3">
             {ONLINE && !news.length && <li className="text-sm text-slate-500">Aucune annonce pour l'instant.</li>}

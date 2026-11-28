@@ -267,8 +267,7 @@ export default function NotesReceived({ settings, go }) {
               <div key={r.id} className="rounded-lg border border-slate-200 p-3">
                 <p className="flex flex-wrap items-center justify-between gap-2 text-sm"><strong className="text-slate-900">{r.name}</strong>
                   <span className="flex items-center gap-2 text-xs text-slate-500">{r.carnet ? `dernière saisie : ${when(r.at)}` : 'pas encore commencé'}
-                    {r.services.length > 0 && roster && <Button variant="secondary" className="!py-0.5 text-xs" onClick={() => actFor(r)}>Saisir à sa place</Button>}
-                    {NOUVEAU && r.services.length > 0 && roster && <Button variant="secondary" className="ml-1 !py-0.5 text-xs" onClick={() => actFor(r, 'home')}>Voir comme {r.name.split(' ')[0]}</Button>}</span></p>
+                    {r.services.length > 0 && roster && <Button variant="secondary" className="!py-0.5 text-xs" onClick={() => actFor(r)}>Saisir à sa place</Button>}</span></p>
                 {r.services.length === 0 ? <p className="mt-1 text-xs text-amber-800">Aucune classe : son nom n'a pas été trouvé dans l'onglet 3 Personnel de l'import. Ajoutez ses enseignements sur sa fiche (Gestion des agents) puis renvoyez les classes.</p> : (
                   <ul className="mt-2 divide-y divide-slate-100 text-sm">
                     {r.services.map((s) => {

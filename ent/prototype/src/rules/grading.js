@@ -196,10 +196,12 @@ export function adjustmentErrors(adj, max = 2) {
  */
 export const LIGHT_SUBJECTS = /^(emc|enseignement moral et civique|education morale et civique)$/i;
 export const EPS_SUBJECT = /^(eps|education physique( et sportive)?)$/i;
+// Mandarin (2 h par semaine) : 3 notes minimum, comme l'EPS (choix de la Direction, novembre 2026)
+export const THREE_SUBJECTS = /^(mandarin|chinois)/i;
 export function minEvaluationsFor(service, defaultMin = 4) {
   const label = String(service?.subject ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
   if (service?.shared || LIGHT_SUBJECTS.test(label)) return Math.min(2, defaultMin);
-  if (EPS_SUBJECT.test(label)) return Math.min(3, defaultMin);
+  if (EPS_SUBJECT.test(label) || THREE_SUBJECTS.test(label)) return Math.min(3, defaultMin);
   return defaultMin;
 }
 /** Matière d'EPS (message de l'administration adapté). */

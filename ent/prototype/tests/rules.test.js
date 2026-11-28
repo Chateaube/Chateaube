@@ -2773,3 +2773,10 @@ test('à faire du professeur : devoirs manquants et appréciations', () => {
   assert.deepEqual([r[0].missingEvals, r[0].toWrite, r[0].toValidate, r[0].noComps], [2, 1, 1, true]);
   assert.equal(gradebookTodo([sv[1]], { ...c, myComps: { b: ['Calculer'] } }, () => 4).length, 0);
 });
+
+test('minimum de notes : 3 en mandarin et en EPS, 4 ailleurs', async () => {
+  const { minEvaluationsFor } = await import('../src/rules/grading.js');
+  assert.equal(minEvaluationsFor({ subject: 'Mandarin' }, 4), 3);
+  assert.equal(minEvaluationsFor({ subject: 'EPS' }, 4), 3);
+  assert.equal(minEvaluationsFor({ subject: 'Mathématiques' }, 4), 4);
+});
