@@ -3,6 +3,7 @@
 // de démonstration, modifiables (photo, réinscription…) et gardées dans ce navigateur.
 import { STUDENT_PROFILES } from './data/enrollment.js';
 import { DEMO_CLASSES } from './data/schoollife.js';
+import { withEntry } from './rules/documents.js';
 
 // Fiches de démonstration pour tous les élèves des classes (données fictives) : chaque élève a un dossier.
 const BIRTH_YEAR = { '6e': 2015, '5e': 2014, '4e': 2013, '3e': 2012, '2de': 2011, '1re STMG': 2010, '1re Générale': 2010, 'Terminale STMG': 2009, 'Terminale Générale': 2009 };
@@ -28,7 +29,8 @@ export const fromImport = (s) => ({
   guardians: s.guardians ?? [], health: { allergies: s.health?.allergies ?? '', treatment: s.health?.treatment ?? '', emergency: '' }, authorizations: { image: false, exit: '' }, documents: [],
 });
 
-export function loadProfiles() {
+export function loadProfiles() { return loadRaw().map(withEntry); }
+function loadRaw() {
   const imp = loadImport();
   // fiches déjà modifiées dans l'ENT, plus les élèves arrivés dans l'import depuis (avant : ils manquaient à la liste)
   if (imp?.profiles?.length) {

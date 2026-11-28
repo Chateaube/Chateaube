@@ -2807,3 +2807,11 @@ test('fiches : un élève arrivé dans l\'import après les premières modificat
   const { loadProfiles } = await import('../src/profilesStore.js');
   assert.deepEqual(loadProfiles().map((p) => p.id), ['a', 'b']);
 });
+
+test('les 6e ont la rentrée 2026 comme entrée dans l\'établissement', async () => {
+  const { withEntry } = await import('../src/rules/documents.js');
+  assert.equal(withEntry({ cls: '6e', enteredOn: '' }).enteredOn, '2026-09-01');
+  assert.equal(withEntry({ cls: '6e', enteredOn: '2021-09-01' }).enteredOn, '2026-09-01');
+  assert.equal(withEntry({ cls: '6e', enteredOn: '2026-11-16' }).enteredOn, '2026-11-16');
+  assert.equal(withEntry({ cls: '5e', enteredOn: '2023-09-04' }).enteredOn, '2023-09-04');
+});

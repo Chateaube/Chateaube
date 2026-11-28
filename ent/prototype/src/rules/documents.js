@@ -11,6 +11,10 @@ export const schoolYearLabel = (iso) => `${schoolYearOf(iso)}-${schoolYearOf(iso
  * Ancienneté à une date : nouvel élève (entré cette année scolaire) ou ancien élève avec le nombre
  * d'années déjà passées dans l'établissement (entré en septembre 2024 → ancien, 2 ans).
  */
+/** Les 6e entrent dans l'établissement à la rentrée 2026 : une date plus ancienne (ou vide) est ramenée à la rentrée. */
+export const RENTREE = '2026-09-01';
+export const withEntry = (p) => (p && /^6e?$/i.test(String(p.cls ?? '').trim()) && !(p.enteredOn >= RENTREE) ? { ...p, enteredOn: RENTREE } : p);
+
 export function seniority(enteredOn, today = '2026-10-13') {
   if (!enteredOn) return null;
   const years = schoolYearOf(today) - schoolYearOf(enteredOn);

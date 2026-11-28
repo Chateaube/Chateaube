@@ -11,7 +11,7 @@ import ReceiptTicket from './ReceiptTicket.jsx';
 import { downloadOfficialReceipt } from '../officialReceiptPdf.js';
 import { printOnly } from '../print.js';
 import { loadImport } from '../importStore.js';
-import { seniority } from '../rules/documents.js';
+import { seniority, withEntry } from '../rules/documents.js';
 import { CLASSES } from '../data/schoollife.js';
 import { DEMO_SPECIALTIES } from '../data/manuals.js';
 import { kitFor, kitTotals } from '../rules/manuals.js';
@@ -62,7 +62,7 @@ const importedAccounts = () => {
     const a = arrival(s);
     return a && a > '2026-09-01' ? a : '2026-09-01';
   };
-  return list.filter((s) => CLASS_FEES.some((f) => f.cls === s.cls)).map((s) => ({
+  return list.map(withEntry).filter((s) => CLASS_FEES.some((f) => f.cls === s.cls)).map((s) => ({
     // nouvel élève : frais d'inscription et compte ouvert au mois d'arrivée ; ancien : réinscription
     id: s.id, name: `${s.lastName} ${s.firstName}`, cls: s.cls, family: '', // fratrie : liens posés dans la fiche (familyText), jamais d'après le nom
     isNew: seniority(s.enteredOn)?.isNew ?? false, specialties: s.specialties ?? [], enrolledOn: enrolledOn(s),
