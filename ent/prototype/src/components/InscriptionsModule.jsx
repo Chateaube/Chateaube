@@ -627,6 +627,11 @@ export default function InscriptionsModule({ role }) {
     if (!saveProfiles(next)) tell('Le navigateur manque de place : la fiche est modifiée pour cette session seulement.');
     if (form.preregId) setPrereg(prereg.map((x) => (x.id === form.preregId ? { ...x, status: 'INSCRITE' } : x)));
     setSelected(id); setCreated(id); setForm(null); setTab('list'); setDossierTab('fiche');
+    // nom corrigé : les notes saisies sous l'ancien nom suivent dans les carnets des professeurs
+    const before = p.id && profiles.find((x) => x.id === p.id);
+    if (before && fullNameOf(before) !== fullNameOf(p)) {
+      mergeIntoCarnets(fullNameOf(before), fullNameOf(p)).then((n) => tell(n === null ? 'Nom corrigé. Les carnets des professeurs n\'ont pas pu être lus (réseau) : enregistrez la fiche à nouveau plus tard.' : `Nom corrigé.${n ? ` Notes mises au nouveau nom dans ${n} carnet${n > 1 ? 's' : ''}.` : ''} Pensez à « Envoyer les classes ».`));
+    }
   };
   const current = profiles.find((p) => p.id === selected);
   const openDossier = (p) => { setSelected(p.id); setCreated(null); setDossierTab('fiche'); };
