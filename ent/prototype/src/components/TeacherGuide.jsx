@@ -102,7 +102,9 @@ export default function TeacherGuide() {
         <Shot>R. Aina <Cell>14</Cell> · E. Éléa <Cell>ABS</Cell> · M. Lova <Cell>DISP</Cell> · R. Fy <Cell warn>1o</Cell> <span className="text-amber-800">→ « 10 » ? (Entrée pour accepter)</span></Shot>
         <ul className="list-disc space-y-1 pl-5">
           <li><strong>ABS</strong> : absent — ne compte pas dans la moyenne ; la vie scolaire voit l'absence ;</li>
-          <li><strong>DISP</strong> (EPS seulement) : dispensé — ne compte pas ;</li>
+          <li><strong>ABS0</strong> : absent, compte 0 (par exemple rattrapage proposé mais pas fait) ;</li>
+          <li><strong>NR</strong> : devoir non rendu — ne compte pas ; <strong>NR0</strong> : non rendu, compte 0 ;</li>
+          <li><strong>DISP</strong> / <strong>INAP</strong> (EPS seulement) : dispensé / inapte — ne compte pas ;</li>
           <li><strong>NN</strong> : non noté (par exemple un élève inscrit tardivement, après la date du devoir) — ne compte pas.</li>
         </ul>
         <Tip tone="amber">Il faut au moins <strong>4 évaluations par trimestre</strong> (3 en EPS). Le compteur l'affiche : « 3 / 4 évaluations minimum ».</Tip>

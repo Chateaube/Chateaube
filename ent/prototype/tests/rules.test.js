@@ -2781,3 +2781,12 @@ test('minimum de notes : 3 en mandarin et en EPS, 4 ailleurs', async () => {
   assert.equal(minEvaluationsFor({ subject: 'EPS' }, 4), 3);
   assert.equal(minEvaluationsFor({ subject: 'Mathématiques' }, 4), 4);
 });
+
+test('codes de saisie : ABS0 et NR0 comptent zéro, NR et INAP ne comptent pas', async () => {
+  const { cellValue } = await import('../src/rules/grading.js');
+  assert.deepEqual([cellValue('ABS0', 20).value, cellValue('ABS0', 20).counted], [0, true]);
+  assert.deepEqual([cellValue('nr0', 20).value, cellValue('nr0', 20).counted], [0, true]);
+  assert.equal(cellValue('NR', 20).counted, false);
+  assert.equal(cellValue('INAP', 20).counted, false);
+  assert.equal(cellValue('ABS', 20).counted, false);
+});

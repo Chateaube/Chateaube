@@ -3,7 +3,7 @@
 // coefficient (1 par défaut) choisis par l'enseignant. La moyenne d'un élève est
 // ramenée sur 20 et pondérée par les coefficients ; ABS, DISP et NN ne comptent pas.
 
-import { normalizeGrade, formatFr } from './gradeInput.js';
+import { normalizeGrade, formatFr, ZERO_CODES } from './gradeInput.js';
 import { addDays } from './calendar.js';
 
 export const round2 = (n) => Math.round(n * 100) / 100;
@@ -13,6 +13,8 @@ export const fmtAvg = (n) => (n === null || n === undefined ? '—' : formatFr(r
 export function cellValue(raw, scale) {
   const r = normalizeGrade(raw, { max: scale });
   if (r.state === 'valid' && r.status === 'NOTE') return { value: r.value, counted: true };
+  // ABS0 / NR0 : compté zéro (choix du professeur)
+  if (r.state === 'valid' && ZERO_CODES.includes(r.status)) return { value: 0, counted: true, status: r.status };
   return { value: null, counted: false, pending: r.state === 'suggest' || r.state === 'error', status: r.status };
 }
 

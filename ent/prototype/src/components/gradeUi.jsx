@@ -80,7 +80,7 @@ function moveInColumn(input, step) {
 export function GradeCell({ value, onChange, max, allowDisp = true }) {
   const r0 = normalizeGrade(value, { max });
   // DISP (dispensé) : seulement en EPS ; ailleurs, l'élève est absent (ABS) ou non noté (NN)
-  const r = !allowDisp && r0.status === 'DISP' ? { ...r0, state: 'error', messages: [{ level: 'error', text: 'DISP : seulement en EPS. Écrivez ABS ou NN.' }] } : r0;
+  const r = !allowDisp && ['DISPENSE', 'INAPTE'].includes(r0.status) ? { ...r0, state: 'error', messages: [{ level: 'error', text: `${r0.display} : seulement en EPS. Écrivez ABS ou NN.` }] } : r0;
   const border = { empty: 'border-slate-300', valid: 'border-slate-300', suggest: 'border-amber-400 bg-amber-50', error: 'border-red-400 bg-red-50' }[r.state];
   const accept = () => r.suggestion && onChange(r.suggestion);
   return (

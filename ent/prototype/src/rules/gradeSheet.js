@@ -43,7 +43,7 @@ export function detailSheet({ evaluations, students, grades }) {
 }
 
 /** Texte d'une case de note : 14,5 / ABS / DISP / NN / à corriger / vide. */
-const SHORT_STATUS = { ABSENT: 'ABS', DISPENSE: 'DISP', NON_NOTE: 'NN' };
+const SHORT_STATUS = { ABSENT: 'ABS', DISPENSE: 'DISP', NON_NOTE: 'NN', ABSENT_ZERO: 'ABS0', INAPTE: 'INAP', NON_RENDU: 'NR', NON_RENDU_ZERO: 'NR0' };
 export const cellText = (c) => (c.status === 'NOTE' ? fr(c.value) : c.status === 'VIDE' ? '' : c.status === 'A_CORRIGER' ? `${c.raw} (à corriger)` : SHORT_STATUS[c.status] ?? c.raw);
 
 const cellOf = (v) => csvCell(typeof v === 'number' ? fr(v) : v);
@@ -74,7 +74,7 @@ export function detailCsv({ title, info = [], sheet }) {
     ['Moyenne de la classe', ...sheet.evStats.map((s) => s.avg), sheet.avgStats.avg],
     ['Note la plus basse', ...sheet.evStats.map((s) => s.min), sheet.avgStats.min],
     ['Note la plus haute', ...sheet.evStats.map((s) => s.max), sheet.avgStats.max],
-    [], ['ABS : absent · DISP : dispensé · NN : non noté'],
+    [], ['ABS : absent · ABS0 : absent, compte 0 · NR : non rendu · NR0 : non rendu, compte 0 · DISP / INAP : dispensé / inapte (EPS) · NN : non noté'],
   ]);
 }
 
@@ -116,7 +116,7 @@ export function detailRows({ title, info = [], sheet }) {
   return {
     rows: [[{ v: title, s: 'title' }], ...info.map((i) => [{ v: i, s: 'muted' }]), [], head, ...rows, [],
       [{ v: 'Moyenne de la classe', s: 'name' }, ...sheet.evStats.map((s) => ({ v: num(s.avg), s: 'cell' })), tone(sheet.avgStats.avg, 'avg', 'avgRed')],
-      [], [{ v: 'ABS : absent · DISP : dispensé · NN : non noté', s: 'muted' }]],
+      [], [{ v: 'ABS : absent · ABS0 : absent, compte 0 · NR : non rendu · NR0 : non rendu, compte 0 · DISP / INAP : dispensé / inapte (EPS) · NN : non noté', s: 'muted' }]],
     widths: [24, ...evs.map(() => 14), 11],
     freeze: { row: info.length + 3, col: 1 },
   };

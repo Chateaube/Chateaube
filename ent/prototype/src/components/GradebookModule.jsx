@@ -221,7 +221,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
   const other = service.common ? (service.otherCount ?? 0) : 0;
   const check = termValidation(evaluations, service.students, grades, Math.max(0, min - other));
   // DISP hors EPS : à remplacer par ABS ou NN avant de valider
-  const dispOutsideEps = isEps(service) ? 0 : service.students.reduce((n, st) => n + evaluations.filter((ev) => /^\s*disp\s*$/i.test(grades[st]?.[ev.id] ?? '')).length, 0);
+  const dispOutsideEps = isEps(service) ? 0 : service.students.reduce((n, st) => n + evaluations.filter((ev) => /^\s*(disp|inap|d)\s*$/i.test(grades[st]?.[ev.id] ?? '')).length, 0);
   const maxAdj = settings.grading.maxAdjustment ?? 2;
   const steps = Array.from({ length: maxAdj * 4 + 1 }, (_, i) => (i - maxAdj * 2) / 2); // -2 … +2 par demi-point
   const avgs = service.students.map((s) => studentAverage(evaluations, grades[s], BONUS_ENABLED ? bonus[s] : undefined));
@@ -387,7 +387,18 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
             </table>
           </div>
         )}
-        <p className="mt-3 text-xs text-slate-500">Saisie contrôlée : « 1O » → 10, « 12.5 » → 12,5 (Entrée pour accepter). Codes (non comptés dans la moyenne) : ABS = absent, DISP = dispensé (EPS seulement), NN = non noté (par exemple un élève inscrit tardivement, après la date du devoir ; il pourra le rattraper).</p>
+        <div className="mt-4 rounded-xl border border-navy-100 bg-navy-50/60 p-3 text-sm text-slate-800">
+          <p className="mb-1.5 font-semibold text-navy-900">Codes à la place d'une note</p>
+          <ul className="space-y-1">
+            {[['ABS', 'absent — ne compte pas (rattrapage possible)'], ['ABS0', 'absent, compte 0 (par exemple rattrapage proposé mais pas fait)'],
+              ['NR', 'devoir non rendu — ne compte pas'], ['NR0', 'devoir non rendu, compte 0'],
+              ['NN', 'non noté (par exemple élève inscrit après la date du devoir)'],
+              ...(isEps(service) ? [['DISP', 'dispensé — ne compte pas'], ['INAP', 'inapte — ne compte pas']] : [])].map(([c, t]) => (
+              <li key={c}><span className="inline-block w-14 rounded bg-white px-1.5 py-0.5 text-center font-mono text-xs font-bold text-navy-700 ring-1 ring-navy-200">{c}</span> {t}</li>
+            ))}
+          </ul>
+          <p className="mt-1.5 text-xs text-slate-500">C'est vous qui choisissez : avec ou sans zéro. Le point et la virgule sont acceptés (12.5 ou 12,5).</p>
+        </div>
       </Card>
 
       <Card title="Avant de valider le trimestre">
@@ -407,7 +418,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
               {check.pending.length > 0 && <Item warn>{check.pending.length} saisie(s) à corriger</Item>}
               <Item done={!check.empty.length}>{check.empty.length ? `${check.empty.length} case(s) encore vide(s)` : 'Toutes les cases sont remplies'}</Item>
               <Item done={competencies.length > 0}>{competencies.length ? `${competencies.length} compétence(s) pour le bulletin` : 'Compétences du bulletin (onglet « Compétences du bulletin »)'}</Item>
-              {dispOutsideEps > 0 && <Item warn>{dispOutsideEps} « DISP » à remplacer par ABS ou NN (la dispense n'existe qu'en EPS)</Item>}
+              {dispOutsideEps > 0 && <Item warn>{dispOutsideEps} « DISP » ou « INAP » à remplacer par ABS ou NN (seulement en EPS)</Item>}
               {adjErrors.length > 0 && <Item warn>Bonus / malus : {adjErrors.join(' ')}</Item>}
               {check.below.length > 0 && <Item warn>Moins de {min} notes retenues : {check.below.map(firstName).join(', ')}. Signalé au conseil, non bloquant.</Item>}
             </ul>

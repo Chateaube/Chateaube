@@ -10,7 +10,18 @@ const SPECIAL_CODES = {
   DISP: { status: 'DISPENSE', display: 'DISP', label: 'Dispensé.e' },
   D: { status: 'DISPENSE', display: 'DISP', label: 'Dispensé.e' },
   NN: { status: 'NON_NOTE', display: 'NN', label: 'Non noté.e' },
+  // le professeur choisit : non compté (ABS, NR) ou compté zéro (ABS0, NR0)
+  ABS0: { status: 'ABSENT_ZERO', display: 'ABS0', label: 'Absent.e, compte 0' },
+  INAP: { status: 'INAPTE', display: 'INAP', label: 'Inapte (EPS)' },
+  NR: { status: 'NON_RENDU', display: 'NR', label: 'Non rendu' },
+  NRDU: { status: 'NON_RENDU', display: 'NR', label: 'Non rendu' },
+  'N.RDU': { status: 'NON_RENDU', display: 'NR', label: 'Non rendu' },
+  NR0: { status: 'NON_RENDU_ZERO', display: 'NR0', label: 'Non rendu, compte 0' },
 };
+/** Codes comptés zéro dans la moyenne (choix du professeur). */
+export const ZERO_CODES = ['ABSENT_ZERO', 'NON_RENDU_ZERO'];
+/** Codes réservés à l'EPS. */
+export const EPS_ONLY_CODES = ['DISPENSE', 'INAPTE'];
 
 // Confusions lettre ↔ chiffre les plus fréquentes au clavier
 const LOOKALIKES = [
@@ -65,7 +76,7 @@ export function normalizeGrade(raw, { max = 20 } = {}) {
   if (!/^\d{1,3}(,\d{1,2})?$/.test(candidate)) {
     return {
       state: 'error',
-      messages: [{ level: 'error', text: `« ${input} » n'est pas une note valide (ex. 14 ; 12,5 ; ABS ; DISP).` }],
+      messages: [{ level: 'error', text: `« ${input} » n'est pas une note valide (ex. 14 ; 12,5 ; ABS ; NR ; NN).` }],
     };
   }
 
