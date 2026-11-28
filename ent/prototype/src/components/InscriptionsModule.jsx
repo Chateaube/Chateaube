@@ -31,6 +31,9 @@ import { usePersistent } from '../persist.js';
 import { SIBLINGS_KEY } from '../siblingsStore.js';
 import { siblingIdsOf, linkSiblings, unlinkSibling } from '../rules/siblings.js';
 import { parseIneList, matchIne } from '../rules/ine.js';
+import { ONLINE } from '../online/client.js';
+import { fetchDocs, saveDoc, setBase } from '../online/docs.js';
+import { mergeStudentInCarnet } from '../rules/studentMerge.js';
 const EXIT_OPTIONS = AUTHORIZATIONS.find((a) => a.id === 'SORTIE').options;
 
 // Inscriptions (Bureau et Direction) : pré-inscriptions, inscription ou réinscription avec
@@ -498,6 +501,22 @@ function ProfileCard({ p, onReenrol, onComplete, created }) {
 const initialProfiles = loadProfiles;
 const fullNameOf = (p) => `${p.lastName} ${p.firstName}`;
 const frDate = (iso) => String(iso ?? '').split('-').reverse().join('/');
+/** En ligne : déplace les notes saisies au nom en double dans tous les carnets ; renvoie le nombre de carnets modifiés (null : lecture impossible). */
+async function mergeIntoCarnets(dup, target) {
+  if (!ONLINE) return 0;
+  try {
+    const docs = await fetchDocs('CARNET');
+    let n = 0;
+    docs.forEach((d) => {
+      const next = mergeStudentInCarnet(d.value, dup, target);
+      if (next === d.value) return;
+      setBase(d.key, d.value); // fusion avec ce que le professeur saisit en même temps (rien n'est écrasé)
+      saveDoc(d.key, 'CARNET', d.owner, next, { delay: 0 });
+      n += 1;
+    });
+    return n;
+  } catch { return null; }
+}
 
 /** Départ ou doublon (Direction et secrétariat) : l'élève sort des classes, l'historique reste dans son dossier. */
 function StatusCard({ p, profiles, onSave }) {
@@ -505,7 +524,9 @@ function StatusCard({ p, profiles, onSave }) {
   const [on, setOn] = useState(today());
   const [reason, setReason] = useState('');
   const [target, setTarget] = useState('');
-  const mates = profiles.filter((x) => x.id !== p.id && x.cls === p.cls && !x.duplicateOf && !x.leftOn);
+  // toutes les fiches actives, celles de la même classe d'abord (la bonne fiche peut avoir une autre classe dans l'import)
+  const mates = profiles.filter((x) => x.id !== p.id && !x.duplicateOf && !x.leftOn)
+    .sort((a, b) => (a.cls === p.cls ? 0 : 1) - (b.cls === p.cls ? 0 : 1) || fullNameOf(a).localeCompare(fullNameOf(b)));
   const nameOf = (id) => { const x = profiles.find((y) => y.id === id); return x ? fullNameOf(x) : id; };
   const note = 'Pour que les professeurs ne le voient plus dans leurs classes : Notes et bulletins › Notes reçues › « Envoyer les classes ».';
   if (p.duplicateOf) return (
@@ -525,7 +546,7 @@ function StatusCard({ p, profiles, onSave }) {
       {!mode && (
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={() => setMode('LEFT')}>A quitté l'établissement</Button>
-          <Button variant="secondary" onClick={() => setMode('DUP')}>C'est un doublon</Button>
+          <Button variant="secondary" onClick={() => setMode('DUP')}>C'est un doublon (fusionner)</Button>
         </div>
       )}
       {mode === 'LEFT' && (
@@ -538,17 +559,19 @@ function StatusCard({ p, profiles, onSave }) {
       )}
       {mode === 'DUP' && (
         <div className="space-y-2 text-sm">
-          <label className="block text-xs text-slate-600">La bonne fiche (même classe)
+          <label className="block text-xs text-slate-600">La bonne fiche (celle à garder)
             <select value={target} onChange={(e) => setTarget(e.target.value)} className="mt-1 block w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm">
               <option value="">Choisir…</option>
-              {mates.map((x) => <option key={x.id} value={x.id}>{fullNameOf(x)}{x.number ? ` · ${x.number}` : ''}</option>)}
+              {mates.map((x) => <option key={x.id} value={x.id}>{fullNameOf(x)} · {x.cls}{x.number ? ` · ${x.number}` : ''}</option>)}
             </select>
           </label>
-          <p className="text-xs text-slate-500">Cette fiche disparaît des classes ; ses paiements (inscription, écolages) sont comptés sur la bonne fiche. {note}</p>
+          <p className="text-xs text-slate-500">Fusion : cette fiche disparaît des classes ; ses paiements (inscription, écolages) et les notes et appréciations saisies à ce nom par les professeurs passent sur la bonne fiche (sans écraser ce qui y est déjà). {note}</p>
           <div className="flex gap-2"><Button disabled={!target} onClick={async () => {
-            if (!(await askConfirm(`${fullNameOf(p)} est un doublon de ${nameOf(target)} ? Les paiements passent sur ${nameOf(target)}.`))) return;
+            if (!(await askConfirm(`Fusionner ${fullNameOf(p)} dans ${nameOf(target)} ? Paiements, notes et appréciations passent sur ${nameOf(target)}.`))) return;
             onSave({ ...p, duplicateOf: target }); setMode(null);
-          }}>Marquer comme doublon</Button><Button variant="ghost" onClick={() => setMode(null)}>Annuler</Button></div>
+            const n = await mergeIntoCarnets(fullNameOf(p), nameOf(target));
+            tell(n === null ? 'Fiche fusionnée. Les carnets des professeurs n\'ont pas pu être lus (réseau) : refaites la fusion plus tard pour les notes.' : `Fiche fusionnée. ${n ? `Notes déplacées dans ${n} carnet${n > 1 ? 's' : ''} de professeur.` : 'Aucune note à déplacer.'} Pensez à « Envoyer les classes ».`);
+          }}>Fusionner</Button><Button variant="ghost" onClick={() => setMode(null)}>Annuler</Button></div>
         </div>
       )}
     </Card>

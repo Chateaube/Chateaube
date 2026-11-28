@@ -2790,3 +2790,13 @@ test('codes de saisie : ABS0 et NR0 comptent zéro, NR et INAP ne comptent pas',
   assert.equal(cellValue('INAP', 20).counted, false);
   assert.equal(cellValue('ABS', 20).counted, false);
 });
+
+import { mergeStudentInCarnet } from '../src/rules/studentMerge.js';
+test('fusion d\'un doublon dans un carnet : notes et appréciation passent sur la bonne fiche sans rien écraser', () => {
+  const c = { grades: { s1: { 'X Mathis': { e1: '12', e2: '8' }, 'X Mathias': { e2: '9' } } }, comments: { 's1:X Mathis': { text: 'Bien.' } } };
+  const r = mergeStudentInCarnet(c, 'X Mathis', 'X Mathias');
+  assert.deepEqual(r.grades.s1['X Mathias'], { e2: '9', e1: '12' });
+  assert.equal(r.grades.s1['X Mathis'], undefined);
+  assert.equal(r.comments['s1:X Mathias'].text, 'Bien.');
+  assert.equal(mergeStudentInCarnet(c, 'Y', 'Z'), c);
+});
