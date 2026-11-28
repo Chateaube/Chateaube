@@ -27,7 +27,8 @@ const ENTRIES = [
     'Programme d\'enseignement moral et civique (2024)'],
   ['SVT', C3, ['Pratiquer des démarches scientifiques et technologiques', 'Concevoir, créer, réaliser', 'S\'approprier des outils et des méthodes', 'Pratiquer des langages',
     'Mobiliser des outils numériques', 'Adopter un comportement éthique et responsable', 'Se situer dans l\'espace et dans le temps'], 'Programme de sciences et technologie du cycle 3 (2023)'],
-  ['SVT', C4, SCIENCES_C4, 'Programme du cycle 4 (2020)'],
+  ['SVT', C4, ['Pratiquer des démarches scientifiques', 'Concevoir, créer, réaliser', 'Utiliser des outils et mobiliser des méthodes pour apprendre', 'Pratiquer des langages',
+    'Utiliser des outils numériques', 'Adopter un comportement éthique et responsable', 'Se situer dans l\'espace et dans le temps'], 'Programme du cycle 4 (2020)'],
   ['Physique-chimie', C4, SCIENCES_C4, 'Programme du cycle 4 (2020)'],
   ['Technologie', C4, ['Décrire les liens entre usages et évolutions technologiques des objets et systèmes techniques', 'Décrire les interactions entre un objet technique, son environnement et ses utilisateurs',
     'Décrire l\'organisation interne d\'un objet technique et ses échanges (énergie, données)', 'Identifier un dysfonctionnement d\'un objet technique et y remédier',
@@ -66,6 +67,4 @@ export const STUDY_POINTS = [
     text: 'Construire une culture de la démocratie : esprit civique, engagement, règles communes. Partir de situations réelles ; débats et projets collectifs. Thèmes liés au numérique par niveau (vie privée en ligne en 6e, discours de haine en 5e, liberté d\'expression en 4e, rôle des médias en 3e). L\'éducation à la citoyenneté dépasse l\'heure d\'EMC (heures de vie de classe, projets).' },
   { subject: 'Vie affective et relationnelle (ÉVARS)', levels: '6e à 3e', who: 'Direction', title: 'Au moins trois séances obligatoires par an et par niveau',
     text: 'Le programme d\'éducation à la vie affective et relationnelle, et à la sexualité impose au moins trois séances annuelles spécifiques par niveau, en plus des liens avec les autres matières (le français et les SVT y renvoient). À planifier : dates, intervenants, information des familles.' },
-  { subject: 'SVT, Physique-chimie, Histoire-géographie', levels: '5e, 4e, 3e', who: 'Direction', title: 'À compléter : programmes non lus en entier',
-    text: 'Le fichier du programme du cycle 4 (2020) déposé sur le Drive est trop long pour être lu en entier : les parties SVT, physique-chimie et mathématiques (ancienne version) n\'ont pas été lues. Les compétences de ces matières reprennent la liste officielle du cycle 4. Déposer, si possible, un PDF par matière.' },
 ];
