@@ -524,6 +524,7 @@ function StatusCard({ p, profiles, onSave }) {
   const [on, setOn] = useState(today());
   const [reason, setReason] = useState('');
   const [target, setTarget] = useState('');
+  const [keepThis, setKeepThis] = useState(false); // true : cette fiche est la bonne, on choisit le doublon à retirer
   // toutes les fiches actives, celles de la même classe d'abord (la bonne fiche peut avoir une autre classe dans l'import)
   const mates = profiles.filter((x) => x.id !== p.id && !x.duplicateOf && !x.leftOn)
     .sort((a, b) => (a.cls === p.cls ? 0 : 1) - (b.cls === p.cls ? 0 : 1) || fullNameOf(a).localeCompare(fullNameOf(b)));
@@ -559,17 +560,25 @@ function StatusCard({ p, profiles, onSave }) {
       )}
       {mode === 'DUP' && (
         <div className="space-y-2 text-sm">
-          <label className="block text-xs text-slate-600">La bonne fiche (celle à garder)
+          <p className="text-xs text-slate-600">Fiche ouverte : <strong>{fullNameOf(p)}</strong>{p.number ? ` · ${p.number}` : ''}</p>
+          <div className="flex flex-wrap gap-3 text-xs">
+            <label className="flex items-center gap-1"><input type="radio" checked={!keepThis} onChange={() => { setKeepThis(false); setTarget(''); }} /> Cette fiche est le doublon (à retirer)</label>
+            <label className="flex items-center gap-1"><input type="radio" checked={keepThis} onChange={() => { setKeepThis(true); setTarget(''); }} /> Cette fiche est la bonne (à garder)</label>
+          </div>
+          <label className="block text-xs text-slate-600">{keepThis ? 'Le doublon à retirer' : 'La bonne fiche (celle à garder)'}
             <select value={target} onChange={(e) => setTarget(e.target.value)} className="mt-1 block w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm">
               <option value="">Choisir…</option>
               {mates.map((x) => <option key={x.id} value={x.id}>{fullNameOf(x)} · {x.cls}{x.number ? ` · ${x.number}` : ''}</option>)}
             </select>
           </label>
-          <p className="text-xs text-slate-500">Fusion : cette fiche disparaît des classes ; ses paiements (inscription, écolages) et les notes et appréciations saisies à ce nom par les professeurs passent sur la bonne fiche (sans écraser ce qui y est déjà). {note}</p>
+          <p className="text-xs text-slate-500">Fusion : le doublon disparaît des classes ; ses paiements (inscription, écolages) et les notes et appréciations saisies à son nom par les professeurs passent sur la bonne fiche (sans écraser ce qui y est déjà). {note}</p>
           <div className="flex gap-2"><Button disabled={!target} onClick={async () => {
-            if (!(await askConfirm(`Fusionner ${fullNameOf(p)} dans ${nameOf(target)} ? Paiements, notes et appréciations passent sur ${nameOf(target)}.`))) return;
-            onSave({ ...p, duplicateOf: target }); setMode(null);
-            const n = await mergeIntoCarnets(fullNameOf(p), nameOf(target));
+            const dup = keepThis ? profiles.find((x) => x.id === target) : p;
+            const keep = keepThis ? p : profiles.find((x) => x.id === target);
+            if (!dup || !keep) return;
+            if (!(await askConfirm(`Fusionner ${fullNameOf(dup)} dans ${fullNameOf(keep)} ? Paiements, notes et appréciations passent sur ${fullNameOf(keep)}.`))) return;
+            onSave({ ...dup, duplicateOf: keep.id }); setMode(null);
+            const n = await mergeIntoCarnets(fullNameOf(dup), fullNameOf(keep));
             tell(n === null ? 'Fiche fusionnée. Les carnets des professeurs n\'ont pas pu être lus (réseau) : refaites la fusion plus tard pour les notes.' : `Fiche fusionnée. ${n ? `Notes déplacées dans ${n} carnet${n > 1 ? 's' : ''} de professeur.` : 'Aucune note à déplacer.'} Pensez à « Envoyer les classes ».`);
           }}>Fusionner</Button><Button variant="ghost" onClick={() => setMode(null)}>Annuler</Button></div>
         </div>
