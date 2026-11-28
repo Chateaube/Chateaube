@@ -1507,8 +1507,9 @@ test('navigation : Direction en 5 rubriques, un seul emplacement par écran, rie
   assert.equal(DIRECTION_TREE.length, 5);
   const ids = DIRECTION_TREE.flatMap((g) => g.ids).map((i) => i.replace(/\?$/, ''));
   assert.equal(new Set(ids).size, ids.length, 'écran présent deux fois');
-  // « ? » : écran présent dans une seule version (comptes du personnel : en ligne) — 10 entrées au plus dans ce cas
-  DIRECTION_TREE.forEach((g) => assert.ok(g.ids.filter((i) => !i.endsWith('?')).length <= 9 && g.ids.length <= 10, `${g.group} : trop d'entrées`));
+  // « ? » : écran présent dans une seule version (en ligne, site d'essai). Le menu affiché est le menu court
+  // (rules/menuLayout.js, rubriques à onglets) : cette liste peut donc compter jusqu'à 12 entrées par groupe.
+  DIRECTION_TREE.forEach((g) => assert.ok(g.ids.filter((i) => !i.endsWith('?')).length <= 10 && g.ids.length <= 12, `${g.group} : trop d'entrées`));
   ['students', 'exams'].forEach((id) => assert.ok(!ids.includes(id), `${id} ne doit pas être dans le menu`));
   assert.ok(ids.includes('timetable'), 'les emplois du temps sont maintenant un vrai écran');
   assert.ok(ids.includes('mandates') && ids.includes('feedback'), 'Délégués et BDE et Avis du pilote sont dans le menu');

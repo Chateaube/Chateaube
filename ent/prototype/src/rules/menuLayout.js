@@ -15,7 +15,7 @@ export const MENU_LAYOUT = {
     { group: 'Pédagogie', items: [
       hub('notes', 'Notes et bulletins', 'pen', ['notes-recues', ['relecture', 'Relecture'], 'council', 'bulletins', ['my-grades', 'Mes notes']]),
       'mock-exams',
-      hub('professeurs', 'Professeurs', 'clock', ['timetable', ['hours', 'Heures et absences'], 'oversight-grades', 'programs', 'new-programs', 'teacher-guide']),
+      hub('professeurs', 'Professeurs', 'clock', ['timetable', ['hours', 'Heures et absences'], 'oversight-grades', 'programs', 'new-programs', 'faq', 'teacher-guide']),
     ] },
     { group: 'École', items: [hub('communication', 'Communication', 'megaphone', ['news', 'school-life', 'agenda', ['resources', 'Ressources'], 'feedback'])] },
     { group: 'Gestion', items: [

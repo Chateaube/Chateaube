@@ -4,6 +4,7 @@ import IdleGuard from './components/IdleGuard.jsx';
 import BulletinChanges from './components/BulletinChanges.jsx';
 import NotesReceived from './components/NotesReceived.jsx';
 import NewPrograms from './components/NewPrograms.jsx';
+import StudentFaq from './components/StudentFaq.jsx';
 import MyGrades from './components/MyGrades.jsx';
 import OnlineStudentPortal from './components/OnlineStudentPortal.jsx';
 import StudentAccounts from './components/StudentAccounts.jsx';
@@ -148,6 +149,8 @@ const IMPORT = { id: 'import', label: ONLINE ? 'Sauvegarder' : 'Importer et sauv
 const TEACHER_GUIDE = { id: 'teacher-guide', label: 'Mode d\'emploi', icon: 'book', screen: TeacherGuide };
 const PROGRAMS = { id: 'programs', label: 'Programmes et progression', icon: 'cap', screen: ProgramsModule };
 const NEW_PROGRAMS = { id: 'new-programs', label: 'Nouveaux programmes', icon: 'cap', screen: NewPrograms };
+// site d'essai : questions fréquentes des élèves (brouillons à valider par la Direction)
+const FAQ = { id: 'faq', label: 'Questions fréquentes', icon: 'book', screen: StudentFaq };
 const GRADE_SHEETS = { id: 'grade-sheets', label: 'Grilles de notes', icon: 'pen', screen: GradeSheets };
 const BOOKS_FOR_TEACHER = { id: 'books', label: 'Bibliothèque et manuels', icon: 'cap', screen: () => <BookCatalog who={me('ENSEIGNANT')} kind="PROF" /> };
 const TT_CHANGES = { id: 'tt-changes', label: 'Changements d\'emploi du temps', icon: 'clock', screen: TimetableChanges };
@@ -183,7 +186,7 @@ const PROFILES = {
     nav: arrangeNav(DIRECTION_TREE, [
       { group: 'Aujourd\'hui', items: [{ id: 'dashboard', label: 'Mes décisions', icon: 'home', screen: DirectionDashboard }, SIGNATURES, FEEDBACK] },
       { group: 'Élèves', items: [ELEVES, ...(ONLINE ? [{ id: 'eleves-portail', label: 'Portail des élèves (comptes)', icon: 'cap', screen: StudentAccounts }] : []), { id: 'students', label: 'Mobilité Tamatave → Tana', icon: 'swap' }] },
-      { group: 'Pédagogie', items: [...(ONLINE ? [{ id: 'notes-recues', label: 'Notes reçues', icon: 'pen', screen: NotesReceived }, { id: 'my-grades', label: 'Mes notes (mes classes)', icon: 'pen', screen: MyGrades }, { id: 'relecture', label: 'Relecture des appréciations', icon: 'pen', screen: AppreciationsReview }] : []), COUNCIL, BULLETINS, MOCK_EXAMS, GRADE_SHEETS, PROGRAMS, NEW_PROGRAMS, TEACHER_GUIDE, ...OVERSIGHT, TIMETABLE, { id: 'exams', label: 'Examens & Campus France', icon: 'cap' }] },
+      { group: 'Pédagogie', items: [...(ONLINE ? [{ id: 'notes-recues', label: 'Notes reçues', icon: 'pen', screen: NotesReceived }, { id: 'my-grades', label: 'Mes notes (mes classes)', icon: 'pen', screen: MyGrades }, { id: 'relecture', label: 'Relecture des appréciations', icon: 'pen', screen: AppreciationsReview }] : []), COUNCIL, BULLETINS, MOCK_EXAMS, GRADE_SHEETS, PROGRAMS, NEW_PROGRAMS, ...(ESSAI ? [FAQ] : []), TEACHER_GUIDE, ...OVERSIGHT, TIMETABLE, { id: 'exams', label: 'Examens & Campus France', icon: 'cap' }] },
       { group: 'Vie scolaire', items: [VIE_SCOLAIRE, CARE, HOURS, FOLLOW_UP, MANDATES] },
       { group: 'Finances', items: [ACCOUNTING] },
       { group: 'Communication', items: [MESSAGES, NEWS, SCHOOL_LIFE, AGENDA] },
@@ -244,7 +247,7 @@ const PROFILES = {
     label: 'Élève',
     title: 'Élève',
     home: 'eleve',
-    nav: [{ group: 'Élève', items: [{ id: 'eleve', label: 'Portail élèves', icon: 'cap', screen: (p) => (ONLINE ? <OnlineStudentPortal {...p} /> : <FamilyPortal {...p} audience="ELEVE" />) }] }],
+    nav: [{ group: 'Élève', items: [{ id: 'eleve', label: 'Portail élèves', icon: 'cap', screen: (p) => (ONLINE ? <OnlineStudentPortal {...p} /> : <FamilyPortal {...p} audience="ELEVE" />) }, ...(ESSAI ? [FAQ] : [])] }],
   },
   // Nouvelle famille, sans compte : formulaire de pré-inscription en ligne (lien sur le site, Facebook…)
   VISITEUR: {
