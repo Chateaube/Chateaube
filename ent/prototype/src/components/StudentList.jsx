@@ -21,7 +21,10 @@ export default function StudentList({ role, onOpen, embedded = false, rowAction 
   const [query, setQuery] = useState('');
   const [preview, setPreview] = useState(null); // aperçu à l'écran : 'trombi' | 'codes'
   const classes = useMemo(() => [...new Set(profiles.map((p) => p.cls))].sort(), [profiles]);
-  const list = useMemo(() => filterStudents(profiles, { cls, query }), [profiles, cls, query]);
+  // élèves partis et fiches en double : cachés de la liste (et des impressions), sauf si on demande à les voir
+  const [showGone, setShowGone] = useState(false);
+  const gone = profiles.filter((p) => p.leftOn || p.duplicateOf).length;
+  const list = useMemo(() => filterStudents(profiles.filter((p) => showGone || !(p.leftOn || p.duplicateOf)), { cls, query }), [profiles, cls, query, showGone]);
   const title = `Liste des élèves${cls ? ` — ${cls}` : ''} · 2026-2027 · Chateaubriand ${brand().city}`;
   // CPE : consultation seulement (appeler une famille), sans impression ni export
   const readOnly = role === 'VIE_SCOLAIRE';
@@ -30,7 +33,7 @@ export default function StudentList({ role, onOpen, embedded = false, rowAction 
   const noPhoto = list.filter((p) => !p.photo).length;
   // colonnes de la liste imprimée, au choix (ex. une colonne vide « Signature » pour un émargement)
   const PRINT_COLS = {
-    num: ['N°', (p, i) => i + 1], matricule: ['Matricule', (p) => p.number ?? ''], last: ['Nom', (p) => p.lastName], first: ['Prénom', (p) => usualFirstName(p)],
+    num: ['N°', (p, i) => i + 1], matricule: ['Matricule', (p) => p.number ?? ''], last: ['Nom', (p) => `${p.lastName}${p.leftOn ? ' (parti)' : p.duplicateOf ? ' (doublon)' : ''}`], first: ['Prénom', (p) => usualFirstName(p)],
     cls: ['Classe', (p) => p.cls], birth: ['Né(e) le', (p) => fmt(p.birthDate)], nat: ['Nationalité(s)', (p) => nationalityLabels(p.nationalities ?? [], p.otherNationality).join(', ')],
     guardian: ['Responsable', (p) => p.guardians?.[0]?.name ?? ''], phone: ['Téléphone', (p) => p.guardians?.[0]?.phone ?? ''], email: ['E-mail', (p) => p.guardians?.find((g) => g.email)?.email ?? ''],
     sign: ['Signature', () => ''],
@@ -61,6 +64,7 @@ export default function StudentList({ role, onOpen, embedded = false, rowAction 
           </select>
           <input value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Rechercher un élève" placeholder="Nom, prénom ou n°…" className={`min-w-[200px] flex-1 ${inputCls}`} />
         </div>
+        {gone > 0 && <label className="mt-2 flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" checked={showGone} onChange={(e) => setShowGone(e.target.checked)} />Afficher aussi les élèves partis et les doublons ({gone})</label>}
         {!readOnly && (
           <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-slate-600">
             <span className="font-semibold">Colonnes à imprimer :</span>

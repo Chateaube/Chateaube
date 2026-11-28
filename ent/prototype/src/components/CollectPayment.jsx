@@ -101,7 +101,20 @@ export function mergeAccounts(stored, fresh) {
   return out;
 }
 // comptes enregistrés (encaissements faits depuis), complétés par l'import ; sinon comptes de départ
-export const CASH_ACCOUNTS = liveArray(() => { const st = readStored(accountsKey()); return st ? mergeAccounts(st, importedAccounts()) : currentAccounts(); });
+/**
+ * Fiches marquées dans le dossier de l'élève : doublon (duplicateOf : ses paiements passent sur la bonne fiche, le
+ * compte en double disparaît) ; départ (leftOn : plus rien n'est dû après la date de départ, historique gardé).
+ */
+export function applyStudentStatus(accounts, profiles) {
+  const dup = Object.fromEntries((profiles ?? []).filter((p) => p.duplicateOf).map((p) => [p.id, p.duplicateOf]));
+  const left = Object.fromEntries((profiles ?? []).filter((p) => p.leftOn).map((p) => [p.id, p.leftOn]));
+  if (!Object.keys(dup).length && !Object.keys(left).length) return accounts;
+  return accounts.filter((a) => !dup[a.id]).map((a) => {
+    const merged = accounts.filter((d) => dup[d.id] === a.id);
+    return { ...a, ...(merged.length ? { paid: [...new Set([...(a.paid ?? []), ...merged.flatMap((d) => d.paid ?? [])])] } : {}), ...(left[a.id] ? { leftOn: left[a.id] } : {}) };
+  });
+}
+export const CASH_ACCOUNTS = liveArray(() => { const st = readStored(accountsKey()); return applyStudentStatus(st ? mergeAccounts(st, importedAccounts()) : currentAccounts(), loadImport()?.profiles); });
 /** Clé d'enregistrement des comptes (paiements encaissés) : une par import, pour repartir des paiements repris. */
 export const accountsKey = () => `ent-s-comptes-${loadImport()?.importedAt ?? 'demo'}`;
 
@@ -120,7 +133,9 @@ export function duesStatus(accounts, settings, today, journal) {
     const fees = feesFor(a);
     if (!fees) return null;
     // réductions et exonérations comprises (avant : oubliées ici, l'exonéré paraissait en retard)
-    const items = studentDues({ ...a, reduction: reductionFor(a) }, fees, settings, today).filter((i) => (!journal || i.journal === journal) && i.due <= today && i.status !== 'EXONERE');
+    // élève parti : seul ce qui était dû avant son départ reste à régler
+    const until = a.leftOn && a.leftOn < today ? a.leftOn : today;
+    const items = studentDues({ ...a, reduction: reductionFor(a) }, fees, settings, today).filter((i) => (!journal || i.journal === journal) && i.due <= until && i.status !== 'EXONERE');
     const late = items.filter((i) => i.status === 'ECHU');
     return { account: a, plan: fees.plan, due: sum(items), paid: sum(items.filter((i) => i.status === 'PAYE')), overdue: sum(late), firstDue: late.map((i) => i.due).sort()[0] ?? null, lateItems: late.map((i) => i.short ?? i.label), late: late.map(({ key, label, short, amount, due, month }) => ({ key, label, short, amount, due, month })) };
   }).filter(Boolean);

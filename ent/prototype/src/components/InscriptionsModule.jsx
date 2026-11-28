@@ -497,6 +497,63 @@ function ProfileCard({ p, onReenrol, onComplete, created }) {
 // Fiche (identité, responsables, certificat, réinscription) · Fil (ce qui s'est passé) · Suivi (confidentiel).
 const initialProfiles = loadProfiles;
 const fullNameOf = (p) => `${p.lastName} ${p.firstName}`;
+const frDate = (iso) => String(iso ?? '').split('-').reverse().join('/');
+
+/** Départ ou doublon (Direction et secrétariat) : l'élève sort des classes, l'historique reste dans son dossier. */
+function StatusCard({ p, profiles, onSave }) {
+  const [mode, setMode] = useState(null); // 'LEFT' | 'DUP'
+  const [on, setOn] = useState(today());
+  const [reason, setReason] = useState('');
+  const [target, setTarget] = useState('');
+  const mates = profiles.filter((x) => x.id !== p.id && x.cls === p.cls && !x.duplicateOf && !x.leftOn);
+  const nameOf = (id) => { const x = profiles.find((y) => y.id === id); return x ? fullNameOf(x) : id; };
+  const note = 'Pour que les professeurs ne le voient plus dans leurs classes : Notes et bulletins › Notes reçues › « Envoyer les classes ».';
+  if (p.duplicateOf) return (
+    <Card title="Fiche en double">
+      <p className="text-sm text-slate-700">Doublon de <strong>{nameOf(p.duplicateOf)}</strong> : cette fiche n'apparaît plus dans les classes ; ses paiements sont comptés sur la bonne fiche.</p>
+      <Button variant="ghost" className="mt-2" onClick={async () => { if (await askConfirm('Annuler « doublon » et remettre cette fiche dans la classe ?')) onSave({ ...p, duplicateOf: '' }); }}>Annuler</Button>
+    </Card>
+  );
+  if (p.leftOn) return (
+    <Card title="A quitté l'établissement">
+      <p className="text-sm text-slate-700">Parti le <strong>{frDate(p.leftOn)}</strong>{p.leftReason ? ` (${p.leftReason})` : ''}. Il n'est plus dans les classes ; ce qui était dû avant son départ reste dans la caisse.</p>
+      <Button variant="ghost" className="mt-2" onClick={async () => { if (await askConfirm('Annuler le départ et remettre l\'élève dans sa classe ?')) onSave({ ...p, leftOn: '', leftReason: '' }); }}>Annuler le départ</Button>
+    </Card>
+  );
+  return (
+    <Card title="Départ ou doublon">
+      {!mode && (
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={() => setMode('LEFT')}>A quitté l'établissement</Button>
+          <Button variant="secondary" onClick={() => setMode('DUP')}>C'est un doublon</Button>
+        </div>
+      )}
+      {mode === 'LEFT' && (
+        <div className="space-y-2 text-sm">
+          <label className="block text-xs text-slate-600">Date du départ<input type="date" value={on} onChange={(e) => setOn(e.target.value)} className="mt-1 block rounded-md border border-slate-300 px-2 py-1.5 text-sm" /></label>
+          <label className="block text-xs text-slate-600">Motif (facultatif)<input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="ex. déménagement, jamais venu" className="mt-1 block w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm" /></label>
+          <p className="text-xs text-slate-500">{note}</p>
+          <div className="flex gap-2"><Button disabled={!on} onClick={() => { onSave({ ...p, leftOn: on, leftReason: reason.trim() }); setMode(null); }}>Enregistrer le départ</Button><Button variant="ghost" onClick={() => setMode(null)}>Annuler</Button></div>
+        </div>
+      )}
+      {mode === 'DUP' && (
+        <div className="space-y-2 text-sm">
+          <label className="block text-xs text-slate-600">La bonne fiche (même classe)
+            <select value={target} onChange={(e) => setTarget(e.target.value)} className="mt-1 block w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm">
+              <option value="">Choisir…</option>
+              {mates.map((x) => <option key={x.id} value={x.id}>{fullNameOf(x)}{x.number ? ` · ${x.number}` : ''}</option>)}
+            </select>
+          </label>
+          <p className="text-xs text-slate-500">Cette fiche disparaît des classes ; ses paiements (inscription, écolages) sont comptés sur la bonne fiche. {note}</p>
+          <div className="flex gap-2"><Button disabled={!target} onClick={async () => {
+            if (!(await askConfirm(`${fullNameOf(p)} est un doublon de ${nameOf(target)} ? Les paiements passent sur ${nameOf(target)}.`))) return;
+            onSave({ ...p, duplicateOf: target }); setMode(null);
+          }}>Marquer comme doublon</Button><Button variant="ghost" onClick={() => setMode(null)}>Annuler</Button></div>
+        </div>
+      )}
+    </Card>
+  );
+}
 
 export default function InscriptionsModule({ role }) {
   const [prereg, setPreregState] = useState(() => [...loadRequests().prereg, ...PREREGISTRATIONS]);
@@ -572,10 +629,11 @@ export default function InscriptionsModule({ role }) {
           <button type="button" onClick={() => setSelected(null)} className="text-sm font-medium text-navy-700">‹ Retour à la liste</button>
           <div className="flex flex-wrap items-center gap-3">
             <Avatar name={`${current.firstName} ${current.lastName}`} photo={current.photo} className="h-12 w-12 text-sm" />
-            <div><p className="text-lg font-semibold text-navy-900">{current.lastName} {usualFirstName(current)}</p><p className="text-sm text-slate-600">{current.cls}{current.number ? ` · ${current.number}` : ''}</p></div>
+            <div><p className="text-lg font-semibold text-navy-900">{current.lastName} {usualFirstName(current)}{current.leftOn && <Badge tone="slate" className="ml-2 align-middle">parti le {frDate(current.leftOn)}</Badge>}{current.duplicateOf && <Badge tone="amber" className="ml-2 align-middle">doublon</Badge>}</p><p className="text-sm text-slate-600">{current.cls}{current.number ? ` · ${current.number}` : ''}</p></div>
           </div>
           <ScreenTabs label="Dossier de l'élève" value={dossierTab} onChange={setDossierTab} tabs={[
-            ['fiche', 'Fiche', <ProfileCard key="fiche" p={current} onReenrol={canEdit ? reenrol : null} onComplete={canEdit ? complete : null} created={created === current.id} />],
+            ['fiche', 'Fiche', <div key="fiche" className="space-y-4"><ProfileCard p={current} onReenrol={canEdit ? reenrol : null} onComplete={canEdit ? complete : null} created={created === current.id} />
+              {canEdit && <StatusCard p={current} profiles={profiles} onSave={(np) => { const next = profiles.map((x) => (x.id === np.id ? np : x)); setProfiles(next); if (!saveProfiles(next)) tell('Le navigateur manque de place : changement gardé pour cette session seulement.'); }} />}</div>],
             ['fil', 'Fil de l\'élève', <StudentTimeline key="fil" role={role} student={fullNameOf(current)} embedded />],
             ...(canFollow ? [['suivi', 'Suivi', <FollowUpsModule key="suivi" role={role} student={fullNameOf(current)} embedded />]] : []),
           ]} />

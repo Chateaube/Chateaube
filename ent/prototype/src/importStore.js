@@ -35,5 +35,6 @@ export function currentStudents() {
   if (!imp?.students?.length) return [];
   if (!imp.profiles?.length) return imp.students;
   const byId = new Map(imp.profiles.map((p) => [p.id, p]));
-  return imp.students.map((s) => { const p = byId.get(s.id); return p ? { ...s, ...p, cls: p.cls || s.cls } : s; });
+  // élève parti (leftOn) ou fiche en double (duplicateOf) : retirés des classes, des carnets et de l'appel
+  return imp.students.map((s) => { const p = byId.get(s.id); return p ? { ...s, ...p, cls: p.cls || s.cls } : s; }).filter((s) => !s.leftOn && !s.duplicateOf);
 }

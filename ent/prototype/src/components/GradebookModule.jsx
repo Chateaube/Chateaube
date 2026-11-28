@@ -228,6 +228,8 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
   // classe commune : le minimum se compte sur les devoirs des deux professeurs
   const other = service.common ? (service.otherCount ?? 0) : 0;
   const check = termValidation(evaluations, service.students, grades, Math.max(0, min - other));
+  // DISP hors EPS : à remplacer par ABS ou NN avant de valider
+  const dispOutsideEps = isEps(service) ? 0 : service.students.reduce((n, st) => n + evaluations.filter((ev) => /^\s*disp\s*$/i.test(grades[st]?.[ev.id] ?? '')).length, 0);
   const maxAdj = settings.grading.maxAdjustment ?? 2;
   const steps = Array.from({ length: maxAdj * 4 + 1 }, (_, i) => (i - maxAdj * 2) / 2); // -2 … +2 par demi-point
   const avgs = service.students.map((s) => studentAverage(evaluations, grades[s], BONUS_ENABLED ? bonus[s] : undefined));
@@ -292,12 +294,12 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
                   {NOUVEAU && <th className="bg-slate-100 px-2 py-2 text-right font-medium" style={{ width: 64 }}>Moy.</th>}
                   {NOUVEAU && <th className="bg-slate-100 px-2 py-2 text-center font-medium" style={{ width: 56 }} title="Notes comptées / devoirs">Notes</th>}
                   {cols.map((ev) => NOUVEAU ? (
-                    <th key={ev.id} className="border-l border-slate-200 px-1 py-2 text-center font-normal" style={{ width: 96 }}>
+                    <th key={ev.id} className="border-l border-slate-200 px-1 py-2 text-center font-normal" style={{ width: 112, maxWidth: 112 }}>
                       <button type="button" disabled={validated || ev.fromMockExam} onClick={() => editEv(ev)} title={`${ev.title}${ev.fromMockExam ? '' : ' — cliquer pour modifier ou supprimer'}`}
                         className="w-full rounded px-1 py-0.5 hover:bg-white disabled:hover:bg-transparent">
                         <span className="block text-slate-600">{fmtDate(ev.date)}</span>
                         <span className="mx-auto mt-1 block w-fit rounded bg-navy-50 px-2 text-navy-700">{ev.type}</span>
-                        <span className="mt-1 block truncate text-[11px] text-slate-700">{ev.title}</span>
+                        <span className="mt-1 line-clamp-2 whitespace-normal break-words text-[11px] leading-tight text-slate-700">{ev.title}</span>
                         <span className="block text-[10px] text-slate-500">coef. {String(ev.coef).replace('.', ',')}{ev.scale !== 20 ? ` · /${ev.scale}` : ''}{(ev.publishOn ?? ev.date) > TODAY ? ` · publiée le ${ddmm(ev.publishOn)}` : ''}</span>
                       </button>
                     </th>
@@ -339,9 +341,9 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
                       {NOUVEAU && <td className="bg-slate-50 px-2 py-2.5 text-right font-semibold tabular-nums text-navy-900">{fmtAvg(avgs[i])}</td>}
                       {NOUVEAU && <td className={`bg-slate-50 px-2 py-2.5 text-center tabular-nums ${n < min ? 'text-amber-700' : 'text-slate-600'}`} title={n < min ? `Minimum : ${min} notes` : undefined}>{n}/{evaluations.length}</td>}
                       {cols.map((ev) => (
-                        <td key={ev.id} className={NOUVEAU ? 'border-l border-slate-100 px-1 py-2' : 'px-2 py-2'} style={NOUVEAU ? { width: 96 } : undefined}>
+                        <td key={ev.id} className={NOUVEAU ? 'border-l border-slate-100 px-1 py-2' : 'px-2 py-2'} style={NOUVEAU ? { width: 112, maxWidth: 112 } : undefined}>
                           {validated ? <span className="tabular-nums">{grades[s]?.[ev.id] || '—'}</span>
-                            : <GradeCell value={grades[s]?.[ev.id] ?? ''} max={ev.scale} onChange={(v) => setCell(s, ev.id, v)} />}
+                            : <GradeCell value={grades[s]?.[ev.id] ?? ''} max={ev.scale} allowDisp={isEps(service)} onChange={(v) => setCell(s, ev.id, v)} />}
                           {NOUVEAU && !validated && !grades[s]?.[ev.id] && arrivalOf(s) > ev.date && (
                             <button type="button" onClick={() => setCell(s, ev.id, 'NN')} title={`Inscrit le ${fmtDate(arrivalOf(s))}, après ce devoir : NN (non noté), sauf s'il l'a rattrapé`}
                               className="mt-1 block rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-800 ring-1 ring-amber-200">NN ? (inscrit le {fmtDate(arrivalOf(s))})</button>
@@ -393,7 +395,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
             </table>
           </div>
         )}
-        <p className="mt-3 text-xs text-slate-500">Saisie contrôlée : « 1O » → 10, « 12.5 » → 12,5 (Entrée pour accepter). Codes (non comptés dans la moyenne) : ABS = absent, DISP = dispensé, NN = non noté (par exemple un élève inscrit tardivement, après la date du devoir ; il pourra le rattraper).</p>
+        <p className="mt-3 text-xs text-slate-500">Saisie contrôlée : « 1O » → 10, « 12.5 » → 12,5 (Entrée pour accepter). Codes (non comptés dans la moyenne) : ABS = absent, DISP = dispensé (EPS seulement), NN = non noté (par exemple un élève inscrit tardivement, après la date du devoir ; il pourra le rattraper).</p>
       </Card>
 
       <Card title="Validation du trimestre">
@@ -414,6 +416,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
             <Icon name={competencies.length ? 'check' : 'x'} className="mt-0.5 h-4 w-4 shrink-0" />
             {competencies.length ? `${competencies.length} compétence(s) pour le bulletin` : 'Compétences du bulletin à renseigner (onglet « Compétences du bulletin »)'}
           </li>
+          {dispOutsideEps > 0 && <p className="mt-2 text-sm text-red-700">✗ {dispOutsideEps} « DISP » à remplacer : la dispense n'existe qu'en EPS (écrire ABS ou NN).</p>}
           {adjErrors.length > 0 && (
             <li className="flex gap-2 text-red-800"><Icon name="x" className="mt-0.5 h-4 w-4 shrink-0" /><span>Bonus / malus : {adjErrors.join(' ')}</span></li>
           )}
@@ -432,7 +435,7 @@ function NotesStep({ service, evaluations, setEvaluations, grades, setGrades, re
           </div>
         ) : (
           <>
-            <Button className="mt-4 w-full" disabled={!check.ok || adjErrors.length > 0 || !competencies.length} onClick={() => setValidated(true)}>Valider les notes du trimestre</Button>
+            <Button className="mt-4 w-full" disabled={!check.ok || adjErrors.length > 0 || !competencies.length || dispOutsideEps > 0} onClick={() => setValidated(true)}>Valider les notes du trimestre</Button>
             {(!check.ok || !competencies.length) && <p className="mt-1.5 text-xs text-red-800">Pas encore possible : {[check.missing && `il manque ${check.missing} évaluation${check.missing > 1 ? 's' : ''}`, check.pending.length && `${check.pending.length} saisie(s) à corriger`, check.empty.length && `${check.empty.length} case(s) vide(s)`, !competencies.length && 'compétences du bulletin à renseigner'].filter(Boolean).join(', ')}.</p>}
           </>
         )}
